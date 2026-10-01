@@ -1,0 +1,200 @@
+[
+  {
+    "id": 2,
+    "slug": "winner",
+    "name": "Winner",
+    "description": "Won an event",
+    "emoji": "\ud83c\udfc6",
+    "badge_type": "user",
+    "trigger_metric": "events_won",
+    "threshold": 1.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 8,
+    "slug": "runner_up",
+    "name": "Runner Up",
+    "description": "Finished 2nd in an event",
+    "emoji": "\ud83e\udd48",
+    "badge_type": "user",
+    "trigger_metric": "runner_up_count",
+    "threshold": 1.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 1,
+    "slug": "first_event",
+    "name": "First Steps",
+    "description": "Registered for your first event",
+    "emoji": "\ud83c\udf9f\ufe0f",
+    "badge_type": "user",
+    "trigger_metric": "events_registered",
+    "threshold": 1.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 9,
+    "slug": "podium_finish",
+    "name": "Podium Finish",
+    "description": "Finished 3rd in an event",
+    "emoji": "\ud83e\udd49",
+    "badge_type": "user",
+    "trigger_metric": "podium_count",
+    "threshold": 1.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 7,
+    "slug": "supporter",
+    "name": "Supporter",
+    "description": "Paid for 3 events",
+    "emoji": "\ud83d\udcb0",
+    "badge_type": "user",
+    "trigger_metric": "events_paid",
+    "threshold": 3.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 10,
+    "slug": "serial_winner",
+    "name": "Serial Winner",
+    "description": "Won 5 events",
+    "emoji": "\ud83c\udfc5",
+    "badge_type": "user",
+    "trigger_metric": "events_won",
+    "threshold": 5.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 3,
+    "slug": "event_explorer",
+    "name": "Event Explorer",
+    "description": "Attended 5 events",
+    "emoji": "\u2b50",
+    "badge_type": "user",
+    "trigger_metric": "events_attended",
+    "threshold": 5.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 6,
+    "slug": "critic",
+    "name": "Critic",
+    "description": "Rated 5 events",
+    "emoji": "\ud83d\udcdd",
+    "badge_type": "user",
+    "trigger_metric": "events_rated",
+    "threshold": 5.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 4,
+    "slug": "event_enthusiast",
+    "name": "Event Enthusiast",
+    "description": "Attended 15 events",
+    "emoji": "\ud83d\udd25",
+    "badge_type": "user",
+    "trigger_metric": "events_attended",
+    "threshold": 15.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 5,
+    "slug": "event_legend",
+    "name": "Event Legend",
+    "description": "Attended 50 events",
+    "emoji": "\ud83c\udf1f",
+    "badge_type": "user",
+    "trigger_metric": "events_attended",
+    "threshold": 50.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 18,
+    "slug": "verified_club",
+    "name": "Verified",
+    "description": "Club has been verified",
+    "emoji": "\u2705",
+    "badge_type": "club",
+    "trigger_metric": "is_verified",
+    "threshold": 1.0,
+    "claimed_count": 1
+  },
+  {
+    "id": 11,
+    "slug": "first_event_hosted",
+    "name": "First Event",
+    "description": "Hosted your first event",
+    "emoji": "\ud83c\udf89",
+    "badge_type": "club",
+    "trigger_metric": "events_hosted",
+    "threshold": 1.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 16,
+    "slug": "highly_rated",
+    "name": "Highly Rated",
+    "description": "Maintained an average rating of 4.0+",
+    "emoji": "\u2b50",
+    "badge_type": "club",
+    "trigger_metric": "avg_rating",
+    "threshold": 4.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 12,
+    "slug": "event_machine",
+    "name": "Event Machine",
+    "description": "Hosted 10 events",
+    "emoji": "\ud83d\udcc5",
+    "badge_type": "club",
+    "trigger_metric": "events_hosted",
+    "threshold": 10.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 13,
+    "slug": "event_powerhouse",
+    "name": "Event Powerhouse",
+    "description": "Hosted 50 events",
+    "emoji": "\ud83c\udfdf\ufe0f",
+    "badge_type": "club",
+    "trigger_metric": "events_hosted",
+    "threshold": 50.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 14,
+    "slug": "growing_community",
+    "name": "Growing Community",
+    "description": "Reached 50 followers",
+    "emoji": "\ud83d\udc65",
+    "badge_type": "club",
+    "trigger_metric": "follower_count",
+    "threshold": 50.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 17,
+    "slug": "hundred_attendees",
+    "name": "100 Attendees",
+    "description": "100 total attendances across all events",
+    "emoji": "\ud83c\udf93",
+    "badge_type": "club",
+    "trigger_metric": "total_attendees",
+    "threshold": 100.0,
+    "claimed_count": 0
+  },
+  {
+    "id": 15,
+    "slug": "popular_club",
+    "name": "Popular Club",
+    "description": "Reached 200 followers",
+    "emoji": "\ud83c\udf10",
+    "badge_type": "club",
+    "trigger_metric": "follower_count",
+    "threshold": 200.0,
+    "claimed_count": 0
+  }
+]

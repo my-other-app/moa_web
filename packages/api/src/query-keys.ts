@@ -17,14 +17,14 @@ export const qk = {
 
   users: {
     all: ["users"] as const,
-    list: (filters: Record<string, unknown>) =>
+    list: (filters: object) =>
       [...qk.users.all, "list", filters] as const,
     detail: (id: number) => [...qk.users.all, "detail", id] as const,
   },
 
   clubs: {
     all: ["clubs"] as const,
-    list: (filters: Record<string, unknown>) =>
+    list: (filters: object) =>
       [...qk.clubs.all, "list", filters] as const,
     detail: (id: number) => [...qk.clubs.all, "detail", id] as const,
     self: () => [...qk.clubs.all, "self"] as const,
@@ -35,7 +35,7 @@ export const qk = {
 
   events: {
     all: ["events"] as const,
-    list: (filters: Record<string, unknown>) =>
+    list: (filters: object) =>
       [...qk.events.all, "list", filters] as const,
     detail: (id: number) => [...qk.events.all, "detail", id] as const,
     registrations: (id: number) =>
@@ -45,14 +45,14 @@ export const qk = {
 
   orgs: {
     all: ["orgs"] as const,
-    list: (filters: Record<string, unknown>) =>
+    list: (filters: object) =>
       [...qk.orgs.all, "list", filters] as const,
     detail: (id: number) => [...qk.orgs.all, "detail", id] as const,
   },
 
   badges: {
     all: ["badges"] as const,
-    list: (filters: Record<string, unknown>) =>
+    list: (filters: object) =>
       [...qk.badges.all, "list", filters] as const,
     detail: (id: number) => [...qk.badges.all, "detail", id] as const,
     recipients: (id: number) => [...qk.badges.all, "recipients", id] as const,
@@ -63,7 +63,7 @@ export const qk = {
 
   notifications: {
     all: ["notifications"] as const,
-    history: (filters: Record<string, unknown>) =>
+    history: (filters: object) =>
       [...qk.notifications.all, "history", filters] as const,
     stats: (eventId: number) =>
       [...qk.notifications.all, "stats", eventId] as const,

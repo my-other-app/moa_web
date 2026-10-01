@@ -1,0 +1,161 @@
+{
+  "limit": 3,
+  "offset": 0,
+  "total": 40,
+  "next": "/api/v1/events/admin/list?limit=3&offset=3",
+  "items": [
+    {
+      "id": 45,
+      "name": "Mutate",
+      "poster": {
+        "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/07be257e-c402-40e0-9e7f-68955c57971c.thumbnail.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=Wb0TP3qA6f67F2L9gIeDDSyzyWA%3D&Expires=1790889121",
+        "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/07be257e-c402-40e0-9e7f-68955c57971c.medium.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=0a6SkteW3L99ouiEjeEVK0Yx%2FfY%3D&Expires=1790889121",
+        "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/07be257e-c402-40e0-9e7f-68955c57971c.large.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=j%2BI6NRDJgEKBWhZ0eg6Mr3qeySQ%3D&Expires=1790889121",
+        "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/07be257e-c402-40e0-9e7f-68955c57971c.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=K1dqghnoJyIhgkGmiMbyW1Tfn2E%3D&Expires=1790889121"
+      },
+      "event_datetime": "2026-03-07T10:00:00+05:30",
+      "duration": 24.0,
+      "location_name": "faya",
+      "has_fee": false,
+      "reg_fee": 0.0,
+      "has_prize": false,
+      "prize_amount": 0.0,
+      "is_online": false,
+      "reg_startdate": "2026-02-25T16:45:10.498323+05:30",
+      "reg_enddate": "2026-02-24T19:00:00+05:30",
+      "page_views": 4,
+      "is_deleted": false,
+      "category": {
+        "id": 2,
+        "name": "Competition",
+        "icon": "string",
+        "icon_type": "emoji"
+      },
+      "club": {
+        "id": 1,
+        "name": "Yukthi",
+        "slug": "yukthi-74d616",
+        "logo": {
+          "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.thumbnail.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=lKE5t7MUnxvO2x9S%2FgzFEVvSBhk%3D&Expires=1790889121",
+          "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.medium.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=QphEkXx2X6BsVonu5znqPPT5mVk%3D&Expires=1790889121",
+          "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.large.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=4vGVokYCBVD8I0pCtDHtlsn8KYs%3D&Expires=1790889121",
+          "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=I5asHvAwQkDd4LC2fdWe9gcxRvE%3D&Expires=1790889121"
+        }
+      },
+      "interests": [
+        {
+          "id": 6,
+          "name": "Coding",
+          "icon": "string",
+          "icon_type": "emoji"
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "name": "yughiu",
+      "poster": {
+        "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/601908c6-1585-41f8-ae0f-eb9d9ec75ef4.thumbnail.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=tMPlUbtn2pqg%2BZJs3Z0YShV56jY%3D&Expires=1790889121",
+        "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/601908c6-1585-41f8-ae0f-eb9d9ec75ef4.medium.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=bX32RYfFNMgxZm0NLDwf32c1Vvc%3D&Expires=1790889121",
+        "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/601908c6-1585-41f8-ae0f-eb9d9ec75ef4.large.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=rlAP6EFefXDiMl0chdvrsRUPwlA%3D&Expires=1790889121",
+        "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/601908c6-1585-41f8-ae0f-eb9d9ec75ef4.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=O%2F1p9NjKHiWOLyVk%2Flhfr%2FzqeJs%3D&Expires=1790889121"
+      },
+      "event_datetime": "2026-01-29T20:52:00+05:30",
+      "duration": 5.0,
+      "location_name": "test",
+      "has_fee": false,
+      "reg_fee": 0.0,
+      "has_prize": false,
+      "prize_amount": 0.0,
+      "is_online": true,
+      "reg_startdate": "2026-01-26T19:42:38.428224+05:30",
+      "reg_enddate": "2026-01-28T20:52:00+05:30",
+      "page_views": 1,
+      "is_deleted": false,
+      "category": {
+        "id": 1,
+        "name": "Workshop",
+        "icon": "string",
+        "icon_type": "emoji"
+      },
+      "club": {
+        "id": 1,
+        "name": "Yukthi",
+        "slug": "yukthi-74d616",
+        "logo": {
+          "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.thumbnail.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=lKE5t7MUnxvO2x9S%2FgzFEVvSBhk%3D&Expires=1790889121",
+          "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.medium.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=QphEkXx2X6BsVonu5znqPPT5mVk%3D&Expires=1790889121",
+          "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.large.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=4vGVokYCBVD8I0pCtDHtlsn8KYs%3D&Expires=1790889121",
+          "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=I5asHvAwQkDd4LC2fdWe9gcxRvE%3D&Expires=1790889121"
+        }
+      },
+      "interests": [
+        {
+          "id": 6,
+          "name": "Coding",
+          "icon": "string",
+          "icon_type": "emoji"
+        },
+        {
+          "id": 7,
+          "name": "UI/UX",
+          "icon": "string",
+          "icon_type": "emoji"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "name": "yughiu",
+      "poster": {
+        "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/17be62d4-34ba-4f6c-8dcd-7d5a7e6c2f50.thumbnail.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=eiMOBIWmUg60NEcG9oUhpgfftwE%3D&Expires=1790889121",
+        "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/17be62d4-34ba-4f6c-8dcd-7d5a7e6c2f50.medium.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=bMDb4cSPaJKApmHcqzahrDxX%2FFs%3D&Expires=1790889121",
+        "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/17be62d4-34ba-4f6c-8dcd-7d5a7e6c2f50.large.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=U0V8gbIUGYtzGwVEMW0bz0%2F7vzY%3D&Expires=1790889121",
+        "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/17be62d4-34ba-4f6c-8dcd-7d5a7e6c2f50.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=pWCJ1aApay70%2BSWsdIEJvmrO4Bk%3D&Expires=1790889121"
+      },
+      "event_datetime": "2026-01-29T20:52:00+05:30",
+      "duration": 5.0,
+      "location_name": "knkj",
+      "has_fee": false,
+      "reg_fee": 0.0,
+      "has_prize": false,
+      "prize_amount": 0.0,
+      "is_online": true,
+      "reg_startdate": "2026-01-26T22:14:23.941939+05:30",
+      "reg_enddate": "2026-01-28T20:52:00+05:30",
+      "page_views": 17,
+      "is_deleted": false,
+      "category": {
+        "id": 1,
+        "name": "Workshop",
+        "icon": "string",
+        "icon_type": "emoji"
+      },
+      "club": {
+        "id": 1,
+        "name": "Yukthi",
+        "slug": "yukthi-74d616",
+        "logo": {
+          "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.thumbnail.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=lKE5t7MUnxvO2x9S%2FgzFEVvSBhk%3D&Expires=1790889121",
+          "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.medium.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=QphEkXx2X6BsVonu5znqPPT5mVk%3D&Expires=1790889121",
+          "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.large.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=4vGVokYCBVD8I0pCtDHtlsn8KYs%3D&Expires=1790889121",
+          "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/c49c2c21-b3d7-44cc-8d3e-82a623a19fff.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=I5asHvAwQkDd4LC2fdWe9gcxRvE%3D&Expires=1790889121"
+        }
+      },
+      "interests": [
+        {
+          "id": 6,
+          "name": "Coding",
+          "icon": "string",
+          "icon_type": "emoji"
+        },
+        {
+          "id": 7,
+          "name": "UI/UX",
+          "icon": "string",
+          "icon_type": "emoji"
+        }
+      ]
+    }
+  ]
+}

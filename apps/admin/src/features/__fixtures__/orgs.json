@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "name": "St Thomas Institute for Science and Technology",
+    "type": "college",
+    "address": "",
+    "phone": "9000000000",
+    "email": "user0@example.com",
+    "website": "",
+    "logo": {
+      "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com//organizations/logos/27dbdfd6-b4ea-4706-9f79-8297f2786e1c.thumbnail.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=5SDHt5NkR4HyOdhSfsNwu5esh6U%3D&Expires=1790889122",
+      "medium": "https://mulearn-backend-test.s3.amazonaws.com//organizations/logos/27dbdfd6-b4ea-4706-9f79-8297f2786e1c.medium.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=dWJilO%2B5adz7e%2FFlP67tP%2FvRirE%3D&Expires=1790889122",
+      "large": "https://mulearn-backend-test.s3.amazonaws.com//organizations/logos/27dbdfd6-b4ea-4706-9f79-8297f2786e1c.large.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=S7MvEVQye%2FbK%2FpRqIfNZ2um18XM%3D&Expires=1790889122",
+      "original": "https://mulearn-backend-test.s3.amazonaws.com//organizations/logos/27dbdfd6-b4ea-4706-9f79-8297f2786e1c.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=4Z9%2Bo2f%2BggPDk4Q0SHR0MRl54Do%3D&Expires=1790889122"
+    },
+    "is_blocked": false
+  },
+  {
+    "id": 2,
+    "name": "other",
+    "type": "other",
+    "address": "Other",
+    "phone": "9000000000",
+    "email": "user1@example.com",
+    "website": "other.other",
+    "logo": {
+      "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com//organizations/logos/796d5875-3998-48f2-9037-f2fce38d4fba.thumbnail.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=6Vw34ikTf5YgHNEkT7iPGFTn2XY%3D&Expires=1790889122",
+      "medium": "https://mulearn-backend-test.s3.amazonaws.com//organizations/logos/796d5875-3998-48f2-9037-f2fce38d4fba.medium.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=ptLqjIBKKWvyWe%2F86ApA4jqRNeE%3D&Expires=1790889122",
+      "large": "https://mulearn-backend-test.s3.amazonaws.com//organizations/logos/796d5875-3998-48f2-9037-f2fce38d4fba.large.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=0814XG21xzzRUxqnJRHX0ocq4NU%3D&Expires=1790889122",
+      "original": "https://mulearn-backend-test.s3.amazonaws.com//organizations/logos/796d5875-3998-48f2-9037-f2fce38d4fba.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=VgZh%2F4x3jLt2qicR%2FSaqBI6H3ks%3D&Expires=1790889122"
+    },
+    "is_blocked": false
+  }
+]

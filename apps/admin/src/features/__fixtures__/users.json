@@ -1,0 +1,60 @@
+{
+  "limit": 3,
+  "offset": 0,
+  "total": 668,
+  "next": "/api/v1/user/admin/list?limit=3&offset=3",
+  "items": [
+    {
+      "id": 670,
+      "full_name": "Test Person",
+      "email": "user0@example.com",
+      "phone": "9000000000",
+      "username": "platform_admin",
+      "user_type": "admin",
+      "provider": null,
+      "created_at": "2026-10-02T00:56:59.440744+05:30",
+      "updated_at": "2026-10-02T00:56:59.440744+05:30",
+      "profile": null,
+      "interests": []
+    },
+    {
+      "id": 669,
+      "full_name": "Test Person",
+      "email": "user1@example.com",
+      "phone": "9000000000",
+      "username": "jose_thomas",
+      "user_type": "app_user",
+      "provider": "google",
+      "created_at": "2026-07-20T11:07:28.452583+05:30",
+      "updated_at": "2026-07-20T11:07:28.452589+05:30",
+      "profile": null,
+      "interests": [
+        {
+          "id": 13,
+          "name": "Cybersecurity",
+          "icon": "string",
+          "icon_type": "emoji"
+        },
+        {
+          "id": 15,
+          "name": "Photography",
+          "icon": "string",
+          "icon_type": "emoji"
+        }
+      ]
+    },
+    {
+      "id": 668,
+      "full_name": "Test Person",
+      "email": "user2@example.com",
+      "phone": "9000000000",
+      "username": "arafa_n",
+      "user_type": "app_user",
+      "provider": "google",
+      "created_at": "2026-02-22T20:07:48.421476+05:30",
+      "updated_at": "2026-02-22T20:07:48.421481+05:30",
+      "profile": null,
+      "interests": []
+    }
+  ]
+}

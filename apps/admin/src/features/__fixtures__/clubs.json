@@ -1,0 +1,113 @@
+{
+  "limit": 3,
+  "offset": 0,
+  "total": null,
+  "next": "/api/v1/clubs/admin/list?limit=3&offset=3",
+  "items": [
+    {
+      "id": 5,
+      "name": "LetMeGoo",
+      "slug": "letmegoo-33b259",
+      "logo": {
+        "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/2c59ce15-e526-4ee1-883d-777fe3dd442e.thumbnail.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=IkPi2QsHycLhK2ivIaHeG7VR2wY%3D&Expires=1790889120",
+        "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/2c59ce15-e526-4ee1-883d-777fe3dd442e.medium.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=Mx3EVjz5xc6I%2BxMRdnWu0CarO9o%3D&Expires=1790889120",
+        "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/2c59ce15-e526-4ee1-883d-777fe3dd442e.large.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=52eYI0FYmU2wP%2BwvneKQVceu9Sc%3D&Expires=1790889120",
+        "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/2c59ce15-e526-4ee1-883d-777fe3dd442e.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=Hb8PER1kHMSeEkTtGnHhiwREJwE%3D&Expires=1790889120"
+      },
+      "location_name": "Technopark,Tvm",
+      "location_link": "Muhammed R",
+      "about": null,
+      "contact_phone": "9000000000",
+      "contact_email": "user0@example.com",
+      "initial_password": null,
+      "created_at": "2025-10-20T13:59:45.741439+05:30",
+      "is_verified": true,
+      "interests": [
+        {
+          "id": 6,
+          "name": "Coding",
+          "icon": "string",
+          "icon_type": "emoji"
+        },
+        {
+          "id": 7,
+          "name": "UI/UX",
+          "icon": "string",
+          "icon_type": "emoji"
+        },
+        {
+          "id": 10,
+          "name": "Marketing",
+          "icon": "string",
+          "icon_type": "emoji"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "DOTSLASH 25",
+      "slug": "dotslash-cet-d2cac3",
+      "logo": {
+        "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/80480d21-b8f2-4e26-9686-3050ac19c7a4.thumbnail.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=afPvsj1JeDzIaPMPkMjdAwZmiD8%3D&Expires=1790889121",
+        "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/80480d21-b8f2-4e26-9686-3050ac19c7a4.medium.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=s3ZNC5tl1QOIcit58vyBlYObTyc%3D&Expires=1790889121",
+        "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/80480d21-b8f2-4e26-9686-3050ac19c7a4.large.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=bsu2mUp2T6KhXuJd1s3qs5vQFOg%3D&Expires=1790889121",
+        "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/80480d21-b8f2-4e26-9686-3050ac19c7a4.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=M%2FO28Y2JuKgxMSjRhFsFfhenI68%3D&Expires=1790889121"
+      },
+      "location_name": "THIRUVANANTHAPURAM",
+      "location_link": "Arya Vijayan",
+      "about": null,
+      "contact_phone": "9000000000",
+      "contact_email": "user1@example.com",
+      "initial_password": null,
+      "created_at": "2025-03-15T20:02:30.210846+05:30",
+      "is_verified": true,
+      "interests": [
+        {
+          "id": 2,
+          "name": "Artificial Intelligence",
+          "icon": "string",
+          "icon_type": "emoji"
+        },
+        {
+          "id": 6,
+          "name": "Coding",
+          "icon": "string",
+          "icon_type": "emoji"
+        },
+        {
+          "id": 7,
+          "name": "UI/UX",
+          "icon": "string",
+          "icon_type": "emoji"
+        },
+        {
+          "id": 8,
+          "name": "Data Science",
+          "icon": "string",
+          "icon_type": "emoji"
+        },
+        {
+          "id": 13,
+          "name": "Cybersecurity",
+          "icon": "string",
+          "icon_type": "emoji"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Yasya",
+      "slug": "yasya-8cccfd",
+      "logo": null,
+      "location_name": null,
+      "location_link": null,
+      "about": null,
+      "contact_phone": "9000000000",
+      "contact_email": "user2@example.com",
+      "initial_password": null,
+      "created_at": "2025-03-05T12:45:35.186632+05:30",
+      "is_verified": true,
+      "interests": []
+    }
+  ]
+}

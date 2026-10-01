@@ -1,0 +1,40 @@
+{
+  "total_users": 668,
+  "total_users_delta": "+0% from last month",
+  "verified_clubs": 4,
+  "verified_clubs_delta": "+0 new this week",
+  "events_hosted": 40,
+  "events_hosted_delta": "+0 this month",
+  "platform_revenue": 0,
+  "platform_revenue_delta": "+0% from last month",
+  "user_growth_data": [
+    {
+      "name": "Fri",
+      "users": 0
+    },
+    {
+      "name": "Sat",
+      "users": 0
+    },
+    {
+      "name": "Sun",
+      "users": 0
+    },
+    {
+      "name": "Mon",
+      "users": 0
+    },
+    {
+      "name": "Tue",
+      "users": 0
+    },
+    {
+      "name": "Wed",
+      "users": 0
+    },
+    {
+      "name": "Thu",
+      "users": 1
+    }
+  ]
+}
