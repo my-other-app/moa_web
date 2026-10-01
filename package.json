@@ -2,7 +2,10 @@
   "name": "moa-web",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -16,5 +19,8 @@
     "typescript": "^5.7.2",
     "prettier": "^3.4.2"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@11.11.0"
 }

@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+        env:
+          # Required at build time by the gateway route. Not a secret: it is a
+          # public API origin, and the browser never receives it.
+          MOA_API_URL: https://api.myotherapp.in
+
+      # Advisory rather than blocking: this reaches the live API, so a network
+      # blip or a deliberate-but-uncommitted backend change should not wedge
+      # every unrelated PR. It still prints exactly what moved.
+      - name: OpenAPI drift
+        continue-on-error: true
+        run: npm run check:drift -w @moa/api
+        env:
+          MOA_API_URL: https://api.myotherapp.in
