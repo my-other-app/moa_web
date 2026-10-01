@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { EyeIcon, GlobeIcon, MapPinIcon, UserCheckIcon, UsersIcon } from "lucide-react";
 import { ResourceList, formatCurrency, formatDateTime, formatNumber, useListParams } from "@moa/app-kit";
 import {
@@ -32,7 +33,12 @@ const columns: DataTableColumn<ClubEvent>[] = [
     header: "Event",
     cell: (row) => (
       <div className="min-w-0">
-        <p className="truncate font-medium">{row.name}</p>
+        <Link
+          href={`/events/${row.id}`}
+          className="truncate font-medium underline-offset-4 hover:underline"
+        >
+          {row.name}
+        </Link>
         <p className="text-muted-foreground truncate text-xs">
           {formatDateTime(row.event_datetime)}
         </p>

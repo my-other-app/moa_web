@@ -5,3 +5,4 @@ export {
   type Announcement,
   type SendAnnouncementInput,
 } from "./schemas";
+export { SendAnnouncementDialog } from "./components/send-announcement-dialog";
