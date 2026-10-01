@@ -16,6 +16,7 @@ import {
 
 import { useClubEvents } from "../queries";
 import type { ClubEvent } from "../schemas";
+import { EventRowActions } from "./event-row-actions";
 
 type Scope = "upcoming" | "past" | "all";
 
@@ -111,6 +112,13 @@ const columns: DataTableColumn<ClubEvent>[] = [
       ) : (
         <span className="text-muted-foreground">Free</span>
       ),
+  },
+  {
+    key: "actions",
+    header: <span className="sr-only">Actions</span>,
+    className: "text-right",
+    headerClassName: "text-right",
+    cell: (row) => <EventRowActions event={row} />,
   },
   {
     key: "views",
