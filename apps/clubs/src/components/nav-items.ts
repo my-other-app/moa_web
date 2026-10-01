@@ -1,5 +1,6 @@
 import {
   CalendarDaysIcon,
+  PaletteIcon,
   LayoutDashboardIcon,
   MegaphoneIcon,
   UsersRoundIcon,
@@ -17,6 +18,7 @@ export const navItems: NavItem[] = [
   { href: "/", label: "Overview", icon: LayoutDashboardIcon, exact: true },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/announcements", label: "Announcements", icon: MegaphoneIcon },
+  { href: "/templates", label: "Templates", icon: PaletteIcon },
   { href: "/profile", label: "Club profile", icon: UsersRoundIcon },
 ];
 
