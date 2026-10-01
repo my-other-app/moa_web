@@ -1,0 +1,54 @@
+{
+  "id": 5,
+  "name": "LetMeGoo",
+  "slug": "letmegoo-33b259",
+  "logo": {
+    "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/2c59ce15-e526-4ee1-883d-777fe3dd442e.thumbnail.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=SAGVHWvSfFpNM97uk%2Bo7OZtJNrM%3D&Expires=1790890193",
+    "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/2c59ce15-e526-4ee1-883d-777fe3dd442e.medium.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=9ZSawIismhrKDWaIs9tNBzoPOP8%3D&Expires=1790890193",
+    "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/2c59ce15-e526-4ee1-883d-777fe3dd442e.large.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=GY7JtIfEVNjlC2f4qh14MjLc4jw%3D&Expires=1790890193",
+    "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/2c59ce15-e526-4ee1-883d-777fe3dd442e.png?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=nByx%2B0VfxOSMqhsFDtS459v9b1M%3D&Expires=1790890193"
+  },
+  "location_name": "Technopark,Tvm",
+  "location_link": "Test Person",
+  "about": null,
+  "rating": 4.5,
+  "total_ratings": 2,
+  "total_events": 4,
+  "live_events": 0,
+  "past_events": 4,
+  "socials": {
+    "instagram": null,
+    "linkedin": null,
+    "youtube": null,
+    "website": null
+  },
+  "interests": [
+    {
+      "id": 6,
+      "name": "Coding",
+      "icon": "string",
+      "icon_type": "emoji"
+    },
+    {
+      "id": 7,
+      "name": "UI/UX",
+      "icon": "string",
+      "icon_type": "emoji"
+    },
+    {
+      "id": 10,
+      "name": "Marketing",
+      "icon": "string",
+      "icon_type": "emoji"
+    }
+  ],
+  "followers_count": 3,
+  "contact_phone": "9000000000",
+  "contact_email": "club@example.com",
+  "user_data": {
+    "is_following": false,
+    "is_pinned": false,
+    "is_hidden": false
+  },
+  "org": null
+}

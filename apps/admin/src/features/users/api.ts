@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { api } from "@moa/app-kit";
 import { adminUserPageSchema, type AdminUserPage } from "./schemas";
 
 export interface UserListQuery {

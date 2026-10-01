@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { api } from "@moa/app-kit";
 import { orgListSchema, type Org } from "./schemas";
 
 export async function fetchOrgs(): Promise<Org[]> {

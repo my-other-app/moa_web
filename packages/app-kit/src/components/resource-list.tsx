@@ -14,7 +14,7 @@ import {
 } from "@moa/ui";
 import { stagger } from "@moa/ui/motion";
 
-import { useListParams } from "@/hooks/use-list-params";
+import { useListParams } from "../hooks/use-list-params";
 
 export interface ResourceListProps<T> {
   /** Result of a paginated query. */

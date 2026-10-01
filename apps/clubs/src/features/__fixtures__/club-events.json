@@ -1,0 +1,95 @@
+{
+  "limit": 3,
+  "offset": 0,
+  "total": 4,
+  "next": null,
+  "items": [
+    {
+      "id": 40,
+      "name": "mumeet",
+      "slug": "mumeet-8cc2fc",
+      "poster": {
+        "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/0e80449c-de0a-46c3-9cc4-cafb8e9889f1.thumbnail.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=Y1POmI%2FZOJ29CMeJGEGyY32fJac%3D&Expires=1790890194",
+        "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/0e80449c-de0a-46c3-9cc4-cafb8e9889f1.medium.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=cIey2UmgPaLHojQakcCcowLtYs8%3D&Expires=1790890194",
+        "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/0e80449c-de0a-46c3-9cc4-cafb8e9889f1.large.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=M8NV2p0ZBipQ8zx0jDG%2FNU8tU5A%3D&Expires=1790890194",
+        "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/0e80449c-de0a-46c3-9cc4-cafb8e9889f1.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=ywbgU42v5xWQntmHdZekZVEZExQ%3D&Expires=1790890194"
+      },
+      "event_datetime": "2025-11-04T06:37:00+05:30",
+      "duration": 8.0,
+      "location_name": "faya",
+      "has_fee": true,
+      "has_prize": true,
+      "prize_amount": 16.0,
+      "is_online": false,
+      "reg_startdate": "2025-11-02T01:58:58.174865+05:30",
+      "reg_enddate": "2025-11-03T04:52:00+05:30",
+      "category": {
+        "id": 2,
+        "name": "Competition",
+        "icon": "string",
+        "icon_type": "emoji"
+      },
+      "page_views": 0,
+      "registration_count": 1,
+      "attended_count": 0
+    },
+    {
+      "id": 39,
+      "name": "beyond day",
+      "slug": "beyond-day-064fce",
+      "poster": {
+        "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/8255300c-7160-489c-95fd-83e1a8cdad89.thumbnail.webp?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=a%2BLCexTsJDZAtik2IE%2BLw2tc1Ds%3D&Expires=1790890194",
+        "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/8255300c-7160-489c-95fd-83e1a8cdad89.medium.webp?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=DgqDvKfWFcHkcXCbUxLVy%2FUZAt4%3D&Expires=1790890194",
+        "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/8255300c-7160-489c-95fd-83e1a8cdad89.large.webp?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=woUKfgTC1nCPI0sJupAS9Qi6m7U%3D&Expires=1790890194",
+        "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/8255300c-7160-489c-95fd-83e1a8cdad89.webp?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=1aqd6MV0C4o9Ax5%2FsShgTlByxPg%3D&Expires=1790890194"
+      },
+      "event_datetime": "2025-11-01T10:27:00+05:30",
+      "duration": 8.0,
+      "location_name": "FAYA",
+      "has_fee": false,
+      "has_prize": false,
+      "prize_amount": 0.0,
+      "is_online": false,
+      "reg_startdate": "2025-10-31T22:30:27.511291+05:30",
+      "reg_enddate": "2025-11-01T00:30:00+05:30",
+      "category": {
+        "id": 1,
+        "name": "Workshop",
+        "icon": "string",
+        "icon_type": "emoji"
+      },
+      "page_views": 3,
+      "registration_count": 1,
+      "attended_count": 0
+    },
+    {
+      "id": 38,
+      "name": "Test event",
+      "slug": "test-event-d4af75",
+      "poster": {
+        "thumbnail": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/ce5677f9-5a9b-40a6-a3e5-0978b15c1f40.thumbnail.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=mUO8tsos8OY3DrKvDDDuRBwu4ao%3D&Expires=1790890194",
+        "medium": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/ce5677f9-5a9b-40a6-a3e5-0978b15c1f40.medium.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=9QV0AIH9Je0ZjAVC1klWmEuq%2FTs%3D&Expires=1790890194",
+        "large": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/ce5677f9-5a9b-40a6-a3e5-0978b15c1f40.large.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=FLP5eKemtEkCP70eS7gNZ4tUhtw%3D&Expires=1790890194",
+        "original": "https://mulearn-backend-test.s3.amazonaws.com/myotherapp-prod/clubs/logos/ce5677f9-5a9b-40a6-a3e5-0978b15c1f40.jpeg?AWSAccessKeyId=AKIAVS6FAG7XBZZSLLCS&Signature=OyPw7YzGU2ZsIwnVR%2BELfYg8RZU%3D&Expires=1790890194"
+      },
+      "event_datetime": "2025-10-31T21:13:00+05:30",
+      "duration": 6.0,
+      "location_name": "",
+      "has_fee": false,
+      "has_prize": false,
+      "prize_amount": 0.0,
+      "is_online": false,
+      "reg_startdate": "2025-10-21T21:14:23.671556+05:30",
+      "reg_enddate": "2025-10-30T21:13:00+05:30",
+      "category": {
+        "id": 1,
+        "name": "Workshop",
+        "icon": "string",
+        "icon_type": "emoji"
+      },
+      "page_views": 0,
+      "registration_count": 0,
+      "attended_count": 0
+    }
+  ]
+}

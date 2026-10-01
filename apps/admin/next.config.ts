@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   // Workspace packages ship TypeScript source rather than a build artefact, so
   // Next compiles them with the app. This keeps the shared UI editable without
   // a watch/rebuild step between packages and apps.
-  transpilePackages: ["@moa/ui", "@moa/api", "@moa/auth"],
+  transpilePackages: ["@moa/ui", "@moa/api", "@moa/auth", "@moa/app-kit"],
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts"],
   },

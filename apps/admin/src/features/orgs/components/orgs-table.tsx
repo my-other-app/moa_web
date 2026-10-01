@@ -3,9 +3,7 @@
 import * as React from "react";
 import { Badge, StatusBadge, Switch, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn } from "@moa/ui";
 
-import { ResourceList } from "@/components/resource-list";
-import { useListParams } from "@/hooks/use-list-params";
-import { useLocalPage } from "@/hooks/use-local-page";
+import { ResourceList, useListParams, useLocalPage } from "@moa/app-kit";
 import { useOrgs, useSetOrgBlocked } from "../queries";
 import type { Org } from "../schemas";
 

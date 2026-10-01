@@ -5,7 +5,7 @@ import { ImageOffIcon, SmileIcon } from "lucide-react";
 import { Card, EmptyState, Skeleton } from "@moa/ui";
 import { hoverLift, stagger } from "@moa/ui/motion";
 
-import { pickImage } from "@/lib/schemas";
+import { pickImage } from "@moa/app-kit";
 import { useAvatars } from "../queries";
 
 /**

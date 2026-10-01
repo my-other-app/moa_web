@@ -14,7 +14,7 @@ import {
   SheetTrigger,
 } from "@moa/ui";
 
-import { UserMenu } from "@/features/auth";
+import { UserMenu } from "@moa/app-kit";
 import { SidebarNav } from "./sidebar-nav";
 
 function Wordmark() {

@@ -2,11 +2,14 @@
 @import "@moa/ui/preset.css";
 
 /*
- * Tell Tailwind to scan the shared UI package too. Without this, class names
- * that only ever appear inside @moa/ui are absent from the generated stylesheet
- * and those components render unstyled in production builds.
+ * Scan the shared packages for class names.
+ *
+ * Next's module graph currently pulls these in anyway via transpilePackages,
+ * but declaring them makes it explicit and survives a bundler change. The path
+ * is relative to this file: src/app -> src -> <app> -> apps -> repo root.
  */
-@source "../../../packages/ui/src";
+@source "../../../../packages/ui/src";
+@source "../../../../packages/app-kit/src";
 
 @layer base {
   * {

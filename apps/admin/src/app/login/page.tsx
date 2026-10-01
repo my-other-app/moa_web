@@ -5,7 +5,7 @@ import { ShieldCheckIcon } from "lucide-react";
 import { getSession } from "@moa/auth/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from "@moa/ui";
 
-import { LoginForm } from "@/features/auth";
+import { LoginForm } from "@moa/app-kit";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -39,7 +39,7 @@ export default async function LoginPage() {
         <CardContent>
           {/* useSearchParams in LoginForm requires a Suspense boundary. */}
           <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-            <LoginForm />
+            <LoginForm usernamePlaceholder="platform_admin" />
           </Suspense>
         </CardContent>
       </Card>

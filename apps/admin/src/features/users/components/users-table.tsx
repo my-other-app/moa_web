@@ -2,9 +2,7 @@
 
 import { Avatar, AvatarFallback, Badge, type DataTableColumn } from "@moa/ui";
 
-import { ResourceList } from "@/components/resource-list";
-import { useListParams } from "@/hooks/use-list-params";
-import { formatDate, initials } from "@/lib/format";
+import { ResourceList, formatDate, initials, useListParams } from "@moa/app-kit";
 import { useUsers } from "../queries";
 import type { AdminUser } from "../schemas";
 

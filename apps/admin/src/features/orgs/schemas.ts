@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { imageFieldSchema } from "@/lib/schemas";
+import { imageFieldSchema } from "@moa/app-kit";
 
 export const orgSchema = z.object({
   id: z.coerce.number(),

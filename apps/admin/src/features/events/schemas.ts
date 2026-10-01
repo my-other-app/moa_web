@@ -1,7 +1,7 @@
 import { paginatedSchema } from "@moa/api";
 import { z } from "zod";
 
-import { imageFieldSchema, namedRefSchema } from "@/lib/schemas";
+import { imageFieldSchema, namedRefSchema } from "@moa/app-kit";
 
 export const adminEventSchema = z.object({
   id: z.coerce.number(),

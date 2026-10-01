@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
-import { staleTimes } from "@/lib/query-client";
+import { staleTimes } from "@moa/app-kit";
 import { fetchOrgs, setOrgBlocked } from "./api";
 
 export function useOrgs() {

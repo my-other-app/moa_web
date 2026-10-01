@@ -9,7 +9,7 @@ import {
 import { Skeleton, StatCard, cn } from "@moa/ui";
 import { hoverLift, stagger } from "@moa/ui/motion";
 
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatCurrency, formatNumber } from "@moa/app-kit";
 import { useAdminAnalytics } from "../queries";
 
 const CARD_COUNT = 4;

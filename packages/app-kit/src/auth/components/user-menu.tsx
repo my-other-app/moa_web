@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@moa/ui";
 
-import { initials } from "@/lib/format";
+import { initials } from "../../format";
 import { useLogout } from "../queries";
 
 export function UserMenu({ user }: { user: SessionUser }) {

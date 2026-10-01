@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { api } from "@moa/app-kit";
 import { adminAnalyticsSchema, type AdminAnalytics } from "./schemas";
 
 export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {

@@ -1,6 +1,6 @@
 import type { SessionUser } from "@moa/auth";
 
-import { api } from "@/lib/api";
+import { api } from "../index";
 import type { LoginInput } from "./schemas";
 
 export interface TokenResponse {

@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 
-import { staleTimes } from "@/lib/query-client";
+import { staleTimes } from "@moa/app-kit";
 import { fetchAdminAnalytics } from "./api";
 
 export function useAdminAnalytics() {

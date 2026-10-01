@@ -6,7 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ThemeProvider } from "next-themes";
 import { Toaster, TooltipProvider } from "@moa/ui";
 
-import { getQueryClient } from "@/lib/query-client";
+import { getQueryClient } from "@moa/app-kit";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Not useState(() => new QueryClient()): getQueryClient already returns a

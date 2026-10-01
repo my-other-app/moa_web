@@ -3,9 +3,7 @@
 import { EyeIcon, GlobeIcon, MapPinIcon } from "lucide-react";
 import { StatusBadge, type DataTableColumn } from "@moa/ui";
 
-import { ResourceList } from "@/components/resource-list";
-import { useListParams } from "@/hooks/use-list-params";
-import { formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
+import { ResourceList, formatCurrency, formatDateTime, formatNumber, useListParams } from "@moa/app-kit";
 import { useEvents } from "../queries";
 import type { AdminEvent } from "../schemas";
 

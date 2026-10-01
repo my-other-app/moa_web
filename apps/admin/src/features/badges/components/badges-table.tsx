@@ -2,10 +2,7 @@
 
 import { Badge as BadgeChip, type DataTableColumn } from "@moa/ui";
 
-import { ResourceList } from "@/components/resource-list";
-import { useListParams } from "@/hooks/use-list-params";
-import { useLocalPage } from "@/hooks/use-local-page";
-import { formatNumber } from "@/lib/format";
+import { ResourceList, formatNumber, useListParams, useLocalPage } from "@moa/app-kit";
 import { useBadges } from "../queries";
 import type { Badge } from "../schemas";
 

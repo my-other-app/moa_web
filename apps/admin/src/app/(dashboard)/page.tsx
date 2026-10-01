@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@moa/ui";
 
-import { PageHeader } from "@/components/page-header";
+import { PageHeader } from "@moa/app-kit";
 import { OverviewCards } from "@/features/analytics";
 import { GrowthChartPanel } from "@/features/analytics/components/growth-chart-panel";
 

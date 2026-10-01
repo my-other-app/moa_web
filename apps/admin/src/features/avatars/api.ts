@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { api } from "@moa/app-kit";
 import { avatarListSchema, type AppAvatar } from "./schemas";
 
 export async function fetchAvatars(): Promise<AppAvatar[]> {

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { staleTimes } from "@/lib/query-client";
+import { staleTimes } from "@moa/app-kit";
 import { fetchAvatars } from "./api";
 
 export function useAvatars() {

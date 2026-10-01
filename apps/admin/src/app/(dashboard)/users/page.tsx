@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Skeleton } from "@moa/ui";
 
-import { PageHeader } from "@/components/page-header";
+import { PageHeader } from "@moa/app-kit";
 import { UsersTable } from "@/features/users";
 
 export const metadata: Metadata = { title: "Users" };

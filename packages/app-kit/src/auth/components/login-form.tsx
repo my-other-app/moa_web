@@ -22,7 +22,14 @@ import { pressable } from "@moa/ui/motion";
 import { useLogin } from "../queries";
 import { loginSchema, type LoginInput } from "../schemas";
 
-export function LoginForm() {
+export function LoginForm({
+  usernamePlaceholder = "your_username",
+  redirectTo = "/",
+}: {
+  usernamePlaceholder?: string;
+  /** Where to land after sign-in when no ?next= was supplied. */
+  redirectTo?: string;
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const login = useLogin();
@@ -42,7 +49,8 @@ export function LoginForm() {
       // a crafted link bounce an admin to an attacker's page after a genuine
       // sign-in.
       const next = searchParams.get("next");
-      const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+      const safeNext =
+        next && next.startsWith("/") && !next.startsWith("//") ? next : redirectTo;
       router.replace(safeNext);
       router.refresh();
     } catch (error) {
@@ -70,7 +78,7 @@ export function LoginForm() {
                   {...field}
                   autoComplete="username"
                   autoFocus
-                  placeholder="platform_admin"
+                  placeholder={usernamePlaceholder}
                   disabled={isSubmitting}
                 />
               </FormControl>
