@@ -1,0 +1,15 @@
+{
+  "name": "@moa/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./gateway": "./src/gateway.ts",
+    "./server": "./src/server.ts"
+  },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "@moa/api": "*" },
+  "peerDependencies": { "next": "^16.0.0", "react": "^19.0.0" },
+  "devDependencies": { "typescript": "^5.7.2", "@types/react": "^19.0.10" }
+}

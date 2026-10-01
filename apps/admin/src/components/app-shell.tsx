@@ -1,0 +1,82 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { MenuIcon } from "lucide-react";
+import type { SessionUser } from "@moa/auth";
+import {
+  Button,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@moa/ui";
+
+import { UserMenu } from "@/features/auth";
+import { SidebarNav } from "./sidebar-nav";
+
+function Wordmark() {
+  return (
+    <Link href="/" className="flex items-center gap-2 px-4 py-3.5">
+      <span className="bg-primary text-primary-foreground grid size-7 shrink-0 place-items-center rounded-md text-xs font-bold">
+        MO
+      </span>
+      <span className="bebas text-lg leading-none tracking-wide">ADMIN</span>
+    </Link>
+  );
+}
+
+/**
+ * Responsive shell: a fixed sidebar from `lg` up, a slide-over sheet below it.
+ * The mobile sheet closes on navigation -- leaving it open over the page the
+ * user just chose is a common and irritating oversight.
+ */
+export function AppShell({
+  user,
+  children,
+}: {
+  user: SessionUser;
+  children: React.ReactNode;
+}) {
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const pathname = usePathname();
+
+  React.useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  return (
+    <div className="flex min-h-dvh">
+      <aside className="bg-sidebar hidden w-60 shrink-0 border-r lg:flex lg:flex-col">
+        <Wordmark />
+        <SidebarNav />
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="bg-background/80 sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-3 backdrop-blur-sm sm:px-4">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
+                <MenuIcon />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-64 p-0">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Navigation</SheetTitle>
+              </SheetHeader>
+              <Wordmark />
+              <SidebarNav onNavigate={() => setMobileOpen(false)} />
+            </SheetContent>
+          </Sheet>
+
+          <div className="flex-1" />
+          <UserMenu user={user} />
+        </header>
+
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@moa/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/generated/schema.d.ts"
+  },
+  "scripts": {
+    "generate": "openapi-typescript ./openapi.json -o ./src/generated/schema.d.ts",
+    "generate:live": "openapi-typescript $MOA_API_URL/openapi.json -o ./src/generated/schema.d.ts",
+    "check:drift": "node ./scripts/check-drift.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.5.2",
+    "typescript": "^5.7.2"
+  }
+}
