@@ -23,77 +23,132 @@ body {
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  /*
+   * Palette taken from the live clubs app, not from shadcn's defaults.
+   *
+   * The product's identity is dark charcoal chrome (#2C333D, used as the page
+   * shell and as the primary button fill in 46 places), white content panels,
+   * Bebas Neue display type, and #1DB9A0 teal as the accent -- the same teal
+   * the backend hard-codes as the default in TicketTemplateConfig and
+   * CertificateTemplateConfig, which is what makes it the brand colour rather
+   * than a preference.
+   *
+   * The shell is applied through the sidebar tokens and primary, while content
+   * stays light: that keeps text contrast predictable (Card sets
+   * text-card-foreground) and matches how the existing app composes dark chrome
+   * around white panels.
+   *
+   * Interim: replace this block wholesale with the Figma variables once the
+   * design file is readable. Everything downstream consumes these tokens, so
+   * nothing else needs to change.
+   */
+  --brand: #1db9a0;
+  --brand-foreground: #06201c;
+  --brand-muted: #e6f7f4;
+  --highlight: #f9ffa1;
+
+  --background: #f6f7f9;
+  --foreground: #1e1e2e;
+  --card: #ffffff;
+  --card-foreground: #1e1e2e;
+  --popover: #ffffff;
+  --popover-foreground: #1e1e2e;
+
+  /* Primary is the charcoal the product already uses for its buttons. */
+  --primary: #2c333d;
+  --primary-foreground: #ffffff;
+
+  --secondary: #eef0f3;
+  --secondary-foreground: #2c333d;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+
+  /* Neutral on purpose: `accent` is shadcn's hover/selected surface and is also
+     used by Skeleton, so putting the brand teal here would tint loading states
+     and every menu hover. The teal is exposed as --brand instead. */
+  --accent: #eef0f3;
+  --accent-foreground: #2c333d;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #1db9a0;
+
+  --chart-1: #1db9a0;
+  --chart-2: #2c333d;
+  --chart-3: #8884d8;
+  --chart-4: #f9ffa1;
+  --chart-5: #ffbb28;
+
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Dark chrome. */
+  --sidebar: #2c333d;
+  --sidebar-foreground: #e9ecf1;
+  --sidebar-primary: #1db9a0;
+  --sidebar-primary-foreground: #06201c;
+  --sidebar-accent: #3a424e;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #3a424e;
+  --sidebar-ring: #1db9a0;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --brand: #1db9a0;
+  --brand-foreground: #06201c;
+  --brand-muted: #16302c;
+  --highlight: #f9ffa1;
+
+  --background: #14141f;
+  --foreground: #e9ecf1;
+  --card: #1e1e2e;
+  --card-foreground: #e9ecf1;
+  --popover: #1e1e2e;
+  --popover-foreground: #e9ecf1;
+
+  /* Inverted in dark mode: charcoal on charcoal would disappear. */
+  --primary: #1db9a0;
+  --primary-foreground: #06201c;
+
+  --secondary: #2c333d;
+  --secondary-foreground: #e9ecf1;
+  --muted: #2c333d;
+  --muted-foreground: #9aa3b2;
+  --accent: #2c333d;
+  --accent-foreground: #e9ecf1;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #2f3744;
+  --input: #2f3744;
+  --ring: #1db9a0;
+
+  --chart-1: #1db9a0;
+  --chart-2: #8884d8;
+  --chart-3: #f9ffa1;
+  --chart-4: #ffbb28;
+  --chart-5: #ef4444;
+
+  --sidebar: #1e1e2e;
+  --sidebar-foreground: #e9ecf1;
+  --sidebar-primary: #1db9a0;
+  --sidebar-primary-foreground: #06201c;
+  --sidebar-accent: #2c333d;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #2f3744;
+  --sidebar-ring: #1db9a0;
 }
 
 @theme inline {
+  /* Brand teal and the lime highlight, exposed as utilities (bg-brand,
+     text-brand, border-brand) so features can reach for them deliberately
+     without hard-coding the hex the way the previous app did in 46 places. */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-muted: var(--brand-muted);
+  --color-highlight: var(--highlight);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
