@@ -13,8 +13,15 @@ import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "./constants";
  * none today.
  */
 export interface GatewayOptions {
-  /** Upstream API origin, e.g. https://api.myotherapp.in */
-  apiUrl: string;
+  /**
+   * Upstream API origin, e.g. https://api.myotherapp.in
+   *
+   * Optional, and resolved per request rather than at module load. Reading it
+   * at import time makes `next build` fail wherever the variable is not set --
+   * Next evaluates route modules while collecting page data, so CI broke even
+   * though the value is only ever needed at runtime.
+   */
+  apiUrl?: string;
   /**
    * Request headers never forwarded upstream. `host` would break virtual
    * hosting and TLS SNI; `connection`/`content-length` are recomputed by
@@ -41,10 +48,20 @@ export function createGatewayHandlers(options: GatewayOptions) {
   );
 
   async function handle(request: Request, context: RouteContext): Promise<Response> {
+    const apiUrl = options.apiUrl ?? process.env.MOA_API_URL;
+    if (!apiUrl) {
+      // A deployment problem, not a caller problem: say so plainly rather than
+      // letting it surface as an opaque fetch failure in the browser.
+      return Response.json(
+        { message: "The API gateway is not configured (MOA_API_URL is unset)." },
+        { status: 500 }
+      );
+    }
+
     const { path } = await context.params;
     const upstreamPath = `/${(path ?? []).join("/")}`;
     const search = new URL(request.url).search;
-    const target = `${options.apiUrl.replace(/\/$/, "")}${upstreamPath}${search}`;
+    const target = `${apiUrl.replace(/\/$/, "")}${upstreamPath}${search}`;
 
     const headers = new Headers();
     request.headers.forEach((value, key) => {
