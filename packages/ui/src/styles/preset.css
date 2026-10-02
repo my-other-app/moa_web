@@ -42,9 +42,28 @@ body {
    * design file is readable. Everything downstream consumes these tokens, so
    * nothing else needs to change.
    */
-  --brand: #1db9a0;
-  --brand-foreground: #06201c;
-  --brand-muted: #e6f7f4;
+  /*
+   * The file's palette frame (node 3:981) in full. These are the only colours
+   * the designs use, so anything outside this list is a mistake rather than a
+   * choice. Named by role where the design implies one, and kept as raw
+   * swatches otherwise so screens can reference them without inventing hex.
+   */
+  --swatch-ink: #2c333d;
+  --swatch-grey: #979797;
+  --swatch-grey-light: #b5b5b5;
+  --swatch-lime: #f9ffa1;
+  --swatch-mint: #b4e5bc;
+  --swatch-salmon: #f3aba7;
+  --swatch-sky: #b8dff2;
+  --swatch-lavender: #ccc1f0;
+  --swatch-violet: #9747ff;
+  --swatch-amber: #ffc84a;
+  --swatch-teal: #17a58f;
+  --swatch-red: #cd0000;
+
+  --brand: #17a58f;
+  --brand-foreground: #ffffff;
+  --brand-muted: #b4e5bc;
   --highlight: #f9ffa1;
 
   --background: #f6f7f9;
@@ -69,34 +88,34 @@ body {
   --accent: #eef0f3;
   --accent-foreground: #2c333d;
 
-  --destructive: #ef4444;
+  --destructive: #cd0000;
   --destructive-foreground: #ffffff;
   --border: #e5e7eb;
   --input: #e5e7eb;
-  --ring: #1db9a0;
+  --ring: #17a58f;
 
-  --chart-1: #1db9a0;
-  --chart-2: #2c333d;
-  --chart-3: #8884d8;
-  --chart-4: #f9ffa1;
-  --chart-5: #ffbb28;
+  --chart-1: #17a58f;
+  --chart-2: #9747ff;
+  --chart-3: #b8dff2;
+  --chart-4: #ffc84a;
+  --chart-5: #f3aba7;
 
   --radius: 0.625rem;
 
   /* Dark chrome. */
   --sidebar: #2c333d;
   --sidebar-foreground: #e9ecf1;
-  --sidebar-primary: #1db9a0;
+  --sidebar-primary: #17a58f;
   --sidebar-primary-foreground: #06201c;
   --sidebar-accent: #3a424e;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #3a424e;
-  --sidebar-ring: #1db9a0;
+  --sidebar-ring: #17a58f;
 }
 
 .dark {
-  --brand: #1db9a0;
-  --brand-foreground: #06201c;
+  --brand: #17a58f;
+  --brand-foreground: #ffffff;
   --brand-muted: #16302c;
   --highlight: #f9ffa1;
 
@@ -118,13 +137,13 @@ body {
   --accent: #2c333d;
   --accent-foreground: #e9ecf1;
 
-  --destructive: #ef4444;
+  --destructive: #cd0000;
   --destructive-foreground: #ffffff;
   --border: #2f3744;
   --input: #2f3744;
-  --ring: #1db9a0;
+  --ring: #17a58f;
 
-  --chart-1: #1db9a0;
+  --chart-1: #17a58f;
   --chart-2: #8884d8;
   --chart-3: #f9ffa1;
   --chart-4: #ffbb28;
@@ -132,18 +151,25 @@ body {
 
   --sidebar: #1e1e2e;
   --sidebar-foreground: #e9ecf1;
-  --sidebar-primary: #1db9a0;
+  --sidebar-primary: #17a58f;
   --sidebar-primary-foreground: #06201c;
   --sidebar-accent: #2c333d;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #2f3744;
-  --sidebar-ring: #1db9a0;
+  --sidebar-ring: #17a58f;
 }
 
 @theme inline {
   /* Brand teal and the lime highlight, exposed as utilities (bg-brand,
      text-brand, border-brand) so features can reach for them deliberately
      without hard-coding the hex the way the previous app did in 46 places. */
+  --color-ink: var(--swatch-ink);
+  --color-mint: var(--swatch-mint);
+  --color-salmon: var(--swatch-salmon);
+  --color-sky: var(--swatch-sky);
+  --color-lavender: var(--swatch-lavender);
+  --color-violet: var(--swatch-violet);
+  --color-amber: var(--swatch-amber);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-muted: var(--brand-muted);
