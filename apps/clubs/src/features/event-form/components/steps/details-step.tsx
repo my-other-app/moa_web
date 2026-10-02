@@ -92,10 +92,14 @@ export function DetailsStep() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <FormLabel className="flex items-center gap-2">
+            {/* A section heading, not a field label: FormLabel/FormDescription
+                read from the field context and throw outside a FormField. */}
+            <p className="flex items-center gap-2 text-sm font-medium">
               <UserRoundIcon className="size-4" /> Speakers
-            </FormLabel>
-            <FormDescription>Optional. Shown on the event page.</FormDescription>
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Optional. Shown on the event page.
+            </p>
           </div>
           <Button
             type="button"

@@ -43,10 +43,11 @@ export function QuestionsStep() {
   return (
     <div className="grid gap-4">
       <div className="flex items-start justify-between gap-4">
-        <FormDescription className="max-w-prose">
+        {/* Intro copy, not a field description — see details-step. */}
+        <p className="text-muted-foreground max-w-prose text-xs">
           Asked when someone registers, in addition to their name and email. Answers
           appear in the attendee export.
-        </FormDescription>
+        </p>
         <Button
           type="button"
           variant="outline"

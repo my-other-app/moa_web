@@ -3,12 +3,8 @@
 import * as React from "react";
 import { ImagePlusIcon, XIcon } from "lucide-react";
 import {
-  FormControl,
-  FormDescription,
-  FormItem,
-  FormLabel,
-  FormMessage,
   Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -35,9 +31,9 @@ export function ColorField({
   onChange: (v: string) => void;
 }) {
   return (
-    <FormItem>
-      <FormLabel>{label}</FormLabel>
-      <FormControl>
+    <div className="grid gap-2">
+      <Label>{label}</Label>
+      <>
         <div className="flex items-center gap-2">
           <input
             type="color"
@@ -54,9 +50,9 @@ export function ColorField({
             spellCheck={false}
           />
         </div>
-      </FormControl>
-      <FormMessage />
-    </FormItem>
+      </>
+      
+    </div>
   );
 }
 
@@ -74,14 +70,14 @@ export function SelectField<T extends string>({
   description?: string;
 }) {
   return (
-    <FormItem>
-      <FormLabel>{label}</FormLabel>
+    <div className="grid gap-2">
+      <Label>{label}</Label>
       <Select value={value} onValueChange={(v) => onChange(v as T)}>
-        <FormControl>
+        <>
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
-        </FormControl>
+        </>
         <SelectContent>
           {options.map((o) => (
             <SelectItem key={o} value={o}>
@@ -90,8 +86,8 @@ export function SelectField<T extends string>({
           ))}
         </SelectContent>
       </Select>
-      {description ? <FormDescription>{description}</FormDescription> : null}
-    </FormItem>
+      {description ? <p className="text-muted-foreground text-xs">{description}</p> : null}
+    </div>
   );
 }
 
@@ -107,15 +103,15 @@ export function ToggleField({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+    <div className="flex flex-row items-center justify-between rounded-lg border p-3">
       <div className="space-y-0.5 pr-4">
-        <FormLabel>{label}</FormLabel>
-        {description ? <FormDescription>{description}</FormDescription> : null}
+        <Label>{label}</Label>
+        {description ? <p className="text-muted-foreground text-xs">{description}</p> : null}
       </div>
-      <FormControl>
+      <>
         <Switch checked={checked} onCheckedChange={onChange} />
-      </FormControl>
-    </FormItem>
+      </>
+    </div>
   );
 }
 
@@ -154,9 +150,9 @@ export function ImageField({
   const shown = preview ?? existingUrl ?? null;
 
   return (
-    <FormItem>
-      <FormLabel>{label}</FormLabel>
-      <FormControl>
+    <div className="grid gap-2">
+      <Label>{label}</Label>
+      <>
         <div className="flex items-center gap-3">
           <label
             className={cn(
@@ -191,8 +187,8 @@ export function ImageField({
             ) : null}
           </div>
         </div>
-      </FormControl>
-      <FormMessage />
-    </FormItem>
+      </>
+      
+    </div>
   );
 }

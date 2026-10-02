@@ -10,12 +10,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  FormControl,
-  FormDescription,
-  FormItem,
-  FormLabel,
-  FormMessage,
   Input,
+  Label,
   Tabs,
   TabsContent,
   TabsList,
@@ -152,21 +148,21 @@ export function TemplateDesigner({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
+            <div className="grid gap-2">
+              <Label>Name</Label>
+              <>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={kind === "ticket" ? "Main ticket" : "Participation"}
                 />
-              </FormControl>
+              </>
               {nameError ? (
                 <p className="text-destructive animate-in fade-in-0 text-xs">{nameError}</p>
               ) : (
-                <FormDescription>Only you see this name.</FormDescription>
+                <p className="text-muted-foreground text-xs">Only you see this name.</p>
               )}
-            </FormItem>
+            </div>
           </CardContent>
         </Card>
 
@@ -209,100 +205,100 @@ export function TemplateDesigner({
               <CardContent className="grid gap-4">
                 {kind === "ticket" ? (
                   <>
-                    <FormItem>
-                      <FormLabel>Header text</FormLabel>
-                      <FormControl>
+                    <div className="grid gap-2">
+                      <Label>Header text</Label>
+                      <>
                         <Input
                           value={c.custom_header_text ?? ""}
                           onChange={(e) => set("custom_header_text", e.target.value)}
                           placeholder="ADMIT ONE"
                         />
-                      </FormControl>
-                    </FormItem>
-                    <FormItem>
-                      <FormLabel>Organiser subtitle</FormLabel>
-                      <FormControl>
+                      </>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Organiser subtitle</Label>
+                      <>
                         <Input
                           value={c.organizer_subtitle ?? ""}
                           onChange={(e) => set("organizer_subtitle", e.target.value)}
                           placeholder="presents"
                         />
-                      </FormControl>
-                      <FormDescription>Appears after your club name.</FormDescription>
-                    </FormItem>
+                      </>
+                      <p className="text-muted-foreground text-xs">Appears after your club name.</p>
+                    </div>
                   </>
                 ) : (
                   <>
-                    <FormItem>
-                      <FormLabel>Title</FormLabel>
-                      <FormControl>
+                    <div className="grid gap-2">
+                      <Label>Title</Label>
+                      <>
                         <Input
                           value={c.certificate_title}
                           onChange={(e) => set("certificate_title", e.target.value)}
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                    <FormItem>
-                      <FormLabel>Body text</FormLabel>
-                      <FormControl>
+                      </>
+                      
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Body text</Label>
+                      <>
                         <Textarea
                           rows={3}
                           value={c.custom_body_text ?? ""}
                           onChange={(e) => set("custom_body_text", e.target.value)}
                           placeholder="has participated in…"
                         />
-                      </FormControl>
-                    </FormItem>
+                      </>
+                    </div>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <FormItem>
-                        <FormLabel>Signatory 1 name</FormLabel>
-                        <FormControl>
+                      <div className="grid gap-2">
+                        <Label>Signatory 1 name</Label>
+                        <>
                           <Input
                             value={c.signature_1_name ?? ""}
                             onChange={(e) => set("signature_1_name", e.target.value)}
                           />
-                        </FormControl>
-                      </FormItem>
-                      <FormItem>
-                        <FormLabel>Signatory 1 title</FormLabel>
-                        <FormControl>
+                        </>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Signatory 1 title</Label>
+                        <>
                           <Input
                             value={c.signature_1_title ?? ""}
                             onChange={(e) => set("signature_1_title", e.target.value)}
                           />
-                        </FormControl>
-                      </FormItem>
-                      <FormItem>
-                        <FormLabel>Signatory 2 name</FormLabel>
-                        <FormControl>
+                        </>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Signatory 2 name</Label>
+                        <>
                           <Input
                             value={c.signature_2_name ?? ""}
                             onChange={(e) => set("signature_2_name", e.target.value)}
                           />
-                        </FormControl>
-                      </FormItem>
-                      <FormItem>
-                        <FormLabel>Signatory 2 title</FormLabel>
-                        <FormControl>
+                        </>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Signatory 2 title</Label>
+                        <>
                           <Input
                             value={c.signature_2_title ?? ""}
                             onChange={(e) => set("signature_2_title", e.target.value)}
                           />
-                        </FormControl>
-                      </FormItem>
+                        </>
+                      </div>
                     </div>
                   </>
                 )}
-                <FormItem>
-                  <FormLabel>Footer text</FormLabel>
-                  <FormControl>
+                <div className="grid gap-2">
+                  <Label>Footer text</Label>
+                  <>
                     <Input
                       value={c.custom_footer_text ?? ""}
                       onChange={(e) => set("custom_footer_text", e.target.value)}
                     />
-                  </FormControl>
-                </FormItem>
+                  </>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

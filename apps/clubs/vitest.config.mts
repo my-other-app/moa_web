@@ -8,7 +8,14 @@ export default defineConfig({
   // Required because test files reach shared packages through their barrels,
   // which export .tsx components alongside schemas.
   plugins: [react()],
-  test: { environment: "node", include: ["src/**/*.test.ts"] },
+  test: {
+    // jsdom so components can actually be rendered: the crashes these guard
+    // against (field-bound Form primitives used outside a FormField) are
+    // invisible to tsc and only appear at render time.
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+  },
   resolve: {
     // Array form, not an object: aliases are matched in order, and the
     // subpath entries must come before their package prefix or "@moa/ui"
