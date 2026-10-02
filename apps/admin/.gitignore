@@ -1,0 +1,5 @@
+.vercel
+.env*
+# ...but the example must stay committed: it documents the required vars
+# and the mobile CI generates its env from the equivalent file.
+!.env.example

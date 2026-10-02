@@ -4,6 +4,11 @@ dist/
 .turbo/
 *.tsbuildinfo
 .env
-.env*.local
+.env*
+# ...but the example must stay committed: it documents the required vars
+# and the mobile CI generates its env from the equivalent file.
+!.env.example.local
 coverage/
 .DS_Store
+.vercel
+.env*
