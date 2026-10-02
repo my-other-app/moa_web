@@ -1,0 +1,79 @@
+name: Deploy
+
+# Vercel's native Git integration cannot be used here: this repository is
+# private and owned by an organisation, which the Hobby plan does not support
+# ("The repository is private and owned by an organization... Upgrade to Pro").
+# This workflow does the same job through the CLI.
+#
+# Both apps live in one repo, so each job deploys from the repository root with
+# its own --local-config. Deploying from apps/<name> alone fails: Vercel would
+# upload only that directory and the workspace packages it depends on would be
+# missing, so npm install exits 1.
+#
+# Required repository secrets:
+#   VERCEL_TOKEN   - create at https://vercel.com/account/tokens
+#   VERCEL_ORG_ID  - team_jKChA5mnZMI7QJqLnN1gJdu9
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      production:
+        description: "Promote to production (otherwise a preview URL)"
+        type: boolean
+        default: false
+
+concurrency:
+  # One deploy at a time per app; a newer push supersedes an in-flight one.
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      # Don't let a failing admin deploy cancel the clubs one.
+      fail-fast: false
+      matrix:
+        include:
+          - app: admin
+            config: vercel.admin.json
+            project_id_secret: VERCEL_PROJECT_ID_ADMIN
+          - app: clubs
+            config: vercel.clubs.json
+            project_id_secret: VERCEL_PROJECT_ID_CLUBS
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      # Deploy only what passes. The verify workflow runs independently, so
+      # without this a broken build could still reach a URL people are using.
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test
+
+      - name: Deploy ${{ matrix.app }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets[matrix.project_id_secret] }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "VERCEL_TOKEN is not set — add it in Settings → Secrets → Actions." >&2
+            exit 1
+          fi
+          PROD=""
+          if [ "${{ github.event.inputs.production }}" = "true" ]; then
+            PROD="--prod"
+          fi
+          npx vercel@latest deploy $PROD \
+            --local-config ${{ matrix.config }} \
+            --token "$VERCEL_TOKEN" \
+            --yes | tee deploy-url.txt
+
+      - name: Summary
+        run: echo "**${{ matrix.app }}** → $(tail -1 deploy-url.txt)" >> "$GITHUB_STEP_SUMMARY"
