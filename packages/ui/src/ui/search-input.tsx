@@ -28,8 +28,17 @@ function SearchInput({
 }: SearchInputProps) {
   const debounced = useDebouncedValue(value, delayMs);
 
+  /*
+   * The callback is held in a ref so a caller passing an inline arrow does not
+   * re-fire the search on every render. The ref is written in an effect rather
+   * than during render: a render can be thrown away under concurrent
+   * rendering, which would leave the ref pointing at a callback from a commit
+   * that never happened.
+   */
   const onDebouncedChangeRef = React.useRef(onDebouncedChange);
-  onDebouncedChangeRef.current = onDebouncedChange;
+  React.useEffect(() => {
+    onDebouncedChangeRef.current = onDebouncedChange;
+  }, [onDebouncedChange]);
 
   React.useEffect(() => {
     onDebouncedChangeRef.current(debounced);

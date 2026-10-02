@@ -14,6 +14,7 @@ import {
   cn,
 } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
+import { useObjectUrl } from "@moa/ui/hooks";
 
 /**
  * A colour input paired with its hex value.
@@ -135,17 +136,7 @@ export function ImageField({
   onChange: (f: File | undefined) => void;
   hint?: string;
 }) {
-  const [preview, setPreview] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!file) {
-      setPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+  const preview = useObjectUrl(file);
 
   const shown = preview ?? existingUrl ?? null;
 
@@ -161,8 +152,9 @@ export function ImageField({
             )}
           >
             {shown ? (
-              // eslint-disable-next-line @next/next/no-img-element -- blob: and
-              // arbitrary S3 hosts; next/image adds nothing for a 64px chip.
+              /* blob: and arbitrary S3 hosts; next/image adds nothing for a
+                 64px chip. */
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={shown} alt="" className="size-16 object-contain" />
             ) : (
               <ImagePlusIcon className="text-muted-foreground size-4" />

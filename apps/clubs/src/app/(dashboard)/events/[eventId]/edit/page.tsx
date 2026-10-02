@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@moa/app-kit";
 
-import { EditEventForm } from "@/features/event-form/components/edit-event-form";
+import { EditEventForm } from "@/features/event-form";
 
 export const metadata: Metadata = { title: "Edit event" };
 

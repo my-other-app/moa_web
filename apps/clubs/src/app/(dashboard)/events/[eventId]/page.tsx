@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Skeleton } from "@moa/ui";
 
-import { EventWorkspace } from "@/features/registrations/components/event-workspace";
+import { EventWorkspace } from "@/features/registrations";
 
 export const metadata: Metadata = { title: "Event" };
 

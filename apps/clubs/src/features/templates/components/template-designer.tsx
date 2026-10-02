@@ -20,6 +20,7 @@ import {
   cn,
 } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
+import { useObjectUrl } from "@moa/ui/hooks";
 
 import {
   BORDER_STYLES,
@@ -49,20 +50,6 @@ interface Files {
   backgroundFile?: File;
   signature1File?: File;
   signature2File?: File;
-}
-
-function useObjectUrl(file: File | undefined): string | null {
-  const [url, setUrl] = React.useState<string | null>(null);
-  React.useEffect(() => {
-    if (!file) {
-      setUrl(null);
-      return;
-    }
-    const next = URL.createObjectURL(file);
-    setUrl(next);
-    return () => URL.revokeObjectURL(next);
-  }, [file]);
-  return url;
 }
 
 export function TemplateDesigner({

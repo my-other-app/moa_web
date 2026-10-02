@@ -24,6 +24,7 @@ import {
   cn,
 } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
+import { useObjectUrl } from "@moa/ui/hooks";
 
 import { useEventCategories, useInterests } from "../../queries";
 import type { EventFormValues } from "../../schemas";
@@ -32,21 +33,8 @@ export function BasicsStep() {
   const form = useFormContext<EventFormValues>();
   const categories = useEventCategories();
   const interests = useInterests();
-  const [preview, setPreview] = React.useState<string | null>(null);
-
   const posterFile = form.watch("posterFile");
-
-  React.useEffect(() => {
-    if (!posterFile) {
-      setPreview(null);
-      return;
-    }
-    // Object URLs must be revoked or each re-pick leaks a blob for the life of
-    // the page.
-    const url = URL.createObjectURL(posterFile);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [posterFile]);
+  const preview = useObjectUrl(posterFile);
 
   const selectedInterests = form.watch("interest_ids") ?? [];
 

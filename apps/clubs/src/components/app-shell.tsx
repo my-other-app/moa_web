@@ -139,12 +139,10 @@ export function AppShell({
   user: SessionUser;
   children: React.ReactNode;
 }) {
+  // Closed by the nav items' own onNavigate rather than by an effect watching
+  // the pathname: setting state from an effect costs an extra render pass and
+  // fires on every route change, including ones the sheet was not open for.
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const pathname = usePathname();
-
-  React.useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
 
   return (
     <div className="bg-[var(--swatch-ink)] flex min-h-dvh">

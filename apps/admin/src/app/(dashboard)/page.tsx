@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@moa/
 
 import { PageHeader } from "@moa/app-kit";
 import { OverviewCards } from "@/features/analytics";
-import { GrowthChartPanel } from "@/features/analytics/components/growth-chart-panel";
+import { GrowthChartPanel } from "@/features/analytics";
 
 export const metadata: Metadata = { title: "Overview" };
 
