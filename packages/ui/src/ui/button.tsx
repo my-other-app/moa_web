@@ -19,6 +19,14 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        /*
+         * The product's primary call to action (design node 3:817): charcoal
+         * fill, Bebas Neue, wide tracking. Uses the `.bebas` class from the
+         * shared preset rather than a font utility, because that is how the
+         * font variable is already wired in both apps.
+         */
+        display:
+          "bebas bg-primary text-primary-foreground tracking-wide hover:bg-primary/90",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
@@ -29,6 +37,8 @@ const buttonVariants = cva(
         "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",
         "icon-lg": "size-10",
+        /* 60px tall, 50px horizontal padding — the design's CTA proportions. */
+        display: "h-[60px] rounded-lg px-[50px] text-2xl has-[>svg]:px-10",
       },
     },
     defaultVariants: {

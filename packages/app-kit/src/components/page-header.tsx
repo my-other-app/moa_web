@@ -25,7 +25,14 @@ export function PageHeader({
       )}
     >
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        {/*
+         * Bebas Neue, uppercase, 48px — the page-title treatment from the
+         * design (node 3:807). Shared by both apps so admin inherits the same
+         * language rather than drifting back to a generic dashboard heading.
+         */}
+        <h1 className="bebas text-[40px] leading-none tracking-wide uppercase sm:text-[48px]">
+          {title}
+        </h1>
         {description ? (
           <p className="text-muted-foreground text-sm text-pretty">{description}</p>
         ) : null}
