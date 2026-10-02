@@ -23,22 +23,36 @@ function SelectValue({
 function SelectTrigger({
   className,
   size = "default",
+  variant = "default",
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
   size?: "sm" | "default";
+  /** `design` matches the dropdown in the design (node 368:311). */
+  variant?: "default" | "design";
 }) {
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       data-size={size}
+      data-variant={variant}
       className={cn(
-        "border-input flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none",
-        "data-[size=default]:h-9 data-[size=sm]:h-8",
-        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+        "flex items-center justify-between gap-2 whitespace-nowrap transition-[color,box-shadow] outline-none",
         "aria-invalid:border-destructive aria-invalid:ring-destructive/20",
         "disabled:cursor-not-allowed disabled:opacity-50",
-        "data-[placeholder]:text-muted-foreground [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
+        "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
+        variant === "design"
+          ? [
+              "h-11 w-full rounded-lg border-[0.5px] border-[var(--swatch-ink)] bg-white pl-2 pr-3.5 py-1.5 text-base font-medium",
+              "data-[placeholder]:text-[var(--swatch-grey)]",
+              "focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+            ]
+          : [
+              "border-input w-fit rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs",
+              "data-[size=default]:h-9 data-[size=sm]:h-8",
+              "data-[placeholder]:text-muted-foreground",
+              "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+            ],
         className
       )}
       {...props}

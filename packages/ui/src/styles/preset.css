@@ -61,6 +61,21 @@ body {
   --swatch-teal: #17a58f;
   --swatch-red: #cd0000;
 
+  /*
+   * Chip tints, from the club-profile frame (node 251:998) rather than the
+   * palette frame. The profile's interest chips are a softer set than the
+   * swatches above -- #f4ce9b, #ffdedd and #e1c9ff appear nowhere in 3:981 --
+   * so they are named separately instead of being passed off as swatches.
+   * Screens pick one per item by id so a club's chips keep stable colours.
+   */
+  --chip-sky: #b8dff2;
+  --chip-lime: #f9ffa1;
+  --chip-salmon: #f3aba7;
+  --chip-mint: #b4e5bc;
+  --chip-sand: #f4ce9b;
+  --chip-blush: #ffdedd;
+  --chip-lilac: #e1c9ff;
+
   --brand: #17a58f;
   --brand-foreground: #ffffff;
   --brand-muted: #b4e5bc;

@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "name": "Academic",
+    "icon": "string",
+    "icon_type": "emoji",
+    "interests": [
+      { "id": 6, "name": "Coding", "icon": "⌨️", "icon_type": "emoji" },
+      { "id": 7, "name": "UI/UX", "icon": "🎨", "icon_type": "emoji" },
+      { "id": 10, "name": "Marketing", "icon": "string", "icon_type": "emoji" }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Creative",
+    "icon": null,
+    "icon_type": null,
+    "interests": [
+      { "id": 21, "name": "Photography", "icon": "📷", "icon_type": "emoji" },
+      { "id": 22, "name": "Music", "icon": "🥁", "icon_type": "emoji" }
+    ]
+  }
+]

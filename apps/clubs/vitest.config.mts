@@ -22,6 +22,7 @@ export default defineConfig({
     // swallows "@moa/ui/motion" and resolves it to <index.ts>/motion.
     alias: [
       { find: "@moa/ui/motion", replacement: at("../../packages/ui/src/lib/motion.ts") },
+      { find: "@moa/ui/hooks", replacement: at("../../packages/ui/src/hooks/index.ts") },
       { find: "@moa/ui", replacement: at("../../packages/ui/src/ui/index.ts") },
       { find: "@moa/app-kit", replacement: at("../../packages/app-kit/src/index.ts") },
       { find: "@moa/api", replacement: at("../../packages/api/src/index.ts") },

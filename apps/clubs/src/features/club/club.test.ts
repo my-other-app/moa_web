@@ -1,0 +1,207 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import clubInfoFixture from "../__fixtures__/club-info.json";
+import interestsFixture from "../__fixtures__/interests.json";
+import orgsFixture from "../__fixtures__/orgs.json";
+
+const put = vi.fn();
+const get = vi.fn();
+
+vi.mock("@moa/app-kit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@moa/app-kit")>()),
+  api: {
+    get: (...args: unknown[]) => get(...args),
+    put: (...args: unknown[]) => put(...args),
+    post: vi.fn(),
+  },
+}));
+
+const { fetchInterestCategories, fetchOrganizations, updateMyClub } = await import(
+  "./api"
+);
+const { clubProfileFormSchema, clubSelfSchema, interestEmoji } = await import(
+  "./schemas"
+);
+
+function formEntries(body: unknown): Record<string, string> {
+  expect(body).toBeInstanceOf(FormData);
+  const out: Record<string, string> = {};
+  for (const [key, value] of (body as FormData).entries()) out[key] = String(value);
+  return out;
+}
+
+/** Valid values for every required field, so each test varies only one thing. */
+function baseForm() {
+  return clubProfileFormSchema.parse({
+    name: "IEDC CET",
+    about: "We build things.",
+    org_id: 1,
+    location_name: "Sreekaryam",
+    location_link: "https://maps.example/x",
+    contact_email: "club@example.com",
+    contact_phone: "9000000000",
+    instagram: "https://instagram.com/iedccet",
+    youtube: "",
+    linkedin: "",
+    website: "",
+    interest_ids: [6, 7, 10],
+  });
+}
+
+beforeEach(() => {
+  put.mockReset();
+  get.mockReset();
+});
+
+/**
+ * PUT /clubs/update is destructive by design: `update_club` assigns every
+ * column from the request and runs an unconditional
+ * `DELETE FROM club_interests_link WHERE club_id = …` before re-adding only
+ * the ids it was given. A payload that leaves a field out therefore clears it.
+ *
+ * The first version of this form sent nine text fields and no `org_id` or
+ * `interest_ids`, so every save silently unlinked the club's organization and
+ * deleted all of its focus areas. These tests pin the full payload so that
+ * cannot come back.
+ */
+describe("updateMyClub sends everything the endpoint overwrites", () => {
+  it("includes the interest ids as a comma-separated list", async () => {
+    await updateMyClub(baseForm());
+    expect(formEntries(put.mock.calls[0]![1]).interest_ids).toBe("6,7,10");
+  });
+
+  it("includes org_id when one is selected", async () => {
+    await updateMyClub(baseForm());
+    expect(formEntries(put.mock.calls[0]![1]).org_id).toBe("1");
+  });
+
+  it("omits org_id entirely when there is none", async () => {
+    // `org_id` is typed `int | None`, so an empty string is a 422 -- "no
+    // organization" has to be the absence of the part.
+    await updateMyClub({ ...baseForm(), org_id: null });
+    expect(formEntries(put.mock.calls[0]![1])).not.toHaveProperty("org_id");
+  });
+
+  it("sends an empty interest list rather than dropping the field", async () => {
+    await updateMyClub({ ...baseForm(), interest_ids: [] });
+    expect(formEntries(put.mock.calls[0]![1]).interest_ids).toBe("");
+  });
+
+  it("round-trips every text field the handler assigns", async () => {
+    await updateMyClub(baseForm());
+    const entries = formEntries(put.mock.calls[0]![1]);
+    for (const key of [
+      "name",
+      "about",
+      "location_name",
+      "location_link",
+      "contact_email",
+      "contact_phone",
+      "instagram",
+      "youtube",
+      "linkedin",
+      "website",
+    ]) {
+      expect(entries, `missing ${key}`).toHaveProperty(key);
+    }
+  });
+
+  it("keeps the location link, which the design has no field for", async () => {
+    await updateMyClub(baseForm());
+    expect(formEntries(put.mock.calls[0]![1]).location_link).toBe(
+      "https://maps.example/x"
+    );
+  });
+});
+
+/**
+ * The original defect was not in the serialiser but in the schema: the form
+ * type simply had no `org_id` or `interest_ids`, so no payload could carry
+ * them however it was built. This pins the field set itself, which is what
+ * silently narrowed.
+ */
+describe("the form schema covers every column the endpoint assigns", () => {
+  const OVERWRITTEN = [
+    "name",
+    "about",
+    "org_id",
+    "location_name",
+    "location_link",
+    "contact_email",
+    "contact_phone",
+    "instagram",
+    "youtube",
+    "linkedin",
+    "website",
+    "interest_ids",
+  ].sort();
+
+  it("parses to exactly those fields", () => {
+    expect(Object.keys(baseForm()).sort()).toEqual(OVERWRITTEN);
+  });
+});
+
+describe("club profile form validation", () => {
+  it("rejects a name longer than the endpoint's 20-character limit", () => {
+    const result = clubProfileFormSchema.safeParse({
+      ...baseForm(),
+      name: "A club with a really long name",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a name shorter than 3 characters", () => {
+    expect(
+      clubProfileFormSchema.safeParse({ ...baseForm(), name: "AB" }).success
+    ).toBe(false);
+  });
+
+  it("accepts an empty social link but not a bare handle", () => {
+    expect(
+      clubProfileFormSchema.safeParse({ ...baseForm(), instagram: "" }).success
+    ).toBe(true);
+    expect(
+      clubProfileFormSchema.safeParse({ ...baseForm(), instagram: "@iedccet" }).success
+    ).toBe(false);
+  });
+});
+
+describe("reference data schemas", () => {
+  it("parses the category-wise interest list", async () => {
+    get.mockResolvedValue(interestsFixture);
+    const categories = await fetchInterestCategories();
+    expect(categories.map((c) => c.name)).toEqual(["Academic", "Creative"]);
+    expect(categories[0]!.interests.length).toBe(3);
+  });
+
+  it("parses the organization list", async () => {
+    get.mockResolvedValue(orgsFixture);
+    const orgs = await fetchOrganizations();
+    expect(orgs[0]!.name).toBe("College of Engineering Trivandrum");
+  });
+
+  it("reads the club's interests as objects, not opaque values", () => {
+    const club = clubSelfSchema.parse(clubInfoFixture);
+    expect(club.interests.map((i) => i.name)).toEqual([
+      "Coding",
+      "UI/UX",
+      "Marketing",
+    ]);
+  });
+});
+
+describe("interest icons", () => {
+  it("renders a real emoji", () => {
+    expect(interestEmoji({ icon: "🎨", icon_type: "emoji" })).toBe("🎨");
+  });
+
+  it("drops the seeded placeholder rather than printing it on the chip", () => {
+    // Several production rows literally store the word "string".
+    expect(interestEmoji({ icon: "string", icon_type: "emoji" })).toBeNull();
+  });
+
+  it("ignores an icon that is not declared as an emoji", () => {
+    expect(interestEmoji({ icon: "🎨", icon_type: "url" })).toBeNull();
+    expect(interestEmoji({ icon: null, icon_type: "emoji" })).toBeNull();
+  });
+});

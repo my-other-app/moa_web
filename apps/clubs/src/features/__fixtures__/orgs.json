@@ -1,0 +1,24 @@
+[
+  {
+    "id": 1,
+    "name": "College of Engineering Trivandrum",
+    "type": "college",
+    "address": "Sreekaryam, Trivandrum",
+    "phone": null,
+    "email": null,
+    "website": null,
+    "logo": null,
+    "is_blocked": false
+  },
+  {
+    "id": 2,
+    "name": "Technopark",
+    "type": "company",
+    "address": "Kazhakkoottam, Trivandrum",
+    "phone": null,
+    "email": null,
+    "website": null,
+    "logo": null,
+    "is_blocked": false
+  }
+]
