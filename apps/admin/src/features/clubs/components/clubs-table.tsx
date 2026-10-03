@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Avatar, AvatarFallback, StatusBadge, type DataTableColumn } from "@moa/ui";
 
 import { ResourceList, formatDate, initials, pickImage, useListParams } from "@moa/app-kit";
@@ -33,7 +34,12 @@ const columns: DataTableColumn<AdminClub>[] = [
             </Avatar>
           )}
           <div className="min-w-0">
-            <p className="truncate font-medium">{row.name}</p>
+            <Link
+              href={`/clubs/${row.id}`}
+              className="block truncate font-medium underline-offset-4 hover:underline"
+            >
+              {row.name}
+            </Link>
             <p className="text-muted-foreground truncate text-xs">
               {row.location_name || "No location"}
             </p>

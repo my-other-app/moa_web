@@ -1,0 +1,34 @@
+{
+  "id": 14,
+  "name": "Pending Club",
+  "slug": "pending-club-55d2a",
+  "logo": null,
+  "location_name": null,
+  "location_link": null,
+  "about": null,
+  "contact_phone": null,
+  "contact_email": null,
+  "rating": 0,
+  "total_ratings": 0,
+  "total_events": 0,
+  "live_events": 0,
+  "past_events": 0,
+  "followers_count": 0,
+  "socials": null,
+  "interests": [],
+  "org": null,
+  "is_verified": false,
+  "is_deleted": false,
+  "created_at": "2026-09-30T08:00:00",
+  "owner": {
+    "id": 91,
+    "full_name": "New Organiser",
+    "username": "pendingclub",
+    "email": "pending@example.com"
+  },
+  "admin_stats": {
+    "total_registrations": 0,
+    "total_attended": 0,
+    "total_revenue": 0
+  }
+}

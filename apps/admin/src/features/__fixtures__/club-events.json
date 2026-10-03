@@ -1,0 +1,18 @@
+{
+  "limit": 10,
+  "offset": 0,
+  "total": 9,
+  "next": null,
+  "items": [
+    {
+      "id": 37,
+      "name": "SF Sea Hackathon",
+      "slug": "sf-sea-hackathon-9f21a",
+      "poster": null,
+      "event_datetime": "2026-06-09T08:20:00",
+      "location_name": "Honam area",
+      "registration_count": 24,
+      "attended_count": 18
+    }
+  ]
+}

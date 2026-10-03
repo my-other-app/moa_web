@@ -82,3 +82,10 @@ never retried — retrying a 401 only delays the sign-in redirect.
 Each app deploys independently. Set `MOA_API_URL` in the host's environment.
 Next.js handles its own routing, so no SPA rewrite rule is needed (the absence
 of one is what made the previous Vite dashboard 404 on every deep link).
+
+### Why `typecheck` depends on `build`
+
+`tsc --noEmit` in a Next app reads `.next/types/**`, which only that app's own
+`build` generates. Without the dependency, adding a route makes typecheck fail
+against stale types, and running both tasks together races -- the build rewrites
+the directory while tsc is reading it.

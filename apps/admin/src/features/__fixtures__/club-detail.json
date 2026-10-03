@@ -1,0 +1,42 @@
+{
+  "id": 5,
+  "name": "IEDC CET",
+  "slug": "iedc-cet-11a2b3",
+  "logo": null,
+  "location_name": "Sreekaryam, Trivandrum",
+  "location_link": null,
+  "about": "Innovation and Entrepreneurship Development Centre.",
+  "contact_phone": "9000000005",
+  "contact_email": "iedc@example.com",
+  "rating": 4.5,
+  "total_ratings": 12,
+  "total_events": 9,
+  "live_events": 2,
+  "past_events": 7,
+  "followers_count": 128,
+  "socials": {
+    "instagram": "https://instagram.com/example",
+    "linkedin": null,
+    "youtube": null,
+    "website": null
+  },
+  "interests": [
+    { "id": 6, "name": "Coding" },
+    { "id": 7, "name": "UI/UX" }
+  ],
+  "org": { "id": 1, "name": "College of Engineering Trivandrum" },
+  "is_verified": true,
+  "is_deleted": false,
+  "created_at": "2025-08-11T12:00:00",
+  "owner": {
+    "id": 77,
+    "full_name": "Club Owner",
+    "username": "iedccet",
+    "email": "iedc@example.com"
+  },
+  "admin_stats": {
+    "total_registrations": 340,
+    "total_attended": 221,
+    "total_revenue": 18500.0
+  }
+}

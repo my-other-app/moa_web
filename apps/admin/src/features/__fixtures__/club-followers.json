@@ -1,0 +1,18 @@
+{
+  "limit": 10,
+  "offset": 0,
+  "total": 2,
+  "next": null,
+  "items": [
+    {
+      "user": { "id": 412, "full_name": "Test Person", "username": "testperson", "email": "testperson@example.com" },
+      "is_following": true,
+      "created_at": "2026-01-12T10:00:00"
+    },
+    {
+      "user": { "id": 413, "full_name": "Second Person", "username": "second", "email": "second@example.com" },
+      "is_following": true,
+      "created_at": "2026-02-03T14:20:00"
+    }
+  ]
+}

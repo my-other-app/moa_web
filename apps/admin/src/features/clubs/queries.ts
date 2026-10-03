@@ -4,7 +4,19 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
-import { approveClub, fetchClubs, rejectClub, type ClubListQuery } from "./api";
+import {
+  approveClub,
+  deleteClub,
+  fetchClub,
+  fetchClubEvents,
+  fetchClubFollowers,
+  fetchClubs,
+  rejectClub,
+  updateClub,
+  type ClubListQuery,
+  type SubListQuery,
+} from "./api";
+import type { ClubEditInput } from "./schemas";
 
 export function useClubs(query: ClubListQuery) {
   return useQuery({
@@ -39,6 +51,56 @@ export function useRejectClub() {
     mutationFn: rejectClub,
     onSuccess: async () => {
       toast.success("Club rejected and removed");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.clubs.all }),
+        queryClient.invalidateQueries({ queryKey: qk.analytics.all }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useClub(clubId: number) {
+  return useQuery({
+    queryKey: qk.clubs.detail(clubId),
+    queryFn: () => fetchClub(clubId),
+  });
+}
+
+export function useClubFollowers(clubId: number, query: SubListQuery) {
+  return useQuery({
+    queryKey: [...qk.clubs.followers(clubId), query],
+    queryFn: () => fetchClubFollowers(clubId, query),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useClubEvents(clubId: number, query: SubListQuery) {
+  return useQuery({
+    queryKey: [...qk.clubs.events(clubId), query],
+    queryFn: () => fetchClubEvents(clubId, query),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useUpdateClub(clubId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ClubEditInput) => updateClub(clubId, input),
+    onSuccess: async () => {
+      toast.success("Club updated");
+      await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useDeleteClub() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteClub,
+    onSuccess: async () => {
+      toast.success("Club deleted");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: qk.clubs.all }),
         queryClient.invalidateQueries({ queryKey: qk.analytics.all }),
