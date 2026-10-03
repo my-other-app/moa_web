@@ -8,13 +8,21 @@ export default defineConfig({
   // Required because test files reach shared packages through their barrels,
   // which export .tsx components alongside schemas.
   plugins: [react()],
-  test: { environment: "node", include: ["src/**/*.test.ts"] },
+  test: {
+    // jsdom so components can actually be rendered. The clubs app shipped
+    // three components that crashed on render and passed both tsc and the
+    // build; only rendering catches that class of bug.
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+  },
   resolve: {
     // Array form, not an object: aliases are matched in order, and the
     // subpath entries must come before their package prefix or "@moa/ui"
     // swallows "@moa/ui/motion" and resolves it to <index.ts>/motion.
     alias: [
       { find: "@moa/ui/motion", replacement: at("../../packages/ui/src/lib/motion.ts") },
+      { find: "@moa/ui/hooks", replacement: at("../../packages/ui/src/hooks/index.ts") },
       { find: "@moa/ui", replacement: at("../../packages/ui/src/ui/index.ts") },
       { find: "@moa/app-kit", replacement: at("../../packages/app-kit/src/index.ts") },
       { find: "@moa/api", replacement: at("../../packages/api/src/index.ts") },

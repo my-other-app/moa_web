@@ -1,0 +1,21 @@
+{
+  "user_id": 412,
+  "badges": [
+    {
+      "id": 1,
+      "slug": "first-event",
+      "name": "First Steps",
+      "description": "Attended a first event",
+      "emoji": "🎉",
+      "awarded_at": "2025-12-14T10:00:00"
+    },
+    {
+      "id": 4,
+      "slug": "serial-attendee",
+      "name": "Regular",
+      "description": "Attended five events",
+      "emoji": "🔥",
+      "awarded_at": "2026-03-02T19:30:00"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Avatar, AvatarFallback, Badge, type DataTableColumn } from "@moa/ui";
 
 import { ResourceList, formatDate, initials, useListParams } from "@moa/app-kit";
@@ -25,7 +26,12 @@ const columns: DataTableColumn<AdminUser>[] = [
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <p className="truncate font-medium">{row.full_name || row.username}</p>
+          <Link
+            href={`/users/${row.id}`}
+            className="block truncate font-medium underline-offset-4 hover:underline"
+          >
+            {row.full_name || row.username}
+          </Link>
           <p className="text-muted-foreground truncate text-xs">@{row.username}</p>
         </div>
       </div>

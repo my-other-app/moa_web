@@ -1,4 +1,23 @@
-export { useUsers } from "./queries";
-export { fetchUsers, type UserListQuery } from "./api";
+export {
+  useUsers,
+  useUser,
+  useUserClubs,
+  useUserEvents,
+  useUserBadges,
+} from "./queries";
+export {
+  fetchUsers,
+  fetchUser,
+  type UserListQuery,
+  type UserEventQuery,
+} from "./api";
 export { UsersTable } from "./components/users-table";
-export { adminUserSchema, type AdminUser } from "./schemas";
+export { UserDetail } from "./components/user-detail";
+export {
+  adminUserSchema,
+  adminUserDetailSchema,
+  type AdminUser,
+  type AdminUserDetail,
+  type UserClub,
+  type UserEvent,
+} from "./schemas";

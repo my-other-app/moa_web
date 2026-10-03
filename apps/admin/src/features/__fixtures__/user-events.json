@@ -1,0 +1,34 @@
+{
+  "limit": 10,
+  "offset": 0,
+  "total": 11,
+  "next": null,
+  "items": [
+    {
+      "ticket_id": "MOA-1A2B3C4-XY7Z9",
+      "full_name": "Test Person",
+      "email": "testperson@example.com",
+      "phone": "9000000412",
+      "is_paid": true,
+      "actual_amount": 250.0,
+      "paid_amount": 250.0,
+      "event": {
+        "id": 37,
+        "name": "SF Sea Hackathon",
+        "slug": "sf-sea-hackathon-9f21a",
+        "poster": null,
+        "event_datetime": "2026-06-09T08:20:00",
+        "duration": 480.0,
+        "location_name": "Honam area",
+        "is_online": false,
+        "has_fee": true,
+        "has_prize": true,
+        "prize_amount": 50000.0,
+        "reg_startdate": "2026-05-01T00:00:00",
+        "reg_enddate": "2026-06-01T00:00:00",
+        "club": { "id": 5, "name": "IEDC CET", "slug": "iedc-cet-11a2b3", "logo": null },
+        "category": { "id": 2, "name": "Hackathon", "icon": null, "icon_type": null }
+      }
+    }
+  ]
+}

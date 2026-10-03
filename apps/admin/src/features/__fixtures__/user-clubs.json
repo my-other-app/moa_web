@@ -1,0 +1,28 @@
+{
+  "limit": 10,
+  "offset": 0,
+  "total": 4,
+  "next": null,
+  "items": [
+    {
+      "id": 5,
+      "name": "IEDC CET",
+      "slug": "iedc-cet-11a2b3",
+      "logo": null,
+      "location_name": "Sreekaryam, Trivandrum",
+      "followers_count": 128,
+      "is_following": true,
+      "interests": []
+    },
+    {
+      "id": 9,
+      "name": "TinkerHub",
+      "slug": "tinkerhub-77c4d1",
+      "logo": null,
+      "location_name": "Kochi",
+      "followers_count": 940,
+      "is_following": true,
+      "interests": []
+    }
+  ]
+}

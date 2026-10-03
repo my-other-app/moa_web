@@ -1,0 +1,31 @@
+{
+  "id": 412,
+  "full_name": "Test Person",
+  "email": "testperson@example.com",
+  "phone": "9000000412",
+  "username": "testperson",
+  "user_type": "app_user",
+  "provider": "google",
+  "created_at": "2025-11-02T09:15:00",
+  "updated_at": "2026-04-18T17:40:00",
+  "profile": {
+    "id": 88,
+    "full_name": "Test Person",
+    "whatsapp": null,
+    "profile_pic": null,
+    "avatar": null,
+    "org": { "id": 1, "name": "College of Engineering Trivandrum" }
+  },
+  "interests": [
+    { "id": 6, "name": "Coding" },
+    { "id": 7, "name": "UI/UX" }
+  ],
+  "stats": {
+    "clubs_following": 4,
+    "events_registered": 11,
+    "events_attended": 7,
+    "events_won": 2,
+    "badges_earned": 3,
+    "total_paid": 750.0
+  }
+}
