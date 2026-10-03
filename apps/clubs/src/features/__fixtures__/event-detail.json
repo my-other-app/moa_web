@@ -1,0 +1,22 @@
+{
+  "id": 37,
+  "name": "SF Sea Hackathon",
+  "slug": "sf-sea-hackathon-9f21a",
+  "poster": {
+    "thumbnail": "https://example-bucket.s3.amazonaws.com/posters/37.thumbnail.png",
+    "medium": "https://example-bucket.s3.amazonaws.com/posters/37.medium.png",
+    "large": "https://example-bucket.s3.amazonaws.com/posters/37.large.png",
+    "original": "https://example-bucket.s3.amazonaws.com/posters/37.png"
+  },
+  "event_datetime": "2099-06-09T08:20:00",
+  "duration": 480,
+  "reg_startdate": "2099-05-01T00:00:00",
+  "reg_enddate": "2099-06-01T00:00:00",
+  "location_name": "Honam area",
+  "is_online": false,
+  "has_fee": false,
+  "reg_fee": null,
+  "page_views": 234,
+  "max_participants": 100,
+  "category": { "id": 2, "name": "Hackathon" }
+}

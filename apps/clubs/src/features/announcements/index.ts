@@ -6,3 +6,4 @@ export {
   type SendAnnouncementInput,
 } from "./schemas";
 export { SendAnnouncementDialog } from "./components/send-announcement-dialog";
+export { AnnouncementComposer } from "./components/announcement-composer";

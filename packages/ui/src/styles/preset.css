@@ -76,6 +76,15 @@ body {
   --chip-blush: #ffdedd;
   --chip-lilac: #e1c9ff;
 
+  /*
+   * Foregrounds for the tinted stat cards on the event screen (node 168:1265).
+   * Each is a darkened form of its card's fill, chosen for contrast on it --
+   * the palette frame has no dark variants, so #096b5c and #0b4f70 are named
+   * here rather than passed off as swatches.
+   */
+  --stat-mint-ink: #096b5c;
+  --stat-sky-ink: #0b4f70;
+
   --brand: #17a58f;
   --brand-foreground: #ffffff;
   --brand-muted: #b4e5bc;

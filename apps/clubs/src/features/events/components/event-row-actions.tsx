@@ -28,7 +28,23 @@ import type { ClubEvent } from "../schemas";
 const ACTION =
   "grid size-12 shrink-0 place-items-center rounded bg-[#f3f3f3] text-[var(--swatch-grey)] transition-colors hover:bg-[var(--swatch-ink)] hover:text-white focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-[3px]";
 
-export function EventRowActions({ event }: { event: ClubEvent }) {
+/**
+ * The design shows the same three actions on the list row (3:834) and on the
+ * event screen (168:1251), so the prop is the structural minimum both pages
+ * can supply rather than a full ClubEvent.
+ */
+export type ActionableEvent = Pick<ClubEvent, "id" | "name"> & {
+  registration_count?: number | null;
+};
+
+export function EventRowActions({
+  event,
+  onDeleted,
+}: {
+  event: ActionableEvent;
+  /** Called after a successful delete, for pages that cannot stay where they are. */
+  onDeleted?: () => void;
+}) {
   const remove = useDeleteEvent();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const registered = event.registration_count ?? 0;
@@ -113,7 +129,10 @@ export function EventRowActions({ event }: { event: ClubEvent }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className={cn(buttonVariants({ variant: "destructive" }))}
-              onClick={() => remove.mutate(event.id)}
+              onClick={async () => {
+                await remove.mutateAsync(event.id);
+                onDeleted?.();
+              }}
             >
               Delete event
             </AlertDialogAction>

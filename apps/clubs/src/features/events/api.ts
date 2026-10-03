@@ -21,3 +21,11 @@ export async function fetchClubEvents(query: ClubEventQuery) {
   });
   return clubEventPageSchema.parse(raw);
 }
+
+/**
+ * The raw detail payload. Returned unparsed so it can share one cache entry
+ * with the edit form, which parses the same response differently.
+ */
+export async function fetchEventDetail(eventId: number): Promise<unknown> {
+  return api.get<unknown>(`/api/v1/events/info/${eventId}`);
+}

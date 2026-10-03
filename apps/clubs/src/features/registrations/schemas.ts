@@ -39,6 +39,12 @@ export const eventAnalyticsSchema = z
     payment_status: z.record(z.unknown()).nullish(),
     attendance_status: z.record(z.unknown()).nullish(),
     top_institutions: z.array(z.unknown()).default([]),
+    /*
+     * Distinct institutions across every registration. `top_institutions` is
+     * sliced to the five largest server-side, so its length is not this
+     * number -- an event with fifty colleges would read 5.
+     */
+    total_institutions: z.number().default(0),
   })
   .passthrough();
 

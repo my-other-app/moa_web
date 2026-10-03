@@ -1,0 +1,18 @@
+{
+  "total_registrations": 24,
+  "total_revenue": 0.0,
+  "attendance_rate": 0.0,
+  "conversion_rate": 10.3,
+  "payment_status": { "paid": 0, "unpaid": 24 },
+  "attendance_status": { "attended": 0, "absent": 24 },
+  "top_institutions": [
+    { "name": "College of Engineering Trivandrum", "value": 9 },
+    { "name": "TKM College of Engineering", "value": 6 },
+    { "name": "NSS College of Engineering", "value": 4 },
+    { "name": "MACE", "value": 3 },
+    { "name": "GEC Barton Hill", "value": 1 }
+  ],
+  "total_institutions": 7,
+  "registration_time": { "morning": 4, "afternoon": 12, "evening": 6, "night": 2 },
+  "attendance_over_time": []
+}
