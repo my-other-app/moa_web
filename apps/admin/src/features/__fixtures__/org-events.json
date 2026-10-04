@@ -1,0 +1,33 @@
+{
+  "limit": 10,
+  "offset": 0,
+  "total": 27,
+  "next": null,
+  "items": [
+    {
+      "id": 37,
+      "name": "SF Sea Hackathon",
+      "poster": null,
+      "event_datetime": "2026-06-09T08:20:00",
+      "duration": 480.0,
+      "location_name": "Honam area",
+      "has_fee": true,
+      "reg_fee": 250.0,
+      "has_prize": true,
+      "prize_amount": 50000.0,
+      "is_online": false,
+      "reg_startdate": "2026-05-01T00:00:00",
+      "reg_enddate": "2026-06-01T00:00:00",
+      "page_views": 234,
+      "is_deleted": false,
+      "category": {
+        "id": 2,
+        "name": "Hackathon"
+      },
+      "club": {
+        "id": 5,
+        "name": "IEDC CET"
+      }
+    }
+  ]
+}

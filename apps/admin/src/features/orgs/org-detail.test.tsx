@@ -3,6 +3,7 @@ import { screen } from "@testing-library/react";
 
 import analyticsFixture from "../__fixtures__/org-analytics.json";
 import clubsFixture from "../__fixtures__/org-clubs.json";
+import eventsFixture from "../__fixtures__/org-events.json";
 import detailFixture from "../__fixtures__/org-detail.json";
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
@@ -22,6 +23,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 
         if (path.includes("/analytics")) return analyticsFixture;
         if (path.includes("/clubs/admin/list")) return clubsFixture;
+        if (path.includes("/events/admin/list")) return eventsFixture;
         if (/\/orgs\/\d+$/.test(path)) return detailFixture;
         throw new Error(`unstubbed GET ${path}`);
       }),
@@ -93,6 +95,26 @@ describe("org detail page", () => {
     await screen.findByText("IEDC CET");
     const clubCall = calls.find((c) => c.path.includes("/clubs/admin/list"));
     expect(clubCall?.path).toContain("org_id=1");
+  });
+
+  it("lists the organisation's events, not just a count of them", async () => {
+    // The page reported total_events and gave no way to see any of them.
+    render(<OrgDetail orgId={1} />);
+    expect(await screen.findByRole("tab", { name: /Events/ })).toBeInTheDocument();
+  });
+
+  it("scopes the event list to this organisation", async () => {
+    render(<OrgDetail orgId={1} />);
+    await screen.findByText("IEDC CET");
+    const call = calls.find((c) => c.path.includes("/events/admin/list"));
+    expect(call?.path).toContain("org_id=1");
+  });
+
+  it("shows the club total from the API, not the page length", async () => {
+    // get_all_clubs returned no count, so every club list was stuck on page
+    // one -- an org with thirty clubs showed ten and no pager.
+    render(<OrgDetail orgId={1} />);
+    expect(await screen.findByRole("tab", { name: /Clubs \(2\)/ })).toBeInTheDocument();
   });
 
   it("offers edit, block and delete", async () => {

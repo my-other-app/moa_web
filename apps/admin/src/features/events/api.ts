@@ -11,6 +11,7 @@ import {
 export interface EventListQuery {
   search?: string | undefined;
   clubId?: number | undefined;
+  orgId?: number | undefined;
   isEnded?: boolean | undefined;
   hasFee?: boolean | undefined;
   sort?: string | undefined;
@@ -24,6 +25,7 @@ export async function fetchEvents(query: EventListQuery) {
     query: {
       search: query.search,
       club_id: query.clubId,
+      org_id: query.orgId,
       is_ended: query.isEnded,
       has_fee: query.hasFee,
       sort: query.sort,

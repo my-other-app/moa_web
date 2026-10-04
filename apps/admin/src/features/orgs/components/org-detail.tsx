@@ -17,6 +17,7 @@ import {
 import {
   PageHeader,
   SectionTitle,
+  formatDateTime,
   formatNumber,
   initials,
   pickImage,
@@ -44,12 +45,17 @@ import {
   Skeleton,
   StatCard,
   StatusBadge,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   buttonVariants,
   cn,
 } from "@moa/ui";
 import { enter, hoverLift, pressable, stagger } from "@moa/ui/motion";
 
 import { useClubs } from "@/features/clubs";
+import { useEvents } from "@/features/events";
 import { useDeleteOrg, useOrg, useOrgAnalytics, useSetOrgBlocked } from "../queries";
 import { OrgFormDialog } from "./org-form";
 
@@ -59,6 +65,8 @@ import { OrgFormDialog } from "./org-form";
  * The analytics endpoint has existed since the organisation module was
  * written and nothing ever called it; this is the page it was built for.
  */
+const PAGE_SIZE = 10;
+
 export function OrgDetail({ orgId }: { orgId: number }) {
   const router = useRouter();
   const { data: org, isPending, isError } = useOrg(orgId);
@@ -68,11 +76,20 @@ export function OrgDetail({ orgId }: { orgId: number }) {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
 
+  // Each list pages independently; sharing one ?page= would move both.
+  const [clubPage, setClubPage] = React.useState(1);
+  const [eventPage, setEventPage] = React.useState(1);
   const params = useListParams();
+
   const clubs = useClubs({
     orgId,
-    offset: params.offset,
-    limit: params.pageSize,
+    offset: (clubPage - 1) * PAGE_SIZE,
+    limit: PAGE_SIZE,
+  });
+  const events = useEvents({
+    orgId,
+    offset: (eventPage - 1) * PAGE_SIZE,
+    limit: PAGE_SIZE,
   });
 
   if (isError) {
@@ -111,8 +128,10 @@ export function OrgDetail({ orgId }: { orgId: number }) {
     },
   ];
 
-  const clubRows = clubs.data?.items.slice(0, params.pageSize) ?? [];
-  const clubPages = pageCount(clubs.data?.total ?? null, params.pageSize) ?? 1;
+  const clubRows = clubs.data?.items.slice(0, PAGE_SIZE) ?? [];
+  const clubPages = pageCount(clubs.data?.total ?? null, PAGE_SIZE) ?? 1;
+  const eventRows = events.data?.items.slice(0, PAGE_SIZE) ?? [];
+  const eventPages = pageCount(events.data?.total ?? null, PAGE_SIZE) ?? 1;
 
   return (
     <div className={cn(enter)}>
@@ -243,8 +262,17 @@ export function OrgDetail({ orgId }: { orgId: number }) {
           </div>
         </section>
 
-        <section className="space-y-3">
-          <SectionTitle>Clubs</SectionTitle>
+        <Tabs defaultValue="clubs">
+          <TabsList>
+            <TabsTrigger value="clubs">
+              Clubs{clubs.data ? ` (${formatNumber(clubs.data.total ?? 0)})` : ""}
+            </TabsTrigger>
+            <TabsTrigger value="events">
+              Events{events.data ? ` (${formatNumber(events.data.total ?? 0)})` : ""}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="clubs" className="space-y-3">
           {clubs.isPending ? (
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -303,14 +331,72 @@ export function OrgDetail({ orgId }: { orgId: number }) {
 
           {!clubs.isPending && clubRows.length > 0 && clubPages > 1 ? (
             <Pagination
-              page={params.page}
+              page={clubPage}
               pageCount={clubPages}
-              onPageChange={params.setPage}
-              pageSize={params.pageSize}
-              onPageSizeChange={params.setPageSize}
+              onPageChange={setClubPage}
             />
           ) : null}
-        </section>
+          </TabsContent>
+
+          <TabsContent value="events" className="space-y-3">
+          {events.isPending ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : events.isError ? (
+            <EmptyState
+              tone="muted"
+              title="Could not load events"
+              description="Try reloading the page."
+            />
+          ) : eventRows.length === 0 ? (
+            <EmptyState
+              tone="muted"
+              title="No events yet"
+              description="Events run by this organisation's clubs will appear here."
+            />
+          ) : (
+            <div className="space-y-2">
+              {eventRows.map((event, i) => (
+                <div
+                  key={event.id}
+                  style={stagger(i)}
+                  className={cn(
+                    "animate-in fade-in-0 slide-in-from-bottom-1 flex items-center gap-3 rounded-lg border p-3 duration-300 motion-reduce:animate-none",
+                    hoverLift
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/events/${event.id}`}
+                      className="block truncate font-medium underline-offset-4 hover:underline"
+                    >
+                      {event.name}
+                    </Link>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {event.club?.name ? `${event.club.name} · ` : ""}
+                      {formatDateTime(event.event_datetime)}
+                    </p>
+                  </div>
+                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                    {formatNumber(event.page_views ?? 0)} views
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!events.isPending && eventRows.length > 0 && eventPages > 1 ? (
+            <Pagination
+              page={eventPage}
+              pageCount={eventPages}
+              onPageChange={setEventPage}
+            />
+          ) : null}
+          </TabsContent>
+        </Tabs>
       </div>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
