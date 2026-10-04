@@ -19,8 +19,8 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      production:
-        description: "Promote to production (otherwise a preview URL)"
+      preview_only:
+        description: "Deploy to a preview URL instead of production"
         type: boolean
         default: false
 
@@ -66,14 +66,23 @@ jobs:
             echo "VERCEL_TOKEN is not set — add it in Settings → Secrets → Actions." >&2
             exit 1
           fi
-          PROD=""
-          if [ "${{ github.event.inputs.production }}" = "true" ]; then
-            PROD="--prod"
+          # A push to main goes to production. This defaulted to a preview
+          # and only promoted on a manual dispatch, so every push since the
+          # workflow was written deployed to a throwaway URL and the live
+          # domains stayed on whatever was last promoted by hand -- while the
+          # run still reported success.
+          PROD="--prod"
+          if [ "${{ github.event.inputs.preview_only }}" = "true" ]; then
+            PROD=""
           fi
+          echo "Deploying ${{ matrix.app }} ${PROD:+to production}${PROD:-as a preview}"
           npx vercel@latest deploy $PROD \
             --local-config ${{ matrix.config }} \
             --token "$VERCEL_TOKEN" \
             --yes | tee deploy-url.txt
 
       - name: Summary
-        run: echo "**${{ matrix.app }}** → $(tail -1 deploy-url.txt)" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          ENV="production"
+          [ "${{ github.event.inputs.preview_only }}" = "true" ] && ENV="preview"
+          echo "**${{ matrix.app }}** ($ENV) → $(tail -1 deploy-url.txt)" >> "$GITHUB_STEP_SUMMARY"
