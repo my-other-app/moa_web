@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Badge as BadgeChip, type DataTableColumn } from "@moa/ui";
 
 import { ResourceList, formatNumber, useListParams, useLocalPage } from "@moa/app-kit";
@@ -19,7 +20,12 @@ const columns: DataTableColumn<Badge>[] = [
           {row.emoji || "🏅"}
         </span>
         <div className="min-w-0">
-          <p className="truncate font-medium">{row.name}</p>
+          <Link
+            href={`/badges/${row.id}`}
+            className="block truncate font-medium underline-offset-4 hover:underline"
+          >
+            {row.name}
+          </Link>
           <p className="text-muted-foreground truncate text-xs">{row.slug}</p>
         </div>
       </div>

@@ -1,0 +1,16 @@
+{
+  "badge": {
+    "id": 4,
+    "slug": "serial-attendee",
+    "name": "Regular",
+    "description": "Attended five events",
+    "emoji": "🔥",
+    "badge_type": "user",
+    "trigger_metric": "events_attended",
+    "threshold": 5.0
+  },
+  "total_awarded": 38,
+  "awards_last_30_days": 9,
+  "awards_last_7_days": 2,
+  "recent_awards": []
+}

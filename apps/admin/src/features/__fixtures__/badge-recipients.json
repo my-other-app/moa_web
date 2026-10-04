@@ -1,0 +1,29 @@
+{
+  "badge": {
+    "id": 4,
+    "slug": "serial-attendee",
+    "name": "Regular",
+    "description": "Attended five events",
+    "emoji": "🔥",
+    "badge_type": "user",
+    "trigger_metric": "events_attended",
+    "threshold": 5.0
+  },
+  "recipients": [
+    {
+      "id": 101,
+      "entity_id": 412,
+      "entity_name": "Test Person",
+      "entity_email": "testperson@example.com",
+      "awarded_at": "2026-03-02T19:30:00"
+    },
+    {
+      "id": 102,
+      "entity_id": 413,
+      "entity_name": "Second Person",
+      "entity_email": "second@example.com",
+      "awarded_at": "2026-04-11T08:05:00"
+    }
+  ],
+  "total": 2
+}
