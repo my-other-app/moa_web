@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Skeleton } from "@moa/ui";
 
 import { PageHeader } from "@moa/app-kit";
-import { OrgsTable } from "@/features/orgs";
+import { NewOrgButton, OrgsTable } from "@/features/orgs";
 
 export const metadata: Metadata = { title: "Organisations" };
 
@@ -13,6 +13,7 @@ export default function OrganizationsPage() {
       <PageHeader
         title="Organisations"
         description="Colleges and institutions. Blocking one hides all of its clubs from the app."
+        action={<NewOrgButton />}
       />
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
         <OrgsTable />

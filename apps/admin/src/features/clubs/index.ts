@@ -8,6 +8,7 @@ export {
   useUpdateClub,
   useDeleteClub,
 } from "./queries";
+export type { ClubListQuery } from "./api";
 export { ClubsTable } from "./components/clubs-table";
 export { ClubDetail } from "./components/club-detail";
 export {

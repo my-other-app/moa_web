@@ -24,3 +24,45 @@ export const orgListSchema = z
   .transform((value) => (Array.isArray(value) ? value : value.items));
 
 export type Org = z.infer<typeof orgSchema>;
+
+/** The backend's OrgTypes enum, in full. */
+export const ORG_TYPES = [
+  "school",
+  "university",
+  "college",
+  "company",
+  "ngo",
+  "community",
+  "other",
+] as const;
+
+export const orgTypeSchema = z.enum(ORG_TYPES);
+
+/** GET /orgs/admin/{id}/analytics. */
+export const orgAnalyticsSchema = z.object({
+  total_clubs: z.number().default(0),
+  total_events: z.number().default(0),
+  total_followers: z.number().default(0),
+});
+
+/**
+ * Create and edit. PUT /orgs/update/{id} applies only the fields it receives
+ * (`if value is not None`), so unlike clubs and events this is a genuine
+ * partial update and omitting a field leaves it alone.
+ */
+export const orgFormSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(3, "Name needs at least 3 characters")
+    .max(100, "Name can be at most 100 characters"),
+  type: orgTypeSchema,
+  address: z.string().trim().max(200).optional(),
+  phone: z.string().trim().max(20).optional(),
+  email: z.string().trim().email("Enter a valid email").or(z.literal("")).optional(),
+  website: z.string().trim().max(100).optional(),
+});
+
+export type OrgType = z.infer<typeof orgTypeSchema>;
+export type OrgAnalytics = z.infer<typeof orgAnalyticsSchema>;
+export type OrgFormInput = z.infer<typeof orgFormSchema>;

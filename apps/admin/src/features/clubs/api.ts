@@ -11,13 +11,20 @@ import {
 
 export interface ClubListQuery {
   search?: string | undefined;
+  /** Scopes to one organisation. Unverified clubs are included either way. */
+  orgId?: number | undefined;
   offset: number;
   limit: number;
 }
 
 export async function fetchClubs(query: ClubListQuery): Promise<AdminClubPage> {
   const raw = await api.get<unknown>("/api/v1/clubs/admin/list", {
-    query: { search: query.search, offset: query.offset, limit: query.limit },
+    query: {
+      search: query.search,
+      org_id: query.orgId,
+      offset: query.offset,
+      limit: query.limit,
+    },
   });
   return adminClubPageSchema.parse(raw);
 }

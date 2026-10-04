@@ -1,0 +1,11 @@
+{
+  "id": 1,
+  "name": "College of Engineering Trivandrum",
+  "type": "college",
+  "address": "Sreekaryam, Trivandrum",
+  "phone": "9000000001",
+  "email": "office@example.com",
+  "website": "cet.example.com",
+  "logo": null,
+  "is_blocked": false
+}

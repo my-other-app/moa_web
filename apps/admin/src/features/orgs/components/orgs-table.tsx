@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Badge, StatusBadge, Switch, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn } from "@moa/ui";
 
 import { ResourceList, useListParams, useLocalPage } from "@moa/app-kit";
@@ -38,7 +39,12 @@ const columns: DataTableColumn<Org>[] = [
     header: "Organisation",
     cell: (row) => (
       <div className="min-w-0">
-        <p className="truncate font-medium">{row.name}</p>
+        <Link
+          href={`/organizations/${row.id}`}
+          className="block truncate font-medium underline-offset-4 hover:underline"
+        >
+          {row.name}
+        </Link>
         <p className="text-muted-foreground truncate text-xs">
           {row.address || "No address"}
         </p>
