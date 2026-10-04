@@ -62,6 +62,7 @@ import {
   useEventRegistrations,
 } from "../queries";
 import type { EventRegistration } from "../schemas";
+import { PlacingControl } from "./placing-control";
 
 /**
  * One event, for an admin.
@@ -158,9 +159,16 @@ function RegistrationsTab({ eventId }: { eventId: number }) {
               <div className="flex shrink-0 items-center gap-2">
                 {row.is_won ? (
                   <Badge variant="secondary">
-                    <TrophyIcon className="size-3" /> Winner
+                    <TrophyIcon className="size-3" />
+                    {row.position ? `#${row.position}` : "Placed"}
                   </Badge>
                 ) : null}
+                <PlacingControl
+                  eventId={eventId}
+                  registrationId={row.id}
+                  position={row.position}
+                  name={row.full_name || "this participant"}
+                />
                 {row.is_attended ? (
                   <StatusBadge tone="success" label="Attended" />
                 ) : null}

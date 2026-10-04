@@ -88,6 +88,8 @@ export const eventRegistrationSchema = z.object({
   is_paid: z.boolean().default(false),
   is_attended: z.boolean().default(false),
   is_won: z.boolean().default(false),
+  /** 1 is first place. Null means they did not place. */
+  position: z.number().nullish(),
   paid_amount: z.number().nullish(),
   created_at: z.string().nullish(),
 });

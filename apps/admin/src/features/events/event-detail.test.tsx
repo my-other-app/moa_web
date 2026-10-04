@@ -6,6 +6,7 @@ import detailFixture from "../__fixtures__/event-detail.json";
 import registrationsFixture from "../__fixtures__/event-registrations-admin.json";
 
 const calls: string[] = [];
+const putBodies: unknown[] = [];
 
 vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
@@ -27,7 +28,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(),
-      put: vi.fn(),
+      put: vi.fn(async (path: string, body: unknown) => {
+        calls.push(path);
+        putBodies.push(body);
+      }),
       del: vi.fn(),
     },
   };
@@ -36,10 +40,11 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 const { render } = await import("@/test/render");
 const { EventDetail } = await import("./components/event-detail");
 const { adminEventDetailSchema, eventAnalyticsSchema } = await import("./schemas");
-const { fetchEventRegistrations } = await import("./api");
+const { fetchEventRegistrations, setEventWinner } = await import("./api");
 
 beforeEach(() => {
   calls.length = 0;
+  putBodies.length = 0;
 });
 
 describe("admin event schemas", () => {
@@ -92,11 +97,22 @@ describe("admin event page", () => {
     expect(calls.some((c) => c.includes("/analytics"))).toBe(true);
   });
 
-  it("lists registrations with their winner and attendance state", async () => {
+  it("lists registrations with their placing and attendance state", async () => {
     render(<EventDetail eventId={37} />);
     expect(await screen.findByText("Test Participant One")).toBeInTheDocument();
-    expect(await screen.findByText("Winner")).toBeInTheDocument();
+    // The placing itself, not just that they placed.
+    expect(await screen.findByText("#1")).toBeInTheDocument();
     expect(await screen.findByText("Attended")).toBeInTheDocument();
+  });
+
+  it("offers a placing control per registration", async () => {
+    render(<EventDetail eventId={37} />);
+    expect(
+      await screen.findByLabelText("Placing for Test Participant One")
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText("Placing for Test Participant Two")
+    ).toBeInTheDocument();
   });
 
   it("offers an export link", async () => {
@@ -116,5 +132,28 @@ describe("registration query", () => {
   it("sends is_attended=true when filtering to attendees", async () => {
     await fetchEventRegistrations(37, { offset: 0, limit: 10, isAttended: true });
     expect(calls[0]).toContain("is_attended=true");
+  });
+});
+
+describe("recording a placing", () => {
+  /*
+   * is_won and position were columns nothing ever wrote, which is why the
+   * events_won, runner_up_count and podium_count badge metrics were
+   * permanently zero and those badges could not be earned.
+   */
+  it("sends the position for the chosen place", async () => {
+    await setEventWinner(37, "reg-1", 1);
+    expect(calls[0]).toContain("/winners/reg-1");
+  });
+
+  it("sends null to clear a placing rather than omitting the field", async () => {
+    // An omitted field would be read as "no change", leaving the placing set.
+    await setEventWinner(37, "reg-1", null);
+    expect(putBodies[0]).toEqual({ position: null });
+  });
+
+  it("sends the numeric position, not a string", async () => {
+    await setEventWinner(37, "reg-1", 2);
+    expect(putBodies[0]).toEqual({ position: 2 });
   });
 });

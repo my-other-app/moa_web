@@ -15,6 +15,7 @@ import {
   fetchEventAnalytics,
   fetchEventRegistrations,
   fetchEvents,
+  setEventWinner,
   type EventListQuery,
   type RegistrationQuery,
 } from "./api";
@@ -58,6 +59,32 @@ export function useDeleteEvent() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: qk.events.all }),
         queryClient.invalidateQueries({ queryKey: qk.analytics.all }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useSetEventWinner(eventId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      registrationId,
+      position,
+    }: {
+      registrationId: string;
+      position: number | null;
+    }) => setEventWinner(eventId, registrationId, position),
+    onSuccess: async (_data, variables) => {
+      toast.success(
+        variables.position === null ? "Placing cleared" : "Placing recorded"
+      );
+      // A placing can earn a badge, and the holder's own badge list is read
+      // by the user page, so that subtree moves too.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.events.all }),
+        queryClient.invalidateQueries({ queryKey: qk.badges.all }),
+        queryClient.invalidateQueries({ queryKey: qk.users.all }),
       ]);
     },
     onError: (error: Error) => toast.error(error.message),

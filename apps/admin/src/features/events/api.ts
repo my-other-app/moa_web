@@ -68,3 +68,21 @@ export async function deleteEvent(eventId: number): Promise<void> {
 export function eventExportUrl(eventId: number): string {
   return `${GATEWAY_PREFIX}/api/v1/events/registration/${eventId}/export`;
 }
+
+/**
+ * Record or clear a placing. `position` of null clears it.
+ *
+ * `is_won` and `position` were columns nothing ever wrote, which is why the
+ * events_won, runner_up_count and podium_count badge metrics always read
+ * zero. The endpoint sets both and re-runs the badge check for the holder.
+ */
+export async function setEventWinner(
+  eventId: number,
+  registrationId: string,
+  position: number | null
+): Promise<void> {
+  await api.put<void>(
+    `/api/v1/events/registration/${eventId}/winners/${registrationId}`,
+    { position }
+  );
+}
