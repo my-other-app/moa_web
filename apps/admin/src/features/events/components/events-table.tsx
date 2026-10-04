@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { EyeIcon, GlobeIcon, MapPinIcon } from "lucide-react";
 import { StatusBadge, type DataTableColumn } from "@moa/ui";
 
@@ -13,7 +14,12 @@ const columns: DataTableColumn<AdminEvent>[] = [
     header: "Event",
     cell: (row) => (
       <div className="min-w-0">
-        <p className="truncate font-medium">{row.name}</p>
+        <Link
+          href={`/events/${row.id}`}
+          className="block truncate font-medium underline-offset-4 hover:underline"
+        >
+          {row.name}
+        </Link>
         <p className="text-muted-foreground truncate text-xs">
           {row.club?.name ?? "No club"}
           {row.category?.name ? ` · ${row.category.name}` : ""}
