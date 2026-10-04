@@ -25,3 +25,55 @@ export const adminAnalyticsSchema = z.object({
 
 export type AdminAnalytics = z.infer<typeof adminAnalyticsSchema>;
 export type GrowthPoint = z.infer<typeof growthPointSchema>;
+
+/** GET /admin/analytics/trends — one point per day, plus the prior window. */
+export const trendPointSchema = z.object({
+  date: z.string(),
+  users: z.number().default(0),
+  events: z.number().default(0),
+  registrations: z.number().default(0),
+  revenue: z.number().default(0),
+});
+
+const trendTotalsSchema = z.object({
+  users: z.number().default(0),
+  events: z.number().default(0),
+  registrations: z.number().default(0),
+  revenue: z.number().default(0),
+});
+
+export const adminTrendsSchema = z.object({
+  days: z.number(),
+  series: z.array(trendPointSchema).default([]),
+  totals: trendTotalsSchema,
+  previous_totals: trendTotalsSchema,
+});
+
+export type TrendPoint = z.infer<typeof trendPointSchema>;
+export type AdminTrends = z.infer<typeof adminTrendsSchema>;
+export type TrendMetric = keyof z.infer<typeof trendTotalsSchema>;
+
+/** GET /admin/moderation-queue. */
+export const moderationQueueSchema = z.object({
+  pending_clubs: z
+    .array(
+      z.object({
+        id: z.coerce.number(),
+        name: z.string(),
+        created_at: z.string().nullish(),
+      })
+    )
+    .default([]),
+  events_without_attendance: z
+    .array(
+      z.object({
+        id: z.coerce.number(),
+        name: z.string(),
+        event_datetime: z.string().nullish(),
+        registration_count: z.number().default(0),
+      })
+    )
+    .default([]),
+});
+
+export type ModerationQueue = z.infer<typeof moderationQueueSchema>;

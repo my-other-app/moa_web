@@ -14,6 +14,17 @@ export default defineConfig({
     // invisible to tsc and only appear at render time.
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
+    // Generous for the same reason as asyncUtilTimeout in setup.ts.
+    testTimeout: 15_000,
+    /*
+     * Test files run one at a time. Turbo already runs lint, typecheck, test
+     * and build for four packages concurrently, and stacking a worker per
+     * test file on top of that starved them: under a full-gate run a random
+     * handful timed out and, once, a whole file failed to collect. There are
+     * fewer than a dozen files here, so the wall-clock cost is small and the
+     * suite becomes trustworthy, which is the point of having it.
+     */
+    fileParallelism: false,
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
   },
   resolve: {

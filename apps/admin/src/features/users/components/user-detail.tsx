@@ -8,6 +8,8 @@ import {
   AwardIcon,
   CalendarCheckIcon,
   CalendarDaysIcon,
+  FileDownIcon,
+  Loader2Icon,
   TrophyIcon,
   UsersRoundIcon,
   WalletIcon,
@@ -23,6 +25,8 @@ import {
   pickImage,
 } from "@moa/app-kit";
 import { pageCount } from "@moa/api";
+import { fetchAllPages } from "@moa/app-kit";
+import { toast } from "@moa/ui";
 import {
   Avatar,
   AvatarFallback,
@@ -42,6 +46,12 @@ import {
 } from "@moa/ui";
 import { enter, hoverLift, stagger } from "@moa/ui/motion";
 
+import {
+  fetchUser,
+  fetchUserBadges,
+  fetchUserClubs,
+  fetchUserEvents,
+} from "../api";
 import { useUser, useUserBadges, useUserClubs, useUserEvents } from "../queries";
 import type { UserClub, UserEvent } from "../schemas";
 
@@ -332,6 +342,69 @@ function BadgesTab({ userId }: { userId: number }) {
   );
 }
 
+/**
+ * Everything the platform holds on one person, as a JSON file.
+ *
+ * Assembled client-side from the admin endpoints rather than added as a
+ * backend export: the data is already reachable, and a subject-access request
+ * is rare enough that a dedicated endpoint would be speculative. If this ever
+ * needs to be signed, logged or delivered asynchronously it belongs on the
+ * server instead.
+ */
+function DataExportButton({ userId, name }: { userId: number; name: string }) {
+  const [busy, setBusy] = React.useState(false);
+
+  async function run() {
+    setBusy(true);
+    try {
+      const [profile, badges] = await Promise.all([
+        fetchUser(userId),
+        fetchUserBadges(userId).catch(() => null),
+      ]);
+      const clubs = await fetchAllPages((offset, limit) =>
+        fetchUserClubs(userId, { offset, limit })
+      );
+      const events = await fetchAllPages((offset, limit) =>
+        fetchUserEvents(userId, { offset, limit })
+      );
+
+      const payload = {
+        exported_at: new Date().toISOString(),
+        profile,
+        badges: badges?.badges ?? [],
+        clubs_followed: clubs.rows,
+        event_registrations: events.rows,
+        truncated: clubs.truncated || events.truncated,
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `user-${userId}-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      toast.success(`Exported everything held on ${name}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Export failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Button size="sm" variant="outline" disabled={busy} onClick={run}>
+      {busy ? <Loader2Icon className="animate-spin" /> : <FileDownIcon />}
+      {busy ? "Collecting…" : "Export data"}
+    </Button>
+  );
+}
+
 export function UserDetail({ userId }: { userId: number }) {
   const { data: user, isPending, isError } = useUser(userId);
 
@@ -398,7 +471,17 @@ export function UserDetail({ userId }: { userId: number }) {
         </Link>
       </Button>
 
-      <PageHeader title={user?.full_name || user?.username || "User"} />
+      <PageHeader
+        title={user?.full_name || user?.username || "User"}
+        action={
+          user ? (
+            <DataExportButton
+              userId={userId}
+              name={user.full_name || user.username}
+            />
+          ) : null
+        }
+      />
 
       <div className="space-y-6">
         <Card>

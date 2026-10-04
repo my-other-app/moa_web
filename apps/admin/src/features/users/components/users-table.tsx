@@ -11,6 +11,7 @@ import {
   useListParams,
 } from "@moa/app-kit";
 import { ExportButton } from "@/components/export-button";
+import { SavedViews } from "@/components/saved-views";
 import { fetchUsers } from "../api";
 import { useUsers } from "../queries";
 import type { AdminUser } from "../schemas";
@@ -149,7 +150,17 @@ export function UsersTable() {
       searchPlaceholder="Search by name, username or email…"
       emptyTitle="No users yet"
       emptyDescription="People who sign up through the app will appear here."
-      toolbar={<ListFilters params={params} filters={USER_FILTERS} sort={USER_SORT} />}
+      toolbar={<>
+          <ListFilters params={params} filters={USER_FILTERS} sort={USER_SORT} />
+          <SavedViews
+            storageKey="users"
+            presets={[
+              { name: "Clubs", query: "user_type=club" },
+              { name: "Admins", query: "user_type=admin" },
+              { name: "Newest first", query: "sort=joined&order=desc" },
+            ]}
+          />
+        </>}
       actions={
         <ExportButton
           filename="users"

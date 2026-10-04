@@ -18,6 +18,7 @@ import { CheckIcon, Loader2Icon } from "lucide-react";
 import { Button, toast } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 import { ExportButton } from "@/components/export-button";
+import { SavedViews } from "@/components/saved-views";
 import { fetchClubs } from "../api";
 import { useApproveClub, useClubs } from "../queries";
 import type { AdminClub } from "../schemas";
@@ -207,7 +208,16 @@ export function ClubsTable() {
       searchPlaceholder="Search clubs…"
       emptyTitle="No clubs yet"
       emptyDescription="Clubs created by organisers will appear here for approval."
-      toolbar={<ListFilters params={params} filters={CLUB_FILTERS} sort={CLUB_SORT} />}
+      toolbar={<>
+          <ListFilters params={params} filters={CLUB_FILTERS} sort={CLUB_SORT} />
+          <SavedViews
+            storageKey="clubs"
+            presets={[
+              { name: "Pending approval", query: "is_verified=false" },
+              { name: "Most followed", query: "sort=followers&order=desc" },
+            ]}
+          />
+        </>}
       actions={
         <ExportButton
           filename="clubs"

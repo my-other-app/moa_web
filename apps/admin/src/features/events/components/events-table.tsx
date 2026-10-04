@@ -13,6 +13,7 @@ import {
   useListParams,
 } from "@moa/app-kit";
 import { ExportButton } from "@/components/export-button";
+import { SavedViews } from "@/components/saved-views";
 import { fetchEvents } from "../api";
 import { useEvents } from "../queries";
 import type { AdminEvent } from "../schemas";
@@ -174,7 +175,17 @@ export function EventsTable() {
       searchPlaceholder="Search events…"
       emptyTitle="No events yet"
       emptyDescription="Events created by clubs will appear here."
-      toolbar={<ListFilters params={params} filters={EVENT_FILTERS} sort={EVENT_SORT} />}
+      toolbar={<>
+          <ListFilters params={params} filters={EVENT_FILTERS} sort={EVENT_SORT} />
+          <SavedViews
+            storageKey="events"
+            presets={[
+              { name: "Upcoming", query: "is_ended=false&sort=date&order=asc" },
+              { name: "Paid events", query: "has_fee=true" },
+              { name: "Most viewed", query: "sort=views&order=desc" },
+            ]}
+          />
+        </>}
       actions={
         <ExportButton
           filename="events"

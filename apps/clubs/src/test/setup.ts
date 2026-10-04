@@ -1,6 +1,17 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
+
+/*
+ * React Query + jsdom can take well over the 1s default for a findBy* query
+ * to settle, and turbo runs lint, typecheck, test and build for four
+ * packages at once -- so under CI load these timed out at random and a
+ * different handful failed on each run. A suite that fails randomly is worse
+ * than none, because people start ignoring it. The work is the same; only the
+ * patience changes.
+ */
+configure({ asyncUtilTimeout: 5000 });
+
 
 /**
  * next/navigation has no router outside the Next runtime, so components that

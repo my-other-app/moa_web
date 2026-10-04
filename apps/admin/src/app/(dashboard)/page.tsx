@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@moa/ui";
 
 import { PageHeader } from "@moa/app-kit";
-import { OverviewCards } from "@/features/analytics";
-import { GrowthChartPanel } from "@/features/analytics";
+import { ModerationQueue, OverviewCards, TrendsPanel } from "@/features/analytics";
 
 export const metadata: Metadata = { title: "Overview" };
 
@@ -12,19 +10,17 @@ export default function OverviewPage() {
     <>
       <PageHeader
         title="Overview"
-        description="Platform activity at a glance."
+        description="Platform activity, and anything waiting on a decision."
       />
       <div className="space-y-6">
         <OverviewCards />
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">New users</CardTitle>
-            <CardDescription>Sign-ups over the last seven days.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <GrowthChartPanel />
-          </CardContent>
-        </Card>
+        {/*
+         * Trends replace the old seven-day sign-up chart: same idea, but every
+         * metric and a comparison against the previous window, so the numbers
+         * above have a direction.
+         */}
+        <TrendsPanel />
+        <ModerationQueue />
       </div>
     </>
   );

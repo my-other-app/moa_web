@@ -11,6 +11,7 @@ import {
   useLocalPage,
 } from "@moa/app-kit";
 import { ExportButton } from "@/components/export-button";
+import { SavedViews } from "@/components/saved-views";
 import { useOrgs, useSetOrgBlocked } from "../queries";
 import { ORG_TYPES, type Org } from "../schemas";
 
@@ -180,7 +181,13 @@ export function OrgsTable() {
       searchPlaceholder="Search organisations…"
       emptyTitle="No organisations"
       emptyDescription="Colleges and institutions appear here once added."
-      toolbar={<ListFilters params={params} filters={ORG_FILTERS} sort={ORG_SORT} />}
+      toolbar={<>
+          <ListFilters params={params} filters={ORG_FILTERS} sort={ORG_SORT} />
+          <SavedViews
+            storageKey="organisations"
+            presets={[{ name: "Blocked", query: "status=blocked" }]}
+          />
+        </>}
       actions={
         <ExportButton
           filename="organisations"

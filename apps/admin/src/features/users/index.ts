@@ -8,6 +8,9 @@ export {
 export {
   fetchUsers,
   fetchUser,
+  fetchUserClubs,
+  fetchUserEvents,
+  fetchUserBadges,
   type UserListQuery,
   type UserEventQuery,
 } from "./api";
