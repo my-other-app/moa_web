@@ -38,6 +38,7 @@ import {
   Pagination,
   Skeleton,
   StatCard,
+  StatusBadge,
   Tabs,
   TabsContent,
   TabsList,
@@ -54,6 +55,7 @@ import {
 } from "../api";
 import { useUser, useUserBadges, useUserClubs, useUserEvents } from "../queries";
 import { ImpersonateButton } from "./impersonate-button";
+import { SuspendButton } from "./suspend-button";
 import type { UserClub, UserEvent } from "../schemas";
 
 /**
@@ -477,6 +479,11 @@ export function UserDetail({ userId }: { userId: number }) {
         action={
           user ? (
             <div className="flex items-center gap-2">
+              <SuspendButton
+                userId={userId}
+                name={user.full_name || user.username}
+                isActive={user.is_active}
+              />
               <ImpersonateButton
                 userId={userId}
                 name={user.full_name || user.username}
@@ -518,6 +525,9 @@ export function UserDetail({ userId }: { userId: number }) {
                 <>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium">@{user?.username}</p>
+                    {user && !user.is_active ? (
+                      <StatusBadge tone="destructive" label="Suspended" />
+                    ) : null}
                     <Badge variant="outline">
                       {user?.user_type?.replace("_", " ")}
                     </Badge>
@@ -540,6 +550,14 @@ export function UserDetail({ userId }: { userId: number }) {
             </div>
           </CardContent>
         </Card>
+
+        {user && !user.is_active ? (
+          <div className="border-destructive/40 bg-destructive/5 rounded-lg border p-3 text-sm">
+            This account is suspended — they are signed out everywhere and
+            cannot sign in.
+            {user.suspended_reason ? <> Reason: {user.suspended_reason}.</> : null}
+          </div>
+        ) : null}
 
         <section className="space-y-3">
           <SectionTitle>Activity</SectionTitle>

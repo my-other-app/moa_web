@@ -78,3 +78,15 @@ export async function fetchUserBadges(userId: number): Promise<UserBadges> {
   const raw = await api.get<unknown>(`/api/v1/badges/user/${userId}`);
   return userBadgesSchema.parse(raw);
 }
+
+/** Suspend or reinstate. `reason` is recorded in the audit log. */
+export async function setUserActive(
+  userId: number,
+  isActive: boolean,
+  reason?: string
+): Promise<void> {
+  await api.put<void>(`/api/v1/user/admin/${userId}/active`, {
+    is_active: isActive,
+    reason: reason?.trim() || null,
+  });
+}

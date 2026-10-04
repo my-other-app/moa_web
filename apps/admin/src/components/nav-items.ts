@@ -1,11 +1,14 @@
 import {
   AwardIcon,
   BellIcon,
+  CreditCardIcon,
   ScrollTextIcon,
+  Trash2Icon,
   BuildingIcon,
   CalendarDaysIcon,
   LayoutDashboardIcon,
   SmileIcon,
+  TagsIcon,
   UsersIcon,
   UsersRoundIcon,
   type LucideIcon,
@@ -26,9 +29,12 @@ export const navItems: NavItem[] = [
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/organizations", label: "Organisations", icon: BuildingIcon },
   { href: "/badges", label: "Badges", icon: AwardIcon },
+  { href: "/payments", label: "Payments", icon: CreditCardIcon },
+  { href: "/interests", label: "Interests", icon: TagsIcon },
   { href: "/avatars", label: "Avatars", icon: SmileIcon },
   { href: "/announcements", label: "Announcements", icon: BellIcon },
   { href: "/activity", label: "Activity", icon: ScrollTextIcon },
+  { href: "/trash", label: "Trash", icon: Trash2Icon },
 ];
 
 export function isActive(pathname: string, item: NavItem): boolean {

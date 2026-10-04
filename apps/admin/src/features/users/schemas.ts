@@ -39,6 +39,10 @@ export const adminUserStatsSchema = z.object({
 
 export const adminUserDetailSchema = adminUserSchema.extend({
   stats: adminUserStatsSchema,
+  /* Suspension, as distinct from deletion. A suspended account keeps its
+     data and can be reinstated; the API refuses it on every request. */
+  is_active: z.boolean().default(true),
+  suspended_reason: z.string().nullish(),
   profile: z
     .object({
       id: z.coerce.number().nullish(),

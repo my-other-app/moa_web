@@ -1,6 +1,12 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { toast } from "@moa/ui";
 import { qk } from "@moa/api";
 
 import {
@@ -9,6 +15,7 @@ import {
   fetchUsers,
   fetchUserClubs,
   fetchUserEvents,
+  setUserActive,
   type UserEventQuery,
   type UserListQuery,
   type UserSubListQuery,
@@ -51,5 +58,22 @@ export function useUserBadges(userId: number) {
   return useQuery({
     queryKey: [...qk.users.detail(userId), "badges"],
     queryFn: () => fetchUserBadges(userId),
+  });
+}
+
+export function useSetUserActive(userId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ isActive, reason }: { isActive: boolean; reason?: string }) =>
+      setUserActive(userId, isActive, reason),
+    onSuccess: async (_data, variables) => {
+      toast.success(variables.isActive ? "Account reinstated" : "Account suspended");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.users.all }),
+        // The change is written to the audit log.
+        queryClient.invalidateQueries({ queryKey: ["audit-log"] }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 }

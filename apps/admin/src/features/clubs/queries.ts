@@ -11,6 +11,8 @@ import {
   fetchClubEvents,
   fetchClubFollowers,
   fetchClubs,
+  fetchDeletedClubs,
+  restoreClub,
   rejectClub,
   updateClub,
   type ClubListQuery,
@@ -103,6 +105,30 @@ export function useDeleteClub() {
       toast.success("Club deleted");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: qk.clubs.all }),
+        queryClient.invalidateQueries({ queryKey: qk.analytics.all }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useDeletedClubs(query: { offset: number; limit: number }) {
+  return useQuery({
+    queryKey: [...qk.clubs.all, "deleted", query],
+    queryFn: () => fetchDeletedClubs(query),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useRestoreClub() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: restoreClub,
+    onSuccess: async () => {
+      toast.success("Club restored");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.clubs.all }),
+        queryClient.invalidateQueries({ queryKey: ["audit-log"] }),
         queryClient.invalidateQueries({ queryKey: qk.analytics.all }),
       ]);
     },

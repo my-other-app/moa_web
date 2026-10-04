@@ -102,3 +102,15 @@ export async function updateClub(clubId: number, input: ClubEditInput): Promise<
 export async function deleteClub(clubId: number): Promise<void> {
   await api.del<void>(`/api/v1/clubs/admin/${clubId}`);
 }
+
+/** Soft-deleted clubs, so a mistake can be found and undone. */
+export async function fetchDeletedClubs(query: { offset: number; limit: number }) {
+  const raw = await api.get<unknown>("/api/v1/clubs/admin/deleted/list", {
+    query: { offset: query.offset, limit: query.limit },
+  });
+  return adminClubPageSchema.parse(raw);
+}
+
+export async function restoreClub(clubId: number): Promise<void> {
+  await api.post<void>(`/api/v1/clubs/admin/${clubId}/restore`);
+}
