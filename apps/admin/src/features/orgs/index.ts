@@ -20,3 +20,4 @@ export {
   type OrgAnalytics,
   type OrgFormInput,
 } from "./schemas";
+export { fetchOrgs } from "./api";

@@ -10,6 +10,8 @@ import {
   initials,
   useListParams,
 } from "@moa/app-kit";
+import { ExportButton } from "@/components/export-button";
+import { fetchUsers } from "../api";
 import { useUsers } from "../queries";
 import type { AdminUser } from "../schemas";
 
@@ -113,6 +115,17 @@ const USER_SORT = {
   defaultValue: "joined",
 } as const;
 
+const USER_CSV = [
+  { header: "ID", value: (u: AdminUser) => u.id },
+  { header: "Name", value: (u: AdminUser) => u.full_name ?? "" },
+  { header: "Username", value: (u: AdminUser) => u.username },
+  { header: "Email", value: (u: AdminUser) => u.email ?? "" },
+  { header: "Phone", value: (u: AdminUser) => u.phone ?? "" },
+  { header: "Type", value: (u: AdminUser) => u.user_type },
+  { header: "Provider", value: (u: AdminUser) => u.provider ?? "" },
+  { header: "Joined", value: (u: AdminUser) => u.created_at ?? "" },
+] as const;
+
 export function UsersTable() {
   const params = useListParams();
   const { data, isPending, isError } = useUsers({
@@ -137,6 +150,23 @@ export function UsersTable() {
       emptyTitle="No users yet"
       emptyDescription="People who sign up through the app will appear here."
       toolbar={<ListFilters params={params} filters={USER_FILTERS} sort={USER_SORT} />}
+      actions={
+        <ExportButton
+          filename="users"
+          columns={USER_CSV}
+          fetchPage={(offset, limit) =>
+            fetchUsers({
+              search: params.search || undefined,
+              userType: params.param("user_type"),
+              provider: params.param("provider"),
+              sort: params.param("sort"),
+              order: params.param("order"),
+              offset,
+              limit,
+            })
+          }
+        />
+      }
     />
   );
 }

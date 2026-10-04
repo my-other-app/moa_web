@@ -10,6 +10,7 @@ import {
   useListParams,
   useLocalPage,
 } from "@moa/app-kit";
+import { ExportButton } from "@/components/export-button";
 import { useOrgs, useSetOrgBlocked } from "../queries";
 import { ORG_TYPES, type Org } from "../schemas";
 
@@ -124,6 +125,16 @@ const ORG_SORT = {
   defaultOrder: "asc",
 } as const;
 
+const ORG_CSV = [
+  { header: "ID", value: (o: Org) => o.id },
+  { header: "Name", value: (o: Org) => o.name },
+  { header: "Type", value: (o: Org) => o.type ?? "" },
+  { header: "Address", value: (o: Org) => o.address ?? "" },
+  { header: "Email", value: (o: Org) => o.email ?? "" },
+  { header: "Phone", value: (o: Org) => o.phone ?? "" },
+  { header: "Status", value: (o: Org) => (o.is_blocked ? "Blocked" : "Active") },
+] as const;
+
 export function OrgsTable() {
   const params = useListParams();
   const { data, isPending, isError } = useOrgs();
@@ -170,6 +181,15 @@ export function OrgsTable() {
       emptyTitle="No organisations"
       emptyDescription="Colleges and institutions appear here once added."
       toolbar={<ListFilters params={params} filters={ORG_FILTERS} sort={ORG_SORT} />}
+      actions={
+        <ExportButton
+          filename="organisations"
+          columns={ORG_CSV}
+          disabled={!rows}
+          // Already filtered and sorted in memory, so one "page" is the lot.
+          fetchPage={async () => ({ items: rows ?? [], total: rows?.length ?? 0 })}
+        />
+      }
     />
   );
 }

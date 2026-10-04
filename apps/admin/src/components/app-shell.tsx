@@ -16,6 +16,7 @@ import {
 
 import { UserMenu } from "@moa/app-kit";
 import { SidebarNav } from "./sidebar-nav";
+import { CommandPalette } from "./command-palette";
 
 function Wordmark() {
   return (
@@ -69,6 +70,7 @@ export function AppShell({
             </SheetContent>
           </Sheet>
 
+          <CommandPalette />
           <div className="flex-1" />
           <UserMenu user={user} />
         </header>

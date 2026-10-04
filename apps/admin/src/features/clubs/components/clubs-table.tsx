@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Avatar, AvatarFallback, StatusBadge, type DataTableColumn } from "@moa/ui";
@@ -12,7 +14,12 @@ import {
   pickImage,
   useListParams,
 } from "@moa/app-kit";
-import { useClubs } from "../queries";
+import { CheckIcon, Loader2Icon } from "lucide-react";
+import { Button, toast } from "@moa/ui";
+import { pressable } from "@moa/ui/motion";
+import { ExportButton } from "@/components/export-button";
+import { fetchClubs } from "../api";
+import { useApproveClub, useClubs } from "../queries";
 import type { AdminClub } from "../schemas";
 import { ClubActions } from "./club-actions";
 
@@ -121,6 +128,61 @@ const CLUB_SORT = {
   defaultValue: "created",
 } as const;
 
+const CLUB_CSV = [
+  { header: "ID", value: (c: AdminClub) => c.id },
+  { header: "Name", value: (c: AdminClub) => c.name },
+  { header: "Status", value: (c: AdminClub) => (c.is_verified ? "Verified" : "Pending") },
+  { header: "Location", value: (c: AdminClub) => c.location_name ?? "" },
+  { header: "Contact email", value: (c: AdminClub) => c.contact_email ?? "" },
+  { header: "Contact phone", value: (c: AdminClub) => c.contact_phone ?? "" },
+  { header: "Created", value: (c: AdminClub) => c.created_at ?? "" },
+] as const;
+
+/**
+ * Approving pending clubs in bulk.
+ *
+ * The API has no batch endpoint, so this is a loop. It runs sequentially
+ * rather than all at once: twenty parallel writes against a single shared
+ * backend is a burst worth avoiding, and a partial failure is easier to
+ * report honestly when the successes are already counted.
+ */
+function BulkApprove({ clubs, onDone }: { clubs: AdminClub[]; onDone: () => void }) {
+  const approve = useApproveClub();
+  const [busy, setBusy] = React.useState(false);
+
+  async function run() {
+    setBusy(true);
+    let done = 0;
+    const failed: string[] = [];
+    for (const club of clubs) {
+      try {
+        await approve.mutateAsync(club.id);
+        done += 1;
+      } catch {
+        failed.push(club.name);
+      }
+    }
+    setBusy(false);
+    onDone();
+
+    if (failed.length === 0) {
+      toast.success(`Approved ${done} club${done === 1 ? "" : "s"}`);
+    } else {
+      // Naming them beats "some failed" -- the admin has to know which.
+      toast.error(
+        `Approved ${done}. Failed: ${failed.slice(0, 3).join(", ")}${failed.length > 3 ? ` and ${failed.length - 3} more` : ""}`
+      );
+    }
+  }
+
+  return (
+    <Button size="sm" disabled={busy} onClick={run} className={pressable}>
+      {busy ? <Loader2Icon className="animate-spin" /> : <CheckIcon />}
+      {busy ? "Approving…" : `Approve ${clubs.length}`}
+    </Button>
+  );
+}
+
 export function ClubsTable() {
   const params = useListParams();
   const verified = params.param("is_verified");
@@ -146,6 +208,31 @@ export function ClubsTable() {
       emptyTitle="No clubs yet"
       emptyDescription="Clubs created by organisers will appear here for approval."
       toolbar={<ListFilters params={params} filters={CLUB_FILTERS} sort={CLUB_SORT} />}
+      actions={
+        <ExportButton
+          filename="clubs"
+          columns={CLUB_CSV}
+          fetchPage={(offset, limit) =>
+            // Same filters as the view, so the file matches the screen.
+            fetchClubs({
+              search: params.search || undefined,
+              isVerified: verified === undefined ? undefined : verified === "true",
+              sort: params.param("sort"),
+              order: params.param("order"),
+              offset,
+              limit,
+            })
+          }
+        />
+      }
+      selection={{
+        // Approving an approved club is a no-op the API would accept; not
+        // offering it keeps the count on the bar honest.
+        isSelectable: (row) => !row.is_verified,
+        renderBulkActions: (selected, clear) => (
+          <BulkApprove clubs={selected} onDone={clear} />
+        ),
+      }}
     />
   );
 }

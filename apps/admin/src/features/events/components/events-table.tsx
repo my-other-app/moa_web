@@ -12,6 +12,8 @@ import {
   formatNumber,
   useListParams,
 } from "@moa/app-kit";
+import { ExportButton } from "@/components/export-button";
+import { fetchEvents } from "../api";
 import { useEvents } from "../queries";
 import type { AdminEvent } from "../schemas";
 
@@ -137,6 +139,18 @@ function asBool(value: string | undefined): boolean | undefined {
   return value === undefined ? undefined : value === "true";
 }
 
+const EVENT_CSV = [
+  { header: "ID", value: (e: AdminEvent) => e.id },
+  { header: "Name", value: (e: AdminEvent) => e.name },
+  { header: "Club", value: (e: AdminEvent) => e.club?.name ?? "" },
+  { header: "Category", value: (e: AdminEvent) => e.category?.name ?? "" },
+  { header: "When", value: (e: AdminEvent) => e.event_datetime ?? "" },
+  { header: "Where", value: (e: AdminEvent) => e.location_name ?? "" },
+  { header: "Online", value: (e: AdminEvent) => (e.is_online ? "yes" : "no") },
+  { header: "Fee", value: (e: AdminEvent) => (e.has_fee ? e.reg_fee ?? 0 : 0) },
+  { header: "Page views", value: (e: AdminEvent) => e.page_views ?? 0 },
+] as const;
+
 export function EventsTable() {
   const params = useListParams();
   const { data, isPending, isError } = useEvents({
@@ -161,6 +175,23 @@ export function EventsTable() {
       emptyTitle="No events yet"
       emptyDescription="Events created by clubs will appear here."
       toolbar={<ListFilters params={params} filters={EVENT_FILTERS} sort={EVENT_SORT} />}
+      actions={
+        <ExportButton
+          filename="events"
+          columns={EVENT_CSV}
+          fetchPage={(offset, limit) =>
+            fetchEvents({
+              search: params.search || undefined,
+              isEnded: asBool(params.param("is_ended")),
+              hasFee: asBool(params.param("has_fee")),
+              sort: params.param("sort"),
+              order: params.param("order"),
+              offset,
+              limit,
+            })
+          }
+        />
+      }
     />
   );
 }

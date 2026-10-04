@@ -19,3 +19,4 @@ export {
   type EventAnalytics,
   type EventRegistration,
 } from "./schemas";
+export { fetchEvents } from "./api";

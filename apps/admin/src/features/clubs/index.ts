@@ -19,3 +19,4 @@ export {
   type AdminClubDetail,
   type ClubEditInput,
 } from "./schemas";
+export { fetchClubs } from "./api";
