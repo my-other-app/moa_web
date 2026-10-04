@@ -16,6 +16,7 @@ export {
 } from "./api";
 export { UsersTable } from "./components/users-table";
 export { UserDetail } from "./components/user-detail";
+export { ImpersonateButton } from "./components/impersonate-button";
 export {
   adminUserSchema,
   adminUserDetailSchema,

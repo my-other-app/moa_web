@@ -1,5 +1,7 @@
 import {
   AwardIcon,
+  BellIcon,
+  ScrollTextIcon,
   BuildingIcon,
   CalendarDaysIcon,
   LayoutDashboardIcon,
@@ -25,6 +27,8 @@ export const navItems: NavItem[] = [
   { href: "/organizations", label: "Organisations", icon: BuildingIcon },
   { href: "/badges", label: "Badges", icon: AwardIcon },
   { href: "/avatars", label: "Avatars", icon: SmileIcon },
+  { href: "/announcements", label: "Announcements", icon: BellIcon },
+  { href: "/activity", label: "Activity", icon: ScrollTextIcon },
 ];
 
 export function isActive(pathname: string, item: NavItem): boolean {

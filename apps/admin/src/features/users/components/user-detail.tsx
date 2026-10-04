@@ -53,6 +53,7 @@ import {
   fetchUserEvents,
 } from "../api";
 import { useUser, useUserBadges, useUserClubs, useUserEvents } from "../queries";
+import { ImpersonateButton } from "./impersonate-button";
 import type { UserClub, UserEvent } from "../schemas";
 
 /**
@@ -475,10 +476,17 @@ export function UserDetail({ userId }: { userId: number }) {
         title={user?.full_name || user?.username || "User"}
         action={
           user ? (
-            <DataExportButton
-              userId={userId}
-              name={user.full_name || user.username}
-            />
+            <div className="flex items-center gap-2">
+              <ImpersonateButton
+                userId={userId}
+                name={user.full_name || user.username}
+                userType={user.user_type}
+              />
+              <DataExportButton
+                userId={userId}
+                name={user.full_name || user.username}
+              />
+            </div>
           ) : null
         }
       />

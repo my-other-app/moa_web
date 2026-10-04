@@ -27,8 +27,10 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   /**
-   * Everything except the sign-in page, the gateway (which must stay reachable
-   * so the login POST itself can get through), Next internals and static files.
+   * Everything except the sign-in page, the admin impersonation hand-off
+   * (which arrives with no session -- exchanging its token is what creates
+   * one), the gateway (which must stay reachable so the login POST itself can
+   * get through), Next internals and static files.
    */
-  matcher: ["/((?!login|api/gateway|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
+  matcher: ["/((?!login|impersonate|api/gateway|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
 };
