@@ -46,8 +46,17 @@ export function ImpersonateButton({
   const [reason, setReason] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
-  // The API refuses anyway; not offering it is clearer than a 403.
-  if (userType === "admin") return null;
+  /*
+   * Only club accounts. The hand-off lands on the clubs dashboard, which is
+   * the only web app a session can be opened into -- an app user's product is
+   * the mobile app, and that dashboard would reject them at its role check.
+   * Offering a button that leads to a rejection is worse than not offering
+   * one; this needs a mobile hand-off before it can cover app users.
+   *
+   * Admins are excluded separately: the API refuses them, and a 403 is a
+   * worse way to find that out.
+   */
+  if (userType !== "club") return null;
 
   async function start() {
     setBusy(true);
