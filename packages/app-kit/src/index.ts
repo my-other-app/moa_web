@@ -14,6 +14,11 @@ export { ResourceList, type ResourceListProps } from "./components/resource-list
 export { PageHeader } from "./components/page-header";
 export { SectionTitle } from "./components/section-title";
 export {
+  ListFilters,
+  type FilterSpec,
+  type SortSpec,
+} from "./components/list-filters";
+export {
   loginSchema,
   type LoginInput,
   useLogin,

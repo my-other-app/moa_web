@@ -4,7 +4,14 @@ import Link from "next/link";
 import { EyeIcon, GlobeIcon, MapPinIcon } from "lucide-react";
 import { StatusBadge, type DataTableColumn } from "@moa/ui";
 
-import { ResourceList, formatCurrency, formatDateTime, formatNumber, useListParams } from "@moa/app-kit";
+import {
+  ListFilters,
+  ResourceList,
+  formatCurrency,
+  formatDateTime,
+  formatNumber,
+  useListParams,
+} from "@moa/app-kit";
 import { useEvents } from "../queries";
 import type { AdminEvent } from "../schemas";
 
@@ -94,10 +101,50 @@ const columns: DataTableColumn<AdminEvent>[] = [
   },
 ];
 
+const EVENT_FILTERS = [
+  {
+    key: "is_ended",
+    label: "When",
+    allLabel: "Any time",
+    options: [
+      { value: "false", label: "Upcoming" },
+      { value: "true", label: "Past" },
+    ],
+  },
+  {
+    key: "has_fee",
+    label: "Entry",
+    allLabel: "Free and paid",
+    options: [
+      { value: "true", label: "Paid" },
+      { value: "false", label: "Free" },
+    ],
+  },
+] as const;
+
+const EVENT_SORT = {
+  options: [
+    { value: "created", label: "Created" },
+    { value: "date", label: "Event date" },
+    { value: "name", label: "Name" },
+    { value: "views", label: "Page views" },
+  ],
+  defaultValue: "created",
+} as const;
+
+/** The query string carries strings; the API wants a boolean or nothing. */
+function asBool(value: string | undefined): boolean | undefined {
+  return value === undefined ? undefined : value === "true";
+}
+
 export function EventsTable() {
   const params = useListParams();
   const { data, isPending, isError } = useEvents({
     search: params.search || undefined,
+    isEnded: asBool(params.param("is_ended")),
+    hasFee: asBool(params.param("has_fee")),
+    sort: params.param("sort"),
+    order: params.param("order"),
     offset: params.offset,
     limit: params.pageSize,
   });
@@ -113,6 +160,7 @@ export function EventsTable() {
       searchPlaceholder="Search events…"
       emptyTitle="No events yet"
       emptyDescription="Events created by clubs will appear here."
+      toolbar={<ListFilters params={params} filters={EVENT_FILTERS} sort={EVENT_SORT} />}
     />
   );
 }

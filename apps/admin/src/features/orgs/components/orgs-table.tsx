@@ -4,9 +4,14 @@ import * as React from "react";
 import Link from "next/link";
 import { Badge, StatusBadge, Switch, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn } from "@moa/ui";
 
-import { ResourceList, useListParams, useLocalPage } from "@moa/app-kit";
+import {
+  ListFilters,
+  ResourceList,
+  useListParams,
+  useLocalPage,
+} from "@moa/app-kit";
 import { useOrgs, useSetOrgBlocked } from "../queries";
-import type { Org } from "../schemas";
+import { ORG_TYPES, type Org } from "../schemas";
 
 function BlockToggle({ org }: { org: Org }) {
   const setBlocked = useSetOrgBlocked();
@@ -91,10 +96,67 @@ const matches = (org: Org, query: string) =>
     .filter(Boolean)
     .some((field) => String(field).toLowerCase().includes(query));
 
+const ORG_FILTERS = [
+  {
+    key: "type",
+    label: "Type",
+    options: ORG_TYPES.map((type) => ({
+      value: type,
+      label: type[0]!.toUpperCase() + type.slice(1),
+    })),
+  },
+  {
+    key: "status",
+    label: "Status",
+    options: [
+      { value: "active", label: "Active" },
+      { value: "blocked", label: "Blocked" },
+    ],
+  },
+] as const;
+
+const ORG_SORT = {
+  options: [
+    { value: "name", label: "Name" },
+    { value: "type", label: "Type" },
+  ],
+  defaultValue: "name",
+  defaultOrder: "asc",
+} as const;
+
 export function OrgsTable() {
   const params = useListParams();
   const { data, isPending, isError } = useOrgs();
-  const page = useLocalPage(data, params, matches);
+
+  /*
+   * Filtered and sorted in the browser, unlike the other three lists.
+   * /orgs/list returns every row with no pagination, so the page already has
+   * the whole collection -- adding server-side parameters would mean an API
+   * change for data that is already here, and organisations number in the
+   * tens.
+   */
+  const type = params.param("type");
+  const status = params.param("status");
+  const sort = params.param("sort") ?? ORG_SORT.defaultValue;
+  const order = params.param("order") ?? ORG_SORT.defaultOrder;
+
+  const rows = React.useMemo(() => {
+    if (!data) return data;
+    const filtered = data.filter((org) => {
+      if (type && org.type !== type) return false;
+      if (status === "blocked" && !org.is_blocked) return false;
+      if (status === "active" && org.is_blocked) return false;
+      return true;
+    });
+    const direction = order === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const left = String((sort === "type" ? a.type : a.name) ?? "");
+      const right = String((sort === "type" ? b.type : b.name) ?? "");
+      return left.localeCompare(right) * direction;
+    });
+  }, [data, type, status, sort, order]);
+
+  const page = useLocalPage(rows, params, matches);
 
   return (
     <ResourceList
@@ -107,6 +169,7 @@ export function OrgsTable() {
       searchPlaceholder="Search organisations…"
       emptyTitle="No organisations"
       emptyDescription="Colleges and institutions appear here once added."
+      toolbar={<ListFilters params={params} filters={ORG_FILTERS} sort={ORG_SORT} />}
     />
   );
 }

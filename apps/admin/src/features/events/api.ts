@@ -10,13 +10,27 @@ import {
 
 export interface EventListQuery {
   search?: string | undefined;
+  clubId?: number | undefined;
+  isEnded?: boolean | undefined;
+  hasFee?: boolean | undefined;
+  sort?: string | undefined;
+  order?: string | undefined;
   offset: number;
   limit: number;
 }
 
 export async function fetchEvents(query: EventListQuery) {
   const raw = await api.get<unknown>("/api/v1/events/admin/list", {
-    query: { search: query.search, offset: query.offset, limit: query.limit },
+    query: {
+      search: query.search,
+      club_id: query.clubId,
+      is_ended: query.isEnded,
+      has_fee: query.hasFee,
+      sort: query.sort,
+      order: query.order,
+      offset: query.offset,
+      limit: query.limit,
+    },
   });
   return adminEventPageSchema.parse(raw);
 }

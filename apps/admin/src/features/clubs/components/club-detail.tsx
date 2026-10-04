@@ -141,8 +141,12 @@ function FollowersTab({ clubId }: { clubId: number }) {
               ) : (
                 <p className="truncate font-medium">Unknown</p>
               )}
+              {/* Not email: /clubs/followers/{id} is DependsAuth, so any
+                  signed-in user can read it, and the response schema
+                  deliberately carries no address. Username is what the API
+                  actually returns. */}
               <p className="text-muted-foreground truncate text-xs">
-                {row.user?.email || "--"}
+                {row.user?.username ? `@${row.user.username}` : "--"}
               </p>
             </div>
             <span className="text-muted-foreground shrink-0 text-xs">

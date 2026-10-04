@@ -13,6 +13,9 @@ export interface ClubListQuery {
   search?: string | undefined;
   /** Scopes to one organisation. Unverified clubs are included either way. */
   orgId?: number | undefined;
+  isVerified?: boolean | undefined;
+  sort?: string | undefined;
+  order?: string | undefined;
   offset: number;
   limit: number;
 }
@@ -22,6 +25,9 @@ export async function fetchClubs(query: ClubListQuery): Promise<AdminClubPage> {
     query: {
       search: query.search,
       org_id: query.orgId,
+      is_verified: query.isVerified,
+      sort: query.sort,
+      order: query.order,
       offset: query.offset,
       limit: query.limit,
     },

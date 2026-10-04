@@ -8,6 +8,8 @@ export interface ListParams {
   search: string;
   page: number;
   pageSize: number;
+  /** Arbitrary filter and sort keys, kept in the URL beside the rest. */
+  params: Record<string, string | undefined>;
 }
 
 /**
@@ -62,6 +64,16 @@ export function useListParams(defaults?: Partial<ListParams>) {
         params.delete("page");
       }
 
+      // Filters and sort keys share the same query string. They are written
+      // through the same path so every change resets the page for the same
+      // reason a new search does: page 4 of a narrower result set is empty
+      // and reads as a bug.
+      for (const [key, value] of Object.entries(next.params ?? {})) {
+        if (value) params.set(key, value);
+        else params.delete(key);
+        params.delete("page");
+      }
+
       const qs = params.toString();
       const url = qs ? `${pathname}?${qs}` : pathname;
       // Typing replaces history; explicit paging pushes it.
@@ -94,6 +106,17 @@ export function useListParams(defaults?: Partial<ListParams>) {
     setPage: (p: number) => write({ page: p }),
     setPageSize: (s: number) => write({ pageSize: s }),
     reset: () => write({ search: "", page: 1 }),
+
+    /** Reads one filter or sort key from the URL. */
+    param: (key: string) => searchParams.get(key) ?? undefined,
+    /** Sets one; an empty value removes it, which is how "All" is expressed. */
+    setParam: (key: string, value: string | undefined) =>
+      write({ params: { [key]: value } }),
+    /** How many of `keys` are currently set, for the "Clear" affordance. */
+    activeCount: (keys: string[]) =>
+      keys.filter((key) => searchParams.get(key)).length,
+    clearParams: (keys: string[]) =>
+      write({ params: Object.fromEntries(keys.map((key) => [key, undefined])) }),
     /** Offset for the API, derived from the 1-based page in the URL. */
     offset: (page - 1) * pageSize,
   };

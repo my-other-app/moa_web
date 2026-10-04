@@ -4,7 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { Avatar, AvatarFallback, StatusBadge, type DataTableColumn } from "@moa/ui";
 
-import { ResourceList, formatDate, initials, pickImage, useListParams } from "@moa/app-kit";
+import {
+  ListFilters,
+  ResourceList,
+  formatDate,
+  initials,
+  pickImage,
+  useListParams,
+} from "@moa/app-kit";
 import { useClubs } from "../queries";
 import type { AdminClub } from "../schemas";
 import { ClubActions } from "./club-actions";
@@ -94,10 +101,35 @@ const columns: DataTableColumn<AdminClub>[] = [
   },
 ];
 
+const CLUB_FILTERS = [
+  {
+    key: "is_verified",
+    label: "Status",
+    options: [
+      { value: "true", label: "Verified" },
+      { value: "false", label: "Pending approval" },
+    ],
+  },
+] as const;
+
+const CLUB_SORT = {
+  options: [
+    { value: "created", label: "Created" },
+    { value: "name", label: "Name" },
+    { value: "followers", label: "Followers" },
+  ],
+  defaultValue: "created",
+} as const;
+
 export function ClubsTable() {
   const params = useListParams();
+  const verified = params.param("is_verified");
   const { data, isPending, isError } = useClubs({
     search: params.search || undefined,
+    // The query string carries strings; the API wants a boolean or nothing.
+    isVerified: verified === undefined ? undefined : verified === "true",
+    sort: params.param("sort"),
+    order: params.param("order"),
     offset: params.offset,
     limit: params.pageSize,
   });
@@ -113,6 +145,7 @@ export function ClubsTable() {
       searchPlaceholder="Search clubs…"
       emptyTitle="No clubs yet"
       emptyDescription="Clubs created by organisers will appear here for approval."
+      toolbar={<ListFilters params={params} filters={CLUB_FILTERS} sort={CLUB_SORT} />}
     />
   );
 }

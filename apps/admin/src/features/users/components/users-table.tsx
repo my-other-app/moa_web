@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { Avatar, AvatarFallback, Badge, type DataTableColumn } from "@moa/ui";
 
-import { ResourceList, formatDate, initials, useListParams } from "@moa/app-kit";
+import {
+  ListFilters,
+  ResourceList,
+  formatDate,
+  initials,
+  useListParams,
+} from "@moa/app-kit";
 import { useUsers } from "../queries";
 import type { AdminUser } from "../schemas";
 
@@ -75,10 +81,46 @@ const columns: DataTableColumn<AdminUser>[] = [
   },
 ];
 
+const USER_FILTERS = [
+  {
+    key: "user_type",
+    label: "Type",
+    options: [
+      { value: "app_user", label: "App users" },
+      { value: "club", label: "Clubs" },
+      { value: "admin", label: "Admins" },
+      { value: "guest", label: "Guests" },
+    ],
+  },
+  {
+    key: "provider",
+    label: "Sign-in",
+    options: [
+      { value: "google", label: "Google" },
+      { value: "apple", label: "Apple" },
+      { value: "email", label: "Email" },
+    ],
+  },
+] as const;
+
+const USER_SORT = {
+  options: [
+    { value: "joined", label: "Joined" },
+    { value: "name", label: "Name" },
+    { value: "email", label: "Email" },
+    { value: "username", label: "Username" },
+  ],
+  defaultValue: "joined",
+} as const;
+
 export function UsersTable() {
   const params = useListParams();
   const { data, isPending, isError } = useUsers({
     search: params.search || undefined,
+    userType: params.param("user_type"),
+    provider: params.param("provider"),
+    sort: params.param("sort"),
+    order: params.param("order"),
     offset: params.offset,
     limit: params.pageSize,
   });
@@ -94,6 +136,7 @@ export function UsersTable() {
       searchPlaceholder="Search by name, username or email…"
       emptyTitle="No users yet"
       emptyDescription="People who sign up through the app will appear here."
+      toolbar={<ListFilters params={params} filters={USER_FILTERS} sort={USER_SORT} />}
     />
   );
 }
