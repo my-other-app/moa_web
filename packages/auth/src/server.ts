@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
 import { createApiClient, ApiError } from "@moa/api";
 
 import { ACCESS_TOKEN_COOKIE, type SessionUser, type UserType } from "./constants";
@@ -69,4 +70,38 @@ export async function getSessionWithRole(
   const user = await getSession();
   if (!user) return { user: null, allowed: false };
   return { user, allowed: allowed.includes(user.user_type) };
+}
+
+/**
+ * The signed-in user, or null -- including when the API cannot say.
+ *
+ * `getSession` rethrows anything that is not a 401/403, which is correct for a
+ * gate: an admin shell must not render when the role behind it could not be
+ * verified. It is wrong for the sign-in page, where the session check is only a
+ * courtesy (skip the form if you are already in). Letting it throw there makes
+ * the one page that recovers from a bad session unreachable precisely when the
+ * API is unwell -- which is when someone needs it. That is not hypothetical: a
+ * stale cookie plus a 500 from /auth/me left the sign-in form unreachable.
+ *
+ * Degrading to "show the form" is the safe direction. The worst case is an
+ * already-signed-in admin being shown a form they did not need; the failure it
+ * replaces is being locked out of the product entirely.
+ */
+export async function getSessionQuietly(): Promise<SessionUser | null> {
+  try {
+    return await getSession();
+  } catch (error) {
+    /*
+     * Next signals control flow by throwing: `redirect`, `notFound`, and the
+     * DynamicServerError that marks a route as dynamic when it reads cookies.
+     * A bare catch swallows those and the route is silently mis-rendered --
+     * the build log caught exactly that here. `unstable_rethrow` puts them
+     * back and lets real faults through, which are the only ones we want.
+     */
+    unstable_rethrow(error);
+    // Swallowed on purpose, but not silently: this is the only trace that the
+    // upstream session check failed rather than simply finding no session.
+    console.warn("Session check failed; showing the sign-in form.", error);
+    return null;
+  }
 }

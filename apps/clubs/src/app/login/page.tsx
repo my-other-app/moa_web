@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { UsersRoundIcon } from "lucide-react";
-import { getSession } from "@moa/auth/server";
+import { getSessionQuietly } from "@moa/auth/server";
 import { LoginForm } from "@moa/app-kit";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from "@moa/ui";
 
 export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage() {
-  const session = await getSession();
+  const session = await getSessionQuietly();
   if (session?.user_type === "club") redirect("/");
 
   return (

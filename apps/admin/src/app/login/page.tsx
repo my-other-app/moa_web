@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ShieldCheckIcon } from "lucide-react";
-import { getSession } from "@moa/auth/server";
+import { getSessionQuietly } from "@moa/auth/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from "@moa/ui";
 
 import { LoginForm } from "@moa/app-kit";
@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage() {
   // Already signed in as an admin? Skip the form entirely.
-  const session = await getSession();
+  const session = await getSessionQuietly();
   if (session?.user_type === "admin") redirect("/");
 
   return (
