@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Skeleton } from "@moa/ui";
 
 import { PageHeader } from "@moa/app-kit";
-import { TrashTable } from "@/features/clubs";
+import { TrashTabs } from "@/features/trash";
 
 export const metadata: Metadata = { title: "Trash" };
 
@@ -12,10 +12,10 @@ export default function TrashPage() {
     <>
       <PageHeader
         title="Trash"
-        description="Deleted and rejected clubs. Restoring brings a club back exactly as it was — a pending club comes back pending."
+        description="Deleted clubs, events and organisations. Restoring brings a record back exactly as it was — a pending club comes back pending."
       />
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-        <TrashTable />
+        <TrashTabs />
       </Suspense>
     </>
   );

@@ -15,6 +15,9 @@ import {
   fetchEventAnalytics,
   fetchEventRegistrations,
   fetchEvents,
+  fetchDeletedEvents,
+  restoreEvent,
+  updateEvent,
   setEventWinner,
   type EventListQuery,
   type RegistrationQuery,
@@ -85,6 +88,41 @@ export function useSetEventWinner(eventId: number) {
         queryClient.invalidateQueries({ queryKey: qk.events.all }),
         queryClient.invalidateQueries({ queryKey: qk.badges.all }),
         queryClient.invalidateQueries({ queryKey: qk.users.all }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useUpdateEvent(eventId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Record<string, unknown>) => updateEvent(eventId, input),
+    onSuccess: async () => {
+      toast.success("Event updated");
+      await queryClient.invalidateQueries({ queryKey: qk.events.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useDeletedEvents(query: { offset: number; limit: number }) {
+  return useQuery({
+    queryKey: [...qk.events.all, "deleted", query],
+    queryFn: () => fetchDeletedEvents(query),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useRestoreEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: restoreEvent,
+    onSuccess: async () => {
+      toast.success("Event restored");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.events.all }),
+        queryClient.invalidateQueries({ queryKey: ["audit-log"] }),
       ]);
     },
     onError: (error: Error) => toast.error(error.message),

@@ -102,3 +102,30 @@ export async function setEventWinner(
     { position }
   );
 }
+
+/**
+ * Multipart, like the club update, because the endpoint shares a handler
+ * with poster upload. Every field is sent: the handler assigns what it
+ * receives, so an omitted one is cleared rather than left alone.
+ */
+export async function updateEvent(
+  eventId: number,
+  input: Record<string, unknown>
+): Promise<void> {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined && value !== null) form.append(key, String(value));
+  }
+  await api.put<void>(`/api/v1/events/update/${eventId}`, form);
+}
+
+export async function fetchDeletedEvents(query: { offset: number; limit: number }) {
+  const raw = await api.get<unknown>("/api/v1/events/admin/deleted/list", {
+    query: { offset: query.offset, limit: query.limit },
+  });
+  return adminEventPageSchema.parse(raw);
+}
+
+export async function restoreEvent(eventId: number): Promise<void> {
+  await api.post<void>(`/api/v1/events/admin/${eventId}/restore`);
+}

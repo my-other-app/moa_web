@@ -63,6 +63,7 @@ import {
 } from "../queries";
 import type { EventRegistration } from "../schemas";
 import { PlacingControl } from "./placing-control";
+import { EventEditForm } from "./event-edit-form";
 
 /**
  * One event, for an admin.
@@ -425,12 +426,20 @@ export function EventDetail({ eventId }: { eventId: number }) {
           <TabsList>
             <TabsTrigger value="registrations">Registrations</TabsTrigger>
             <TabsTrigger value="institutions">Institutions</TabsTrigger>
+            <TabsTrigger value="edit">Edit</TabsTrigger>
           </TabsList>
           <TabsContent value="registrations">
             <RegistrationsTab eventId={eventId} />
           </TabsContent>
           <TabsContent value="institutions">
             <InstitutionsTab eventId={eventId} />
+          </TabsContent>
+          <TabsContent value="edit">
+            {event ? (
+              <EventEditForm event={event} />
+            ) : (
+              <Skeleton className="h-96 w-full" />
+            )}
           </TabsContent>
         </Tabs>
       </div>

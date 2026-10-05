@@ -43,6 +43,8 @@ export const adminUserDetailSchema = adminUserSchema.extend({
      data and can be reinstated; the API refuses it on every request. */
   is_active: z.boolean().default(true),
   suspended_reason: z.string().nullish(),
+  /** Only meaningful on an admin account. */
+  admin_role: z.string().nullish(),
   profile: z
     .object({
       id: z.coerce.number().nullish(),
@@ -128,3 +130,19 @@ export type AdminUserStats = z.infer<typeof adminUserStatsSchema>;
 export type UserClub = z.infer<typeof userClubSchema>;
 export type UserEvent = z.infer<typeof userEventSchema>;
 export type UserBadges = z.infer<typeof userBadgesSchema>;
+
+/** The capability tiers the backend enforces. */
+export const ADMIN_ROLES = [
+  { value: "viewer", label: "Viewer", hint: "Read everything, change nothing" },
+  { value: "support", label: "Support", hint: "Approve, suspend, award, announce" },
+  { value: "owner", label: "Owner", hint: "Everything, including refunds and deletion" },
+] as const;
+
+/** PUT /user/admin/{id} — a genuine partial update; omitted fields are kept. */
+export const userEditSchema = z.object({
+  full_name: z.string().trim().min(2, "Name is required").max(100),
+  email: z.string().trim().email("Enter a valid email"),
+  phone: z.string().trim().max(20).optional(),
+});
+
+export type UserEditInput = z.infer<typeof userEditSchema>;

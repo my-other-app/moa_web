@@ -6,6 +6,8 @@ export {
   useCreateOrg,
   useUpdateOrg,
   useDeleteOrg,
+  useDeletedOrgs,
+  useRestoreOrg,
 } from "./queries";
 export { OrgsTable } from "./components/orgs-table";
 export { OrgDetail } from "./components/org-detail";

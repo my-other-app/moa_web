@@ -4,6 +4,7 @@ import {
   CreditCardIcon,
   ScrollTextIcon,
   Trash2Icon,
+  ShieldIcon,
   BuildingIcon,
   CalendarDaysIcon,
   LayoutDashboardIcon,
@@ -35,6 +36,7 @@ export const navItems: NavItem[] = [
   { href: "/announcements", label: "Announcements", icon: BellIcon },
   { href: "/activity", label: "Activity", icon: ScrollTextIcon },
   { href: "/trash", label: "Trash", icon: Trash2Icon },
+  { href: "/security", label: "Security", icon: ShieldIcon },
 ];
 
 export function isActive(pathname: string, item: NavItem): boolean {

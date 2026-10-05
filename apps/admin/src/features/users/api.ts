@@ -90,3 +90,24 @@ export async function setUserActive(
     reason: reason?.trim() || null,
   });
 }
+
+export async function updateUser(
+  userId: number,
+  input: { full_name: string; email: string; phone?: string }
+): Promise<void> {
+  await api.put<void>(`/api/v1/user/admin/${userId}`, {
+    full_name: input.full_name,
+    email: input.email,
+    // Sent as null rather than omitted so clearing a phone actually clears
+    // it -- the handler skips None but applies an explicit empty value.
+    phone: input.phone?.trim() ?? "",
+  });
+}
+
+export async function deleteUser(userId: number): Promise<void> {
+  await api.del<void>(`/api/v1/user/admin/${userId}`);
+}
+
+export async function setAdminRole(userId: number, role: string): Promise<void> {
+  await api.put<void>(`/api/v1/user/admin/${userId}/role`, { role });
+}

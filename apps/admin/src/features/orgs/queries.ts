@@ -11,6 +11,8 @@ import {
   fetchOrg,
   fetchOrgAnalytics,
   fetchOrgs,
+  fetchDeletedOrgs,
+  restoreOrg,
   setOrgBlocked,
   updateOrg,
 } from "./api";
@@ -100,6 +102,28 @@ export function useDeleteOrg() {
     onSuccess: async () => {
       toast.success("Organisation deleted");
       await invalidateOrgs(queryClient);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useDeletedOrgs(query: { offset: number; limit: number }) {
+  return useQuery({
+    queryKey: [...qk.orgs.all, "deleted", query],
+    queryFn: () => fetchDeletedOrgs(query),
+  });
+}
+
+export function useRestoreOrg() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: restoreOrg,
+    onSuccess: async () => {
+      toast.success("Organisation restored");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.orgs.all }),
+        queryClient.invalidateQueries({ queryKey: ["audit-log"] }),
+      ]);
     },
     onError: (error: Error) => toast.error(error.message),
   });

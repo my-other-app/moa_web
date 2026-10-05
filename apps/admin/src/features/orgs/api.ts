@@ -1,4 +1,5 @@
 import { api } from "@moa/app-kit";
+import { z } from "zod";
 import {
   orgAnalyticsSchema,
   orgListSchema,
@@ -61,4 +62,18 @@ export async function updateOrg(
 
 export async function deleteOrg(orgId: number): Promise<void> {
   await api.del<void>(`/api/v1/orgs/delete/${orgId}`);
+}
+
+export async function fetchDeletedOrgs(query: { offset: number; limit: number }) {
+  const raw = await api.get<unknown>("/api/v1/orgs/deleted/list", {
+    query: { offset: query.offset, limit: query.limit },
+  });
+  return z
+    .object({ items: z.array(orgSchema).default([]), total: z.number().nullish() })
+    .passthrough()
+    .parse(raw);
+}
+
+export async function restoreOrg(orgId: number): Promise<void> {
+  await api.post<void>(`/api/v1/orgs/${orgId}/restore`);
 }

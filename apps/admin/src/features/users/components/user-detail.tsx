@@ -56,6 +56,7 @@ import {
 import { useUser, useUserBadges, useUserClubs, useUserEvents } from "../queries";
 import { ImpersonateButton } from "./impersonate-button";
 import { SuspendButton } from "./suspend-button";
+import { UserAdminControls } from "./user-admin-controls";
 import type { UserClub, UserEvent } from "../schemas";
 
 /**
@@ -478,7 +479,8 @@ export function UserDetail({ userId }: { userId: number }) {
         title={user?.full_name || user?.username || "User"}
         action={
           user ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <UserAdminControls user={user} />
               <SuspendButton
                 userId={userId}
                 name={user.full_name || user.username}

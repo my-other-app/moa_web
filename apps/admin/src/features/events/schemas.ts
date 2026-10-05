@@ -99,3 +99,20 @@ export const eventRegistrationPageSchema = paginatedSchema(eventRegistrationSche
 export type AdminEventDetail = z.infer<typeof adminEventDetailSchema>;
 export type EventAnalytics = z.infer<typeof eventAnalyticsSchema>;
 export type EventRegistration = z.infer<typeof eventRegistrationSchema>;
+
+/**
+ * Admin event edit. PUT /events/update/{id} is multipart and assigns what it
+ * receives, so this carries the whole record rather than a patch.
+ */
+export const eventEditSchema = z.object({
+  name: z.string().trim().min(3, "Name is required").max(120),
+  about: z.string().trim().max(5000).optional(),
+  location_name: z.string().trim().max(200).optional(),
+  event_datetime: z.string().min(1, "A date is required"),
+  reg_enddate: z.string().optional(),
+  max_participants: z.coerce.number().int().min(0).optional(),
+  contact_email: z.string().trim().email("Enter a valid email").or(z.literal("")).optional(),
+  contact_phone: z.string().trim().max(20).optional(),
+});
+
+export type EventEditInput = z.infer<typeof eventEditSchema>;

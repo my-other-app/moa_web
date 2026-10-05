@@ -32,6 +32,12 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       }),
       post: vi.fn(async (path: string, body?: unknown) => {
         calls.push({ method: "POST", path, body });
+        // Enabling 2FA parses its response, so the stub has to return the
+        // shape rather than undefined.
+        if (path.includes("/2fa/enable")) {
+          return { enabled: true, recovery_codes: ["aaaa-bbbb"] };
+        }
+        return undefined;
       }),
       put: vi.fn(async (path: string, body?: unknown) => {
         calls.push({ method: "PUT", path, body });
@@ -148,5 +154,71 @@ describe("interests", () => {
   it("reports how many records a delete detached it from", async () => {
     const result = await deleteInterest(9);
     expect(result.detached_from).toBe(3);
+  });
+});
+
+const { updateUser, setAdminRole } = await import("./users/api");
+const { updateEvent, restoreEvent } = await import("./events/api");
+const { restoreOrg } = await import("./orgs/api");
+const { enableTotp, disableTotp, revokeSession } = await import("./security/api");
+
+describe("user edit and roles", () => {
+  it("sends the phone explicitly so it can be cleared", async () => {
+    // The handler skips None but applies an empty value, so omitting it would
+    // make a phone impossible to remove.
+    await updateUser(7, { full_name: "A Name", email: "a@example.com" });
+    expect(calls[0]!.body).toMatchObject({ phone: "" });
+  });
+
+  it("does not send the username", async () => {
+    // It appears in links and exports that already exist.
+    await updateUser(7, { full_name: "A Name", email: "a@example.com" });
+    expect(calls[0]!.body).not.toHaveProperty("username");
+  });
+
+  it("sets a role by name", async () => {
+    await setAdminRole(7, "support");
+    expect(calls[0]!.path).toContain("/user/admin/7/role");
+    expect(calls[0]!.body).toEqual({ role: "support" });
+  });
+});
+
+describe("event edit and restore", () => {
+  it("sends the event as multipart, as the handler expects", async () => {
+    await updateEvent(3, { name: "Renamed", about: "x" });
+    expect(calls[0]!.method).toBe("PUT");
+    expect(calls[0]!.body).toBeInstanceOf(FormData);
+  });
+
+  it("drops undefined values rather than sending the string 'undefined'", async () => {
+    await updateEvent(3, { name: "Renamed", about: undefined });
+    const sent = calls[0]!.body as FormData;
+    expect(sent.get("name")).toBe("Renamed");
+    expect(sent.has("about")).toBe(false);
+  });
+
+  it("restores an event and an organisation by id", async () => {
+    await restoreEvent(3);
+    expect(calls[0]!.path).toContain("/events/admin/3/restore");
+    calls.length = 0;
+    await restoreOrg(4);
+    expect(calls[0]!.path).toContain("/orgs/4/restore");
+  });
+});
+
+describe("security", () => {
+  it("enables and disables 2FA with a code", async () => {
+    await enableTotp("123456");
+    expect(calls[0]!.body).toEqual({ code: "123456" });
+    calls.length = 0;
+    // Disabling needs a code too, not just a session.
+    await disableTotp("654321");
+    expect(calls[0]!.body).toEqual({ code: "654321" });
+  });
+
+  it("revokes one session by id", async () => {
+    await revokeSession("abc-123");
+    expect(calls[0]!.method).toBe("DELETE");
+    expect(calls[0]!.path).toContain("/auth/sessions/abc-123");
   });
 });

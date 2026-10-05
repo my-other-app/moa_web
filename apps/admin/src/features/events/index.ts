@@ -5,11 +5,15 @@ export {
   useEventRegistrations,
   useDeleteEvent,
   useSetEventWinner,
+  useUpdateEvent,
+  useDeletedEvents,
+  useRestoreEvent,
 } from "./queries";
 export { eventExportUrl, setEventWinner } from "./api";
 export { EventsTable } from "./components/events-table";
 export { EventDetail } from "./components/event-detail";
 export { PlacingControl } from "./components/placing-control";
+export { EventEditForm } from "./components/event-edit-form";
 export {
   adminEventSchema,
   adminEventDetailSchema,

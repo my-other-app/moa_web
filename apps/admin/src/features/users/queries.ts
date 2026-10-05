@@ -16,6 +16,9 @@ import {
   fetchUserClubs,
   fetchUserEvents,
   setUserActive,
+  updateUser,
+  deleteUser,
+  setAdminRole,
   type UserEventQuery,
   type UserListQuery,
   type UserSubListQuery,
@@ -71,6 +74,52 @@ export function useSetUserActive(userId: number) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: qk.users.all }),
         // The change is written to the audit log.
+        queryClient.invalidateQueries({ queryKey: ["audit-log"] }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useUpdateUser(userId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { full_name: string; email: string; phone?: string }) =>
+      updateUser(userId, input),
+    onSuccess: async () => {
+      toast.success("Account updated");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.users.all }),
+        queryClient.invalidateQueries({ queryKey: ["audit-log"] }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteUser,
+    onSuccess: async () => {
+      toast.success("Account deleted");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.users.all }),
+        queryClient.invalidateQueries({ queryKey: ["audit-log"] }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useSetAdminRole(userId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (role: string) => setAdminRole(userId, role),
+    onSuccess: async () => {
+      toast.success("Role updated");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.users.all }),
         queryClient.invalidateQueries({ queryKey: ["audit-log"] }),
       ]);
     },
