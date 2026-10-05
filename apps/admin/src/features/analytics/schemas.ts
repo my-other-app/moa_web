@@ -77,3 +77,39 @@ export const moderationQueueSchema = z.object({
 });
 
 export type ModerationQueue = z.infer<typeof moderationQueueSchema>;
+
+/**
+ * Composite read for the dashboard's composition panels.
+ *
+ * There is no single endpoint behind this. It is assembled from the admin list
+ * endpoints, each asked for one row purely to read its `total`, plus the
+ * payment totals. That keeps the dashboard working against the API as deployed
+ * rather than waiting on a new endpoint, at the cost of a fan-out that the
+ * query cache collapses to once a minute.
+ */
+export const dashboardSignalsSchema = z.object({
+  clubs: z.object({
+    total: z.number(),
+    verified: z.number(),
+    pending: z.number(),
+  }),
+  events: z.object({
+    total: z.number(),
+    upcoming: z.number(),
+    past: z.number(),
+    paid: z.number(),
+  }),
+  users: z.object({
+    total: z.number(),
+    admins: z.number(),
+    clubAccounts: z.number(),
+  }),
+  money: z.object({
+    captured: z.number(),
+    refunded: z.number(),
+    net: z.number(),
+    failed: z.number(),
+  }),
+});
+
+export type DashboardSignals = z.infer<typeof dashboardSignalsSchema>;

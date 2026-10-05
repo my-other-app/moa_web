@@ -117,3 +117,34 @@ export {
   useFormField,
 } from "./form";
 export { EmptyState, emptyStateVariants, type EmptyStateProps } from "./empty-state";
+export {
+  MetricCard,
+  type MetricCardProps,
+  type MetricDelta,
+  type MetricTone,
+  type DeltaDirection,
+} from "./metric-card";
+export {
+  DistributionBar,
+  computeSegments,
+  type DistributionBarProps,
+  type DistributionSegment,
+  type ComputedSegment,
+  type SegmentTone,
+} from "./distribution-bar";
+export {
+  RadialGauge,
+  clampPercent,
+  toPercent,
+  type RadialGaugeProps,
+} from "./radial-gauge";
+export {
+  ProgressMeter,
+  type ProgressMeterProps,
+  type MeterTone,
+} from "./progress-meter";
+export {
+  InlineAlert,
+  type InlineAlertProps,
+  type AlertTone,
+} from "./inline-alert";

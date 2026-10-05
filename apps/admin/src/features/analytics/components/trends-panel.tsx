@@ -10,10 +10,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 import { formatCurrency, formatNumber } from "@moa/app-kit";
 import {
-  Button,
   Card,
   CardContent,
   CardDescription,
@@ -22,17 +20,17 @@ import {
   Skeleton,
   cn,
 } from "@moa/ui";
-import { pressable } from "@moa/ui/motion";
 
 import { useAdminTrends } from "../queries";
+import { changeOf } from "../delta";
 import type { TrendMetric } from "../schemas";
 
 /**
- * Trends over a window, with the preceding window for comparison.
+ * Activity over the selected window, with the preceding window for comparison.
  *
- * The dashboard's figures were all counters -- "731 registrations" with no
- * indication of whether that is rising or falling. This is the panel that
- * answers the second question.
+ * The window is owned by the page rather than this card, so the chart, the
+ * headline figures above it and their deltas all describe the same period --
+ * two controls would let them disagree, which is worse than having one.
  */
 const METRICS: ReadonlyArray<{
   key: TrendMetric;
@@ -45,96 +43,72 @@ const METRICS: ReadonlyArray<{
   { key: "revenue", label: "Revenue", format: (v) => formatCurrency(v) },
 ];
 
-const WINDOWS = [7, 30, 90] as const;
-
-/**
- * Percentage change against the previous window.
- *
- * Growth from zero is not "infinite percent" -- it is reported as new rather
- * than as a number nobody can act on.
- */
-function change(current: number, previous: number): { text: string; up: boolean } | null {
-  if (previous === 0) return current > 0 ? { text: "new", up: true } : null;
-  const delta = ((current - previous) / previous) * 100;
-  if (Math.abs(delta) < 1) return { text: "flat", up: delta >= 0 };
-  return { text: `${delta > 0 ? "+" : ""}${Math.round(delta)}%`, up: delta > 0 };
-}
-
-export function TrendsPanel() {
-  const [days, setDays] = React.useState<number>(30);
+export function TrendsPanel({ days }: { days: number }) {
   const [metric, setMetric] = React.useState<TrendMetric>("registrations");
   const { data, isPending, isError } = useAdminTrends(days);
 
   const active = METRICS.find((m) => m.key === metric)!;
-  const current = data?.totals[metric] ?? 0;
-  const previous = data?.previous_totals[metric] ?? 0;
-  const delta = data ? change(current, previous) : null;
 
   return (
     <Card>
       <CardHeader className="gap-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-base">Trends</CardTitle>
-            <CardDescription>
-              Compared with the previous {days} days.
-            </CardDescription>
-          </div>
-          <div className="flex gap-1">
-            {WINDOWS.map((window) => (
-              <Button
-                key={window}
-                size="sm"
-                variant={days === window ? "default" : "ghost"}
-                className={pressable}
-                onClick={() => setDays(window)}
-              >
-                {window}d
-              </Button>
-            ))}
-          </div>
+        <div>
+          <CardTitle className="text-base">Activity</CardTitle>
+          <CardDescription>
+            Last {days} days, compared with the {days} before.
+          </CardDescription>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-4">
+        {/*
+         * The four figures double as the chart's series selector. Keeping them
+         * as one control means the number you are reading and the line you are
+         * looking at cannot drift apart.
+         */}
+        <div
+          role="tablist"
+          aria-label="Metric"
+          className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
+        >
           {METRICS.map((m) => {
             const value = data?.totals[m.key] ?? 0;
             const prior = data?.previous_totals[m.key] ?? 0;
-            const d = data ? change(value, prior) : null;
+            const delta = data ? changeOf(value, prior) : null;
+            const selected = metric === m.key;
+
             return (
               <button
                 key={m.key}
                 type="button"
+                role="tab"
+                aria-selected={selected}
                 onClick={() => setMetric(m.key)}
                 className={cn(
                   "rounded-lg border p-3 text-left transition-colors",
-                  metric === m.key ? "border-primary bg-accent/50" : "hover:bg-accent/30"
+                  selected
+                    ? "border-brand bg-brand/5 ring-brand/20 ring-1"
+                    : "hover:bg-accent/40"
                 )}
               >
                 <p className="text-muted-foreground text-xs">{m.label}</p>
                 {isPending ? (
-                  <Skeleton className="mt-1 h-6 w-16" />
+                  <Skeleton className="mt-1.5 h-6 w-16" />
                 ) : (
                   <p className="mt-0.5 text-xl font-semibold tabular-nums">
                     {m.format(value)}
                   </p>
                 )}
-                {d ? (
-                  <p
-                    className={cn(
-                      "mt-0.5 flex items-center gap-1 text-xs",
-                      d.up ? "text-emerald-600" : "text-destructive"
-                    )}
-                  >
-                    {d.up ? (
-                      <TrendingUpIcon className="size-3" />
-                    ) : (
-                      <TrendingDownIcon className="size-3" />
-                    )}
-                    {d.text}
-                  </p>
-                ) : (
-                  <p className="text-muted-foreground mt-0.5 text-xs">no change</p>
-                )}
+                <p
+                  className={cn(
+                    "mt-0.5 text-xs",
+                    delta === null || delta.direction === "flat"
+                      ? "text-muted-foreground"
+                      : delta.direction === "up"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-destructive"
+                  )}
+                >
+                  {delta?.label ?? "no change"}
+                </p>
               </button>
             );
           })}

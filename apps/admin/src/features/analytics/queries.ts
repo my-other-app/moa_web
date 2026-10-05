@@ -8,6 +8,7 @@ import {
   fetchAdminAnalytics,
   fetchAdminTrends,
   fetchModerationQueue,
+  fetchDashboardSignals,
 } from "./api";
 
 export function useAdminAnalytics() {
@@ -31,5 +32,13 @@ export function useModerationQueue() {
     queryKey: [...qk.analytics.all, "moderation-queue"],
     queryFn: fetchModerationQueue,
     staleTime: staleTimes.volatile,
+  });
+}
+
+export function useDashboardSignals() {
+  return useQuery({
+    queryKey: [...qk.analytics.all, "signals"],
+    queryFn: fetchDashboardSignals,
+    staleTime: staleTimes.analytics,
   });
 }
