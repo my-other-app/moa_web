@@ -23,6 +23,7 @@ export const CAPABILITIES = {
   manageAdmins: "manage_admins",
   manageContent: "manage_content",
   resetCredentials: "reset_credentials",
+  exportData: "export_data",
 } as const;
 
 export type Capability = (typeof CAPABILITIES)[keyof typeof CAPABILITIES];
@@ -41,6 +42,7 @@ const ROLE_CAPABILITIES: Record<AdminRole, readonly Capability[]> = {
     "manage_admins",
     "manage_content",
     "reset_credentials",
+    "export_data",
   ],
 };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
-import { can, roleOf } from "@moa/auth";
+import { CAPABILITIES, can, roleOf } from "@moa/auth";
 
 /**
  * Role gating in the UI.
@@ -54,11 +54,36 @@ describe("capabilities per role", () => {
 
   it("lets an owner do everything", () => {
     for (const c of [
-      "view", "moderate", "destroy", "manage_money",
-      "impersonate", "manage_admins", "manage_content", "reset_credentials",
+      "view", "moderate", "destroy", "manage_money", "impersonate",
+      "manage_admins", "manage_content", "reset_credentials", "export_data",
     ] as const) {
       expect(can(owner, c)).toBe(true);
     }
+  });
+
+  it("keeps the mirror's owner set complete", () => {
+    /*
+     * This file duplicates the backend's map, so it drifts silently: adding
+     * export_data on the server and forgetting it here was caught only by the
+     * compiler, and would otherwise have hidden a panel from the one role that
+     * can use it. Listing every capability means adding one to CAPABILITIES
+     * without granting it to owner fails here.
+     */
+    const all = Object.values(CAPABILITIES);
+    expect(all.every((c) => can(owner, c))).toBe(true);
+    // Spelled out rather than counted: a count tells you the number changed,
+    // this tells you which one, and names the backend set it must match.
+    expect([...all].sort()).toEqual([
+      "destroy",
+      "export_data",
+      "impersonate",
+      "manage_admins",
+      "manage_content",
+      "manage_money",
+      "moderate",
+      "reset_credentials",
+      "view",
+    ]);
   });
 });
 
