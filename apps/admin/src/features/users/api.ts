@@ -111,3 +111,20 @@ export async function deleteUser(userId: number): Promise<void> {
 export async function setAdminRole(userId: number, role: string): Promise<void> {
   await api.put<void>(`/api/v1/user/admin/${userId}/role`, { role });
 }
+
+/**
+ * Set another user's password.
+ *
+ * The only way to issue credentials: there is no unauthenticated
+ * forgot-password flow, and a club created by an admin starts with a random
+ * password nobody has seen.
+ */
+export async function resetUserPassword(input: {
+  emailOrUsername: string;
+  newPassword: string;
+}): Promise<void> {
+  await api.post("/api/v1/auth/admin/reset-password", {
+    email_or_username: input.emailOrUsername.trim(),
+    new_password: input.newPassword,
+  });
+}

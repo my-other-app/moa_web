@@ -2,7 +2,13 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2Icon, PencilIcon, ShieldIcon, Trash2Icon } from "lucide-react";
+import {
+  KeyRoundIcon,
+  Loader2Icon,
+  PencilIcon,
+  ShieldIcon,
+  Trash2Icon,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,8 +39,9 @@ import { pressable } from "@moa/ui/motion";
 
 import { useDeleteUser, useSetAdminRole, useUpdateUser } from "../queries";
 import { ADMIN_ROLES, type AdminUserDetail } from "../schemas";
-
+import { ResetPasswordDialog } from "./reset-password-dialog";
 import { useCan } from "@/hooks/use-can";
+
 
 /**
  * Editing, deleting and granting a role.
@@ -138,6 +145,8 @@ export function UserAdminControls({ user }: { user: AdminUserDetail }) {
   const setRole = useSetAdminRole(user.id);
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [pwOpen, setPwOpen] = React.useState(false);
+  const canResetPassword = useCan("reset_credentials");
 
   if (!allowed) return null;
 
@@ -189,6 +198,28 @@ export function UserAdminControls({ user }: { user: AdminUserDetail }) {
             </SelectContent>
           </Select>
         </div>
+      ) : null}
+
+      {canResetPassword ? (
+        <>
+          <Button
+            size="sm"
+            variant="outline"
+            className={pressable}
+            onClick={() => setPwOpen(true)}
+          >
+            <KeyRoundIcon /> Set password
+          </Button>
+          {pwOpen ? (
+            <ResetPasswordDialog
+              key={`${user.id}-pw`}
+              open={pwOpen}
+              onOpenChange={setPwOpen}
+              emailOrUsername={user.email || user.username}
+              label={user.full_name || user.username}
+            />
+          ) : null}
+        </>
       ) : null}
 
       <Button

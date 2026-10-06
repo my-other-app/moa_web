@@ -18,6 +18,7 @@ import { CheckIcon, Loader2Icon } from "lucide-react";
 import { Button, toast } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 import { ExportButton } from "@/components/export-button";
+import { CreateClubButton } from "./create-club-dialog";
 import { SavedViews } from "@/components/saved-views";
 import { fetchClubs } from "../api";
 import { useApproveClub, useClubs } from "../queries";
@@ -219,6 +220,8 @@ export function ClubsTable() {
           />
         </>}
       actions={
+        <>
+        <CreateClubButton />
         <ExportButton
           filename="clubs"
           columns={CLUB_CSV}
@@ -234,6 +237,7 @@ export function ClubsTable() {
             })
           }
         />
+        </>
       }
       selection={{
         // Approving an approved club is a no-op the API would accept; not

@@ -114,3 +114,20 @@ export async function fetchDeletedClubs(query: { offset: number; limit: number }
 export async function restoreClub(clubId: number): Promise<void> {
   await api.post<void>(`/api/v1/clubs/admin/${clubId}/restore`);
 }
+
+/**
+ * Create a club directly, without waiting for someone to apply.
+ *
+ * The service generates a random password and deliberately does not return
+ * it, so the club cannot sign in until an admin sets one -- which is why the
+ * dialog sends the caller to the password reset straight afterwards.
+ */
+export async function createClub(input: {
+  name: string;
+  email: string;
+}): Promise<{ id: number; name: string; email: string }> {
+  return api.post("/api/v1/clubs/admin/create", {
+    name: input.name.trim(),
+    email: input.email.trim(),
+  });
+}

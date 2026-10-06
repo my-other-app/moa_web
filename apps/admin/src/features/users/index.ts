@@ -34,3 +34,5 @@ export {
   type UserClub,
   type UserEvent,
 } from "./schemas";
+export { ResetPasswordDialog } from "./components/reset-password-dialog";
+export { useResetUserPassword } from "./queries";

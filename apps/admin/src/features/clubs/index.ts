@@ -23,3 +23,5 @@ export {
   type ClubEditInput,
 } from "./schemas";
 export { fetchClubs } from "./api";
+export { CreateClubButton } from "./components/create-club-dialog";
+export { useCreateClub } from "./queries";

@@ -6,17 +6,18 @@ import { toast } from "@moa/ui";
 
 import {
   approveClub,
+  createClub,
   deleteClub,
   fetchClub,
   fetchClubEvents,
   fetchClubFollowers,
   fetchClubs,
   fetchDeletedClubs,
-  restoreClub,
   rejectClub,
-  updateClub,
+  restoreClub,
   type ClubListQuery,
   type SubListQuery,
+  updateClub,
 } from "./api";
 import type { ClubEditInput } from "./schemas";
 
@@ -133,5 +134,17 @@ export function useRestoreClub() {
       ]);
     },
     onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useCreateClub() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createClub,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
+      toast.success("Club created");
+    },
+    onError: (error) => toast.error(error.message || "Could not create the club"),
   });
 }

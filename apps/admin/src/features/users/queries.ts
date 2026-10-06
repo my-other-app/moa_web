@@ -10,18 +10,19 @@ import { toast } from "@moa/ui";
 import { qk } from "@moa/api";
 
 import {
+  deleteUser,
   fetchUser,
   fetchUserBadges,
-  fetchUsers,
   fetchUserClubs,
   fetchUserEvents,
-  setUserActive,
-  updateUser,
-  deleteUser,
+  fetchUsers,
+  resetUserPassword,
   setAdminRole,
+  setUserActive,
   type UserEventQuery,
   type UserListQuery,
   type UserSubListQuery,
+  updateUser,
 } from "./api";
 
 export function useUsers(query: UserListQuery) {
@@ -124,5 +125,15 @@ export function useSetAdminRole(userId: number) {
       ]);
     },
     onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useResetUserPassword() {
+  return useMutation({
+    mutationFn: resetUserPassword,
+    // No invalidation: nothing visible on screen changes, and the dialog shows
+    // the new password itself rather than re-reading it from anywhere.
+    onSuccess: () => toast.success("Password set"),
+    onError: (error) => toast.error(error.message || "Could not set the password"),
   });
 }
