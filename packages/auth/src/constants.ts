@@ -13,4 +13,6 @@ export interface SessionUser {
   email: string;
   full_name: string | null;
   user_type: UserType;
+  /** Absent on non-admins, and on admin accounts predating roles. */
+  admin_role?: string | null;
 }

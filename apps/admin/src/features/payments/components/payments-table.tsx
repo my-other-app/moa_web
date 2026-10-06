@@ -32,6 +32,7 @@ import {
 import { hoverLift, pressable, stagger } from "@moa/ui/motion";
 
 import { ExportButton } from "@/components/export-button";
+import { useCan } from "@/hooks/use-can";
 import { SavedViews } from "@/components/saved-views";
 import { fetchPayments } from "../api";
 import { usePaymentTotals, usePayments, useRefundPayment } from "../queries";
@@ -57,6 +58,13 @@ const STATUS_TONE: Record<string, StatusTone> = {
 function RefundButton({ payment }: { payment: Payment }) {
   const refund = useRefundPayment();
   const [open, setOpen] = React.useState(false);
+  // Refunds move real money, so they are owner-only. Support sees the payment
+  // and its status, just not the button.
+  const allowed = useCan("manage_money");
+
+  if (!allowed) {
+    return <span className="text-muted-foreground text-xs">--</span>;
+  }
 
   // The service refuses anything but a captured payment, so the row says so
   // rather than offering a button that 400s.

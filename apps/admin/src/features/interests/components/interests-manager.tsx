@@ -43,6 +43,7 @@ import {
   useUpdateInterest,
 } from "../queries";
 import type { Interest, InterestCategory } from "../schemas";
+import { useCan } from "@/hooks/use-can";
 
 /**
  * Interests and their categories.
@@ -244,6 +245,9 @@ function InterestChip({
 }) {
   const remove = useDeleteInterest();
   const [confirm, setConfirm] = React.useState(false);
+  // Renaming reshapes every profile that uses it; removing it detaches them.
+  const canEdit = useCan("manage_content");
+  const canDelete = useCan("destroy");
 
   // Seeded rows store the literal word "string"; only a real emoji is shown.
   const emoji =
@@ -259,22 +263,26 @@ function InterestChip({
       >
         {emoji ? <span aria-hidden="true">{emoji}</span> : null}
         <span>{interest.name}</span>
-        <button
-          type="button"
-          onClick={onEdit}
-          aria-label={`Edit ${interest.name}`}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <PencilIcon className="size-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setConfirm(true)}
-          aria-label={`Delete ${interest.name}`}
-          className="text-muted-foreground hover:text-destructive"
-        >
-          <Trash2Icon className="size-3.5" />
-        </button>
+        {canEdit ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Edit ${interest.name}`}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <PencilIcon className="size-3.5" />
+          </button>
+        ) : null}
+        {canDelete ? (
+          <button
+            type="button"
+            onClick={() => setConfirm(true)}
+            aria-label={`Delete ${interest.name}`}
+            className="text-muted-foreground hover:text-destructive"
+          >
+            <Trash2Icon className="size-3.5" />
+          </button>
+        ) : null}
       </div>
 
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
@@ -307,6 +315,7 @@ function InterestChip({
 
 export function InterestsManager() {
   const { data: categories, isPending, isError } = useInterestCategories();
+  const canEdit = useCan("manage_content");
   const [editing, setEditing] = React.useState<Interest | undefined>();
   const [addTo, setAddTo] = React.useState<number | undefined>();
   const [interestOpen, setInterestOpen] = React.useState(false);
@@ -334,7 +343,7 @@ export function InterestsManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
+      <div className={cn("flex flex-wrap gap-2", !canEdit && "hidden")}>
         <Button
           size="sm"
           className={pressable}

@@ -34,6 +34,8 @@ import { pressable } from "@moa/ui/motion";
 import { useDeleteUser, useSetAdminRole, useUpdateUser } from "../queries";
 import { ADMIN_ROLES, type AdminUserDetail } from "../schemas";
 
+import { useCan } from "@/hooks/use-can";
+
 /**
  * Editing, deleting and granting a role.
  *
@@ -122,11 +124,22 @@ function EditDialog({
 }
 
 export function UserAdminControls({ user }: { user: AdminUserDetail }) {
+  /*
+   * Editing an account, deleting it and granting a role are all
+   * manage_admins: anyone who can hand out a role can hand themselves one.
+   *
+   * Hidden rather than disabled: a greyed-out control still implies the
+   * action exists for you and merely needs something, which is not the
+   * case. The endpoint enforces this regardless.
+   */
+  const allowed = useCan("manage_admins");
   const router = useRouter();
   const remove = useDeleteUser();
   const setRole = useSetAdminRole(user.id);
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+
+  if (!allowed) return null;
 
   const isAdmin = user.user_type === "admin";
 

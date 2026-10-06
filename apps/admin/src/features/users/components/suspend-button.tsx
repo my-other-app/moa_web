@@ -21,6 +21,8 @@ import { pressable } from "@moa/ui/motion";
 
 import { useSetUserActive } from "../queries";
 
+import { useCan } from "@/hooks/use-can";
+
 /**
  * Suspend or reinstate an account.
  *
@@ -36,9 +38,19 @@ export function SuspendButton({
   name: string;
   isActive: boolean;
 }) {
+  /*
+   * Suspension is moderation -- support does this daily.
+   *
+   * Hidden rather than disabled: a greyed-out control still implies the
+   * action exists for you and merely needs something, which is not the
+   * case. The endpoint enforces this regardless.
+   */
+  const allowed = useCan("moderate");
   const [open, setOpen] = React.useState(false);
   const [reason, setReason] = React.useState("");
   const setActive = useSetUserActive(userId);
+
+  if (!allowed) return null;
 
   async function confirm() {
     await setActive.mutateAsync({ isActive: !isActive, reason });

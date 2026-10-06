@@ -21,6 +21,8 @@ import {
 } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
+import { useCan } from "@/hooks/use-can";
+
 /**
  * Open a session as another user.
  *
@@ -42,9 +44,19 @@ export function ImpersonateButton({
   name: string;
   userType: string | null | undefined;
 }) {
+  /*
+   * Acting as another user is owner-only.
+   *
+   * Hidden rather than disabled: a greyed-out control still implies the
+   * action exists for you and merely needs something, which is not the
+   * case. The endpoint enforces this regardless.
+   */
+  const allowed = useCan("impersonate");
   const [open, setOpen] = React.useState(false);
   const [reason, setReason] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+
+  if (!allowed) return null;
 
   /*
    * Only club accounts. The hand-off lands on the clubs dashboard, which is
