@@ -36,9 +36,37 @@ export const eventAnalyticsSchema = z
     total_revenue: z.number().default(0),
     attendance_rate: z.number().default(0),
     conversion_rate: z.number().default(0),
-    payment_status: z.record(z.unknown()).nullish(),
-    attendance_status: z.record(z.unknown()).nullish(),
-    top_institutions: z.array(z.unknown()).default([]),
+    /*
+     * Declared properly rather than left as `unknown`. All of this is
+     * computed per event and was displayed nowhere -- a club running a paid
+     * event could not see what it earned, whether anyone turned up, or which
+     * colleges they came from beyond a bare count.
+     */
+    payment_status: z
+      .object({ paid: z.number().default(0), unpaid: z.number().default(0) })
+      .nullish(),
+    attendance_status: z
+      .object({ attended: z.number().default(0), absent: z.number().default(0) })
+      .nullish(),
+    top_institutions: z
+      .array(z.object({ name: z.string(), value: z.number() }))
+      .default([]),
+    /*
+     * These two were not in the schema at all and survived only because it is
+     * `.passthrough()`. The backend has been computing when people register
+     * through the day, and when they checked in, and nothing ever read it.
+     */
+    registration_time: z
+      .object({
+        morning: z.number().default(0),
+        afternoon: z.number().default(0),
+        evening: z.number().default(0),
+        night: z.number().default(0),
+      })
+      .nullish(),
+    attendance_over_time: z
+      .array(z.object({ time: z.string(), count: z.number() }))
+      .default([]),
     /*
      * Distinct institutions across every registration. `top_institutions` is
      * sliced to the five largest server-side, so its length is not this

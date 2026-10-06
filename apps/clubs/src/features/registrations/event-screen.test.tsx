@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 
 import analyticsFixture from "../__fixtures__/event-analytics.json";
 import eventFixture from "../__fixtures__/event-detail.json";
@@ -117,20 +117,39 @@ describe("event screen", () => {
 
   it("shows the four stat cards with real numbers", async () => {
     render(<EventWorkspace eventId={37} />);
-    expect(await screen.findByText("Total Registration Count")).toBeInTheDocument();
-    expect(await screen.findByText("24")).toBeInTheDocument();
+    /*
+     * Each figure is asserted inside its own card. The insights panel below
+     * reads the same analytics response, so these numbers legitimately appear
+     * more than once on the page -- a document-wide lookup now finds two.
+     */
+    const inCard = async (label: string, value: string) => {
+      const heading = await screen.findByText(label);
+      const card = heading.closest("div.bg-card");
+      expect(card).not.toBeNull();
+      expect(within(card as HTMLElement).getByText(value)).toBeInTheDocument();
+    };
+
+    await inCard("Registrations", "24");
     // page_views comes from the event, not the analytics response.
-    expect(await screen.findByText("Event Visitors")).toBeInTheDocument();
-    expect(await screen.findByText("234")).toBeInTheDocument();
+    await inCard("Event visitors", "234");
   });
 
   it("takes the institutions count from total_institutions, not the capped list", async () => {
     // The fixture's top_institutions has 5 entries but 7 distinct colleges.
     // Reading the list length would render 5.
     render(<EventWorkspace eventId={37} />);
-    expect(await screen.findByText("Institutions")).toBeInTheDocument();
-    expect(await screen.findByText("7")).toBeInTheDocument();
-    expect(screen.queryByText("5")).not.toBeInTheDocument();
+
+    /*
+     * Scoped to the card rather than the document. Asserting that "5" appears
+     * nowhere on the page was only ever true by accident -- the insights
+     * panel below legitimately renders it, as a rank and in "top 5 of 17".
+     * What matters is which number this card shows.
+     */
+    const label = await screen.findByText("Institutions");
+    const card = label.closest("div.bg-card");
+    expect(card).not.toBeNull();
+    expect(within(card as HTMLElement).getByText("7")).toBeInTheDocument();
+    expect(within(card as HTMLElement).queryByText("5")).toBeNull();
   });
 
   it("offers the three row actions and Add Volunteers", async () => {

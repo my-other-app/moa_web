@@ -21,7 +21,7 @@ import {
 import { hoverLift, stagger } from "@moa/ui/motion";
 
 import { useClubFollowers } from "../queries";
-import type { Follower } from "../schemas";
+import { followersPerDay, type Follower } from "../schemas";
 
 /**
  * Who follows the club.
@@ -51,6 +51,17 @@ export function FollowersPanel({ clubId }: { clubId: number | null | undefined }
   });
 
   const followers = data?.items ?? [];
+
+  /*
+   * Joins per day, over the page in hand.
+   *
+   * Every follower row carries created_at and nothing had ever read it, so a
+   * club could see 342 and not whether that was rising. It is scoped to the
+   * loaded page and labelled that way rather than implying a full history --
+   * the endpoint pages, so a trend drawn from one page describes the page.
+   */
+  const trend = followersPerDay(followers);
+  const busiestDay = Math.max(1, ...trend.map((point) => point.count));
   // Filtered on the page in hand: the endpoint takes no search parameter, so
   // this narrows what is shown rather than pretending to search everyone.
   const term = search.trim().toLowerCase();
@@ -83,6 +94,40 @@ export function FollowersPanel({ clubId }: { clubId: number | null | undefined }
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {!isPending && !isError && trend.length > 1 ? (
+          <div className="bg-muted/40 space-y-2.5 rounded-xl p-4">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-xs font-medium">Joins over this page</p>
+              <p className="text-muted-foreground text-xs">
+                {formatNumber(followers.length)} followers across{" "}
+                {formatNumber(trend.length)} days
+              </p>
+            </div>
+            <div className="flex h-20 items-end gap-1">
+              {trend.map((point) => (
+                <div
+                  key={point.date}
+                  className="group flex min-w-0 flex-1 flex-col items-center gap-1"
+                  title={`${point.date}: ${point.count}`}
+                >
+                  <span
+                    className="bg-brand/80 group-hover:bg-brand w-full rounded-t-sm transition-colors"
+                    style={{
+                      // A floor of 4px so a day with one follower is still a
+                      // visible mark rather than an invisible sliver.
+                      height: `${Math.max(4, (point.count / busiestDay) * 64)}px`,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="text-muted-foreground flex justify-between text-[11px]">
+              <span>{trend[0]?.date}</span>
+              <span>{trend[trend.length - 1]?.date}</span>
+            </div>
+          </div>
+        ) : null}
+
         {isPending ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (

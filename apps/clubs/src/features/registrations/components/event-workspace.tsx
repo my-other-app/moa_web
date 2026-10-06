@@ -24,6 +24,7 @@ import { EventRowActions, useEventDetail } from "@/features/events";
 import { VolunteersPanel } from "@/features/volunteers";
 import { EventStatCards } from "./event-stat-cards";
 import { EventReviewsPanel } from "@/features/reviews";
+import { EventInsightsPanel } from "./event-insights-panel";
 import { RegistrationsPanel } from "./registrations-panel";
 import { useEventAnalytics } from "../queries";
 
@@ -143,6 +144,7 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
 
       <div className="mt-11 space-y-11">
         <RegistrationsPanel eventId={eventId} />
+        <EventInsightsPanel eventId={eventId} />
         <EventReviewsPanel
           eventId={eventId}
           rating={event?.rating}

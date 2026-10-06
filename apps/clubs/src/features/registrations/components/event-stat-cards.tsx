@@ -1,80 +1,48 @@
 "use client";
 
+import {
+  BuildingIcon,
+  CircleDotIcon,
+  EyeIcon,
+  UsersIcon,
+} from "lucide-react";
 import { formatNumber } from "@moa/app-kit";
-import { Skeleton, cn } from "@moa/ui";
+import { MetricCard, Skeleton, StatusBadge, cn, type StatusTone } from "@moa/ui";
 import { hoverLift, stagger } from "@moa/ui/motion";
 
 import { eventStatus, type EventDetail, type EventStatus } from "@/features/events";
 import { useEventAnalytics } from "../queries";
 
 /**
- * The four tinted cards from the design (node 168:1265): status, registrations,
- * visitors and institutions.
+ * The four figures at the top of an event.
  *
- * Not the shared StatCard: that is a white card with an icon and a label, and
- * these are solid colour fields where the number is the whole design. Forcing
- * them through it would mean overriding the surface, the type scale and the
- * icon slot -- i.e. all of it.
+ * These were solid pastel blocks -- mint, lavender, sky, salmon -- taken from
+ * the design file (node 168:1265). Beside the panels below them they read as
+ * a different product: four saturated fields of colour above a page of white
+ * cards and restrained accents. They now use the same MetricCard as both
+ * dashboards, so colour carries meaning (the event's state) rather than
+ * decorating every tile equally.
  */
 const STATUS_COPY: Record<
   EventStatus,
-  { label: string; caption: string; fill: string; ink: string; dot: string }
+  { label: string; caption: string; tone: StatusTone }
 > = {
   live: {
     label: "Live",
-    caption: "The event is live and registrations are open",
-    fill: "var(--swatch-mint)",
-    ink: "var(--stat-mint-ink)",
-    dot: "var(--stat-mint-ink)",
+    caption: "registrations are open",
+    tone: "success",
   },
   closed: {
     label: "Closed",
-    caption: "Registrations have closed; the event has not finished",
-    fill: "var(--chip-sand)",
-    ink: "#7a4a00",
-    dot: "#7a4a00",
+    caption: "registrations closed, not yet held",
+    tone: "warning",
   },
   ended: {
     label: "Ended",
-    caption: "This event has finished",
-    fill: "#e8e9eb",
-    ink: "var(--swatch-ink)",
-    dot: "var(--swatch-grey)",
+    caption: "this event has finished",
+    tone: "default",
   },
 };
-
-function TintCard({
-  fill,
-  ink,
-  index,
-  children,
-}: {
-  fill: string;
-  ink: string;
-  index: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      style={{ backgroundColor: fill, color: ink, ...stagger(index) }}
-      className={cn(
-        "animate-in fade-in-0 slide-in-from-bottom-2 flex min-h-[151px] flex-col items-center justify-center gap-2 rounded-lg px-6 py-7 text-center duration-500 motion-reduce:animate-none",
-        hoverLift
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Figure({ value, label }: { value: string; label: string }) {
-  return (
-    <>
-      <p className="text-[2rem] leading-none font-bold tabular-nums">{value}</p>
-      <p className="max-w-[169px] text-base font-light">{label}</p>
-    </>
-  );
-}
 
 export function EventStatCards({ event }: { event: EventDetail | undefined }) {
   const { data, isPending, isError } = useEventAnalytics(event?.id ?? -1);
@@ -83,49 +51,66 @@ export function EventStatCards({ event }: { event: EventDetail | undefined }) {
     return (
       <div className="grid gap-3 sm:grid-cols-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-[151px] w-full rounded-lg" />
+          <Skeleton key={i} className="h-[8.75rem] w-full rounded-2xl" />
         ))}
       </div>
     );
   }
 
   const status = STATUS_COPY[eventStatus(event)];
-
   // Page views live on the event, not on the analytics response -- the
   // endpoint only exposes them indirectly, through conversion_rate.
   const visitors = event.page_views ?? 0;
 
+  const cards = [
+    {
+      label: "Status",
+      value: <StatusBadge label={status.label} tone={status.tone} />,
+      caption: status.caption,
+      icon: <CircleDotIcon />,
+      tone: "brand" as const,
+    },
+    {
+      label: "Registrations",
+      value: isError ? "--" : formatNumber(data?.total_registrations ?? 0),
+      caption: "people signed up",
+      icon: <UsersIcon />,
+      tone: "info" as const,
+    },
+    {
+      label: "Event visitors",
+      value: formatNumber(visitors),
+      caption: "viewed the event page",
+      icon: <EyeIcon />,
+      tone: "default" as const,
+    },
+    {
+      label: "Institutions",
+      value: isError ? "--" : formatNumber(data?.total_institutions ?? 0),
+      caption: "distinct colleges",
+      icon: <BuildingIcon />,
+      tone: "warning" as const,
+    },
+  ];
+
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <TintCard fill={status.fill} ink={status.ink} index={0}>
-        <span className="flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="size-4 rounded-full"
-            style={{ backgroundColor: status.dot }}
+      {cards.map((card, i) => (
+        <div
+          key={card.label}
+          style={stagger(i)}
+          className="animate-in fade-in-0 slide-in-from-bottom-2 duration-500 motion-reduce:animate-none"
+        >
+          <MetricCard
+            label={card.label}
+            value={card.value}
+            caption={card.caption}
+            icon={card.icon}
+            tone={card.tone}
+            className={cn("h-full", hoverLift)}
           />
-          <span className="text-[2rem] leading-none font-medium">{status.label}</span>
-        </span>
-        <p className="max-w-[169px] text-base font-light">{status.caption}</p>
-      </TintCard>
-
-      <TintCard fill="var(--swatch-lavender)" ink="var(--swatch-violet)" index={1}>
-        <Figure
-          value={isError ? "--" : formatNumber(data?.total_registrations ?? 0)}
-          label="Total Registration Count"
-        />
-      </TintCard>
-
-      <TintCard fill="var(--swatch-sky)" ink="var(--stat-sky-ink)" index={2}>
-        <Figure value={formatNumber(visitors)} label="Event Visitors" />
-      </TintCard>
-
-      <TintCard fill="var(--swatch-salmon)" ink="var(--swatch-red)" index={3}>
-        <Figure
-          value={isError ? "--" : formatNumber(data?.total_institutions ?? 0)}
-          label="Institutions"
-        />
-      </TintCard>
+        </div>
+      ))}
     </div>
   );
 }
