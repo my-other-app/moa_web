@@ -38,12 +38,28 @@ export function NextEventCard({ event }: { event: ClubEvent }) {
   const views = event.page_views ?? 0;
 
   return (
-    <Card className={cn("overflow-hidden", hoverLift)}>
-      <CardContent className="space-y-4">
+    <Card
+      className={cn(
+        "relative overflow-hidden rounded-2xl border-0 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-14px_rgba(16,24,40,0.18)] ring-1 ring-border/70",
+        hoverLift
+      )}
+    >
+      {/* A band of the brand colour down the leading edge. The next event is
+          the one thing on this page that is different in kind, and nothing
+          previously said so -- it wore the same card as everything else. */}
+      <span
+        aria-hidden="true"
+        className="bg-brand absolute inset-y-0 left-0 w-1"
+      />
+      <CardContent className="space-y-5 pl-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-muted-foreground text-xs font-medium">Next event</p>
-            <h2 className="mt-0.5 truncate text-lg font-semibold">{event.name}</h2>
+            <p className="text-brand text-[11px] font-semibold tracking-[0.08em] uppercase">
+              Next event
+            </p>
+            <h2 className="mt-1.5 truncate text-2xl leading-tight font-semibold tracking-[-0.01em]">
+              {event.name}
+            </h2>
             <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
               <span className="flex items-center gap-1">
                 <CalendarDaysIcon className="size-3.5" />
@@ -64,25 +80,25 @@ export function NextEventCard({ event }: { event: ClubEvent }) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border p-3">
-            <p className="text-muted-foreground flex items-center gap-1 text-xs">
+          <div className="bg-muted/50 rounded-xl p-3.5">
+            <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
               <UsersIcon className="size-3.5" /> Registered
             </p>
-            <p className="mt-1 text-xl font-semibold tabular-nums">
+            <p className="mt-1.5 text-2xl leading-none font-semibold tabular-nums">
               {formatNumber(registrations)}
             </p>
           </div>
-          <div className="rounded-lg border p-3">
-            <p className="text-muted-foreground flex items-center gap-1 text-xs">
+          <div className="bg-muted/50 rounded-xl p-3.5">
+            <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
               <EyeIcon className="size-3.5" /> Page views
             </p>
-            <p className="mt-1 text-xl font-semibold tabular-nums">
+            <p className="mt-1.5 text-2xl leading-none font-semibold tabular-nums">
               {formatNumber(views)}
             </p>
           </div>
-          <div className="rounded-lg border p-3">
-            <p className="text-muted-foreground text-xs">Sign-up rate</p>
-            <p className="mt-1 text-xl font-semibold tabular-nums">
+          <div className="bg-muted/50 rounded-xl p-3.5">
+            <p className="text-muted-foreground text-xs font-medium">Sign-up rate</p>
+            <p className="mt-1.5 text-2xl leading-none font-semibold tabular-nums">
               {/* Of the people who looked, how many signed up. Hidden rather
                   than shown as 0% when nobody has looked yet. */}
               {views > 0 ? `${Math.round((registrations / views) * 100)}%` : "--"}

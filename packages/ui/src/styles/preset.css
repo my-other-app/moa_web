@@ -4,6 +4,19 @@
  * then delete any local :root/.dark token block that duplicates it.
  */
 
+/*
+ * Make `dark:` follow the class, not the operating system.
+ *
+ * The token palette below is defined on `.dark`, which next-themes toggles.
+ * Tailwind v4's `dark:` variant, left alone, compiles to
+ * `@media (prefers-color-scheme: dark)` instead -- so the two halves of
+ * theming answered to different authorities. A user whose OS was dark but
+ * whose app was light got light cards with every `dark:` override applied on
+ * top: readable text on backgrounds meant for the other theme, which is how
+ * the warning alerts came out near-black on a white page.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-bebas: "Bebas Neue", sans-serif;

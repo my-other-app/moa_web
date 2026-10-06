@@ -17,14 +17,22 @@ import { cn } from "../lib/cn";
  */
 export type AlertTone = "info" | "warning" | "success" | "destructive";
 
+/*
+ * Derived from the product's own swatches rather than Tailwind's ramps.
+ *
+ * The generic amber tints rendered as a muddy tan beside the brand teal, with
+ * the body text too close to its own background to read comfortably. These
+ * are explicit so the result is the same everywhere, and they are tints of
+ * the palette the rest of the product already uses.
+ */
 const toneClasses: Record<AlertTone, string> = {
-  info: "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-100",
+  info: "border-[#cfe6f5] bg-[#f0f8fd] text-[#0b4f70] dark:border-[#1d3a4d] dark:bg-[#0e2230] dark:text-[#bfe2f5]",
   warning:
-    "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100",
+    "border-[#f6dca5] bg-[#fff8e8] text-[#6b4e07] dark:border-[#4a3a12] dark:bg-[#2a2210] dark:text-[#f8dfa5]",
   success:
-    "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100",
+    "border-[#c6e8cf] bg-[#effaf2] text-[#096b5c] dark:border-[#16302c] dark:bg-[#0f2420] dark:text-[#b4e5bc]",
   destructive:
-    "border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-100",
+    "border-[#f6c9c6] bg-[#fdefee] text-[#8c1c17] dark:border-[#4a1d1a] dark:bg-[#2b1312] dark:text-[#f3aba7]",
 };
 
 const toneIcons: Record<AlertTone, React.ComponentType<{ className?: string }>> = {
@@ -57,7 +65,7 @@ function InlineAlert({
     <div
       role="status"
       className={cn(
-        "flex items-start gap-2.5 rounded-lg border p-3 text-xs",
+        "flex items-start gap-2.5 rounded-xl border p-3.5 text-[13px] leading-relaxed",
         toneClasses[tone],
         className
       )}

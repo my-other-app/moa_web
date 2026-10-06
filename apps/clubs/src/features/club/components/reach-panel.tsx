@@ -15,7 +15,7 @@ import type { ReachSummary } from "../insights";
  */
 function Figure({ label, value, dotClass }: { label: string; value: string; dotClass: string }) {
   return (
-    <div className="rounded-lg bg-white/10 px-3 py-2">
+    <div className="rounded-xl bg-white/[0.08] px-3 py-2.5">
       <div className="flex items-center gap-1.5">
         <span className={cn("size-1.5 rounded-full", dotClass)} aria-hidden="true" />
         <span className="text-xs opacity-80">{label}</span>
@@ -27,7 +27,7 @@ function Figure({ label, value, dotClass }: { label: string; value: string; dotC
 
 export function ReachPanel({ reach }: { reach: ReachSummary }) {
   return (
-    <div className={cn("bg-primary text-primary-foreground rounded-xl p-5", hoverLift)}>
+    <div className={cn("bg-primary text-primary-foreground rounded-2xl p-5 shadow-[0_12px_32px_-16px_rgba(16,24,40,0.45)]", hoverLift)}>
       <div>
         <h3 className="text-sm font-semibold">Reach</h3>
         <p className="text-xs opacity-70">

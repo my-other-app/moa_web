@@ -42,15 +42,15 @@ function ProgressMeter({
   const percent = toPercent(value, total);
 
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div className={cn("space-y-2", className)}>
       {leading || trailing ? (
-        <div className="flex items-baseline justify-between gap-2 text-xs">
-          <span className="text-foreground truncate font-medium">{leading}</span>
-          <span className="text-muted-foreground shrink-0">{trailing}</span>
+        <div className="flex items-baseline justify-between gap-2 text-[13px]">
+          <span className="text-foreground truncate font-semibold">{leading}</span>
+          <span className="text-muted-foreground shrink-0 text-xs">{trailing}</span>
         </div>
       ) : null}
       <div
-        className="bg-muted h-1.5 w-full overflow-hidden rounded-full"
+        className="bg-muted/80 h-2 w-full overflow-hidden rounded-full"
         role="progressbar"
         aria-valuenow={Math.round(percent)}
         aria-valuemin={0}

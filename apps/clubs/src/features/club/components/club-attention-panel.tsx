@@ -25,7 +25,7 @@ import type { ClubEvent } from "@/features/events";
  */
 export function ClubAttentionPanel({ events }: { events: readonly ClubEvent[] }) {
   return (
-    <Card>
+    <Card className="rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-14px_rgba(16,24,40,0.12)]">
       <CardHeader>
         <CardTitle className="text-base">Needs attention</CardTitle>
         <CardDescription>
@@ -52,8 +52,7 @@ export function ClubAttentionPanel({ events }: { events: readonly ClubEvent[] })
                 href={`/events/${event.id}`}
                 style={stagger(i)}
                 className={cn(
-                  "animate-in fade-in-0 slide-in-from-bottom-1 flex items-center gap-3 rounded-lg border p-3 duration-300 motion-reduce:animate-none",
-                  hoverLift
+                  "animate-in fade-in-0 slide-in-from-bottom-1 bg-muted/40 hover:bg-muted/70 flex items-center gap-3 rounded-xl p-3.5 transition-colors duration-200 motion-reduce:animate-none motion-reduce:transition-none"
                 )}
               >
                 <ClipboardCheckIcon className="text-muted-foreground size-4 shrink-0" />

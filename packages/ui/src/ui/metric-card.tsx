@@ -44,10 +44,14 @@ export interface MetricDelta {
   inverted?: boolean;
 }
 
-function deltaToneClass(delta: MetricDelta): string {
-  if (delta.direction === "flat") return "text-muted-foreground";
+function deltaChipClass(delta: MetricDelta): string {
+  if (delta.direction === "flat") {
+    return "bg-muted text-muted-foreground";
+  }
   const good = delta.inverted ? delta.direction === "down" : delta.direction === "up";
-  return good ? "text-emerald-600 dark:text-emerald-400" : "text-destructive";
+  return good
+    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+    : "bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300";
 }
 
 function DeltaIcon({ direction }: { direction: DeltaDirection }) {
@@ -89,16 +93,17 @@ function MetricCard({
   return (
     <div
       className={cn(
-        "bg-card flex min-h-[8.5rem] flex-col justify-between rounded-xl border p-4",
+        "bg-card ring-border/70 flex min-h-[8.75rem] flex-col gap-3 rounded-2xl p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-12px_rgba(16,24,40,0.10)] ring-1",
+        "transition-shadow duration-200 hover:shadow-[0_1px_2px_rgba(16,24,40,0.05),0_12px_32px_-12px_rgba(16,24,40,0.16)] motion-reduce:transition-none",
         className
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {icon ? (
             <span
               className={cn(
-                "flex size-7 items-center justify-center rounded-lg [&_svg]:size-4",
+                "flex size-8 items-center justify-center rounded-xl [&_svg]:size-4",
                 chipClasses[tone]
               )}
               aria-hidden="true"
@@ -106,37 +111,48 @@ function MetricCard({
               {icon}
             </span>
           ) : null}
-          <span className="text-muted-foreground text-sm font-medium">{label}</span>
+          <span className="text-muted-foreground text-[13px] leading-none font-medium">
+            {label}
+          </span>
         </div>
         {action}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <p className="text-foreground text-[2rem] leading-none font-semibold tracking-tight tabular-nums">
+      {/*
+       * Value, then its context directly beneath it.
+       *
+       * These used to sit on one baseline at opposite ends of the card, which
+       * put a third of the card's width between a number and the words that
+       * explain it -- they read as two unrelated facts rather than one.
+       */}
+      <div className="mt-auto">
+        <p className="text-foreground text-[2.125rem] leading-[1.05] font-semibold tracking-[-0.02em] tabular-nums">
           {value}
           {unit ? (
-            <span className="text-muted-foreground ml-0.5 text-lg font-medium">
+            <span className="text-muted-foreground ml-1 text-base font-medium tracking-normal">
               {unit}
             </span>
           ) : null}
         </p>
 
-        <div className="flex items-center gap-1.5 text-xs">
-          {delta ? (
-            <span
-              className={cn(
-                "flex items-center gap-0.5 font-medium",
-                deltaToneClass(delta)
-              )}
-            >
-              <DeltaIcon direction={delta.direction} />
-              {delta.label}
-            </span>
-          ) : null}
-          {caption ? (
-            <span className="text-muted-foreground">{caption}</span>
-          ) : null}
-        </div>
+        {delta || caption ? (
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+            {delta ? (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-semibold",
+                  deltaChipClass(delta)
+                )}
+              >
+                <DeltaIcon direction={delta.direction} />
+                {delta.label}
+              </span>
+            ) : null}
+            {caption ? (
+              <span className="text-muted-foreground truncate">{caption}</span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

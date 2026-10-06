@@ -32,7 +32,7 @@ export function UpcomingEventsPanel({ events }: { events: readonly ClubEvent[] }
   const best = Math.max(1, ...events.map((e) => e.registration_count ?? 0));
 
   return (
-    <Card>
+    <Card className="rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-14px_rgba(16,24,40,0.12)]">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -73,13 +73,12 @@ export function UpcomingEventsPanel({ events }: { events: readonly ClubEvent[] }
                   href={`/events/${event.id}`}
                   style={stagger(i)}
                   className={cn(
-                    "animate-in fade-in-0 slide-in-from-bottom-1 block rounded-lg border p-3 duration-300 motion-reduce:animate-none",
-                    hoverLift
+                    "animate-in fade-in-0 slide-in-from-bottom-1 bg-muted/40 hover:bg-muted/70 block rounded-xl p-4 transition-colors duration-200 motion-reduce:animate-none motion-reduce:transition-none"
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{event.name}</p>
+                      <p className="truncate text-[15px] font-semibold">{event.name}</p>
                       <p className="text-muted-foreground truncate text-xs">
                         {formatDateTime(event.event_datetime)}
                       </p>
