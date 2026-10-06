@@ -49,6 +49,11 @@ export const eventDetailSchema = z
     location_name: z.string().nullish(),
     is_online: z.boolean().nullish(),
     page_views: z.coerce.number().nullish(),
+    // Declared rather than left to .passthrough(), which types unknown keys as
+    // `unknown`. The reviews panel needs the event's own average, and an
+    // undeclared key cannot be read without casting.
+    rating: z.number().nullish(),
+    total_rating: z.coerce.number().nullish(),
   })
   .passthrough();
 

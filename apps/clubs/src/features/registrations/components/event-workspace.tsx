@@ -23,6 +23,7 @@ import { AnnouncementComposer } from "@/features/announcements";
 import { EventRowActions, useEventDetail } from "@/features/events";
 import { VolunteersPanel } from "@/features/volunteers";
 import { EventStatCards } from "./event-stat-cards";
+import { EventReviewsPanel } from "@/features/reviews";
 import { RegistrationsPanel } from "./registrations-panel";
 import { useEventAnalytics } from "../queries";
 
@@ -140,8 +141,13 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
         </div>
       </div>
 
-      <div className="mt-11">
+      <div className="mt-11 space-y-11">
         <RegistrationsPanel eventId={eventId} />
+        <EventReviewsPanel
+          eventId={eventId}
+          rating={event?.rating}
+          totalRatings={event?.total_rating}
+        />
       </div>
 
       <Dialog open={volunteersOpen} onOpenChange={setVolunteersOpen}>

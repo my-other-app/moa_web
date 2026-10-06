@@ -14,6 +14,7 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { href: "/events", label: "Events", icon: "ticket-01" },
   { href: "/templates", label: "Templates", icon: "edit-04" },
+  { href: "/followers", label: "Followers", icon: "users-01" },
   { href: "/announcements", label: "Announcements", icon: "bell-02" },
   { href: "/profile", label: "Club profile", icon: "building-07" },
 ];
