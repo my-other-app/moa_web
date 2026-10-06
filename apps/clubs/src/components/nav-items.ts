@@ -1,22 +1,40 @@
+import {
+  BellIcon,
+  BuildingIcon,
+  CalendarDaysIcon,
+  LayoutDashboardIcon,
+  PaletteIcon,
+  UsersIcon,
+  type LucideIcon,
+} from "lucide-react";
+
 export interface NavItem {
   href: string;
   label: string;
-  /** File name in /public/icons, exported from the design. */
-  icon: string;
+  icon: LucideIcon;
+  /** Exact match only -- otherwise "/" would light up on every route. */
   exact?: boolean;
 }
 
 /**
- * The rail from the design (node 3:791): four destinations plus a sign-out
- * action, icon-only. Overview is deliberately not a rail item — the design has
- * no icon for it — so it stays reachable through the logo at the top.
+ * The rail, now labelled.
+ *
+ * It was icon-only at 104px, faithful to the design file (node 3:791), with
+ * labels only on hover. That makes every destination a guess for anyone who
+ * does not already know the icons -- and it hid Overview entirely, which was
+ * reachable only by clicking the logo.
+ *
+ * Icons are components rather than files in /public/icons: a name with no
+ * matching SVG used to render an invisible, unlabelled button, and nothing in
+ * lint, typecheck or the build said a word. Now a wrong icon will not compile.
  */
 export const navItems: NavItem[] = [
-  { href: "/events", label: "Events", icon: "ticket-01" },
-  { href: "/templates", label: "Templates", icon: "edit-04" },
-  { href: "/followers", label: "Followers", icon: "users-01" },
-  { href: "/announcements", label: "Announcements", icon: "bell-02" },
-  { href: "/profile", label: "Club profile", icon: "building-07" },
+  { href: "/", label: "Overview", icon: LayoutDashboardIcon, exact: true },
+  { href: "/events", label: "Events", icon: CalendarDaysIcon },
+  { href: "/followers", label: "Followers", icon: UsersIcon },
+  { href: "/announcements", label: "Announcements", icon: BellIcon },
+  { href: "/templates", label: "Templates", icon: PaletteIcon },
+  { href: "/profile", label: "Club profile", icon: BuildingIcon },
 ];
 
 export function isActive(pathname: string, item: NavItem): boolean {
