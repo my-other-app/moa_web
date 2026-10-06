@@ -41,6 +41,7 @@ import { useSaveTemplate } from "../queries";
 import { ColorField, ImageField, SelectField, ToggleField } from "./design-controls";
 import { CertificatePreview } from "./certificate-preview";
 import { TicketPreview } from "./ticket-preview";
+import { LayerEditor } from "./layer-editor";
 
 type Kind = "ticket" | "certificate";
 
@@ -159,6 +160,7 @@ export function TemplateDesigner({
             <TabsTrigger value="content">Content</TabsTrigger>
             <TabsTrigger value="images">Images</TabsTrigger>
             <TabsTrigger value="layout">Layout</TabsTrigger>
+            <TabsTrigger value="artwork">Your artwork</TabsTrigger>
           </TabsList>
 
           <TabsContent value="colors">
@@ -395,7 +397,34 @@ export function TemplateDesigner({
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+                  <TabsContent value="artwork">
+            <Card>
+              <CardContent>
+                {/*
+                 * The other tabs restyle the built-in layout. This one is for
+                 * a club that already has a design: place the values on it.
+                 * A template with no layers still renders the built-in
+                 * layout, so this is additive rather than a mode switch.
+                 */}
+                <LayerEditor
+                  kind={kind}
+                  artworkUrl={backgroundPreview}
+                  canvas={c.canvas}
+                  layers={c.layers}
+                  onLayersChange={(layers) => set("layers", layers)}
+                  onCanvasChange={(canvas) => set("canvas", canvas)}
+                  onPickArtwork={(file) =>
+                    setFiles((f) => ({ ...f, backgroundFile: file }))
+                  }
+                  onRemoveArtwork={() =>
+                    setFiles((f) => ({ ...f, backgroundFile: undefined }))
+                  }
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+</Tabs>
       </div>
 
       <div className="lg:sticky lg:top-20 lg:self-start">

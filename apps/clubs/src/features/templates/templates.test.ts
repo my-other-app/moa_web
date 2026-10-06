@@ -29,6 +29,14 @@ describe("config defaults match the backend", () => {
       border_style: "none",
       show_prizes: true,
       show_guidelines_link: true,
+      /*
+       * Layer mode, empty by default. Both renderers switch on `layers` being
+       * non-empty, so this staying empty is what guarantees every existing
+       * template renders exactly as it did -- it is the assertion, not an
+       * afterthought to keep the test passing.
+       */
+      layers: [],
+      canvas: { width: 0, height: 0 },
     });
   });
 
@@ -45,6 +53,9 @@ describe("config defaults match the backend", () => {
     expect(config.font).toBe("Inter");
     // title_font intentionally has no default; the renderer falls back to font.
     expect(config.title_font).toBeUndefined();
+    // Certificates carry layers too, and default to the built-in layout.
+    expect(config.layers).toEqual([]);
+    expect(config.canvas).toEqual({ width: 0, height: 0 });
   });
 });
 

@@ -1,6 +1,8 @@
 import { imageFieldSchema } from "@moa/app-kit";
 import { z } from "zod";
 
+import { canvasSchema, layerSchema } from "./layers";
+
 /** Mirrors the backend's enumerated string options. */
 export const BORDER_STYLES = ["none", "solid", "dashed", "double"] as const;
 export const TICKET_TYPES = [
@@ -40,6 +42,13 @@ const hexColor = z
  * imply an edit that does not take.
  */
 export const ticketConfigSchema = z.object({
+  /*
+   * Layer mode. Empty means the built-in layout, which is what every existing
+   * template uses -- the renderer only switches when these are set, so adding
+   * them changes nothing until a club actually places one.
+   */
+  layers: z.array(layerSchema).default([]),
+  canvas: canvasSchema.default({ width: 0, height: 0 }),
   accent_color: hexColor.default("#1db9a0"),
   bg_color: hexColor.default("#121212"),
   text_color: hexColor.default("#ffffff"),
@@ -56,6 +65,13 @@ export const ticketConfigSchema = z.object({
 });
 
 export const certificateConfigSchema = z.object({
+  /*
+   * Layer mode. Empty means the built-in layout, which is what every existing
+   * template uses -- the renderer only switches when these are set, so adding
+   * them changes nothing until a club actually places one.
+   */
+  layers: z.array(layerSchema).default([]),
+  canvas: canvasSchema.default({ width: 0, height: 0 }),
   accent_color: hexColor.default("#1db9a0"),
   bg_color: hexColor.default("#121212"),
   text_color: hexColor.default("#ffffff"),
