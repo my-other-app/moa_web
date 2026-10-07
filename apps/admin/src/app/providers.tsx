@@ -15,7 +15,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      {/*
+        v2 is a dark-only design -- there is no light variant of any screen,
+        so following the OS would render half a theme that was never drawn.
+        forcedTheme keeps next-themes from writing a class that fights it.
+      */}
+      <ThemeProvider attribute="class" forcedTheme="dark" disableTransitionOnChange>
         <TooltipProvider>
           {children}
           <Toaster position="bottom-right" richColors closeButton />

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "@moa/ui/preset.css";
+/* v2 overrides the preset: admin is dark-only and on the Nocturne ramps. */
+@import "./theme-v2.css";
 
 /*
  * Scan the shared packages for class names.

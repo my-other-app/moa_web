@@ -1,0 +1,156 @@
+/*
+ * v2 admin theme — "Nocturne", with the MyOtherApp brand applied.
+ *
+ * The design is dark-only: there is no light variant of any v2 screen, so the
+ * admin app stops following the OS and pins to this. The base Nocturne system
+ * ships a blurple accent; the handoff overrides it with the product's teal and
+ * lime on the app root, which is what these values are.
+ *
+ * Two sets of names live here on purpose. `--color-*` are the design's own
+ * tokens, used verbatim so a value can be traced back to the handoff table
+ * without translation. The semantic tokens underneath (`--background`,
+ * `--card`, …) are what every existing shadcn-derived component already reads,
+ * so they are mapped onto the same ramp rather than left pointing at the old
+ * light palette — otherwise half the UI would keep rendering the previous
+ * theme.
+ */
+:root,
+.dark {
+  color-scheme: dark;
+
+  /* ---- Design tokens, verbatim from the v2 handoff ---- */
+  --color-bg: #20262e;
+  --color-surface: #2c333d;
+  --color-text: #f4f6ef;
+  --color-divider: color-mix(in srgb, #f4f6ef 14%, transparent);
+
+  --color-accent: #17a58f;
+  --color-accent-100: #fdffe3;
+  --color-accent-200: #f9ffa1;
+  --color-accent-300: #d9f27a;
+  --color-accent-400: #4cc8ae;
+  --color-accent-500: #17a58f;
+  --color-accent-600: #138a77;
+  --color-accent-700: #106d5e;
+  --color-accent-800: #0d5247;
+  --color-accent-900: #173d39;
+
+  --color-neutral-100: #f2f3f3;
+  --color-neutral-200: #e0e2e3;
+  --color-neutral-300: #c5c8ca;
+  --color-neutral-400: #a9adb0;
+  --color-neutral-500: #979797;
+  --color-neutral-600: #767b80;
+  --color-neutral-700: #565d65;
+  --color-neutral-800: #3d454f;
+  --color-neutral-900: #262d36;
+
+  /* Saturated "presence" bands: the pitch stat strip and the sidebar card. */
+  --color-section: #14423b;
+  --color-section-glow: #17a58f;
+  --color-section-ghost: #2a7a6c;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+
+  /* On a dark ground elevation is an edge plus ambient darkness, never a
+     stack of heavy shadows. */
+  --shadow-sm: 0 0 0 1px #3d454f;
+  --shadow-md: 0 0 0 1px #565d65, 0 8px 22px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 0 0 1px #767b80, 0 18px 44px rgb(0 0 0 / 0.55);
+
+  /* ---- Semantic tokens the component library already reads ---- */
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-text);
+
+  /* Primary is an accent *outline* in this system, never a fill. Components
+     that fill with --primary are restyled rather than given a solid teal. */
+  --primary: var(--color-accent-500);
+  --primary-foreground: #06201c;
+
+  --secondary: var(--color-neutral-900);
+  --secondary-foreground: var(--color-neutral-200);
+  --muted: var(--color-neutral-900);
+  --muted-foreground: var(--color-neutral-500);
+  --accent: var(--color-accent-900);
+  --accent-foreground: var(--color-accent-200);
+
+  --destructive: #e0675f;
+  --destructive-foreground: #2a0f0d;
+  --border: var(--color-neutral-800);
+  --input: var(--color-neutral-800);
+  --ring: var(--color-accent-500);
+
+  --brand: var(--color-accent-500);
+  --brand-foreground: #06201c;
+  --brand-muted: var(--color-accent-900);
+  --highlight: var(--color-accent-200);
+
+  --chart-1: var(--color-accent-300);
+  --chart-2: var(--color-accent-500);
+  --chart-3: var(--color-accent-400);
+  --chart-4: var(--color-neutral-500);
+  --chart-5: var(--color-accent-200);
+
+  --radius: var(--radius-md);
+
+  --sidebar: var(--color-bg);
+  --sidebar-foreground: var(--color-neutral-300);
+  --sidebar-primary: var(--color-accent-500);
+  --sidebar-primary-foreground: var(--color-accent-200);
+  --sidebar-accent: var(--color-accent-900);
+  --sidebar-accent-foreground: var(--color-accent-200);
+  --sidebar-border: var(--color-neutral-900);
+  --sidebar-ring: var(--color-accent-500);
+}
+
+@theme inline {
+  /* Inter, per the design. DM Sans and Bebas stay loaded for the login screen
+     and anything not yet migrated. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    /* The ambient wash in the top-right corner of every v2 screen. */
+    background-image: radial-gradient(
+      80% 50% at 100% 0%,
+      var(--color-accent-900),
+      var(--color-bg) 65%
+    );
+    background-attachment: fixed;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Rules fade to transparent over 48px at each end rather than stopping
+     cleanly — the system's most recognisable detail. */
+  .rule-fade {
+    background:
+      linear-gradient(
+          to right,
+          transparent,
+          color-mix(in srgb, var(--color-text) 8%, transparent) 48px,
+          color-mix(in srgb, var(--color-text) 8%, transparent) calc(100% - 48px),
+          transparent
+        )
+        no-repeat bottom / 100% 1px;
+  }
+
+  /* Micro-label: 11px uppercase with the system's tracking. */
+  .micro {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-neutral-400);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}

@@ -1,17 +1,18 @@
 import {
   AwardIcon,
   BellIcon,
-  CreditCardIcon,
-  ScrollTextIcon,
-  Trash2Icon,
-  ShieldIcon,
   BuildingIcon,
   CalendarDaysIcon,
-  LayoutDashboardIcon,
+  ClockIcon,
+  CreditCardIcon,
+  CrownIcon,
+  GraduationCapIcon,
+  LayoutGridIcon,
+  ShieldCheckIcon,
   SmileIcon,
-  TagsIcon,
+  TagIcon,
+  Trash2Icon,
   UsersIcon,
-  UsersRoundIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,24 +20,41 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Group heading rendered above this item, when it starts a group. */
+  group?: string;
   /** Exact match only -- otherwise "/" would light up on every route. */
   exact?: boolean;
+  /** Which count from the overview payload to show, if any. */
+  badge?: "pendingClubs" | "users" | "events" | "trash";
 }
 
+/**
+ * The v2 rail: fourteen destinations in five groups.
+ *
+ * Grouping is the change from v1's flat list. Fourteen unlabelled siblings is
+ * a list you scan; five groups of two to five is a structure you learn, and it
+ * is what lets Subscriptions sit next to Payments rather than alphabetically
+ * adrift.
+ */
 export const navItems: NavItem[] = [
-  { href: "/", label: "Overview", icon: LayoutDashboardIcon, exact: true },
-  { href: "/users", label: "Users", icon: UsersIcon },
-  { href: "/clubs", label: "Clubs", icon: UsersRoundIcon },
-  { href: "/events", label: "Events", icon: CalendarDaysIcon },
-  { href: "/organizations", label: "Organisations", icon: BuildingIcon },
-  { href: "/badges", label: "Badges", icon: AwardIcon },
-  { href: "/payments", label: "Payments", icon: CreditCardIcon },
-  { href: "/interests", label: "Interests", icon: TagsIcon },
+  { href: "/", label: "Overview", icon: LayoutGridIcon, group: "Platform", exact: true },
+  { href: "/users", label: "Users", icon: UsersIcon, badge: "users" },
+  { href: "/clubs", label: "Clubs", icon: BuildingIcon, badge: "pendingClubs" },
+  { href: "/organizations", label: "Organisations", icon: GraduationCapIcon },
+  { href: "/events", label: "Events", icon: CalendarDaysIcon, badge: "events" },
+
+  { href: "/payments", label: "Payments", icon: CreditCardIcon, group: "Money" },
+  { href: "/subscriptions", label: "Subscriptions", icon: CrownIcon },
+
+  { href: "/badges", label: "Badges", icon: AwardIcon, group: "Catalogue" },
+  { href: "/interests", label: "Interests", icon: TagIcon },
   { href: "/avatars", label: "Avatars", icon: SmileIcon },
-  { href: "/announcements", label: "Announcements", icon: BellIcon },
-  { href: "/activity", label: "Activity", icon: ScrollTextIcon },
-  { href: "/trash", label: "Trash", icon: Trash2Icon },
-  { href: "/security", label: "Security", icon: ShieldIcon },
+
+  { href: "/announcements", label: "Announcements", icon: BellIcon, group: "Comms" },
+  { href: "/activity", label: "Activity", icon: ClockIcon },
+
+  { href: "/trash", label: "Trash", icon: Trash2Icon, group: "System" },
+  { href: "/security", label: "Security", icon: ShieldCheckIcon },
 ];
 
 export function isActive(pathname: string, item: NavItem): boolean {

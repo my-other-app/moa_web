@@ -24,3 +24,6 @@ export {
   type DashboardSignals,
   type TrendPoint,
 } from "./schemas";
+export { AdminOverviewV2 } from "./components/overview-v2";
+export { useAdminOverview } from "./queries";
+export { adminOverviewSchema, type AdminOverview, type TopClubSort } from "./overview-schemas";

@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  adminOverviewSchema,
+  type AdminOverview,
+  type TopClubSort,
+} from "./overview-schemas";
 import { api } from "@moa/app-kit";
 import {
   adminAnalyticsSchema,
@@ -103,4 +108,14 @@ export async function fetchDashboardSignals(): Promise<DashboardSignals> {
       failed: totals.success ? totals.data.failed_count : 0,
     },
   });
+}
+
+export async function fetchAdminOverview(
+  days: number,
+  topBy: TopClubSort
+): Promise<AdminOverview> {
+  const raw = await api.get<unknown>("/api/v1/admin/overview", {
+    query: { days, top_by: topBy },
+  });
+  return adminOverviewSchema.parse(raw);
 }
