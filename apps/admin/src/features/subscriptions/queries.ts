@@ -1,0 +1,163 @@
+"use client";
+
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { toast } from "@moa/ui";
+
+import {
+  archivePlan,
+  assignPlan,
+  createPlan,
+  duplicatePlan,
+  fetchPlan,
+  fetchPlans,
+  fetchSubscriptions,
+  fetchTotals,
+  retryCharge,
+  syncPlan,
+  updatePlan,
+  type SubscriptionQuery,
+} from "./api";
+import type { PlanFormInput } from "./schemas";
+
+/** Everything subscription-shaped, so one mutation can invalidate the lot. */
+const KEY = ["subscriptions"] as const;
+
+export function usePlans() {
+  return useQuery({
+    queryKey: [...KEY, "plans"],
+    queryFn: fetchPlans,
+    // Reference data an admin edits occasionally; refetching it on every
+    // keystroke in the subscriber search would be pure waste.
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function usePlan(planId: number | null) {
+  return useQuery({
+    queryKey: [...KEY, "plans", planId],
+    queryFn: () => fetchPlan(planId!),
+    enabled: planId !== null && planId > 0,
+  });
+}
+
+export function useSubscriptions(query: SubscriptionQuery) {
+  return useQuery({
+    queryKey: [...KEY, "list", query],
+    queryFn: () => fetchSubscriptions(query),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useSubscriptionTotals() {
+  return useQuery({
+    queryKey: [...KEY, "totals"],
+    queryFn: fetchTotals,
+    staleTime: 60 * 1000,
+  });
+}
+
+function useInvalidate() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: KEY });
+}
+
+export function useCreatePlan() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (form: PlanFormInput) => createPlan(form),
+    onSuccess: async (plan) => {
+      toast.success(`${plan.name} created`);
+      await invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not create the plan"),
+  });
+}
+
+export function useUpdatePlan() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ planId, form }: { planId: number; form: PlanFormInput }) =>
+      updatePlan(planId, form),
+    onSuccess: async (plan) => {
+      toast.success(`${plan.name} saved`);
+      await invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not save the plan"),
+  });
+}
+
+export function useDuplicatePlan() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: duplicatePlan,
+    onSuccess: async (plan) => {
+      toast.success(`Duplicated as “${plan.name}” — hidden until you publish it`);
+      await invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not duplicate"),
+  });
+}
+
+export function useArchivePlan() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: archivePlan,
+    onSuccess: async (result) => {
+      // The API's own words: it decides between archiving and deleting from
+      // the live subscriber count, and it is the one that knows.
+      toast.success(result.message);
+      await invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not withdraw the plan"),
+  });
+}
+
+export function useSyncPlan() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: syncPlan,
+    onSuccess: async (plan) => {
+      toast.success(
+        plan.billable
+          ? `${plan.name} is registered with Razorpay and can be charged`
+          : `${plan.name} synced, but it still is not billable — check its prices`
+      );
+      await invalidate();
+    },
+    onError: (error: Error) =>
+      toast.error(error.message || "Razorpay would not accept the plan"),
+  });
+}
+
+export function useAssignPlan() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: assignPlan,
+    onSuccess: async (subscription) => {
+      toast.success(
+        `${subscription.club?.name ?? "The club"} moved to ${subscription.plan?.name ?? "the plan"}`
+      );
+      await invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not move the club"),
+  });
+}
+
+export function useRetryCharge() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: retryCharge,
+    onSuccess: async (result) => {
+      // Deliberately not "charged": the outcome arrives as a webhook, and
+      // claiming success here would be reporting something we have not seen.
+      toast.success(result.message);
+      await invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not ask for a retry"),
+  });
+}
