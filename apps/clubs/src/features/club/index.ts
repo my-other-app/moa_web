@@ -30,3 +30,10 @@ export { UpcomingEventsPanel } from "./components/upcoming-events-panel";
 export { ClubAttentionPanel } from "./components/club-attention-panel";
 export { ReachPanel } from "./components/reach-panel";
 export { isUpcoming, isClosingSoon, needsAttendance, summariseReach, byDateAscending, hoursUntil, CLOSING_SOON_HOURS, type ReachSummary } from "./insights";
+export { ClubDashboardV2 } from "./components/dashboard-v2";
+export { fetchClubOverview } from "./api";
+export {
+  clubOverviewSchema,
+  PERIOD_OPTIONS,
+  type ClubOverview as ClubOverviewData,
+} from "./overview-schemas";

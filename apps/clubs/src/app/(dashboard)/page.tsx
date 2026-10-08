@@ -1,15 +1,11 @@
 import type { Metadata } from "next";
 
-import { PageHeader } from "@moa/app-kit";
-import { ClubOverview } from "@/features/club";
+import { ClubDashboardV2 } from "@/features/club";
 
-export const metadata: Metadata = { title: "Overview" };
+export const metadata: Metadata = { title: "Dashboard" };
 
-export default function OverviewPage() {
-  return (
-    <>
-      <PageHeader title="Overview" description="Your club at a glance." />
-      <ClubOverview />
-    </>
-  );
+export default function DashboardPage() {
+  // The v2 screen brings its own header, so PageHeader is deliberately
+  // absent -- as on every rebuilt screen in the admin app.
+  return <ClubDashboardV2 />;
 }

@@ -11,6 +11,15 @@ import {
   type InterestCategory,
   type Organization,
 } from "./schemas";
+import { clubOverviewSchema } from "./overview-schemas";
+
+/** Everything the dashboard shows, in one call. */
+export async function fetchClubOverview(days: number) {
+  const raw = await api.get<unknown>("/api/v1/clubs/overview", {
+    query: { days },
+  });
+  return clubOverviewSchema.parse(raw);
+}
 
 export async function fetchMyClub(): Promise<ClubSelf> {
   const raw = await api.get<unknown>("/api/v1/clubs/info");

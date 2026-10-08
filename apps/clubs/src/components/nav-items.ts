@@ -29,7 +29,7 @@ export interface NavItem {
  * lint, typecheck or the build said a word. Now a wrong icon will not compile.
  */
 export const navItems: NavItem[] = [
-  { href: "/", label: "Overview", icon: LayoutDashboardIcon, exact: true },
+  { href: "/", label: "Dashboard", icon: LayoutDashboardIcon, exact: true },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/followers", label: "Followers", icon: UsersIcon },
   { href: "/announcements", label: "Announcements", icon: BellIcon },
