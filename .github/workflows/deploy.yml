@@ -35,6 +35,11 @@ jobs:
     strategy:
       # Don't let a failing admin deploy cancel the clubs one.
       fail-fast: false
+      # One at a time. `vercel deploy` builds on Vercel and waits, and the
+      # plan allows one concurrent build -- so running both apps at once made
+      # the second sit in "Building…" with no output until it was killed,
+      # which reads exactly like a hang.
+      max-parallel: 1
       matrix:
         include:
           - app: admin
@@ -57,12 +62,17 @@ jobs:
       - run: npm run test
 
       - name: Deploy ${{ matrix.app }}
-        # A deploy takes about four minutes. On 2026-10-08 this step sat on
-        # `vercel deploy` for over an hour and a half with no output and
-        # would have held the runner for the six-hour job default. Fifteen
-        # minutes is generous for the work and short enough that a stuck
-        # build is a failed run you find out about, not a silent one.
-        timeout-minutes: 15
+        # `vercel deploy` creates the deployment, then waits for Vercel to
+        # build it, and only promotes the production alias once that
+        # finishes. Killing the step therefore leaves a built deployment
+        # that no domain points at -- which is what happened on 2026-10-08:
+        # the run failed, the deployment existed, and the live site silently
+        # stayed on the previous build.
+        #
+        # So the budget has to cover a real Vercel build, not just a fast
+        # one. Thirty minutes, with max-parallel above so the two apps are
+        # not queued behind each other inside it.
+        timeout-minutes: 30
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
