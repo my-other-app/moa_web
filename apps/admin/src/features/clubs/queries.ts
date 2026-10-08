@@ -21,12 +21,42 @@ import {
 } from "./api";
 import type { ClubEditInput } from "./schemas";
 
-export function useClubs(query: ClubListQuery) {
+export function useClubs(query: ClubListQuery, { enabled = true } = {}) {
   return useQuery({
     queryKey: qk.clubs.list(query),
     queryFn: () => fetchClubs(query),
     placeholderData: keepPreviousData,
+    // `enabled` is for the two count-only queries behind the All / Verified /
+    // Awaiting segment, which ask for one row purely to read `total`.
+    enabled,
   });
+}
+
+/**
+ * How many clubs sit in each verification state.
+ *
+ * The segment labels carry counts, and each is the `total` of the list
+ * filtered the same way -- read from that query rather than from a separate
+ * endpoint that could disagree with the rows underneath it. One row is
+ * requested because only the total is wanted.
+ *
+ * Three queries, but the one matching the current segment is the page the
+ * table already asked for, so React Query serves it from cache rather than
+ * issuing it again.
+ */
+export function useClubCounts(
+  filters: Omit<ClubListQuery, "offset" | "limit" | "isVerified">
+) {
+  const base = { ...filters, offset: 0, limit: 1 };
+  const all = useClubs(base);
+  const verified = useClubs({ ...base, isVerified: true });
+  const awaiting = useClubs({ ...base, isVerified: false });
+
+  return {
+    all: all.data?.total ?? null,
+    verified: verified.data?.total ?? null,
+    awaiting: awaiting.data?.total ?? null,
+  };
 }
 
 export function useApproveClub() {

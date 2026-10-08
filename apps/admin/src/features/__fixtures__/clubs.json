@@ -1,7 +1,7 @@
 {
   "limit": 3,
   "offset": 0,
-  "total": null,
+  "total": 3,
   "next": "/api/v1/clubs/admin/list?limit=3&offset=3",
   "items": [
     {
@@ -41,7 +41,14 @@
           "icon": "string",
           "icon_type": "emoji"
         }
-      ]
+      ],
+      "followers_count": 1284,
+      "events_count": 20,
+      "org": {
+        "id": 1,
+        "name": "COEP Technological University"
+      },
+      "owner_email": "club5@clubs.myotherapp.in"
     },
     {
       "id": 3,
@@ -60,7 +67,7 @@
       "contact_email": "user1@example.com",
       "initial_password": null,
       "created_at": "2025-03-15T20:02:30.210846+05:30",
-      "is_verified": true,
+      "is_verified": false,
       "interests": [
         {
           "id": 2,
@@ -92,7 +99,11 @@
           "icon": "string",
           "icon_type": "emoji"
         }
-      ]
+      ],
+      "followers_count": 0,
+      "events_count": 0,
+      "org": null,
+      "owner_email": "club3@clubs.myotherapp.in"
     },
     {
       "id": 2,
@@ -107,7 +118,14 @@
       "initial_password": null,
       "created_at": "2025-03-05T12:45:35.186632+05:30",
       "is_verified": true,
-      "interests": []
+      "interests": [],
+      "followers_count": 412,
+      "events_count": 6,
+      "org": {
+        "id": 2,
+        "name": "VIT Pune"
+      },
+      "owner_email": "club2@clubs.myotherapp.in"
     }
   ]
 }

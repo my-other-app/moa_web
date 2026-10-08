@@ -16,6 +16,14 @@ export const adminClubSchema = z.object({
   created_at: z.string().nullish(),
   is_verified: z.boolean().default(false),
   interests: z.array(z.unknown()).default([]),
+  /* The four the v2 table shows per row. All defaulted: the same shape also
+     comes back from approve and reject, which build one club without them. */
+  followers_count: z.number().default(0),
+  events_count: z.number().default(0),
+  org: z.object({ id: z.coerce.number(), name: z.string() }).nullish(),
+  /* The club's sign-in address, which is not contact_email -- that one is
+     published on the club's page and is usually a committee alias. */
+  owner_email: z.string().nullish(),
 });
 
 export const adminClubPageSchema = paginatedSchema(adminClubSchema);

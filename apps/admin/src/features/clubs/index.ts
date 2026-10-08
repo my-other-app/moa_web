@@ -12,6 +12,8 @@ export {
 } from "./queries";
 export type { ClubListQuery } from "./api";
 export { ClubsTable } from "./components/clubs-table";
+export { ClubsV2 } from "./components/clubs-v2";
+export { CreateClubWizard } from "./components/create-club-wizard";
 export { ClubDetail } from "./components/club-detail";
 export { TrashTable } from "./components/trash-table";
 export {
