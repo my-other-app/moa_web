@@ -1,4 +1,6 @@
 import { api } from "@moa/app-kit";
+import { toApiError } from "@moa/api";
+import { GATEWAY_PREFIX } from "@moa/auth";
 import {
   adminUserDetailSchema,
   adminUserPageSchema,
@@ -10,29 +12,99 @@ import {
   type UserBadges,
 } from "./schemas";
 
-export interface UserListQuery {
+/** Everything that narrows the list. Shared with the CSV export verbatim. */
+export interface UserFilters {
   search?: string | undefined;
   userType?: string | undefined;
   provider?: string | undefined;
   sort?: string | undefined;
   order?: string | undefined;
+  /** true for active only, false for suspended only, omitted for both. */
+  isActive?: boolean | undefined;
+}
+
+export interface UserListQuery extends UserFilters {
   offset: number;
   limit: number;
+}
+
+/**
+ * The filters as query parameters.
+ *
+ * One function, used by both the list and the export, so a filter can never
+ * apply to the table and not to the file it downloads -- an export that
+ * silently ignores a filter looks complete and cannot be spotted by reading
+ * it.
+ */
+function filterParams(filters: UserFilters) {
+  return {
+    search: filters.search,
+    user_type: filters.userType,
+    provider: filters.provider,
+    sort: filters.sort,
+    order: filters.order,
+    is_active: filters.isActive,
+  };
 }
 
 export async function fetchUsers(query: UserListQuery): Promise<AdminUserPage> {
   const raw = await api.get<unknown>("/api/v1/user/admin/list", {
     query: {
-      search: query.search,
-      user_type: query.userType,
-      provider: query.provider,
-      sort: query.sort,
-      order: query.order,
+      ...filterParams(query),
       offset: query.offset,
       limit: query.limit,
     },
   });
   return adminUserPageSchema.parse(raw);
+}
+
+/**
+ * Download every matching row as CSV.
+ *
+ * Fetched rather than linked so a refusal is a toast instead of a downloaded
+ * file containing an error message -- and the endpoint does refuse: it sits
+ * behind `export_data`, which a viewer does not have.
+ *
+ * The body is streamed by the API and passed through by the gateway, so the
+ * whole user base is never held in memory server-side. It is held in the
+ * browser as one Blob, which is the only place it has to be.
+ */
+export async function exportUsersCsv(filters: UserFilters): Promise<void> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filterParams(filters))) {
+    if (value === undefined || value === null || value === "") continue;
+    params.set(key, String(value));
+  }
+  const query = params.toString();
+
+  const response = await fetch(
+    `${GATEWAY_PREFIX}/api/v1/user/admin/export${query ? `?${query}` : ""}`,
+    { credentials: "include", headers: { Accept: "text/csv" } }
+  );
+  if (!response.ok) throw await toApiError(response);
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement("a");
+    link.href = url;
+    // The API names the file (it carries the timestamp); this is the fallback
+    // for a browser that ignores Content-Disposition on a blob URL, which is
+    // all of them.
+    link.download = filenameOf(response) ?? "users.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } finally {
+    // Revoked, or the Blob is pinned in memory for the life of the document.
+    URL.revokeObjectURL(url);
+  }
+}
+
+function filenameOf(response: Response): string | null {
+  const header = response.headers.get("content-disposition");
+  const match = header?.match(/filename="([^"]+)"/);
+  return match?.[1] ?? null;
 }
 
 export async function fetchUser(userId: number): Promise<AdminUserDetail> {

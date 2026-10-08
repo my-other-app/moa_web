@@ -21,6 +21,9 @@ export {
   type UserEventQuery,
 } from "./api";
 export { UsersTable } from "./components/users-table";
+export { UsersV2 } from "./components/users-v2";
+export { UserDrawer } from "./components/user-drawer";
+export { ConfirmDialog } from "./components/confirm-dialog";
 export { UserDetail } from "./components/user-detail";
 export { ImpersonateButton } from "./components/impersonate-button";
 export { SuspendButton } from "./components/suspend-button";
@@ -35,4 +38,6 @@ export {
   type UserEvent,
 } from "./schemas";
 export { ResetPasswordDialog } from "./components/reset-password-dialog";
-export { useResetUserPassword } from "./queries";
+export { useResetUserPassword, useExportUsers } from "./queries";
+export { exportUsersCsv, type UserFilters } from "./api";
+export { generatePassword } from "./password";

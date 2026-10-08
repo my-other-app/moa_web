@@ -20,6 +20,13 @@ export const adminUserSchema = z.object({
   provider: z.string().nullish(),
   created_at: z.string().nullish(),
   updated_at: z.string().nullish(),
+  /* Suspension state, on the row rather than only in the detail drawer: the
+     v2 table badges it and the "Suspended" saved view filters on it. */
+  is_active: z.boolean().default(true),
+  /* Null for anyone who is not an admin, on both the list and the detail.
+     The column is NOT NULL and defaults to `owner`, so the backend nulls it
+     per row -- read raw, every signup looks like a platform owner. */
+  admin_role: z.string().nullish(),
 });
 
 export const adminUserPageSchema = paginatedSchema(adminUserSchema);
@@ -39,12 +46,10 @@ export const adminUserStatsSchema = z.object({
 
 export const adminUserDetailSchema = adminUserSchema.extend({
   stats: adminUserStatsSchema,
-  /* Suspension, as distinct from deletion. A suspended account keeps its
-     data and can be reinstated; the API refuses it on every request. */
-  is_active: z.boolean().default(true),
+  /* `is_active` and `admin_role` come from the base row -- both endpoints
+     report them the same way, so restating them here would be a second
+     source of truth for the same field. */
   suspended_reason: z.string().nullish(),
-  /** Only meaningful on an admin account. */
-  admin_role: z.string().nullish(),
   profile: z
     .object({
       id: z.coerce.number().nullish(),

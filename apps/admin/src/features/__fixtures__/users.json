@@ -15,7 +15,9 @@
       "created_at": "2026-10-02T00:56:59.440744+05:30",
       "updated_at": "2026-10-02T00:56:59.440744+05:30",
       "profile": null,
-      "interests": []
+      "interests": [],
+      "is_active": true,
+      "admin_role": "owner"
     },
     {
       "id": 669,
@@ -41,7 +43,9 @@
           "icon": "string",
           "icon_type": "emoji"
         }
-      ]
+      ],
+      "is_active": true,
+      "admin_role": null
     },
     {
       "id": 668,
@@ -54,7 +58,9 @@
       "created_at": "2026-02-22T20:07:48.421476+05:30",
       "updated_at": "2026-02-22T20:07:48.421481+05:30",
       "profile": null,
-      "interests": []
+      "interests": [],
+      "is_active": false,
+      "admin_role": null
     }
   ]
 }

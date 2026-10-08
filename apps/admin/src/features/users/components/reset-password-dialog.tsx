@@ -16,6 +16,7 @@ import {
 } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
+import { generatePassword } from "../password";
 import { useResetUserPassword } from "../queries";
 
 /**
@@ -27,14 +28,6 @@ import { useResetUserPassword } from "../queries";
  * with a friendlier name -- and the dialog says so rather than pretending
  * otherwise.
  */
-function generatePassword(): string {
-  // Generated in the browser rather than typed, so nobody reuses a password
-  // they also use elsewhere. Crypto RNG, not Math.random.
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  const bytes = new Uint32Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (n) => alphabet[n % alphabet.length]).join("");
-}
 
 export function ResetPasswordDialog({
   open,

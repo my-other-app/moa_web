@@ -2,22 +2,19 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Skeleton } from "@moa/ui";
 
-import { PageHeader } from "@moa/app-kit";
-import { UsersTable } from "@/features/users";
+import { UsersV2 } from "@/features/users";
 
 export const metadata: Metadata = { title: "Users" };
 
 export default function UsersPage() {
   return (
-    <>
-      <PageHeader
-        title="Users"
-        description="Everyone registered on the platform."
-      />
-      {/* useSearchParams inside the table needs a Suspense boundary. */}
-      <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-        <UsersTable />
-      </Suspense>
-    </>
+    // The v2 screen brings its own header, so PageHeader is deliberately
+    // absent -- as on the Overview.
+    //
+    // useSearchParams inside it needs a Suspense boundary: the filters live
+    // in the URL, which makes the whole screen a dynamic render.
+    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+      <UsersV2 />
+    </Suspense>
   );
 }
