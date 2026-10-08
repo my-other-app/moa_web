@@ -57,6 +57,12 @@ jobs:
       - run: npm run test
 
       - name: Deploy ${{ matrix.app }}
+        # A deploy takes about four minutes. On 2026-10-08 this step sat on
+        # `vercel deploy` for over an hour and a half with no output and
+        # would have held the runner for the six-hour job default. Fifteen
+        # minutes is generous for the work and short enough that a stuck
+        # build is a failed run you find out about, not a silent one.
+        timeout-minutes: 15
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
