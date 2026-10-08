@@ -9,7 +9,18 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        /*
+         * An accent outline, not a fill.
+         *
+         * The v2 system's loudest control is still quiet: `.btn-primary` in
+         * the Nocturne theme is a bordered accent, and every hand-rolled v2
+         * screen uses it. This variant filling with solid accent left the
+         * product with two different primary buttons depending on whether a
+         * screen had been rebuilt yet -- on a dark ground the fill reads as a
+         * glaring block beside the outlined one.
+         */
+        default:
+          "border border-primary text-primary bg-transparent hover:bg-primary/15 active:bg-primary/25",
         destructive:
           "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:

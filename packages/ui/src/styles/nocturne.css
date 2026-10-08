@@ -1,8 +1,12 @@
 /*
- * v2 admin theme — "Nocturne", with the MyOtherApp brand applied.
+ * The v2 dashboard theme — "Nocturne", with the MyOtherApp brand applied.
  *
- * The design is dark-only: there is no light variant of any v2 screen, so the
- * admin app stops following the OS and pins to this. The base Nocturne system
+ * Shared by the admin and clubs apps. It lives here rather than in either one
+ * because two copies of a design system drift, and the drift shows up as two
+ * products that look almost the same.
+ *
+ * The design is dark-only: there is no light variant of any v2 screen, so both
+ * apps stop following the OS and pin to this. The base Nocturne system
  * ships a blurple accent; the handoff overrides it with the product's teal and
  * lime on the app root, which is what these values are.
  *

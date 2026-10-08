@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "@moa/ui/preset.css";
+/* v2 overrides the preset: the dashboards are dark-only and on the Nocturne
+   ramps. Shared from @moa/ui so the admin and clubs apps cannot drift. */
+@import "@moa/ui/nocturne.css";
 
 /*
  * Scan the shared packages for class names.

@@ -27,7 +27,20 @@ function Figure({ label, value, dotClass }: { label: string; value: string; dotC
 
 export function ReachPanel({ reach }: { reach: ReachSummary }) {
   return (
-    <div className={cn("bg-primary text-primary-foreground rounded-2xl p-5 shadow-[0_12px_32px_-16px_rgba(16,24,40,0.45)]", hoverLift)}>
+    /*
+     * The v2 "presence" band, not a brand fill. `bg-primary` filled this with
+     * solid accent teal: fine on the old light ground, a glaring block on a
+     * dark one -- and the system's rule is that the accent outlines, never
+     * fills. These are the section tokens the admin Overview's stat strip
+     * uses, so the two dashboards' one saturated panel matches.
+     */
+    <div
+      className={cn(
+        "rounded-[var(--radius-lg)] p-5 text-[var(--color-neutral-100)]",
+        "bg-[radial-gradient(90%_140%_at_0%_0%,var(--color-section-glow),var(--color-section)_60%)]",
+        hoverLift
+      )}
+    >
       <div>
         <h3 className="text-sm font-semibold">Reach</h3>
         <p className="text-xs opacity-70">

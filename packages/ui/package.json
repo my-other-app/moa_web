@@ -11,7 +11,8 @@
     "./hooks": "./src/hooks/index.ts",
     "./cn": "./src/lib/cn.ts",
     "./preset.css": "./src/styles/preset.css",
-    "./motion": "./src/lib/motion.ts"
+    "./motion": "./src/lib/motion.ts",
+    "./nocturne.css": "./src/styles/nocturne.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

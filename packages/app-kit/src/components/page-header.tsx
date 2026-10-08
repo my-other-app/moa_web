@@ -26,11 +26,17 @@ export function PageHeader({
     >
       <div className="space-y-1">
         {/*
-         * Bebas Neue, uppercase, 48px — the page-title treatment from the
-         * design (node 3:807). Shared by both apps so admin inherits the same
-         * language rather than drifting back to a generic dashboard heading.
+         * Inter at 32px, sentence case, tightened tracking — the v2 page
+         * title. It was Bebas Neue at 48px uppercase, the treatment from the
+         * original design file (node 3:807), which is a different design
+         * language from everything around it now: v2 sets hierarchy with size
+         * and space and never bolds past 500.
+         *
+         * Changing it here rather than per page is the point of the
+         * component: the screens that already hand-roll a v2 heading match
+         * this, and every page still using PageHeader comes along with it.
          */}
-        <h1 className="bebas text-[40px] leading-none tracking-wide uppercase sm:text-[48px]">
+        <h1 className="m-0 text-[28px] leading-[1.12] tracking-[-0.015em] sm:text-[32px]">
           {title}
         </h1>
         {description ? (

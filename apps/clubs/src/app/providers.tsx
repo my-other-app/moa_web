@@ -15,7 +15,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      {/* forcedTheme, not defaultTheme: v2 has no light variant, and letting
+          next-themes follow the OS would leave half the UI on the old light
+          palette for anyone whose machine is set to light. */}
+      <ThemeProvider attribute="class" forcedTheme="dark" disableTransitionOnChange>
         <TooltipProvider>
           {children}
           <Toaster position="bottom-right" richColors closeButton />
