@@ -5,6 +5,7 @@ import {
   adminEventDetailSchema,
   adminEventPageSchema,
   eventAnalyticsSchema,
+  eventCategoryListSchema,
   eventRegistrationPageSchema,
 } from "./schemas";
 
@@ -12,6 +13,7 @@ export interface EventListQuery {
   search?: string | undefined;
   clubId?: number | undefined;
   orgId?: number | undefined;
+  categoryId?: number | undefined;
   isEnded?: boolean | undefined;
   hasFee?: boolean | undefined;
   sort?: string | undefined;
@@ -26,6 +28,7 @@ export async function fetchEvents(query: EventListQuery) {
       search: query.search,
       club_id: query.clubId,
       org_id: query.orgId,
+      category_id: query.categoryId,
       is_ended: query.isEnded,
       has_fee: query.hasFee,
       sort: query.sort,
@@ -35,6 +38,12 @@ export async function fetchEvents(query: EventListQuery) {
     },
   });
   return adminEventPageSchema.parse(raw);
+}
+
+/** The category filter's options. Reference data, so cached for ten minutes. */
+export async function fetchEventCategories() {
+  const raw = await api.get<unknown>("/api/v1/events/categories/list");
+  return eventCategoryListSchema.parse(raw);
 }
 
 export async function fetchEvent(eventId: number) {

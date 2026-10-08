@@ -21,6 +21,12 @@ export const adminEventSchema = z.object({
   is_deleted: z.boolean().default(false),
   category: namedRefSchema,
   club: namedRefSchema,
+  /* How many registered, and how many were marked present. An ended event
+     with registrations and nobody present is the row the screen exists to
+     surface: certificates and winners are both blocked until the club marks
+     attendance. */
+  registration_count: z.number().default(0),
+  attended_count: z.number().default(0),
 });
 
 export const adminEventPageSchema = paginatedSchema(adminEventSchema);
@@ -116,3 +122,12 @@ export const eventEditSchema = z.object({
 });
 
 export type EventEditInput = z.infer<typeof eventEditSchema>;
+
+/** GET /events/categories/list — a flat list, used for the filter dropdown. */
+export const eventCategoryListSchema = z.array(
+  z
+    .object({ id: z.coerce.number(), name: z.string() })
+    .passthrough()
+);
+
+export type EventCategory = z.infer<typeof eventCategoryListSchema>[number];

@@ -12,6 +12,7 @@ import { toast } from "@moa/ui";
 import {
   deleteEvent,
   fetchEvent,
+  fetchEventCategories,
   fetchEventAnalytics,
   fetchEventRegistrations,
   fetchEvents,
@@ -28,6 +29,16 @@ export function useEvents(query: EventListQuery) {
     queryKey: qk.events.list(query),
     queryFn: () => fetchEvents(query),
     placeholderData: keepPreviousData,
+  });
+}
+
+/** The category filter's options. Reference data: rarely changes, so a long
+ *  stale time keeps it out of the way of every keystroke in the search box. */
+export function useEventCategories() {
+  return useQuery({
+    queryKey: ["event-categories"],
+    queryFn: fetchEventCategories,
+    staleTime: 10 * 60 * 1000,
   });
 }
 
