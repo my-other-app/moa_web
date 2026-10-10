@@ -230,8 +230,34 @@ export function TemplateDesigner({
                   artworkUrl={backgroundPreview}
                   canvas={c.canvas}
                   layers={c.layers}
+                  bgColor={c.bg_color}
+                  palette={[
+                    { label: "Accent", value: c.accent_color },
+                    { label: "Text", value: c.text_color },
+                    { label: "Muted", value: c.secondary_text_color },
+                    { label: "Border", value: c.border_color },
+                  ]}
                   onLayersChange={(layers) => set("layers", layers)}
                   onCanvasChange={(canvas) => set("canvas", canvas)}
+                  onBgColorChange={(color) => set("bg_color", color)}
+                  builtIn={
+                    kind === "ticket" ? (
+                      <TicketPreview
+                        config={c}
+                        logoUrl={logoPreview}
+                        backgroundUrl={backgroundPreview}
+                      />
+                    ) : (
+                      <CertificatePreview
+                        config={c}
+                        logoUrl={logoPreview}
+                        secondaryLogoUrl={secondaryPreview}
+                        backgroundUrl={backgroundPreview}
+                        signature1Url={sig1Preview}
+                        signature2Url={sig2Preview}
+                      />
+                    )
+                  }
                   onPickArtwork={(file) =>
                     setFiles((f) => ({ ...f, backgroundFile: file }))
                   }

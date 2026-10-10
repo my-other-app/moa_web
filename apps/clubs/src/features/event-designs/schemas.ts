@@ -57,3 +57,20 @@ export function describeSource(source: DesignResponse["source"]): string {
       return "The built-in design. Saving makes a copy for this event only.";
   }
 }
+
+
+/** What the designer fills tokens with, and whose values they are. */
+export const designSampleSchema = z.object({
+  values: z.record(z.string()),
+  qr_data_url: z.string(),
+  registration: z
+    .object({
+      ticket_id: z.string(),
+      full_name: z.string().nullish(),
+      email: z.string().nullish(),
+      role: z.string().nullish(),
+    })
+    .nullish(),
+});
+
+export type DesignSample = z.infer<typeof designSampleSchema>;

@@ -70,6 +70,25 @@ describe("sample values", () => {
     );
   });
 
+  it("uses a real attendee's values when the designer has them", () => {
+    // What "Sample preview" was missing: the actual person, not Lorem Ipsum.
+    const out = withSampleValues("{{name}} · {{venue}}", TICKET_TOKENS, {
+      name: "Lakshminarayanan Venkataraman",
+      venue: "Innovation Hall",
+    });
+
+    expect(out).toBe("Lakshminarayanan Venkataraman · Innovation Hall");
+  });
+
+  it("falls back to the placeholder for a value the server did not send", () => {
+    // A key missing from the map must not print as braces.
+    const out = withSampleValues("{{name}} / {{ticket_code}}", TICKET_TOKENS, {
+      name: "Aisha",
+    });
+
+    expect(out).toBe("Aisha / MOA-2048");
+  });
+
   it("leaves an unknown token visible, matching the renderer", () => {
     // A typo that renders as blank space is the version nobody notices until
     // it has been emailed to everyone.

@@ -12,6 +12,7 @@ import {
   type Layer,
   type TokenSpec,
 } from "../layers";
+import { snapPosition, type Guide } from "../snapping";
 import { fitFontSize } from "../text-fit";
 
 /**
@@ -33,26 +34,43 @@ export function LayerCanvas({
   artworkUrl,
   canvas,
   layers,
+  bgColor,
   scale,
   selectedId,
   preview,
   tokens,
+  sampleValues,
+  qrDataUrl,
+  builtIn,
   onSelect,
   onMove,
 }: {
   artworkUrl: string | null;
   canvas: Canvas;
   layers: readonly Layer[];
+  /** Shows wherever the artwork does not cover, matching the renderer. */
+  bgColor: string;
   scale: number;
   selectedId: string | null;
   /** Preview swaps tokens for sample values and disables dragging. */
   preview: boolean;
   tokens: readonly TokenSpec[];
+  /** Real values to fill tokens with in preview; the placeholders otherwise. */
+  sampleValues?: Record<string, string> | null;
+  /** A real QR for the QR layer. Null draws the stand-in. */
+  qrDataUrl?: string | null;
+  /**
+   * What the renderer produces when there are no layers. Shown in place of
+   * the stage, because an empty stage is not what the attendee gets -- the
+   * built-in layout is, and the two looked nothing alike.
+   */
+  builtIn?: React.ReactNode;
   onSelect: (id: string | null) => void;
   onMove: (id: string, next: { x: number; y: number }) => void;
 }) {
   const [dragging, setDragging] = React.useState<string | null>(null);
   const [hint, setHint] = React.useState<{ x: number; y: number } | null>(null);
+  const [guides, setGuides] = React.useState<Guide[]>([]);
 
   const width = canvas.width || 1000;
   const height = canvas.height || 600;
@@ -74,19 +92,37 @@ export function LayerCanvas({
     target.setPointerCapture(event.pointerId);
 
     const move = (e: PointerEvent) => {
-      const next = clampToCanvas(
+      const free = clampToCanvas(
         {
           x: originX + toArtwork(e.clientX - startX, scale),
           y: originY + toArtwork(e.clientY - startY, scale),
         },
         canvas
       );
+
+      /*
+       * Alt drags freely. Snapping is right nearly always -- "centred" by eye
+       * is two pixels out on the printed ticket -- but a club placing
+       * something deliberately off a line needs a way to say so.
+       */
+      if (e.altKey) {
+        setGuides([]);
+        setHint(free);
+        onMove(layer.id, free);
+        return;
+      }
+
+      const others = layers.filter((l) => l.id !== layer.id);
+      const snapped = snapPosition(free, layer, canvas, others, scale);
+      const next = clampToCanvas({ x: snapped.x, y: snapped.y }, canvas);
+      setGuides(snapped.guides);
       setHint(next);
       onMove(layer.id, next);
     };
     const end = () => {
       setDragging(null);
       setHint(null);
+      setGuides([]);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", end);
     };
@@ -112,15 +148,30 @@ export function LayerCanvas({
       tabIndex={preview ? -1 : 0}
       aria-label="Artwork canvas. Select a layer, then use the arrow keys to move it."
     >
+      {layers.length === 0 && builtIn ? (
+        <div className="w-full max-w-[640px] space-y-3">
+          {builtIn}
+          <p className="text-muted-foreground text-center text-xs">
+            {/* The honest state: this is what the renderer prints until a
+                layer exists. The stage only means something once one does. */}
+            This is the built-in layout the document uses until you place a
+            layer. Add a layer, or start from a layout, to design on your own
+            artwork.
+          </p>
+        </div>
+      ) : (
       <div
         className="origin-top-left"
         style={{ width: width * scale, height: height * scale }}
       >
         <div
-          className="relative overflow-hidden bg-neutral-900/40"
+          className="relative overflow-hidden"
           style={{
             width,
             height,
+            // The renderer paints the background first and the artwork over
+            // it, so the preview has to agree about what shows through.
+            background: bgColor || "#121212",
             transform: `scale(${scale})`,
             transformOrigin: "top left",
             backgroundImage: artworkUrl ? `url(${artworkUrl})` : undefined,
@@ -167,19 +218,21 @@ export function LayerCanvas({
                   {...common}
                   style={{ ...common.style, width: size, height: size }}
                 >
-                  {/* A real QR is only generated at render time; the editor
-                      shows a stand-in so the footprint is accurate. */}
-                  <div
-                    className="grid size-full place-items-center rounded-sm bg-white text-[10px] font-semibold text-neutral-700"
-                    style={{
-                      backgroundImage: preview
-                        ? "repeating-conic-gradient(#111 0% 25%, #fff 0% 50%)"
-                        : undefined,
-                      backgroundSize: preview ? `${size / 8}px ${size / 8}px` : undefined,
-                    }}
-                  >
-                    {preview ? "" : "QR"}
-                  </div>
+                  {qrDataUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element --
+                       a data URL, generated for this attendee or for the
+                       sample code; there is nothing to optimise. */
+                    <img
+                      src={qrDataUrl}
+                      alt="QR code"
+                      className="size-full rounded-sm bg-white"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="grid size-full place-items-center rounded-sm bg-white text-[10px] font-semibold text-neutral-700">
+                      QR
+                    </div>
+                  )}
                 </div>
               );
             }
@@ -231,7 +284,9 @@ export function LayerCanvas({
             // Text. Tokens become sample values in preview, and the size is
             // fitted the same way the renderer fits it -- otherwise the
             // preview shows a size the attendee never receives.
-            const shown = preview ? withSampleValues(layer.text, tokens) : layer.text;
+            const shown = preview
+              ? withSampleValues(layer.text, tokens, sampleValues)
+              : layer.text;
             const fontSize =
               layer.overflow === "shrink"
                 ? fitFontSize(shown, {
@@ -266,8 +321,34 @@ export function LayerCanvas({
               </div>
             );
           })}
+
+          {/* Drawn inside the scaled stage so a guide sits on the artwork
+              coordinate that caused the snap, at any zoom. Width is divided
+              by the scale so the line stays a hairline. */}
+          {guides.map((guide) => (
+            <div
+              key={`${guide.axis}-${guide.at}`}
+              className="pointer-events-none absolute bg-[#17a58f]"
+              style={
+                guide.axis === "x"
+                  ? {
+                      left: guide.at,
+                      top: 0,
+                      width: Math.max(1, 1 / scale),
+                      height: "100%",
+                    }
+                  : {
+                      top: guide.at,
+                      left: 0,
+                      height: Math.max(1, 1 / scale),
+                      width: "100%",
+                    }
+              }
+            />
+          ))}
         </div>
       </div>
+      )}
 
       {/* Live coordinates while dragging, as in the reference. Without it a
           club cannot tell what it is about to save. */}

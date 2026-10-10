@@ -94,10 +94,18 @@ export type TokenSpec = { token: string; label: string; sample: string };
  * look wrong in the preview rather than silently disappearing, which is the
  * version that reaches attendees.
  */
-export function withSampleValues(text: string, tokens: readonly TokenSpec[]): string {
+export function withSampleValues(
+  text: string,
+  tokens: readonly TokenSpec[],
+  values?: Record<string, string> | null
+): string {
   let out = text;
   for (const spec of tokens) {
-    out = out.split(`{{${spec.token}}}`).join(spec.sample);
+    // A real attendee's values when the designer has one; the placeholder
+    // otherwise. A key the server did not send falls back rather than
+    // printing as braces, so a new token still previews as something.
+    const value = values && spec.token in values ? values[spec.token] ?? "" : spec.sample;
+    out = out.split(`{{${spec.token}}}`).join(value);
   }
   return out;
 }
