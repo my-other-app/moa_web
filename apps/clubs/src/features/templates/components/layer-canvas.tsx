@@ -101,9 +101,16 @@ export function LayerCanvas({
        * 25% sits in the middle of the stage rather than pinned to a corner of
        * a tall empty field -- which is what it looked like before.
        */
-      className="relative grid min-h-[26rem] w-full place-items-center overflow-auto rounded-xl border p-6"
+      className="focus-visible:ring-brand/40 relative grid min-h-[26rem] w-full place-items-center overflow-auto rounded-xl border p-6 focus-visible:ring-2 focus-visible:outline-none"
       style={{ background: CHECKS }}
       onPointerDown={() => !preview && onSelect(null)}
+      /*
+       * Focusable so the arrow-key nudge has somewhere to fire from. Layers
+       * are plain divs, so clicking one does not move focus by itself, and
+       * the handler on the wrapper would never see a key event.
+       */
+      tabIndex={preview ? -1 : 0}
+      aria-label="Artwork canvas. Select a layer, then use the arrow keys to move it."
     >
       <div
         className="origin-top-left"

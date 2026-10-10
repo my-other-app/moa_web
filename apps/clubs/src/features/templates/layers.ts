@@ -222,3 +222,52 @@ export function effectiveWeight(layer: Pick<Layer, "weight" | "bold">): number {
   if (layer.weight != null) return layer.weight;
   return layer.bold ? 700 : 400;
 }
+
+/**
+ * A copy of a layer, offset so it is visibly a second one.
+ *
+ * Placing it exactly on top would look like nothing happened, and the first
+ * thing anyone does after duplicating is drag it anyway.
+ */
+export function duplicateLayer(layer: Layer, canvas: Canvas): Layer {
+  counter += 1;
+  const offset = 24;
+  const next = clampToCanvas(
+    { x: layer.x + offset, y: layer.y + offset },
+    canvas
+  );
+  return {
+    ...layer,
+    ...next,
+    id: `${layer.type}-${Date.now().toString(36)}-${counter}`,
+    name: layer.name ? `${layer.name} copy` : null,
+    // A duplicate of a locked layer is not locked: it was just created to be
+    // moved, and unlocking it first would be a pointless step.
+    locked: false,
+  };
+}
+
+/** How far an arrow-key nudge moves a layer, in artwork pixels. */
+export const NUDGE = 1;
+export const NUDGE_FAST = 10;
+
+/**
+ * Centre a layer on the artwork.
+ *
+ * Needs the layer's width, which a text layer may not have -- an auto-width
+ * text layer has no measured box here, so it is centred on its x alone and
+ * the caller leaves the axis unchanged rather than guessing.
+ */
+export function centreOnCanvas(
+  layer: Layer,
+  canvas: Canvas,
+  axis: "x" | "y"
+): Partial<Layer> | null {
+  if (axis === "x") {
+    if (!canvas.width || !layer.width) return null;
+    return { x: Math.round((canvas.width - layer.width) / 2) };
+  }
+  const height = layer.height ?? (layer.type === "qr" ? layer.width : null);
+  if (!canvas.height || !height) return null;
+  return { y: Math.round((canvas.height - height) / 2) };
+}

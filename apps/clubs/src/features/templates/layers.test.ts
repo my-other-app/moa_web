@@ -4,7 +4,9 @@ import {
   CERTIFICATE_TOKENS,
   LAYER_TYPES,
   TICKET_TOKENS,
+  centreOnCanvas,
   clampToCanvas,
+  duplicateLayer,
   effectiveWeight,
   layerLabel,
   layerSchema,
@@ -193,5 +195,102 @@ describe("the schema's defaults", () => {
     expect(layerSchema.safeParse({ ...base, opacity: 140 }).success).toBe(false);
     expect(layerSchema.safeParse({ ...base, weight: 950 }).success).toBe(false);
     expect(layerSchema.safeParse({ ...base, radius: -1 }).success).toBe(false);
+  });
+});
+
+
+describe("duplicating a layer", () => {
+  const canvas = { width: 1000, height: 600 };
+
+  it("gives the copy its own id", () => {
+    // A shared id makes the editor edit both at once, and the renderer keep
+    // only one of them.
+    const layer = newLayer("text", canvas);
+
+    expect(duplicateLayer(layer, canvas).id).not.toBe(layer.id);
+  });
+
+  it("offsets the copy so it is visibly a second layer", () => {
+    const layer = { ...newLayer("text", canvas), x: 100, y: 100 };
+
+    const copy = duplicateLayer(layer, canvas);
+
+    expect(copy.x).toBeGreaterThan(layer.x);
+    expect(copy.y).toBeGreaterThan(layer.y);
+  });
+
+  it("keeps the copy inside the artwork", () => {
+    // Duplicating a layer at the bottom-right corner must not push it out
+    // of view, where it cannot be selected again.
+    const layer = { ...newLayer("text", canvas), x: 995, y: 595 };
+
+    const copy = duplicateLayer(layer, canvas);
+
+    expect(copy.x).toBeLessThan(canvas.width);
+    expect(copy.y).toBeLessThan(canvas.height);
+  });
+
+  it("carries the styling over", () => {
+    const layer = {
+      ...newLayer("text", canvas),
+      font_size: 44,
+      color: "#ff5a1f",
+      letter_spacing: 6,
+    };
+
+    expect(duplicateLayer(layer, canvas)).toMatchObject({
+      font_size: 44,
+      color: "#ff5a1f",
+      letter_spacing: 6,
+    });
+  });
+
+  it("does not lock the copy", () => {
+    // It was created to be moved; unlocking it first would be a dead step.
+    const layer = { ...newLayer("text", canvas), locked: true };
+
+    expect(duplicateLayer(layer, canvas).locked).toBe(false);
+  });
+
+  it("names the copy after the original", () => {
+    const layer = { ...newLayer("text", canvas), name: "Attendee name" };
+
+    expect(duplicateLayer(layer, canvas).name).toBe("Attendee name copy");
+  });
+});
+
+describe("centring on the artwork", () => {
+  const canvas = { width: 1000, height: 600 };
+
+  it("centres a layer across by its own width", () => {
+    const layer = { ...newLayer("text", canvas), width: 400 };
+
+    expect(centreOnCanvas(layer, canvas, "x")).toEqual({ x: 300 });
+  });
+
+  it("centres a layer down by its own height", () => {
+    const layer = { ...newLayer("shape", canvas), height: 100 };
+
+    expect(centreOnCanvas(layer, canvas, "y")).toEqual({ y: 250 });
+  });
+
+  it("centres a QR layer down by its size, since it is square", () => {
+    const layer = { ...newLayer("qr", canvas), width: 200, height: null };
+
+    expect(centreOnCanvas(layer, canvas, "y")).toEqual({ y: 200 });
+  });
+
+  it("declines rather than guessing a box it does not have", () => {
+    // An auto-width text layer has no measured width here, so centring it
+    // would move it somewhere the organiser did not ask for.
+    const layer = { ...newLayer("text", canvas), width: null };
+
+    expect(centreOnCanvas(layer, canvas, "x")).toBeNull();
+  });
+
+  it("declines on an unmeasured canvas", () => {
+    const layer = { ...newLayer("text", canvas), width: 400 };
+
+    expect(centreOnCanvas(layer, { width: 0, height: 0 }, "x")).toBeNull();
   });
 });

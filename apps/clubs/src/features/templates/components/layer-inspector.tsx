@@ -2,8 +2,11 @@
 
 import * as React from "react";
 import {
+  AlignCenterHorizontalIcon,
+  AlignCenterVerticalIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  CopyIcon,
   EyeIcon,
   EyeOffIcon,
   ImageIcon,
@@ -30,9 +33,11 @@ import {
 import { pressable } from "@moa/ui/motion";
 
 import {
+  centreOnCanvas,
   effectiveWeight,
   layerLabel,
   layerTypeLabel,
+  type Canvas,
   type Layer,
   type TokenSpec,
 } from "../layers";
@@ -76,6 +81,7 @@ export function LayersList({
   onDelete,
   onPatch,
   onReorder,
+  onDuplicate,
 }: {
   layers: readonly Layer[];
   selectedId: string | null;
@@ -85,6 +91,7 @@ export function LayersList({
   onDelete: (id: string) => void;
   onPatch: (id: string, changes: Partial<Layer>) => void;
   onReorder: (id: string, direction: -1 | 1) => void;
+  onDuplicate: (id: string) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -207,6 +214,12 @@ export function LayersList({
                         ) : (
                           <LockOpenIcon className="size-3.5" />
                         )}
+                      </IconToggle>
+                      <IconToggle
+                        label={`Duplicate ${layerLabel(layer)}`}
+                        onClick={() => onDuplicate(layer.id)}
+                      >
+                        <CopyIcon className="size-3.5" />
                       </IconToggle>
                       <IconToggle
                         label={`Delete ${layerLabel(layer)}`}
@@ -385,11 +398,15 @@ function ColorField({
 export function LayerInspector({
   layer,
   tokens,
+  canvas,
   onChange,
+  onCentre,
 }: {
   layer: Layer | null;
   tokens: readonly TokenSpec[];
+  canvas: Canvas;
   onChange: (patch: Partial<Layer>) => void;
+  onCentre: (axis: "x" | "y") => void;
 }) {
   if (!layer) {
     return (
@@ -421,6 +438,38 @@ export function LayerInspector({
         <NumberField label="X" value={layer.x} min={0} onChange={(x) => onChange({ x: x ?? 0 })} />
         <NumberField label="Y" value={layer.y} min={0} onChange={(y) => onChange({ y: y ?? 0 })} />
       </div>
+
+      <div className="flex items-center gap-1.5">
+        {/*
+          * Centring by eye on someone else's artwork is guesswork, and these
+          * are the two alignments a club actually asks for. Disabled when the
+          * layer has no measured box to centre -- an auto-width text layer
+          * has none, and guessing one would move it somewhere unasked.
+          */}
+        <Button
+          size="xs"
+          variant="outline"
+          className={pressable}
+          disabled={!centreOnCanvas(layer, canvas, "x")}
+          onClick={() => onCentre("x")}
+        >
+          <AlignCenterVerticalIcon /> Centre across
+        </Button>
+        <Button
+          size="xs"
+          variant="outline"
+          className={pressable}
+          disabled={!centreOnCanvas(layer, canvas, "y")}
+          onClick={() => onCentre("y")}
+        >
+          <AlignCenterHorizontalIcon /> Centre down
+        </Button>
+      </div>
+
+      <p className="text-muted-foreground text-[11px]">
+        {/* Said out loud, because an undiscoverable shortcut is no shortcut. */}
+        Arrow keys nudge by 1px, with shift by 10px.
+      </p>
 
       <div className="grid grid-cols-2 gap-3">
         <NumberField
