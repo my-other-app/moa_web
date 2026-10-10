@@ -8,9 +8,17 @@ import { z } from "zod";
  * conversion between the two lives in `toArtwork` below rather than being
  * repeated at each drag handler.
  */
+export const LAYER_TYPES = ["text", "qr", "image", "shape"] as const;
+export const OVERFLOW_MODES = ["shrink", "clip"] as const;
+
+/**
+ * Bounds and defaults mirror the backend's TemplateLayer. Where they drift,
+ * the editor lets through a value the API rejects on save -- which surfaces
+ * as a failed save after the work is done, rather than as a disabled input.
+ */
 export const layerSchema = z.object({
   id: z.string(),
-  type: z.enum(["text", "qr"]).default("text"),
+  type: z.enum(LAYER_TYPES).default("text"),
   name: z.string().nullish(),
   text: z.string().default(""),
   x: z.number().int().min(0).default(0),
@@ -22,6 +30,26 @@ export const layerSchema = z.object({
   bold: z.boolean().default(false),
   max_lines: z.number().int().min(1).max(20).default(1),
   line_spacing: z.number().min(-20).max(200).default(0),
+
+  /*
+   * Everything below defaults to what the renderer already did, so a
+   * template saved before the editor gained these controls opens unchanged.
+   */
+
+  // Unset means "use the template's font", so changing the template font
+  // still moves every layer that never overrode it.
+  font: z.string().nullish(),
+  // `bold` above is kept for older configs; weight wins when both are set.
+  weight: z.number().int().min(100).max(900).nullish(),
+  letter_spacing: z.number().min(-20).max(100).default(0),
+  opacity: z.number().int().min(0).max(100).default(100),
+  height: z.number().int().min(1).nullish(),
+  overflow: z.enum(OVERFLOW_MODES).default("shrink"),
+  hidden: z.boolean().default(false),
+  locked: z.boolean().default(false),
+  image_url: z.string().nullish(),
+  fill: z.string().nullish(),
+  radius: z.number().int().min(0).max(400).default(0),
 });
 
 export const canvasSchema = z.object({
@@ -100,6 +128,37 @@ export function clampToCanvas(
 }
 
 let counter = 0;
+
+/** Every field at its schema default, so a new layer is always complete. */
+function baseLayer(id: string, type: Layer["type"], x: number, y: number): Layer {
+  return {
+    id,
+    type,
+    name: null,
+    text: "",
+    x,
+    y,
+    width: null,
+    font_size: 32,
+    color: "#ffffff",
+    align: "left",
+    bold: false,
+    max_lines: 1,
+    line_spacing: 0,
+    font: null,
+    weight: null,
+    letter_spacing: 0,
+    opacity: 100,
+    height: null,
+    overflow: "shrink",
+    hidden: false,
+    locked: false,
+    image_url: null,
+    fill: null,
+    radius: 0,
+  };
+}
+
 export function newLayer(type: Layer["type"], canvas: Canvas): Layer {
   counter += 1;
   const id = `${type}-${Date.now().toString(36)}-${counter}`;
@@ -107,14 +166,59 @@ export function newLayer(type: Layer["type"], canvas: Canvas): Layer {
   // inside the artwork and not tucked under its corner radius.
   const x = Math.round((canvas.width || 800) * 0.1);
   const y = Math.round((canvas.height || 600) * 0.1);
-  return type === "qr"
-    ? { id, type, name: "QR code", text: "", x, y, width: 160, font_size: 24, color: "#ffffff", align: "left", bold: false, max_lines: 1, line_spacing: 0 }
-    : { id, type, name: null, text: "{{name}}", x, y, width: null, font_size: 32, color: "#ffffff", align: "left", bold: false, max_lines: 1, line_spacing: 0 };
+  const layer = baseLayer(id, type, x, y);
+
+  switch (type) {
+    case "qr":
+      // Square, so width is the whole size.
+      return { ...layer, name: "QR code", width: 160 };
+    case "image":
+      return { ...layer, name: "Image", width: 240, height: 120 };
+    case "shape":
+      // Visible on its own from the moment it is added -- a transparent
+      // rectangle looks like nothing happened.
+      return { ...layer, name: "Shape", width: 240, height: 8, fill: "#1db9a0" };
+    default:
+      return { ...layer, text: "{{name}}" };
+  }
 }
 
 /** What the layers list calls a layer. */
 export function layerLabel(layer: Layer): string {
   if (layer.name) return layer.name;
-  if (layer.type === "qr") return "QR code";
-  return layer.text.trim() || "Empty text";
+  switch (layer.type) {
+    case "qr":
+      return "QR code";
+    case "image":
+      return "Image";
+    case "shape":
+      return "Shape";
+    default:
+      return layer.text.trim() || "Empty text";
+  }
+}
+
+/** Human name for the layer type, used as the list subtitle. */
+export function layerTypeLabel(type: Layer["type"]): string {
+  switch (type) {
+    case "qr":
+      return "QR layer";
+    case "image":
+      return "Image layer";
+    case "shape":
+      return "Shape layer";
+    default:
+      return "Text layer";
+  }
+}
+
+/**
+ * The weight to render at, reconciling `weight` with the older `bold`.
+ *
+ * Mirrors the backend's `effective_weight`: a config may carry either, and
+ * the preview has to agree with the PDF about which one wins.
+ */
+export function effectiveWeight(layer: Pick<Layer, "weight" | "bold">): number {
+  if (layer.weight != null) return layer.weight;
+  return layer.bold ? 700 : 400;
 }

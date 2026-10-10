@@ -1,7 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { PlusIcon, QrCodeIcon, Trash2Icon, TypeIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  EyeIcon,
+  EyeOffIcon,
+  ImageIcon,
+  LockIcon,
+  LockOpenIcon,
+  PlusIcon,
+  QrCodeIcon,
+  SquareIcon,
+  Trash2Icon,
+  TypeIcon,
+} from "lucide-react";
 import {
   Button,
   Input,
@@ -11,11 +24,19 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Separator,
   cn,
 } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
-import { layerLabel, type Layer, type TokenSpec } from "../layers";
+import {
+  effectiveWeight,
+  layerLabel,
+  layerTypeLabel,
+  type Layer,
+  type TokenSpec,
+} from "../layers";
+import { FONTS } from "../schemas";
 
 /**
  * The layer list and the inspector for whichever layer is selected.
@@ -23,7 +44,29 @@ import { layerLabel, type Layer, type TokenSpec } from "../layers";
  * Both halves exist because a canvas alone cannot express precision: dragging
  * gets a layer roughly where it belongs, and the numeric fields put it exactly
  * there. Clubs reproducing a designer's spec need the second.
+ *
+ * Every control here maps to a property the PDF renderer reads. Offering one
+ * it ignores is worse than not offering it -- the club moves a slider, the
+ * preview changes, and the document that reaches the attendee does not.
  */
+
+const WEIGHTS = [
+  { value: 300, label: "Light" },
+  { value: 400, label: "Regular" },
+  { value: 500, label: "Medium" },
+  { value: 600, label: "Semibold" },
+  { value: 700, label: "Bold" },
+  { value: 800, label: "Extrabold" },
+] as const;
+
+const TYPE_ICONS: Record<Layer["type"], React.ComponentType<{ className?: string }>> = {
+  text: TypeIcon,
+  qr: QrCodeIcon,
+  image: ImageIcon,
+  shape: SquareIcon,
+};
+
+/** Order in the array is paint order, so the last layer is the top one. */
 export function LayersList({
   layers,
   selectedId,
@@ -31,6 +74,8 @@ export function LayersList({
   onSelect,
   onAdd,
   onDelete,
+  onPatch,
+  onReorder,
 }: {
   layers: readonly Layer[];
   selectedId: string | null;
@@ -38,14 +83,22 @@ export function LayersList({
   onSelect: (id: string) => void;
   onAdd: (type: Layer["type"]) => void;
   onDelete: (id: string) => void;
+  onPatch: (id: string, changes: Partial<Layer>) => void;
+  onReorder: (id: string, direction: -1 | 1) => void;
 }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold tracking-[0.08em] uppercase">Layers</p>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           <Button size="xs" variant="outline" className={pressable} onClick={() => onAdd("text")}>
             <PlusIcon /> Text
+          </Button>
+          <Button size="xs" variant="outline" className={pressable} onClick={() => onAdd("image")}>
+            <PlusIcon /> Image
+          </Button>
+          <Button size="xs" variant="outline" className={pressable} onClick={() => onAdd("shape")}>
+            <PlusIcon /> Shape
           </Button>
           <Button
             size="xs"
@@ -68,57 +121,145 @@ export function LayersList({
         </p>
       ) : (
         <ul className="space-y-1.5">
-          {layers.map((layer) => (
-            <li key={layer.id}>
-              <div
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-2.5 py-2 transition-colors",
-                  layer.id === selectedId ? "bg-accent ring-brand/40 ring-1" : "hover:bg-accent/60"
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => onSelect(layer.id)}
-                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                >
-                  {layer.type === "qr" ? (
-                    <QrCodeIcon className="text-muted-foreground size-3.5 shrink-0" />
-                  ) : (
-                    <TypeIcon className="text-muted-foreground size-3.5 shrink-0" />
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium">
-                      {layerLabel(layer)}
-                    </span>
-                    <span className="text-muted-foreground block text-[11px]">
-                      {layer.type === "qr" ? "QR layer" : "Text layer"}
-                    </span>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Delete ${layerLabel(layer)}`}
-                  onClick={() => onDelete(layer.id)}
-                  className="text-muted-foreground hover:text-destructive shrink-0"
-                >
-                  <Trash2Icon className="size-3.5" />
-                </button>
-              </div>
-            </li>
-          ))}
+          {/*
+           * Listed top layer first, matching how every design tool shows a
+           * layer stack -- the array itself stays in paint order, because
+           * that is the order the renderer walks.
+           */}
+          {layers
+            .map((layer, index) => ({ layer, index }))
+            .reverse()
+            .map(({ layer, index }) => {
+              const Icon = TYPE_ICONS[layer.type];
+              return (
+                <li key={layer.id}>
+                  <div
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-lg px-2.5 py-2 transition-colors",
+                      layer.id === selectedId
+                        ? "bg-accent ring-brand/40 ring-1"
+                        : "hover:bg-accent/60",
+                      layer.hidden && "opacity-60"
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onSelect(layer.id)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    >
+                      <Icon className="text-muted-foreground size-3.5 shrink-0" />
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={cn(
+                            "block truncate text-xs font-medium",
+                            layer.hidden && "line-through"
+                          )}
+                        >
+                          {layerLabel(layer)}
+                        </span>
+                        <span className="text-muted-foreground block text-[11px]">
+                          {layerTypeLabel(layer.type)}
+                        </span>
+                      </span>
+                    </button>
+
+                    <div className="flex shrink-0 items-center">
+                      <IconToggle
+                        label={`Move ${layerLabel(layer)} up`}
+                        disabled={index === layers.length - 1}
+                        onClick={() => onReorder(layer.id, 1)}
+                      >
+                        <ChevronUpIcon className="size-3.5" />
+                      </IconToggle>
+                      <IconToggle
+                        label={`Move ${layerLabel(layer)} down`}
+                        disabled={index === 0}
+                        onClick={() => onReorder(layer.id, -1)}
+                      >
+                        <ChevronDownIcon className="size-3.5" />
+                      </IconToggle>
+                      <IconToggle
+                        label={
+                          layer.hidden
+                            ? `Show ${layerLabel(layer)}`
+                            : `Hide ${layerLabel(layer)}`
+                        }
+                        active={layer.hidden}
+                        onClick={() => onPatch(layer.id, { hidden: !layer.hidden })}
+                      >
+                        {layer.hidden ? (
+                          <EyeOffIcon className="size-3.5" />
+                        ) : (
+                          <EyeIcon className="size-3.5" />
+                        )}
+                      </IconToggle>
+                      <IconToggle
+                        label={
+                          layer.locked
+                            ? `Unlock ${layerLabel(layer)}`
+                            : `Lock ${layerLabel(layer)}`
+                        }
+                        active={layer.locked}
+                        onClick={() => onPatch(layer.id, { locked: !layer.locked })}
+                      >
+                        {layer.locked ? (
+                          <LockIcon className="size-3.5" />
+                        ) : (
+                          <LockOpenIcon className="size-3.5" />
+                        )}
+                      </IconToggle>
+                      <IconToggle
+                        label={`Delete ${layerLabel(layer)}`}
+                        destructive
+                        onClick={() => onDelete(layer.id)}
+                      >
+                        <Trash2Icon className="size-3.5" />
+                      </IconToggle>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
         </ul>
       )}
     </div>
   );
 }
 
-function Field({
+function IconToggle({
   label,
   children,
+  onClick,
+  active = false,
+  disabled = false,
+  destructive = false,
 }: {
   label: string;
   children: React.ReactNode;
+  onClick: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  destructive?: boolean;
 }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "text-muted-foreground rounded p-1 transition-colors disabled:opacity-30",
+        destructive ? "hover:text-destructive" : "hover:text-foreground",
+        active && "text-foreground"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       <Label className="text-[11px] tracking-wide uppercase">{label}</Label>
@@ -133,31 +274,110 @@ function NumberField({
   min,
   max,
   step = 1,
+  placeholder,
   onChange,
 }: {
   label: string;
-  value: number;
+  value: number | null | undefined;
   min?: number;
   max?: number;
   step?: number;
-  onChange: (value: number) => void;
+  placeholder?: string;
+  onChange: (value: number | null) => void;
 }) {
   return (
     <Field label={label}>
       <Input
         type="number"
-        value={value}
+        value={value ?? ""}
         min={min}
         max={max}
         step={step}
+        placeholder={placeholder}
         onChange={(e) => {
-          const next = Number(e.target.value);
-          // An empty input parses as NaN, which would wipe the layer's
-          // position the moment someone clears the box to retype it.
+          const raw = e.target.value;
+          // An empty box means "unset" for the optional fields, and the
+          // caller decides whether that is allowed. Parsing it as NaN would
+          // wipe the value the moment someone clears it to retype.
+          if (raw === "") {
+            onChange(null);
+            return;
+          }
+          const next = Number(raw);
           if (Number.isFinite(next)) onChange(next);
         }}
         className="h-9 tabular-nums"
       />
+    </Field>
+  );
+}
+
+function RangeField({
+  label,
+  value,
+  min,
+  max,
+  suffix = "",
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  suffix?: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between">
+        <Label className="text-[11px] tracking-wide uppercase">{label}</Label>
+        <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+          {value}
+          {suffix}
+        </span>
+      </div>
+      <input
+        type="range"
+        value={value}
+        min={min}
+        max={max}
+        aria-label={label}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="accent-brand h-9 w-full cursor-pointer"
+      />
+    </div>
+  );
+}
+
+function ColorField({
+  label,
+  value,
+  fallback,
+  onChange,
+}: {
+  label: string;
+  value: string | null | undefined;
+  fallback: string;
+  onChange: (value: string) => void;
+}) {
+  const shown = value ?? fallback;
+  return (
+    <Field label={label}>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={/^#[0-9a-f]{6}$/i.test(shown) ? shown : fallback}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={`${label} picker`}
+          className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-1"
+        />
+        <Input
+          value={shown}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={`${label} hex`}
+          className="h-9 font-mono text-xs uppercase"
+        />
+      </div>
     </Field>
   );
 }
@@ -181,115 +401,280 @@ export function LayerInspector({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold tracking-[0.08em] uppercase">Inspector</p>
-
-      <div className="grid grid-cols-2 gap-3">
-        <NumberField label="X" value={layer.x} min={0} onChange={(x) => onChange({ x })} />
-        <NumberField label="Y" value={layer.y} min={0} onChange={(y) => onChange({ y })} />
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold tracking-[0.08em] uppercase">Inspector</p>
+        <span className="text-muted-foreground text-[11px]">
+          {layerTypeLabel(layer.type)}
+        </span>
       </div>
 
-      {layer.type === "text" ? (
-        <>
-          <Field label="Text / token">
-            <Input
-              value={layer.text}
-              onChange={(e) => onChange({ text: e.target.value })}
-              className="h-9 font-mono text-xs"
-            />
-          </Field>
+      <Field label="Layer name">
+        <Input
+          value={layer.name ?? ""}
+          placeholder={layerLabel(layer)}
+          onChange={(e) => onChange({ name: e.target.value || null })}
+          className="h-9"
+        />
+      </Field>
 
-          <Field label="Insert a token">
-            <Select
-              value=""
-              onValueChange={(token) => onChange({ text: `${layer.text}{{${token}}}` })}
-            >
-              <SelectTrigger size="sm" className="w-full">
-                <SelectValue placeholder="Add a value…" />
-              </SelectTrigger>
-              <SelectContent>
-                {tokens.map((spec) => (
-                  <SelectItem key={spec.token} value={spec.token}>
-                    <span className="flex flex-col">
-                      <span>{spec.label}</span>
-                      <span className="text-muted-foreground font-mono text-[11px]">
-                        {`{{${spec.token}}}`}
-                      </span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <NumberField label="X" value={layer.x} min={0} onChange={(x) => onChange({ x: x ?? 0 })} />
+        <NumberField label="Y" value={layer.y} min={0} onChange={(y) => onChange({ y: y ?? 0 })} />
+      </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <NumberField
-              label="Font size"
-              value={layer.font_size}
-              min={1}
-              max={400}
-              onChange={(font_size) => onChange({ font_size })}
-            />
-            <NumberField
-              label="Max lines"
-              value={layer.max_lines}
-              min={1}
-              max={20}
-              onChange={(max_lines) => onChange({ max_lines })}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <NumberField
-              label="Line spacing"
-              value={layer.line_spacing}
-              min={-20}
-              max={200}
-              onChange={(line_spacing) => onChange({ line_spacing })}
-            />
-            <Field label="Align">
-              <Select
-                value={layer.align}
-                onValueChange={(align) => onChange({ align: align as Layer["align"] })}
-              >
-                <SelectTrigger size="sm" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="left">Left</SelectItem>
-                  <SelectItem value="center">Center</SelectItem>
-                  <SelectItem value="right">Right</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-
-          <Field label="Font colour">
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={/^#[0-9a-f]{6}$/i.test(layer.color) ? layer.color : "#ffffff"}
-                onChange={(e) => onChange({ color: e.target.value })}
-                aria-label="Font colour picker"
-                className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-1"
-              />
-              <Input
-                value={layer.color}
-                onChange={(e) => onChange({ color: e.target.value })}
-                aria-label="Font colour hex"
-                className="h-9 font-mono text-xs uppercase"
-              />
-            </div>
-          </Field>
-        </>
-      ) : (
+      <div className="grid grid-cols-2 gap-3">
         <NumberField
-          label="Size (px)"
-          value={layer.width ?? 160}
-          min={32}
-          max={1200}
+          label={layer.type === "qr" ? "Size" : "Width"}
+          value={layer.width}
+          min={1}
+          placeholder={layer.type === "text" ? "Auto" : undefined}
           onChange={(width) => onChange({ width })}
         />
-      )}
+        {layer.type === "image" || layer.type === "shape" ? (
+          <NumberField
+            label="Height"
+            value={layer.height}
+            min={1}
+            onChange={(height) => onChange({ height })}
+          />
+        ) : null}
+      </div>
+
+      <RangeField
+        label="Opacity"
+        value={layer.opacity}
+        min={0}
+        max={100}
+        suffix="%"
+        onChange={(opacity) => onChange({ opacity })}
+      />
+
+      <Separator />
+
+      {layer.type === "text" ? (
+        <TextLayerFields layer={layer} tokens={tokens} onChange={onChange} />
+      ) : null}
+
+      {layer.type === "image" ? (
+        <Field label="Image URL">
+          <Input
+            value={layer.image_url ?? ""}
+            placeholder="https://…"
+            onChange={(e) => onChange({ image_url: e.target.value || null })}
+            className="h-9 font-mono text-xs"
+          />
+        </Field>
+      ) : null}
+
+      {layer.type === "shape" ? (
+        <>
+          <ColorField
+            label="Fill"
+            value={layer.fill}
+            fallback="#ffffff"
+            onChange={(fill) => onChange({ fill })}
+          />
+          <NumberField
+            label="Corner radius"
+            value={layer.radius}
+            min={0}
+            max={400}
+            onChange={(radius) => onChange({ radius: radius ?? 0 })}
+          />
+        </>
+      ) : null}
+
+      {layer.type === "qr" ? (
+        <p className="text-muted-foreground text-xs">
+          {/* Said plainly, because a club will otherwise look for the field. */}
+          The code itself is generated when the document is issued — there is
+          nothing to set here but its size and position.
+        </p>
+      ) : null}
     </div>
+  );
+}
+
+function TextLayerFields({
+  layer,
+  tokens,
+  onChange,
+}: {
+  layer: Layer;
+  tokens: readonly TokenSpec[];
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <>
+      <Field label="Text / token">
+        <Input
+          value={layer.text}
+          onChange={(e) => onChange({ text: e.target.value })}
+          className="h-9 font-mono text-xs"
+        />
+      </Field>
+
+      <Field label="Insert a token">
+        <Select
+          value=""
+          onValueChange={(token) => onChange({ text: `${layer.text}{{${token}}}` })}
+        >
+          <SelectTrigger size="sm" className="w-full">
+            <SelectValue placeholder="Add a value…" />
+          </SelectTrigger>
+          <SelectContent>
+            {tokens.map((spec) => (
+              <SelectItem key={spec.token} value={spec.token}>
+                <span className="flex flex-col">
+                  <span>{spec.label}</span>
+                  <span className="text-muted-foreground font-mono text-[11px]">
+                    {`{{${spec.token}}}`}
+                  </span>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+
+      <Field label="Font">
+        <Select
+          // Empty string is not a usable Select value, so "inherit" stands in
+          // for "no override" and is translated back on the way out.
+          value={layer.font ?? "inherit"}
+          onValueChange={(font) => onChange({ font: font === "inherit" ? null : font })}
+        >
+          <SelectTrigger size="sm" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="inherit">Template font</SelectItem>
+            {FONTS.map((font) => (
+              <SelectItem key={font} value={font}>
+                {font}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <NumberField
+          label="Font size"
+          value={layer.font_size}
+          min={1}
+          max={400}
+          onChange={(font_size) => onChange({ font_size: font_size ?? 24 })}
+        />
+        <Field label="Weight">
+          <Select
+            value={String(effectiveWeight(layer))}
+            // Written to `weight`, and `bold` is cleared so the two cannot
+            // disagree -- the renderer prefers weight, and a config carrying
+            // both would read as bold in any older client.
+            onValueChange={(value) =>
+              onChange({ weight: Number(value), bold: Number(value) >= 600 })
+            }
+          >
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {WEIGHTS.map((weight) => (
+                <SelectItem key={weight.value} value={String(weight.value)}>
+                  {weight.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <NumberField
+          label="Letter spacing"
+          value={layer.letter_spacing}
+          min={-20}
+          max={100}
+          onChange={(letter_spacing) => onChange({ letter_spacing: letter_spacing ?? 0 })}
+        />
+        <NumberField
+          label="Line spacing"
+          value={layer.line_spacing}
+          min={-20}
+          max={200}
+          onChange={(line_spacing) => onChange({ line_spacing: line_spacing ?? 0 })}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <NumberField
+          label="Max lines"
+          value={layer.max_lines}
+          min={1}
+          max={20}
+          onChange={(max_lines) => onChange({ max_lines: max_lines ?? 1 })}
+        />
+        <Field label="Align">
+          <Select
+            value={layer.align}
+            onValueChange={(align) => onChange({ align: align as Layer["align"] })}
+          >
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="left">Left</SelectItem>
+              <SelectItem value="center">Center</SelectItem>
+              <SelectItem value="right">Right</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+
+      <Field label="When the text is too long">
+        <Select
+          value={layer.overflow}
+          onValueChange={(overflow) =>
+            onChange({ overflow: overflow as Layer["overflow"] })
+          }
+        >
+          <SelectTrigger size="sm" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="shrink">
+              <span className="flex flex-col">
+                <span>Shrink to fit</span>
+                <span className="text-muted-foreground text-[11px]">
+                  Smaller type, nothing lost
+                </span>
+              </span>
+            </SelectItem>
+            <SelectItem value="clip">
+              <span className="flex flex-col">
+                <span>Cut it off</span>
+                <span className="text-muted-foreground text-[11px]">
+                  Keeps the size you chose
+                </span>
+              </span>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        {layer.overflow === "shrink" && !layer.width ? (
+          <p className="text-muted-foreground text-[11px]">
+            {/* Shrinking needs a box to shrink into, and width is optional. */}
+            Set a width — without one there is nothing to fit the text to.
+          </p>
+        ) : null}
+      </Field>
+
+      <ColorField
+        label="Font colour"
+        value={layer.color}
+        fallback="#ffffff"
+        onChange={(color) => onChange({ color })}
+      />
+    </>
   );
 }

@@ -91,6 +91,25 @@ export function LayerEditor({
     onLayersChange(layers.map((l) => (l.id === id ? { ...l, ...changes } : l)));
   }
 
+  /**
+   * Move a layer one step through the paint order.
+   *
+   * Array order is paint order, so this is what "bring forward" means: the
+   * only way to put a logo over a background band rather than under it.
+   */
+  function reorder(id: string, direction: -1 | 1) {
+    const from = layers.findIndex((l) => l.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= layers.length) return;
+    const moving = layers[from];
+    const displaced = layers[to];
+    if (!moving || !displaced) return;
+    const next = [...layers];
+    next[from] = displaced;
+    next[to] = moving;
+    onLayersChange(next);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -216,6 +235,8 @@ export function LayerEditor({
                   onLayersChange(layers.filter((l) => l.id !== id));
                   if (selectedId === id) setSelectedId(null);
                 }}
+                onPatch={patch}
+                onReorder={reorder}
               />
 
               <LayerInspector

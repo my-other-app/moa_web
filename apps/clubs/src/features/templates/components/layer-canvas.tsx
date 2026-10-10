@@ -5,12 +5,14 @@ import { cn } from "@moa/ui";
 
 import {
   clampToCanvas,
+  effectiveWeight,
   toArtwork,
   withSampleValues,
   type Canvas,
   type Layer,
   type TokenSpec,
 } from "../layers";
+import { fitFontSize } from "../text-fit";
 
 /**
  * The artwork with its layers on top.
@@ -56,7 +58,9 @@ export function LayerCanvas({
   const height = canvas.height || 600;
 
   function startDrag(event: React.PointerEvent, layer: Layer) {
-    if (preview) return;
+    // Locking exists so a club can pin down the parts of a design it has
+    // already settled and drag the rest without knocking them out of place.
+    if (preview || layer.locked) return;
     event.preventDefault();
     event.stopPropagation();
     onSelect(layer.id);
@@ -118,12 +122,19 @@ export function LayerCanvas({
           }}
         >
           {layers.map((layer) => {
+            // A hidden layer is skipped by the renderer, so the preview skips
+            // it too. In edit mode it stays on the stage, faint, because a
+            // layer you cannot see is a layer you cannot get back.
+            if (layer.hidden && preview) return null;
+
             const selected = layer.id === selectedId;
+            const draggable = !preview && !layer.locked;
             const common = {
               onPointerDown: (e: React.PointerEvent) => startDrag(e, layer),
               className: cn(
                 "absolute",
-                !preview && "cursor-move",
+                draggable && "cursor-move",
+                layer.locked && !preview && "cursor-not-allowed",
                 // The outline is drawn at 1/scale so it stays a hairline
                 // rather than growing into a thick band when zoomed in.
                 selected && !preview && "outline-dashed",
@@ -132,6 +143,9 @@ export function LayerCanvas({
               style: {
                 left: layer.x,
                 top: layer.y,
+                // The layer's own opacity, dimmed further while hidden so a
+                // parked layer reads as parked rather than as faint artwork.
+                opacity: (layer.opacity / 100) * (layer.hidden ? 0.25 : 1),
                 outlineColor: selected ? "#17a58f" : "transparent",
                 outlineWidth: selected && !preview ? Math.max(1, 2 / scale) : 0,
                 outlineOffset: 2 / scale,
@@ -163,6 +177,65 @@ export function LayerCanvas({
               );
             }
 
+            if (layer.type === "image") {
+              const w = layer.width ?? 240;
+              const h = layer.height ?? 120;
+              return (
+                <div
+                  key={layer.id}
+                  {...common}
+                  style={{ ...common.style, width: w, height: h }}
+                >
+                  {layer.image_url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element --
+                       the URL is arbitrary and remote, and the renderer draws
+                       it unoptimised at exactly these dimensions. */
+                    <img
+                      src={layer.image_url}
+                      alt=""
+                      className="size-full"
+                      style={{ objectFit: "contain" }}
+                    />
+                  ) : (
+                    <div className="grid size-full place-items-center rounded-sm border border-dashed border-white/40 text-[10px] font-semibold text-white/70">
+                      {preview ? "" : "Image"}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            if (layer.type === "shape") {
+              return (
+                <div
+                  key={layer.id}
+                  {...common}
+                  style={{
+                    ...common.style,
+                    width: layer.width ?? 240,
+                    height: layer.height ?? 8,
+                    background: layer.fill ?? "#ffffff",
+                    borderRadius: layer.radius,
+                  }}
+                />
+              );
+            }
+
+            // Text. Tokens become sample values in preview, and the size is
+            // fitted the same way the renderer fits it -- otherwise the
+            // preview shows a size the attendee never receives.
+            const shown = preview ? withSampleValues(layer.text, tokens) : layer.text;
+            const fontSize =
+              layer.overflow === "shrink"
+                ? fitFontSize(shown, {
+                    fontSize: layer.font_size,
+                    boxWidth: layer.width,
+                    maxLines: layer.max_lines,
+                    bold: effectiveWeight(layer) >= 600,
+                    letterSpacing: layer.letter_spacing,
+                  })
+                : layer.font_size;
+
             return (
               <div
                 key={layer.id}
@@ -170,17 +243,19 @@ export function LayerCanvas({
                 style={{
                   ...common.style,
                   width: layer.width ?? undefined,
-                  fontSize: layer.font_size,
-                  lineHeight: `${layer.font_size + layer.line_spacing}px`,
+                  fontFamily: layer.font ? `'${layer.font}', sans-serif` : undefined,
+                  fontSize,
+                  lineHeight: `${fontSize + layer.line_spacing}px`,
+                  letterSpacing: layer.letter_spacing,
                   color: layer.color,
                   textAlign: layer.align,
-                  fontWeight: layer.bold ? 700 : 400,
-                  maxHeight: (layer.font_size + layer.line_spacing) * layer.max_lines,
+                  fontWeight: effectiveWeight(layer),
+                  maxHeight: (fontSize + layer.line_spacing) * layer.max_lines,
                   overflow: "hidden",
                   whiteSpace: "pre-wrap",
                 }}
               >
-                {preview ? withSampleValues(layer.text, tokens) : layer.text}
+                {shown}
               </div>
             );
           })}
