@@ -4,7 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, ImageOffIcon } from "lucide-react";
+import { ArrowLeftIcon, ImageOffIcon, PaletteIcon } from "lucide-react";
 import { PageHeader, pickImage } from "@moa/app-kit";
 import {
   Button,
@@ -88,6 +88,17 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
                 onDeleted={() => router.replace("/events")}
               />
             ) : null}
+
+            {/*
+              * The designer is per-event, so it belongs on the event rather
+              * than only in the club's template library -- an organiser
+              * looking for "this event's ticket" looks here first.
+              */}
+            <Button variant="outline" asChild className={cn("h-12 shrink-0 gap-2 rounded-lg px-4", pressable)}>
+              <Link href={`/events/${eventId}/design`}>
+                <PaletteIcon /> Ticket &amp; certificate
+              </Link>
+            </Button>
 
             <Button
               type="button"

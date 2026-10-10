@@ -37,11 +37,26 @@ const hexColor = z
  * CertificateTemplateConfig so a template created here renders identically to
  * one created by any other client.
  *
- * The *_url fields are deliberately absent: the backend populates them from
- * the uploaded files and overwrites whatever is sent, so exposing them would
- * imply an edit that does not take.
+ * The *_url fields are read-only. The backend fills them in from the uploaded
+ * files and overwrites whatever is sent, so no form edits them -- but the
+ * renderer reads the artwork out of the config rather than off the row, and
+ * so does the event designer, which has to draw layers on top of it.
  */
+/**
+ * Image URLs the backend writes into the config after an upload.
+ *
+ * Nullish rather than optional because the backend sets them to null when no
+ * image is stored, and a schema that only allowed undefined would reject its
+ * own responses.
+ */
+const uploadedUrls = {
+  logo_url: z.string().nullish(),
+  secondary_logo_url: z.string().nullish(),
+  background_image_url: z.string().nullish(),
+};
+
 export const ticketConfigSchema = z.object({
+  ...uploadedUrls,
   /*
    * Layer mode. Empty means the built-in layout, which is what every existing
    * template uses -- the renderer only switches when these are set, so adding
@@ -65,6 +80,9 @@ export const ticketConfigSchema = z.object({
 });
 
 export const certificateConfigSchema = z.object({
+  ...uploadedUrls,
+  signature_1_url: z.string().nullish(),
+  signature_2_url: z.string().nullish(),
   /*
    * Layer mode. Empty means the built-in layout, which is what every existing
    * template uses -- the renderer only switches when these are set, so adding

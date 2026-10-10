@@ -15,3 +15,4 @@ export {
 } from "./schemas";
 export { LayerEditor } from "./components/layer-editor";
 export { layerSchema, canvasSchema, TICKET_TOKENS, CERTIFICATE_TOKENS, withSampleValues, toArtwork, clampToCanvas, newLayer, layerLabel, type Layer, type Canvas } from "./layers";
+export { ColourTab, ContentTab, LayoutTab, type AnyConfig } from "./components/config-controls";
