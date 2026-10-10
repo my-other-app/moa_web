@@ -53,6 +53,13 @@ const uploadedUrls = {
   logo_url: z.string().nullish(),
   secondary_logo_url: z.string().nullish(),
   background_image_url: z.string().nullish(),
+  /*
+   * The layered design, saved by its own editor through its own endpoint.
+   * Carried here untouched: z.object strips keys it does not know, so without
+   * this a colour change saved from the built-in controls would silently wipe
+   * the design.
+   */
+  layout: z.record(z.unknown()).nullish(),
 };
 
 export const ticketConfigSchema = z.object({

@@ -15,6 +15,7 @@
     "@moa/api": "*",
     "@moa/app-kit": "*",
     "@moa/auth": "*",
+    "@moa/layout": "*",
     "@moa/ui": "*",
     "@tanstack/react-query": "^5.62.11",
     "@tanstack/react-query-devtools": "^5.62.11",
