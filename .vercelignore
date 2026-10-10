@@ -1,0 +1,17 @@
+# The CLI uploads the working directory, and without this it sends the whole
+# monorepo -- 460MB of dependencies and build output, which fails the 100MB
+# limit. Vercel installs and builds from source on its own machines, so none
+# of this is wanted there.
+node_modules
+**/node_modules
+.next
+**/.next
+.turbo
+**/.turbo
+dist
+**/dist
+coverage
+**/coverage
+.git
+*.log
+.env.local
