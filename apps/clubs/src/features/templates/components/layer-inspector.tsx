@@ -98,7 +98,14 @@ export function LayersList({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold tracking-[0.08em] uppercase">Layers</p>
+        <p className="text-xs font-semibold tracking-[0.08em] uppercase">
+          Layers
+          {layers.length ? (
+            <span className="text-muted-foreground ml-1.5 font-mono tabular-nums">
+              · {layers.length}
+            </span>
+          ) : null}
+        </p>
         <div className="flex flex-wrap gap-1.5">
           <Button size="xs" variant="outline" className={pressable} onClick={() => onAdd("text")}>
             <PlusIcon /> Text
@@ -166,8 +173,13 @@ export function LayersList({
                         >
                           {layerLabel(layer)}
                         </span>
-                        <span className="text-muted-foreground block text-[11px]">
-                          {layerTypeLabel(layer.type)}
+                        <span className="text-muted-foreground block truncate font-mono text-[11px]">
+                          {/* The token, not the word "Text layer" -- which
+                              field a row is, is the thing you scan for, and
+                              the type is already in the icon. */}
+                          {layer.type === "text"
+                            ? layer.text.trim() || layerTypeLabel(layer.type)
+                            : layerTypeLabel(layer.type)}
                         </span>
                       </span>
                     </button>
