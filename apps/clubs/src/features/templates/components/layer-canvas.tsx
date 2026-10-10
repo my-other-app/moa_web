@@ -12,6 +12,7 @@ import {
   type Layer,
   type TokenSpec,
 } from "../layers";
+import { snapPosition, type Guide } from "../snapping";
 import { fitFontSize } from "../text-fit";
 
 /**
@@ -33,6 +34,7 @@ export function LayerCanvas({
   artworkUrl,
   canvas,
   layers,
+  bgColor,
   scale,
   selectedId,
   preview,
@@ -43,6 +45,8 @@ export function LayerCanvas({
   artworkUrl: string | null;
   canvas: Canvas;
   layers: readonly Layer[];
+  /** Shows wherever the artwork does not cover, matching the renderer. */
+  bgColor: string;
   scale: number;
   selectedId: string | null;
   /** Preview swaps tokens for sample values and disables dragging. */
@@ -53,6 +57,7 @@ export function LayerCanvas({
 }) {
   const [dragging, setDragging] = React.useState<string | null>(null);
   const [hint, setHint] = React.useState<{ x: number; y: number } | null>(null);
+  const [guides, setGuides] = React.useState<Guide[]>([]);
 
   const width = canvas.width || 1000;
   const height = canvas.height || 600;
@@ -74,19 +79,37 @@ export function LayerCanvas({
     target.setPointerCapture(event.pointerId);
 
     const move = (e: PointerEvent) => {
-      const next = clampToCanvas(
+      const free = clampToCanvas(
         {
           x: originX + toArtwork(e.clientX - startX, scale),
           y: originY + toArtwork(e.clientY - startY, scale),
         },
         canvas
       );
+
+      /*
+       * Alt drags freely. Snapping is right nearly always -- "centred" by eye
+       * is two pixels out on the printed ticket -- but a club placing
+       * something deliberately off a line needs a way to say so.
+       */
+      if (e.altKey) {
+        setGuides([]);
+        setHint(free);
+        onMove(layer.id, free);
+        return;
+      }
+
+      const others = layers.filter((l) => l.id !== layer.id);
+      const snapped = snapPosition(free, layer, canvas, others, scale);
+      const next = clampToCanvas({ x: snapped.x, y: snapped.y }, canvas);
+      setGuides(snapped.guides);
       setHint(next);
       onMove(layer.id, next);
     };
     const end = () => {
       setDragging(null);
       setHint(null);
+      setGuides([]);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", end);
     };
@@ -117,10 +140,13 @@ export function LayerCanvas({
         style={{ width: width * scale, height: height * scale }}
       >
         <div
-          className="relative overflow-hidden bg-neutral-900/40"
+          className="relative overflow-hidden"
           style={{
             width,
             height,
+            // The renderer paints the background first and the artwork over
+            // it, so the preview has to agree about what shows through.
+            background: bgColor || "#121212",
             transform: `scale(${scale})`,
             transformOrigin: "top left",
             backgroundImage: artworkUrl ? `url(${artworkUrl})` : undefined,
@@ -266,6 +292,31 @@ export function LayerCanvas({
               </div>
             );
           })}
+
+          {/* Drawn inside the scaled stage so a guide sits on the artwork
+              coordinate that caused the snap, at any zoom. Width is divided
+              by the scale so the line stays a hairline. */}
+          {guides.map((guide) => (
+            <div
+              key={`${guide.axis}-${guide.at}`}
+              className="pointer-events-none absolute bg-[#17a58f]"
+              style={
+                guide.axis === "x"
+                  ? {
+                      left: guide.at,
+                      top: 0,
+                      width: Math.max(1, 1 / scale),
+                      height: "100%",
+                    }
+                  : {
+                      top: guide.at,
+                      left: 0,
+                      height: Math.max(1, 1 / scale),
+                      width: "100%",
+                    }
+              }
+            />
+          ))}
         </div>
       </div>
 

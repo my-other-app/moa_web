@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ImageUpIcon, Trash2Icon } from "lucide-react";
+import { Redo2Icon, Undo2Icon } from "lucide-react";
 import {
   Button,
   InlineAlert,
@@ -26,33 +26,45 @@ import {
   clampToCanvas,
   duplicateLayer,
   newLayer,
-  withSampleValues,
   type Canvas,
   type Layer,
 } from "../layers";
+import { useHistory } from "../use-history";
+import { CanvasPanel } from "./canvas-panel";
 import { LayerCanvas } from "./layer-canvas";
 import { LayerInspector, LayersList } from "./layer-inspector";
 
 /**
- * Place content on your own artwork.
+ * The design workspace.
  *
- * The existing controls restyle the built-in layout, which is the right tool
- * for a club that wants the default ticket in its colours. This is for the
- * club that has artwork from a designer: upload it, drop the values on it,
- * and preview with sample data before anyone receives one.
+ * The canvas is the work, so it takes the room; everything else is a rail
+ * beside it. The earlier version had this the other way round -- a column of
+ * settings with the artwork shrunk into a corner of it -- which is a form
+ * with a thumbnail, not a place to lay a ticket out.
  *
- * The two modes coexist. A template with no layers renders exactly as it
- * always has, so turning this on is a choice rather than a migration.
+ * The two modes matter as much as the layout. "Edit layout" shows the tokens
+ * where they sit; "Sample preview" swaps in the values an attendee would get,
+ * which is the only way to see whether a long name still fits before anyone
+ * receives one.
  */
-const ZOOMS = [25, 50, 75, 100] as const;
+const ZOOMS = [25, 50, 75, 100, 150] as const;
+
+interface DesignState {
+  layers: Layer[];
+  canvas: Canvas;
+  bgColor: string;
+}
 
 export function LayerEditor({
   kind,
   artworkUrl,
   canvas,
   layers,
+  bgColor,
+  palette,
   onLayersChange,
   onCanvasChange,
+  onBgColorChange,
   onPickArtwork,
   onRemoveArtwork,
 }: {
@@ -60,24 +72,47 @@ export function LayerEditor({
   artworkUrl: string | null;
   canvas: Canvas;
   layers: Layer[];
+  bgColor: string;
+  palette: ReadonlyArray<{ label: string; value: string }>;
   onLayersChange: (layers: Layer[]) => void;
   onCanvasChange: (canvas: Canvas) => void;
+  onBgColorChange: (color: string) => void;
   onPickArtwork: (file: File) => void;
   onRemoveArtwork: () => void;
 }) {
   const tokens = kind === "ticket" ? TICKET_TOKENS : CERTIFICATE_TOKENS;
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
-  const [zoom, setZoom] = React.useState<number>(50);
+  const [zoom, setZoom] = React.useState<number | "fit">("fit");
   const [mode, setMode] = React.useState<"edit" | "preview">("edit");
-  const fileRef = React.useRef<HTMLInputElement>(null);
 
   const selected = layers.find((l) => l.id === selectedId) ?? null;
   const hasQr = layers.some((l) => l.type === "qr");
 
   /*
+   * Undo spans layers, canvas size and background together, because they are
+   * one design: resizing the canvas and then undoing only the layers would
+   * leave a state the club never had.
+   */
+  const applyState = React.useCallback(
+    (next: DesignState) => {
+      onLayersChange(next.layers);
+      onCanvasChange(next.canvas);
+      onBgColorChange(next.bgColor);
+    },
+    [onLayersChange, onCanvasChange, onBgColorChange]
+  );
+  const history = useHistory<DesignState>({ layers, canvas, bgColor }, applyState);
+
+  const setLayers = (next: Layer[], coalesce?: string) =>
+    history.commit({ layers: next, canvas, bgColor }, coalesce ? { coalesce } : undefined);
+
+  /*
    * The artwork's natural size is measured once it loads and stored, because
    * every coordinate is expressed against it. Without this the editor would
    * place layers in display pixels and the PDF would put them somewhere else.
+   *
+   * Committed without history: it is a measurement, not an edit, and undoing
+   * back to "the size before we knew the size" is not a state worth having.
    */
   React.useEffect(() => {
     if (!artworkUrl) return;
@@ -92,8 +127,36 @@ export function LayerEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artworkUrl]);
 
-  function patch(id: string, changes: Partial<Layer>) {
-    onLayersChange(layers.map((l) => (l.id === id ? { ...l, ...changes } : l)));
+  /* Fit measures the space actually available, so it survives a resized
+     window or a collapsed sidebar rather than assuming a width. */
+  const stageRef = React.useRef<HTMLDivElement>(null);
+  const [available, setAvailable] = React.useState(0);
+  React.useEffect(() => {
+    const node = stageRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setAvailable(entry.contentRect.width);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const fitScale = React.useMemo(() => {
+    const width = canvas.width || 1000;
+    if (!available || !width) return 0.5;
+    // Minus the stage's own padding, and never magnified past 1:1 -- a small
+    // badge blown up to fill the screen is harder to place things on, not
+    // easier.
+    return Math.min(1, Math.max(0.05, (available - 48) / width));
+  }, [available, canvas.width]);
+
+  const scale = zoom === "fit" ? fitScale : zoom / 100;
+
+  function patch(id: string, changes: Partial<Layer>, coalesce?: string) {
+    setLayers(
+      layers.map((l) => (l.id === id ? { ...l, ...changes } : l)),
+      coalesce
+    );
   }
 
   /**
@@ -112,7 +175,7 @@ export function LayerEditor({
     const next = [...layers];
     next[from] = displaced;
     next[to] = moving;
-    onLayersChange(next);
+    setLayers(next);
   }
 
   function duplicate(id: string) {
@@ -124,8 +187,19 @@ export function LayerEditor({
     // duplicate does not jump to the front of the paint order.
     const next = [...layers];
     next.splice(index + 1, 0, copy);
-    onLayersChange(next);
+    setLayers(next);
     setSelectedId(copy.id);
+  }
+
+  function remove(id: string) {
+    setLayers(layers.filter((l) => l.id !== id));
+    if (selectedId === id) setSelectedId(null);
+  }
+
+  function add(type: Layer["type"]) {
+    const layer = newLayer(type, canvas);
+    setLayers([...layers, layer]);
+    setSelectedId(layer.id);
   }
 
   function centre(axis: "x" | "y") {
@@ -138,14 +212,37 @@ export function LayerEditor({
   }
 
   /**
-   * Arrow keys nudge the selected layer; shift makes it a bigger step.
-   *
-   * Dragging cannot place a layer to the pixel at 50% zoom, and the numeric
-   * fields mean leaving the canvas to type. This is how every design tool
-   * closes that gap.
+   * Keyboard, as the reference has it: arrows nudge, shift makes the step
+   * bigger, and the three shortcuts anyone who has used a design tool will
+   * try before looking for a button.
    */
   function onKeyDown(event: React.KeyboardEvent) {
-    if (mode === "preview" || !selected || selected.locked) return;
+    if (mode === "preview") return;
+    const meta = event.metaKey || event.ctrlKey;
+
+    if (meta && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      if (event.shiftKey) history.redo();
+      else history.undo();
+      return;
+    }
+    if (meta && event.key.toLowerCase() === "d") {
+      event.preventDefault();
+      if (selected) duplicate(selected.id);
+      return;
+    }
+
+    if (!selected || selected.locked) return;
+
+    if (event.key === "Backspace" || event.key === "Delete") {
+      // Not while typing in the inspector, which sits inside this handler's
+      // subtree -- otherwise clearing a text field deletes the layer.
+      const tag = (event.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      event.preventDefault();
+      remove(selected.id);
+      return;
+    }
 
     const step = event.shiftKey ? NUDGE_FAST : NUDGE;
     const moves: Record<string, { x: number; y: number }> = {
@@ -157,21 +254,19 @@ export function LayerEditor({
     const move = moves[event.key];
     if (!move) return;
 
-    // Only once a layer is selected, so arrow keys still scroll the page
-    // the rest of the time.
+    // Only once a layer is selected, so arrow keys still scroll the page the
+    // rest of the time.
     event.preventDefault();
     patch(
       selected.id,
-      clampToCanvas(
-        { x: selected.x + move.x, y: selected.y + move.y },
-        canvas
-      )
+      clampToCanvas({ x: selected.x + move.x, y: selected.y + move.y }, canvas),
+      `nudge:${selected.id}`
     );
   }
 
   return (
-    <div className="space-y-4" onKeyDown={onKeyDown}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-3" onKeyDown={onKeyDown}>
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2">
         <Tabs value={mode} onValueChange={(v) => setMode(v as "edit" | "preview")}>
           <TabsList>
             <TabsTrigger value="edit">Edit layout</TabsTrigger>
@@ -179,12 +274,19 @@ export function LayerEditor({
           </TabsList>
         </Tabs>
 
-        <div className="flex items-center gap-2">
-          <Select value={String(zoom)} onValueChange={(v) => setZoom(Number(v))}>
-            <SelectTrigger size="sm" aria-label="Zoom" className="w-[5.5rem]">
+        <div className="flex items-center gap-1.5">
+          <span className="text-muted-foreground text-[11px] tracking-[0.08em] uppercase">
+            Zoom
+          </span>
+          <Select
+            value={String(zoom)}
+            onValueChange={(v) => setZoom(v === "fit" ? "fit" : Number(v))}
+          >
+            <SelectTrigger size="sm" aria-label="Zoom" className="w-[7.5rem]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="fit">Fit ({Math.round(fitScale * 100)}%)</SelectItem>
               {ZOOMS.map((z) => (
                 <SelectItem key={z} value={String(z)}>
                   {z}%
@@ -192,91 +294,64 @@ export function LayerEditor({
               ))}
             </SelectContent>
           </Select>
-
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className="sr-only"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onPickArtwork(file);
-              // Cleared so choosing the same file twice still fires a change.
-              e.target.value = "";
-            }}
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            className={pressable}
-            onClick={() => fileRef.current?.click()}
-          >
-            <ImageUpIcon /> {artworkUrl ? "Replace" : "Upload"} artwork
-          </Button>
-          {artworkUrl ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              className={cn("text-destructive hover:text-destructive", pressable)}
-              onClick={onRemoveArtwork}
-            >
-              <Trash2Icon />
-            </Button>
-          ) : null}
         </div>
+
+        <div className="flex items-center gap-1">
+          <Button
+            size="xs"
+            variant="ghost"
+            className={pressable}
+            disabled={!history.canUndo}
+            onClick={history.undo}
+          >
+            <Undo2Icon /> Undo
+          </Button>
+          <Button
+            size="xs"
+            variant="ghost"
+            className={pressable}
+            disabled={!history.canRedo}
+            onClick={history.redo}
+          >
+            <Redo2Icon /> Redo
+          </Button>
+        </div>
+
+        <span className="text-muted-foreground ml-auto font-mono text-[11px] tabular-nums">
+          {layers.length} layer{layers.length === 1 ? "" : "s"} ·{" "}
+          {canvas.width || 0} × {canvas.height || 0}
+        </span>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <LayerCanvas
-          artworkUrl={artworkUrl}
-          canvas={canvas}
-          layers={layers}
-          scale={zoom / 100}
-          selectedId={selectedId}
-          preview={mode === "preview"}
-          tokens={tokens}
-          onSelect={setSelectedId}
-          onMove={(id, next) => patch(id, next)}
-        />
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
+        <div ref={stageRef} className="min-w-0">
+          <LayerCanvas
+            artworkUrl={artworkUrl}
+            canvas={canvas}
+            layers={layers}
+            bgColor={bgColor}
+            scale={scale}
+            selectedId={selectedId}
+            preview={mode === "preview"}
+            tokens={tokens}
+            onSelect={setSelectedId}
+            onMove={(id, next) => patch(id, next, `drag:${id}`)}
+          />
+        </div>
 
-        <div className="space-y-5">
+        <aside className="min-w-0 space-y-5">
           {mode === "preview" ? (
-            <>
-              <InlineAlert tone="info" title="Sample preview">
-                The layout is unchanged. Tokens are shown with placeholder
-                values so the result is easier to check before you save.
-              </InlineAlert>
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold tracking-[0.08em] uppercase">
-                  Preview data
-                </p>
-                {tokens.map((spec) => (
-                  <div
-                    key={spec.token}
-                    className="bg-muted/40 flex items-center justify-between gap-3 rounded-lg px-3 py-2"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-xs font-medium">
-                        {spec.label}
-                      </span>
-                      <span className="text-muted-foreground block font-mono text-[11px]">
-                        {`{{${spec.token}}}`}
-                      </span>
-                    </span>
-                    <span className="text-muted-foreground shrink-0 text-xs">
-                      {spec.sample}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
+            <InlineAlert tone="info" title="Sample preview">
+              The layout is unchanged. Tokens are shown with placeholder values,
+              and text is shrunk exactly as the renderer shrinks it, so a long
+              name looks here the way it will on the document.
+            </InlineAlert>
           ) : (
             <>
-              {!artworkUrl ? (
-                <InlineAlert tone="warning" title="No artwork yet">
-                  Layers are placed on an image. Upload your design first —
-                  without one the stage is only a blank area at the size the
-                  renderer will use.
+              {!artworkUrl && !layers.length ? (
+                <InlineAlert tone="info" title="Nothing on the canvas yet">
+                  Upload your design and place fields on it, or start from one
+                  of the layouts below.
                 </InlineAlert>
               ) : null}
 
@@ -285,40 +360,89 @@ export function LayerEditor({
                 selectedId={selectedId}
                 hasQr={hasQr}
                 onSelect={setSelectedId}
-                onAdd={(type) => {
-                  const layer = newLayer(type, canvas);
-                  onLayersChange([...layers, layer]);
-                  setSelectedId(layer.id);
-                }}
-                onDelete={(id) => {
-                  onLayersChange(layers.filter((l) => l.id !== id));
-                  if (selectedId === id) setSelectedId(null);
-                }}
+                onAdd={add}
+                onDelete={remove}
                 onPatch={patch}
                 onReorder={reorder}
                 onDuplicate={duplicate}
               />
 
-              <LayerInspector
-                layer={selected}
-                tokens={tokens}
+              {selected ? (
+                <div className="border-t pt-4">
+                  <LayerInspector
+                    layer={selected}
+                    tokens={tokens}
+                    canvas={canvas}
+                    palette={palette}
+                    onChange={(changes) => patch(selected.id, changes)}
+                    onCentre={centre}
+                  />
+                </div>
+              ) : null}
+
+              <CanvasPanel
+                kind={kind}
                 canvas={canvas}
-                onChange={(changes) => selected && patch(selected.id, changes)}
-                onCentre={centre}
+                layers={layers}
+                artworkUrl={artworkUrl}
+                bgColor={bgColor}
+                onCanvasChange={(next) =>
+                  history.commit({ layers, canvas: next, bgColor })
+                }
+                onBgColorChange={(next) =>
+                  history.commit({ layers, canvas, bgColor: next }, {
+                    coalesce: "bg",
+                  })
+                }
+                onPickArtwork={onPickArtwork}
+                onRemoveArtwork={onRemoveArtwork}
+                onApplyStarter={(next) => {
+                  setLayers(next);
+                  setSelectedId(next[0]?.id ?? null);
+                }}
               />
 
-              {selected?.type === "text" && selected.text.includes("{{") ? (
-                <p className="text-muted-foreground text-xs">
-                  Renders as:{" "}
-                  <span className="text-foreground font-medium">
-                    {withSampleValues(selected.text, tokens)}
-                  </span>
-                </p>
-              ) : null}
+              <ShortcutLegend />
             </>
           )}
-        </div>
+        </aside>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The shortcuts, written down.
+ *
+ * Every one of these is discoverable only by trying it, and a club that does
+ * not know about undo will rebuild a layer by hand instead.
+ */
+function ShortcutLegend() {
+  const rows: ReadonlyArray<[string, string]> = [
+    ["↑ ↓ ← →", "nudge 1px"],
+    ["⇧ + arrow", "nudge 10px"],
+    ["⌘Z / ⇧⌘Z", "undo / redo"],
+    ["⌘D", "duplicate"],
+    ["⌫", "delete"],
+    ["hold ⌥", "drag without snapping"],
+  ];
+  return (
+    <div className="border-t pt-4">
+      <p className="text-muted-foreground mb-2 text-[11px] tracking-[0.08em] uppercase">
+        Shortcuts
+      </p>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+        {rows.map(([keys, what]) => (
+          <React.Fragment key={keys}>
+            <dt>
+              <kbd className="bg-muted rounded border px-1.5 py-0.5 font-mono text-[10px]">
+                {keys}
+              </kbd>
+            </dt>
+            <dd className="text-muted-foreground self-center text-[11px]">{what}</dd>
+          </React.Fragment>
+        ))}
+      </dl>
     </div>
   );
 }

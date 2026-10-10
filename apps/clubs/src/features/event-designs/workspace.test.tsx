@@ -75,7 +75,7 @@ describe("the event design workspace", () => {
 
     expect(await screen.findByText(/not customised yet/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /save as this event's design/i })
+      screen.getByRole("button", { name: /save for this event/i })
     ).toBeInTheDocument();
   });
 
@@ -85,7 +85,7 @@ describe("the event design workspace", () => {
 
     await screen.findByText(/not customised yet/i);
     expect(
-      screen.queryByRole("button", { name: /club's default instead/i })
+      screen.queryByRole("button", { name: /use club default/i })
     ).not.toBeInTheDocument();
   });
 
@@ -97,7 +97,7 @@ describe("the event design workspace", () => {
       await screen.findByText("This event has its own design")
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /club's default instead/i })
+      screen.getByRole("button", { name: /use club default/i })
     ).toBeInTheDocument();
   });
 

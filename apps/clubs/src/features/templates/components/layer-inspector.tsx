@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
   Separator,
+  Textarea,
   cn,
 } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
@@ -37,6 +38,7 @@ import {
   effectiveWeight,
   layerLabel,
   layerTypeLabel,
+  withSampleValues,
   type Canvas,
   type Layer,
   type TokenSpec,
@@ -272,6 +274,55 @@ function IconToggle({
   );
 }
 
+/**
+ * A segmented control.
+ *
+ * Align and overflow were dropdowns, which hides two of three options behind
+ * a click in a panel where every other control shows its state. These are
+ * small, fixed sets -- showing them costs one row and saves the click.
+ */
+function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label className="text-[11px] tracking-wide uppercase">{label}</Label>
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className="bg-muted/60 grid gap-1 rounded-lg p-1"
+        style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      >
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={value === option.value}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "truncate rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+              value === option.value
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -399,12 +450,15 @@ export function LayerInspector({
   layer,
   tokens,
   canvas,
+  palette,
   onChange,
   onCentre,
 }: {
   layer: Layer | null;
   tokens: readonly TokenSpec[];
   canvas: Canvas;
+  /** The template's own colours, offered as one-click swatches. */
+  palette: ReadonlyArray<{ label: string; value: string }>;
   onChange: (patch: Partial<Layer>) => void;
   onCentre: (axis: "x" | "y") => void;
 }) {
@@ -501,7 +555,12 @@ export function LayerInspector({
       <Separator />
 
       {layer.type === "text" ? (
-        <TextLayerFields layer={layer} tokens={tokens} onChange={onChange} />
+        <TextLayerFields
+          layer={layer}
+          tokens={tokens}
+          palette={palette}
+          onChange={onChange}
+        />
       ) : null}
 
       {layer.type === "image" ? (
@@ -547,21 +606,37 @@ export function LayerInspector({
 function TextLayerFields({
   layer,
   tokens,
+  palette,
   onChange,
 }: {
   layer: Layer;
   tokens: readonly TokenSpec[];
+  palette: ReadonlyArray<{ label: string; value: string }>;
   onChange: (patch: Partial<Layer>) => void;
 }) {
   return (
     <>
-      <Field label="Text / token">
-        <Input
+      <Field label="Text">
+        <Textarea
+          rows={2}
           value={layer.text}
           onChange={(e) => onChange({ text: e.target.value })}
-          className="h-9 font-mono text-xs"
+          className="resize-y font-mono text-xs"
         />
       </Field>
+
+      {layer.text.includes("{{") ? (
+        <div className="bg-muted/50 flex items-baseline gap-2 rounded-lg px-3 py-2">
+          {/* The field holds a token; this is the string an attendee gets.
+              Without it a club only finds out what fits after issuing one. */}
+          <span className="text-muted-foreground shrink-0 text-[10px] tracking-[0.08em] uppercase">
+            Sample
+          </span>
+          <span className="min-w-0 flex-1 truncate text-xs font-medium">
+            {withSampleValues(layer.text, tokens) || "—"}
+          </span>
+        </div>
+      ) : null}
 
       <Field label="Insert a token">
         <Select
@@ -664,59 +739,33 @@ function TextLayerFields({
           max={20}
           onChange={(max_lines) => onChange({ max_lines: max_lines ?? 1 })}
         />
-        <Field label="Align">
-          <Select
-            value={layer.align}
-            onValueChange={(align) => onChange({ align: align as Layer["align"] })}
-          >
-            <SelectTrigger size="sm" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="left">Left</SelectItem>
-              <SelectItem value="center">Center</SelectItem>
-              <SelectItem value="right">Right</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
+        <Segmented
+          label="Align"
+          value={layer.align}
+          options={[
+            { value: "left" as const, label: "Left" },
+            { value: "center" as const, label: "Centre" },
+            { value: "right" as const, label: "Right" },
+          ]}
+          onChange={(align) => onChange({ align })}
+        />
       </div>
 
-      <Field label="When the text is too long">
-        <Select
-          value={layer.overflow}
-          onValueChange={(overflow) =>
-            onChange({ overflow: overflow as Layer["overflow"] })
-          }
-        >
-          <SelectTrigger size="sm" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="shrink">
-              <span className="flex flex-col">
-                <span>Shrink to fit</span>
-                <span className="text-muted-foreground text-[11px]">
-                  Smaller type, nothing lost
-                </span>
-              </span>
-            </SelectItem>
-            <SelectItem value="clip">
-              <span className="flex flex-col">
-                <span>Cut it off</span>
-                <span className="text-muted-foreground text-[11px]">
-                  Keeps the size you chose
-                </span>
-              </span>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        {layer.overflow === "shrink" && !layer.width ? (
-          <p className="text-muted-foreground text-[11px]">
-            {/* Shrinking needs a box to shrink into, and width is optional. */}
-            Set a width — without one there is nothing to fit the text to.
-          </p>
-        ) : null}
-      </Field>
+      <Segmented
+        label="When it does not fit"
+        value={layer.overflow}
+        options={[
+          { value: "shrink" as const, label: "Shrink to fit" },
+          { value: "clip" as const, label: "Cut it off" },
+        ]}
+        onChange={(overflow) => onChange({ overflow })}
+      />
+      {layer.overflow === "shrink" && !layer.width ? (
+        <p className="text-muted-foreground -mt-1 text-[11px]">
+          {/* Shrinking needs a box to shrink into, and width is optional. */}
+          Set a box width — without one there is nothing to fit the text to.
+        </p>
+      ) : null}
 
       <ColorField
         label="Font colour"
@@ -724,6 +773,33 @@ function TextLayerFields({
         fallback="#ffffff"
         onChange={(color) => onChange({ color })}
       />
+
+      {palette.length ? (
+        <div className="flex flex-wrap gap-1.5">
+          {/* The template's own colours, one click away. Retyping a hex to
+              match the club's accent is how a design ends up almost on
+              brand. */}
+          {palette.map((swatch) => (
+            <button
+              key={swatch.label}
+              type="button"
+              onClick={() => onChange({ color: swatch.value })}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors",
+                layer.color.toLowerCase() === swatch.value.toLowerCase()
+                  ? "border-brand/60 bg-accent"
+                  : "hover:bg-accent/60"
+              )}
+            >
+              <span
+                className="size-2.5 shrink-0 rounded-full border"
+                style={{ background: swatch.value }}
+              />
+              {swatch.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </>
   );
 }
