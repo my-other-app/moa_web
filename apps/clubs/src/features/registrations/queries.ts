@@ -8,8 +8,10 @@ import {
   fetchEventAnalytics,
   fetchRegistrations,
   markAttendance,
+  setRegistrationRole,
   type RegistrationQuery,
 } from "./api";
+import type { RegistrationRole } from "./schemas";
 
 export function useRegistrations(query: RegistrationQuery) {
   return useQuery({
@@ -24,6 +26,26 @@ export function useEventAnalytics(eventId: number) {
     queryKey: [...qk.events.detail(eventId), "analytics"],
     queryFn: () => fetchEventAnalytics(eventId),
     staleTime: 30_000,
+  });
+}
+
+export function useSetRegistrationRole(eventId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      registrationId,
+      role,
+    }: {
+      registrationId: string;
+      role: RegistrationRole;
+    }) => setRegistrationRole(eventId, registrationId, role),
+    onSuccess: async () => {
+      toast.success("Role updated");
+      // The role decides which design this person is issued, so the
+      // registrations list has to show the new one.
+      await queryClient.invalidateQueries({ queryKey: qk.events.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 }
 

@@ -73,4 +73,16 @@ export const qk = {
     ticket: ["templates", "ticket"] as const,
     certificate: ["templates", "certificate"] as const,
   },
+
+  /*
+   * An event's own designs, keyed by event, kind and audience. Separate from
+   * `templates` above because they are different rows with a different
+   * lifetime: those are a club's library, these belong to one event.
+   */
+  eventDesigns: {
+    all: ["event-designs"] as const,
+    forEvent: (eventId: number) => [...qk.eventDesigns.all, eventId] as const,
+    detail: (eventId: number, kind: string, audience: string) =>
+      [...qk.eventDesigns.all, eventId, kind, audience] as const,
+  },
 } as const;

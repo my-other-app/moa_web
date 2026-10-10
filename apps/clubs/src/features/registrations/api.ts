@@ -2,6 +2,7 @@ import { api } from "@moa/app-kit";
 import { GATEWAY_PREFIX } from "@moa/auth";
 
 import { eventAnalyticsSchema, registrationPageSchema } from "./schemas";
+import type { RegistrationRole } from "./schemas";
 
 export interface RegistrationQuery {
   eventId: number;
@@ -34,6 +35,24 @@ export async function fetchEventAnalytics(eventId: number) {
 export async function markAttendance(eventId: number, registrationId: string) {
   await api.post<void>(
     `/api/v1/events/registration/${eventId}/attendance/${registrationId}`
+  );
+}
+
+/**
+ * Mark which role someone is attending as.
+ *
+ * This is what makes an event's speaker or staff design reachable: the
+ * renderer picks a variant by this value, so a design with no way to assign
+ * it would never be issued to anyone.
+ */
+export async function setRegistrationRole(
+  eventId: number,
+  registrationId: string,
+  role: RegistrationRole
+) {
+  await api.put<unknown>(
+    `/api/v1/events/registration/${eventId}/role/${registrationId}`,
+    { role }
   );
 }
 

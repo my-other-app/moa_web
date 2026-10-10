@@ -2,9 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   CERTIFICATE_TOKENS,
+  LAYER_TYPES,
   TICKET_TOKENS,
+  centreOnCanvas,
   clampToCanvas,
+  duplicateLayer,
+  effectiveWeight,
   layerLabel,
+  layerSchema,
+  layerTypeLabel,
   newLayer,
   toArtwork,
   withSampleValues,
@@ -104,5 +110,187 @@ describe("layer labels", () => {
     expect(layerLabel({ ...base, text: "{{name}}" })).toBe("{{name}}");
     expect(layerLabel({ ...base, text: "   " })).toBe("Empty text");
     expect(layerLabel({ ...base, name: "Delegate" })).toBe("Delegate");
+  });
+});
+
+
+describe("every layer type", () => {
+  const canvas = { width: 1000, height: 600 };
+
+  it.each(LAYER_TYPES)("creates a complete %s layer", (type) => {
+    // The schema is what the API validates against, so a new layer missing a
+    // field fails on save rather than on add -- after the design is done.
+    expect(layerSchema.safeParse(newLayer(type, canvas)).success).toBe(true);
+  });
+
+  it.each(LAYER_TYPES)("names a new %s layer in the list", (type) => {
+    expect(layerLabel(newLayer(type, canvas))).not.toBe("");
+    expect(layerTypeLabel(type)).not.toBe("");
+  });
+
+  it("gives an image layer a size, since it has no text to measure", () => {
+    const layer = newLayer("image", canvas);
+
+    expect(layer.width).toBeGreaterThan(0);
+    expect(layer.height).toBeGreaterThan(0);
+  });
+
+  it("gives a shape a visible fill from the moment it is added", () => {
+    // A transparent rectangle looks like nothing happened.
+    expect(newLayer("shape", canvas).fill).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  it("starts a text layer on a token rather than empty", () => {
+    expect(newLayer("text", canvas).text).toContain("{{");
+  });
+});
+
+describe("font weight", () => {
+  const base = newLayer("text", { width: 1000, height: 600 });
+
+  it("prefers an explicit weight over bold", () => {
+    // A config may carry either; the renderer prefers weight, and the preview
+    // has to agree with it about which one wins.
+    expect(effectiveWeight({ ...base, weight: 300, bold: true })).toBe(300);
+  });
+
+  it("falls back to bold for configs saved before weights existed", () => {
+    expect(effectiveWeight({ ...base, weight: null, bold: true })).toBe(700);
+    expect(effectiveWeight({ ...base, weight: null, bold: false })).toBe(400);
+  });
+});
+
+describe("the schema's defaults", () => {
+  it("opens a layer saved before the new controls existed", () => {
+    // What is actually in the database: no opacity, no overflow, no weight.
+    const legacy = {
+      id: "a",
+      type: "text",
+      text: "{{name}}",
+      x: 10,
+      y: 20,
+      width: 400,
+      font_size: 30,
+      color: "#ffffff",
+      align: "left",
+      bold: true,
+      max_lines: 1,
+      line_spacing: 4,
+    };
+
+    const parsed = layerSchema.parse(legacy);
+
+    // Defaults have to reproduce the old rendering, not introduce a new look.
+    expect(parsed.opacity).toBe(100);
+    expect(parsed.hidden).toBe(false);
+    expect(parsed.locked).toBe(false);
+    expect(parsed.letter_spacing).toBe(0);
+    expect(parsed.radius).toBe(0);
+    expect(effectiveWeight(parsed)).toBe(700);
+  });
+
+  it("rejects an opacity the API would reject", () => {
+    const base = newLayer("text", { width: 1000, height: 600 });
+
+    expect(layerSchema.safeParse({ ...base, opacity: 140 }).success).toBe(false);
+    expect(layerSchema.safeParse({ ...base, weight: 950 }).success).toBe(false);
+    expect(layerSchema.safeParse({ ...base, radius: -1 }).success).toBe(false);
+  });
+});
+
+
+describe("duplicating a layer", () => {
+  const canvas = { width: 1000, height: 600 };
+
+  it("gives the copy its own id", () => {
+    // A shared id makes the editor edit both at once, and the renderer keep
+    // only one of them.
+    const layer = newLayer("text", canvas);
+
+    expect(duplicateLayer(layer, canvas).id).not.toBe(layer.id);
+  });
+
+  it("offsets the copy so it is visibly a second layer", () => {
+    const layer = { ...newLayer("text", canvas), x: 100, y: 100 };
+
+    const copy = duplicateLayer(layer, canvas);
+
+    expect(copy.x).toBeGreaterThan(layer.x);
+    expect(copy.y).toBeGreaterThan(layer.y);
+  });
+
+  it("keeps the copy inside the artwork", () => {
+    // Duplicating a layer at the bottom-right corner must not push it out
+    // of view, where it cannot be selected again.
+    const layer = { ...newLayer("text", canvas), x: 995, y: 595 };
+
+    const copy = duplicateLayer(layer, canvas);
+
+    expect(copy.x).toBeLessThan(canvas.width);
+    expect(copy.y).toBeLessThan(canvas.height);
+  });
+
+  it("carries the styling over", () => {
+    const layer = {
+      ...newLayer("text", canvas),
+      font_size: 44,
+      color: "#ff5a1f",
+      letter_spacing: 6,
+    };
+
+    expect(duplicateLayer(layer, canvas)).toMatchObject({
+      font_size: 44,
+      color: "#ff5a1f",
+      letter_spacing: 6,
+    });
+  });
+
+  it("does not lock the copy", () => {
+    // It was created to be moved; unlocking it first would be a dead step.
+    const layer = { ...newLayer("text", canvas), locked: true };
+
+    expect(duplicateLayer(layer, canvas).locked).toBe(false);
+  });
+
+  it("names the copy after the original", () => {
+    const layer = { ...newLayer("text", canvas), name: "Attendee name" };
+
+    expect(duplicateLayer(layer, canvas).name).toBe("Attendee name copy");
+  });
+});
+
+describe("centring on the artwork", () => {
+  const canvas = { width: 1000, height: 600 };
+
+  it("centres a layer across by its own width", () => {
+    const layer = { ...newLayer("text", canvas), width: 400 };
+
+    expect(centreOnCanvas(layer, canvas, "x")).toEqual({ x: 300 });
+  });
+
+  it("centres a layer down by its own height", () => {
+    const layer = { ...newLayer("shape", canvas), height: 100 };
+
+    expect(centreOnCanvas(layer, canvas, "y")).toEqual({ y: 250 });
+  });
+
+  it("centres a QR layer down by its size, since it is square", () => {
+    const layer = { ...newLayer("qr", canvas), width: 200, height: null };
+
+    expect(centreOnCanvas(layer, canvas, "y")).toEqual({ y: 200 });
+  });
+
+  it("declines rather than guessing a box it does not have", () => {
+    // An auto-width text layer has no measured width here, so centring it
+    // would move it somewhere the organiser did not ask for.
+    const layer = { ...newLayer("text", canvas), width: null };
+
+    expect(centreOnCanvas(layer, canvas, "x")).toBeNull();
+  });
+
+  it("declines on an unmeasured canvas", () => {
+    const layer = { ...newLayer("text", canvas), width: 400 };
+
+    expect(centreOnCanvas(layer, { width: 0, height: 0 }, "x")).toBeNull();
   });
 });

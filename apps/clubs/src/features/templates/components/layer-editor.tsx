@@ -19,7 +19,12 @@ import { pressable } from "@moa/ui/motion";
 
 import {
   CERTIFICATE_TOKENS,
+  NUDGE,
+  NUDGE_FAST,
   TICKET_TOKENS,
+  centreOnCanvas,
+  clampToCanvas,
+  duplicateLayer,
   newLayer,
   withSampleValues,
   type Canvas,
@@ -91,8 +96,81 @@ export function LayerEditor({
     onLayersChange(layers.map((l) => (l.id === id ? { ...l, ...changes } : l)));
   }
 
+  /**
+   * Move a layer one step through the paint order.
+   *
+   * Array order is paint order, so this is what "bring forward" means: the
+   * only way to put a logo over a background band rather than under it.
+   */
+  function reorder(id: string, direction: -1 | 1) {
+    const from = layers.findIndex((l) => l.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= layers.length) return;
+    const moving = layers[from];
+    const displaced = layers[to];
+    if (!moving || !displaced) return;
+    const next = [...layers];
+    next[from] = displaced;
+    next[to] = moving;
+    onLayersChange(next);
+  }
+
+  function duplicate(id: string) {
+    const index = layers.findIndex((l) => l.id === id);
+    const original = layers[index];
+    if (!original) return;
+    const copy = duplicateLayer(original, canvas);
+    // Inserted directly above the original rather than at the end, so a
+    // duplicate does not jump to the front of the paint order.
+    const next = [...layers];
+    next.splice(index + 1, 0, copy);
+    onLayersChange(next);
+    setSelectedId(copy.id);
+  }
+
+  function centre(axis: "x" | "y") {
+    if (!selected) return;
+    const change = centreOnCanvas(selected, canvas, axis);
+    // Null means there is nothing to centre against -- an auto-width text
+    // layer has no measured box, and guessing one would move it somewhere
+    // the organiser did not ask for.
+    if (change) patch(selected.id, change);
+  }
+
+  /**
+   * Arrow keys nudge the selected layer; shift makes it a bigger step.
+   *
+   * Dragging cannot place a layer to the pixel at 50% zoom, and the numeric
+   * fields mean leaving the canvas to type. This is how every design tool
+   * closes that gap.
+   */
+  function onKeyDown(event: React.KeyboardEvent) {
+    if (mode === "preview" || !selected || selected.locked) return;
+
+    const step = event.shiftKey ? NUDGE_FAST : NUDGE;
+    const moves: Record<string, { x: number; y: number }> = {
+      ArrowLeft: { x: -step, y: 0 },
+      ArrowRight: { x: step, y: 0 },
+      ArrowUp: { x: 0, y: -step },
+      ArrowDown: { x: 0, y: step },
+    };
+    const move = moves[event.key];
+    if (!move) return;
+
+    // Only once a layer is selected, so arrow keys still scroll the page
+    // the rest of the time.
+    event.preventDefault();
+    patch(
+      selected.id,
+      clampToCanvas(
+        { x: selected.x + move.x, y: selected.y + move.y },
+        canvas
+      )
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onKeyDown={onKeyDown}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs value={mode} onValueChange={(v) => setMode(v as "edit" | "preview")}>
           <TabsList>
@@ -216,12 +294,17 @@ export function LayerEditor({
                   onLayersChange(layers.filter((l) => l.id !== id));
                   if (selectedId === id) setSelectedId(null);
                 }}
+                onPatch={patch}
+                onReorder={reorder}
+                onDuplicate={duplicate}
               />
 
               <LayerInspector
                 layer={selected}
                 tokens={tokens}
+                canvas={canvas}
                 onChange={(changes) => selected && patch(selected.id, changes)}
+                onCentre={centre}
               />
 
               {selected?.type === "text" && selected.text.includes("{{") ? (
