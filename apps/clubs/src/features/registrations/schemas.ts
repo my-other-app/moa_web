@@ -1,6 +1,13 @@
 import { paginatedSchema } from "@moa/api";
 import { z } from "zod";
 
+/**
+ * What someone is attending as, which picks the ticket and certificate
+ * variant they are issued. Mirrors the backend's RegistrationRole.
+ */
+export const REGISTRATION_ROLES = ["attendee", "speaker", "staff"] as const;
+export type RegistrationRole = (typeof REGISTRATION_ROLES)[number];
+
 export const registrationSchema = z.object({
   // A UUID, not an integer — the attendance endpoint takes it as a path param.
   id: z.string(),
@@ -16,6 +23,11 @@ export const registrationSchema = z.object({
   is_paid: z.boolean().default(false),
   is_attended: z.boolean().default(false),
   is_won: z.boolean().default(false),
+  /*
+   * Defaulted rather than required: every row has one server-side, but a
+   * cached response from before the field existed must still parse.
+   */
+  role: z.enum(REGISTRATION_ROLES).default("attendee"),
   created_at: z.string().nullish(),
   user: z
     .object({

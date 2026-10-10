@@ -169,8 +169,17 @@ function DesignEditor({
   const source = design.data.source;
   const isOwn = design.data.is_own;
 
-  const set = (key: string, value: unknown) =>
+  const set = (key: string, value: unknown) => {
+    /*
+     * A change that changes nothing is ignored, so opening the page does not
+     * report unsaved work. The layer editor measures the artwork on mount and
+     * reports its size back through here, which would otherwise mark the
+     * design dirty before the organiser had touched anything.
+     */
+    const current = (draft as Record<string, unknown>)[key];
+    if (JSON.stringify(current) === JSON.stringify(value)) return;
     setEdited({ ...draft, [key]: value } as AnyConfig);
+  };
 
   const artworkUrl = draft.background_image_url ?? null;
 

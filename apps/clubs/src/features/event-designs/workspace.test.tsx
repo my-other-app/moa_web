@@ -100,4 +100,17 @@ describe("the event design workspace", () => {
       screen.getByRole("button", { name: /club's default instead/i })
     ).toBeInTheDocument();
   });
+
+  it("does not report unsaved work before anything is touched", async () => {
+    /*
+     * The layer editor measures the artwork on mount and reports its size
+     * back through the same setter the controls use, which marked the design
+     * dirty the moment the page opened.
+     */
+    current = design.own;
+    render(<EventDesignWorkspace eventId={1} />);
+
+    await screen.findByText("This event has its own design");
+    expect(screen.queryByText(/unsaved changes/i)).not.toBeInTheDocument();
+  });
 });

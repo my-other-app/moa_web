@@ -24,8 +24,13 @@ import {
 import { pressable } from "@moa/ui/motion";
 
 import { exportUrl } from "../api";
-import { useMarkAttendance, useRegistrations } from "../queries";
-import type { Registration } from "../schemas";
+import {
+  useMarkAttendance,
+  useRegistrations,
+  useSetRegistrationRole,
+} from "../queries";
+import { REGISTRATION_ROLES } from "../schemas";
+import type { Registration, RegistrationRole } from "../schemas";
 
 type Filter = "all" | "attended" | "not_attended" | "paid" | "unpaid";
 
@@ -61,6 +66,45 @@ function AttendanceButton({ eventId, row }: { eventId: number; row: Registration
       {/* The API has no un-mark endpoint, so this is one-way. */}
       <TooltipContent>Marks attendance — this cannot be undone here</TooltipContent>
     </Tooltip>
+  );
+}
+
+const ROLE_LABELS: Record<RegistrationRole, string> = {
+  attendee: "Attendee",
+  speaker: "Speaker",
+  staff: "Staff",
+};
+
+/**
+ * Which role someone is attending as.
+ *
+ * Here rather than on the design page because this is the list an organiser
+ * already works through, and the role is a fact about the person, not about
+ * the artwork. It decides which ticket and certificate variant they are
+ * issued, so an event with a speaker design needs this to reach anyone.
+ */
+function RoleSelect({ eventId, row }: { eventId: number; row: Registration }) {
+  const setRole = useSetRegistrationRole(eventId);
+
+  return (
+    <Select
+      value={row.role}
+      disabled={setRole.isPending}
+      onValueChange={(role) =>
+        setRole.mutate({ registrationId: row.id, role: role as RegistrationRole })
+      }
+    >
+      <SelectTrigger size="sm" aria-label={`Role for ${row.full_name ?? "this person"}`} className="w-[7.5rem]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {REGISTRATION_ROLES.map((role) => (
+          <SelectItem key={role} value={role}>
+            {ROLE_LABELS[role]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -106,6 +150,13 @@ export function RegistrationsTable({ eventId }: { eventId: number }) {
       cell: (row) => (
         <code className="bg-muted rounded px-1.5 py-0.5 text-xs">{row.ticket_id || "--"}</code>
       ),
+    },
+    {
+      key: "role",
+      header: "Role",
+      className: "hidden md:table-cell",
+      headerClassName: "hidden md:table-cell",
+      cell: (row) => <RoleSelect eventId={eventId} row={row} />,
     },
     {
       key: "payment",
