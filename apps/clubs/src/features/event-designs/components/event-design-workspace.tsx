@@ -55,13 +55,7 @@ import { AUDIENCES, describeSource, type Audience, type DesignKind } from "../sc
  * event with one design has one design, and the other tabs fall back to it
  * until someone deliberately saves a variant.
  */
-export function EventDesignWorkspace({
-  eventId,
-  eventName,
-}: {
-  eventId: number;
-  eventName?: string;
-}) {
+export function EventDesignWorkspace({ eventId }: { eventId: number }) {
   const [kind, setKind] = React.useState<DesignKind>("ticket");
   const [audience, setAudience] = React.useState<Audience>("event_default");
 
@@ -94,7 +88,6 @@ export function EventDesignWorkspace({
       <DesignEditor
         key={`${kind}-${audience}`}
         eventId={eventId}
-        eventName={eventName}
         kind={kind}
         audience={audience}
       />
@@ -104,12 +97,10 @@ export function EventDesignWorkspace({
 
 function DesignEditor({
   eventId,
-  eventName,
   kind,
   audience,
 }: {
   eventId: number;
-  eventName?: string;
   kind: DesignKind;
   audience: Audience;
 }) {
@@ -265,10 +256,9 @@ function DesignEditor({
             <Button
               type="button"
               onClick={async () => {
-                await save.mutateAsync({
-                  config: draft,
-                  name: eventName ? `${eventName} ${kind}` : undefined,
-                });
+                // No name: the API names a new design after the event it
+                // belongs to, which is better than anything guessable here.
+                await save.mutateAsync({ config: draft });
                 setEdited(null);
               }}
               disabled={save.isPending}
