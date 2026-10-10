@@ -1,9 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Redo2Icon, Undo2Icon } from "lucide-react";
+import { ImageIcon, Loader2Icon, Redo2Icon, Undo2Icon } from "lucide-react";
+import QRCode from "qrcode";
 import {
   Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   InlineAlert,
   Select,
   SelectContent,
@@ -29,6 +35,7 @@ import {
   type Canvas,
   type Layer,
 } from "../layers";
+import { presetsFor } from "../design-presets";
 import { useHistory } from "../use-history";
 import { CanvasPanel } from "./canvas-panel";
 import { LayerCanvas } from "./layer-canvas";
@@ -67,6 +74,10 @@ export function LayerEditor({
   onBgColorChange,
   onPickArtwork,
   onRemoveArtwork,
+  builtIn,
+  sample,
+  samplePicker,
+  onRenderPreview,
 }: {
   kind: "ticket" | "certificate";
   artworkUrl: string | null;
@@ -79,6 +90,18 @@ export function LayerEditor({
   onBgColorChange: (color: string) => void;
   onPickArtwork: (file: File) => void;
   onRemoveArtwork: () => void;
+  /** The built-in layout, shown in place of the stage while there are no layers. */
+  builtIn?: React.ReactNode;
+  /**
+   * A real attendee's values and QR, when the host can supply one. Without
+   * it the preview uses placeholders -- which is what the club library has
+   * to do, since it belongs to no event.
+   */
+  sample?: { values: Record<string, string>; qrDataUrl: string; label: string } | null;
+  /** The control that chooses who to preview as; shown in preview mode. */
+  samplePicker?: React.ReactNode;
+  /** Renders the exact document server-side; resolves to a PNG. */
+  onRenderPreview?: () => Promise<Blob>;
 }) {
   const tokens = kind === "ticket" ? TICKET_TOKENS : CERTIFICATE_TOKENS;
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -87,6 +110,46 @@ export function LayerEditor({
 
   const selected = layers.find((l) => l.id === selectedId) ?? null;
   const hasQr = layers.some((l) => l.type === "qr");
+
+  /*
+   * The QR layer draws a real code. With a chosen attendee it is theirs,
+   * from the server; otherwise one is generated here for the sample code,
+   * so the footprint and density on the canvas are those of an actual QR
+   * rather than a grey box labelled "QR".
+   */
+  const [localQr, setLocalQr] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    QRCode.toDataURL("MOA-SAMPLE-0041", { margin: 1, width: 320 })
+      .then((url) => {
+        if (!cancelled) setLocalQr(url);
+      })
+      .catch(() => {
+        if (!cancelled) setLocalQr(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const qrDataUrl = sample?.qrDataUrl ?? localQr;
+
+  // The exact preview, rendered by the server when asked for.
+  const [exact, setExact] = React.useState<{ url: string } | null>(null);
+  const [rendering, setRendering] = React.useState(false);
+  async function renderExact() {
+    if (!onRenderPreview) return;
+    setRendering(true);
+    try {
+      const blob = await onRenderPreview();
+      setExact({ url: URL.createObjectURL(blob) });
+    } finally {
+      setRendering(false);
+    }
+  }
+  function closeExact() {
+    if (exact) URL.revokeObjectURL(exact.url);
+    setExact(null);
+  }
 
   /*
    * Undo spans layers, canvas size and background together, because they are
@@ -197,8 +260,21 @@ export function LayerEditor({
   }
 
   function add(type: Layer["type"]) {
-    const layer = newLayer(type, canvas);
-    setLayers([...layers, layer]);
+    /*
+     * A design with layers must have a size: the renderer prints the stage
+     * at canvas.width, and a 0x0 canvas fell back to one default here and a
+     * different one there. The first layer therefore brings a size with
+     * it -- the kind's first preset -- in the same undo step.
+     */
+    const seeded =
+      canvas.width && canvas.height
+        ? canvas
+        : (() => {
+            const preset = presetsFor(kind)[0];
+            return preset ? { width: preset.width, height: preset.height } : canvas;
+          })();
+    const layer = newLayer(type, seeded);
+    history.commit({ layers: [...layers, layer], canvas: seeded, bgColor });
     setSelectedId(layer.id);
   }
 
@@ -317,11 +393,52 @@ export function LayerEditor({
           </Button>
         </div>
 
+        {mode === "preview" && samplePicker ? (
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground text-[11px] tracking-[0.08em] uppercase">
+              Preview as
+            </span>
+            {samplePicker}
+          </div>
+        ) : null}
+
+        {mode === "preview" && onRenderPreview ? (
+          <Button
+            size="xs"
+            variant="outline"
+            className={pressable}
+            disabled={rendering}
+            onClick={renderExact}
+          >
+            {rendering ? <Loader2Icon className="animate-spin" /> : <ImageIcon />}
+            Render exact preview
+          </Button>
+        ) : null}
+
         <span className="text-muted-foreground ml-auto font-mono text-[11px] tabular-nums">
           {layers.length} layer{layers.length === 1 ? "" : "s"} ·{" "}
           {canvas.width || 0} × {canvas.height || 0}
         </span>
       </div>
+
+      <Dialog open={exact !== null} onOpenChange={(open) => !open && closeExact()}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Exactly as it will print</DialogTitle>
+            <DialogDescription>
+              {/* The canvas is a browser's approximation. This is the
+                  renderer's own output, with the values on screen. */}
+              Rendered by the same engine that produces the PDF
+              {sample ? `, as ${sample.label}` : ", with sample values"}.
+            </DialogDescription>
+          </DialogHeader>
+          {exact ? (
+            /* eslint-disable-next-line @next/next/no-img-element -- an object
+               URL for a PNG the server just rendered. */
+            <img src={exact.url} alt="Rendered preview" className="w-full rounded-lg border" />
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
         <div ref={stageRef} className="min-w-0">
@@ -334,6 +451,9 @@ export function LayerEditor({
             selectedId={selectedId}
             preview={mode === "preview"}
             tokens={tokens}
+            sampleValues={sample?.values ?? null}
+            qrDataUrl={qrDataUrl}
+            builtIn={builtIn}
             onSelect={setSelectedId}
             onMove={(id, next) => patch(id, next, `drag:${id}`)}
           />
@@ -342,9 +462,9 @@ export function LayerEditor({
         <aside className="min-w-0 space-y-5">
           {mode === "preview" ? (
             <InlineAlert tone="info" title="Sample preview">
-              The layout is unchanged. Tokens are shown with placeholder values,
-              and text is shrunk exactly as the renderer shrinks it, so a long
-              name looks here the way it will on the document.
+              {sample
+                ? `Showing ${sample.label}'s actual details. Text is shrunk exactly as the renderer shrinks it, so a long name looks here the way it will on their document.`
+                : "Tokens are shown with placeholder values, and text is shrunk exactly as the renderer shrinks it, so a long name looks here the way it will on the document."}
             </InlineAlert>
           ) : (
             <>

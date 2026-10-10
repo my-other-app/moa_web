@@ -14,6 +14,13 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
   const record = (method: string) => async (path: string, body?: unknown) => {
     calls.push({ method, path, body });
+    if (path.includes("/sample")) {
+      return {
+        values: { name: "Aisha Rahman", venue: "Hall" },
+        qr_data_url: "data:image/png;base64,AAAA",
+        registration: null,
+      };
+    }
     return {
       config: {},
       audience: "event_default",
@@ -33,7 +40,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
   };
 });
 
-const { fetchDesign, resetDesign, saveArtwork, saveDesign } = await import("./api");
+const { fetchDesign, fetchDesignSample, resetDesign, saveArtwork, saveDesign } =
+  await import("./api");
 
 beforeEach(() => {
   calls.length = 0;
@@ -104,5 +112,25 @@ describe("artwork uploads", () => {
 
     const body = calls[0]?.body as FormData;
     expect(body.get("remove_background_image")).toBe("true");
+  });
+});
+
+
+describe("previewing as an attendee", () => {
+  it("asks for the sample attendee when no ticket is chosen", async () => {
+    const sample = await fetchDesignSample(42, "ticket", null);
+
+    expect(calls[0]?.path).toBe("/api/v1/events/42/designs/ticket/sample");
+    expect(sample.values.name).toBe("Aisha Rahman");
+    expect(sample.registration).toBeNull();
+  });
+
+  it("names the registration whose values it wants", async () => {
+    await fetchDesignSample(42, "certificate", "MOA-7 7");
+
+    // Encoded, because a ticket code is user-visible text, not a URL part.
+    expect(calls[0]?.path).toBe(
+      "/api/v1/events/42/designs/certificate/sample?ticket_id=MOA-7%207"
+    );
   });
 });

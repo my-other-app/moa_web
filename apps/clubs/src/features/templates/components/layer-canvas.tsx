@@ -39,6 +39,9 @@ export function LayerCanvas({
   selectedId,
   preview,
   tokens,
+  sampleValues,
+  qrDataUrl,
+  builtIn,
   onSelect,
   onMove,
 }: {
@@ -52,6 +55,16 @@ export function LayerCanvas({
   /** Preview swaps tokens for sample values and disables dragging. */
   preview: boolean;
   tokens: readonly TokenSpec[];
+  /** Real values to fill tokens with in preview; the placeholders otherwise. */
+  sampleValues?: Record<string, string> | null;
+  /** A real QR for the QR layer. Null draws the stand-in. */
+  qrDataUrl?: string | null;
+  /**
+   * What the renderer produces when there are no layers. Shown in place of
+   * the stage, because an empty stage is not what the attendee gets -- the
+   * built-in layout is, and the two looked nothing alike.
+   */
+  builtIn?: React.ReactNode;
   onSelect: (id: string | null) => void;
   onMove: (id: string, next: { x: number; y: number }) => void;
 }) {
@@ -135,6 +148,18 @@ export function LayerCanvas({
       tabIndex={preview ? -1 : 0}
       aria-label="Artwork canvas. Select a layer, then use the arrow keys to move it."
     >
+      {layers.length === 0 && builtIn ? (
+        <div className="w-full max-w-[640px] space-y-3">
+          {builtIn}
+          <p className="text-muted-foreground text-center text-xs">
+            {/* The honest state: this is what the renderer prints until a
+                layer exists. The stage only means something once one does. */}
+            This is the built-in layout the document uses until you place a
+            layer. Add a layer, or start from a layout, to design on your own
+            artwork.
+          </p>
+        </div>
+      ) : (
       <div
         className="origin-top-left"
         style={{ width: width * scale, height: height * scale }}
@@ -193,19 +218,21 @@ export function LayerCanvas({
                   {...common}
                   style={{ ...common.style, width: size, height: size }}
                 >
-                  {/* A real QR is only generated at render time; the editor
-                      shows a stand-in so the footprint is accurate. */}
-                  <div
-                    className="grid size-full place-items-center rounded-sm bg-white text-[10px] font-semibold text-neutral-700"
-                    style={{
-                      backgroundImage: preview
-                        ? "repeating-conic-gradient(#111 0% 25%, #fff 0% 50%)"
-                        : undefined,
-                      backgroundSize: preview ? `${size / 8}px ${size / 8}px` : undefined,
-                    }}
-                  >
-                    {preview ? "" : "QR"}
-                  </div>
+                  {qrDataUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element --
+                       a data URL, generated for this attendee or for the
+                       sample code; there is nothing to optimise. */
+                    <img
+                      src={qrDataUrl}
+                      alt="QR code"
+                      className="size-full rounded-sm bg-white"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="grid size-full place-items-center rounded-sm bg-white text-[10px] font-semibold text-neutral-700">
+                      QR
+                    </div>
+                  )}
                 </div>
               );
             }
@@ -257,7 +284,9 @@ export function LayerCanvas({
             // Text. Tokens become sample values in preview, and the size is
             // fitted the same way the renderer fits it -- otherwise the
             // preview shows a size the attendee never receives.
-            const shown = preview ? withSampleValues(layer.text, tokens) : layer.text;
+            const shown = preview
+              ? withSampleValues(layer.text, tokens, sampleValues)
+              : layer.text;
             const fontSize =
               layer.overflow === "shrink"
                 ? fitFontSize(shown, {
@@ -319,6 +348,7 @@ export function LayerCanvas({
           ))}
         </div>
       </div>
+      )}
 
       {/* Live coordinates while dragging, as in the reference. Without it a
           club cannot tell what it is about to save. */}

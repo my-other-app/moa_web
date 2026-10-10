@@ -4,7 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
-import { fetchDesign, resetDesign, saveArtwork, saveDesign } from "./api";
+import {
+  fetchDesign,
+  fetchDesignSample,
+  resetDesign,
+  saveArtwork,
+  saveDesign,
+} from "./api";
 import type { Audience, DesignKind } from "./schemas";
 
 export function useEventDesign(
@@ -95,5 +101,19 @@ export function useResetEventDesign(
       });
     },
     onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+
+export function useDesignSample(
+  eventId: number,
+  kind: DesignKind,
+  ticketId: string | null
+) {
+  return useQuery({
+    queryKey: [...qk.eventDesigns.forEvent(eventId), "sample", kind, ticketId],
+    queryFn: () => fetchDesignSample(eventId, kind, ticketId),
+    // An attendee's details do not change while a design is being made.
+    staleTime: 5 * 60 * 1000,
   });
 }

@@ -6,6 +6,11 @@ import { ArrowLeftIcon, Loader2Icon, RotateCcwIcon, SaveIcon } from "lucide-reac
 import {
   Button,
   InlineAlert,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Skeleton,
   Tabs,
   TabsList,
@@ -15,10 +20,12 @@ import {
 import { pressable } from "@moa/ui/motion";
 
 import {
+  CertificatePreview,
   ColourTab,
   ContentTab,
   LayerEditor,
   LayoutTab,
+  TicketPreview,
   certificateConfigSchema,
   defaultCertificateConfig,
   defaultTicketConfig,
@@ -26,7 +33,11 @@ import {
   type AnyConfig,
 } from "@/features/templates";
 
+import { useRegistrations } from "@/features/registrations";
+
+import { renderDesignPreview } from "../api";
 import {
+  useDesignSample,
   useEventDesign,
   useResetEventDesign,
   useSaveEventArtwork,
@@ -120,6 +131,15 @@ function DesignEditor({
    * server state into local state, and so no window where the two disagree.
    */
   const [edited, setEdited] = React.useState<AnyConfig | null>(null);
+
+  /*
+   * Who the preview is of. Null is the sample attendee; otherwise a real
+   * registration on this event, whose actual name, code and QR fill the
+   * design -- the only way to know a long real name fits before issuing.
+   */
+  const [previewTicket, setPreviewTicket] = React.useState<string | null>(null);
+  const registrations = useRegistrations({ eventId, offset: 0, limit: 100 });
+  const sample = useDesignSample(eventId, kind, previewTicket);
 
   const parse = React.useCallback(
     (raw: Record<string, unknown>): AnyConfig => {
@@ -246,6 +266,59 @@ function DesignEditor({
         onLayersChange={(layers) => set("layers", layers)}
         onCanvasChange={(canvas) => set("canvas", canvas)}
         onBgColorChange={(color) => set("bg_color", color)}
+        builtIn={
+          kind === "ticket" ? (
+            <TicketPreview
+              config={draft}
+              logoUrl={draft.logo_url ?? null}
+              backgroundUrl={draft.background_image_url ?? null}
+            />
+          ) : (
+            <CertificatePreview
+              config={draft}
+              logoUrl={draft.logo_url ?? null}
+              secondaryLogoUrl={draft.secondary_logo_url ?? null}
+              backgroundUrl={draft.background_image_url ?? null}
+              signature1Url={draft.signature_1_url ?? null}
+              signature2Url={draft.signature_2_url ?? null}
+            />
+          )
+        }
+        sample={
+          sample.data
+            ? {
+                values: sample.data.values,
+                qrDataUrl: sample.data.qr_data_url,
+                label: sample.data.registration?.full_name || "the sample attendee",
+              }
+            : null
+        }
+        samplePicker={
+          <Select
+            value={previewTicket ?? "__sample__"}
+            onValueChange={(v) => setPreviewTicket(v === "__sample__" ? null : v)}
+          >
+            <SelectTrigger size="sm" aria-label="Preview as" className="w-[16rem]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__sample__">Sample attendee</SelectItem>
+              {(registrations.data?.items ?? []).map((r) => (
+                <SelectItem key={r.id} value={r.ticket_id ?? r.id}>
+                  <span className="flex flex-col">
+                    <span>{r.full_name || r.name || r.email || r.id}</span>
+                    <span className="text-muted-foreground font-mono text-[11px]">
+                      {r.ticket_id ?? "no ticket"}
+                    </span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+        onRenderPreview={() =>
+          renderDesignPreview(eventId, kind, audience, draft, previewTicket)
+        }
         onPickArtwork={(file) =>
           saveArtwork.mutate(
             { files: { background_image: file } },

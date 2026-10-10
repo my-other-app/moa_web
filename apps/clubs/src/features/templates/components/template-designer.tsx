@@ -240,6 +240,24 @@ export function TemplateDesigner({
                   onLayersChange={(layers) => set("layers", layers)}
                   onCanvasChange={(canvas) => set("canvas", canvas)}
                   onBgColorChange={(color) => set("bg_color", color)}
+                  builtIn={
+                    kind === "ticket" ? (
+                      <TicketPreview
+                        config={c}
+                        logoUrl={logoPreview}
+                        backgroundUrl={backgroundPreview}
+                      />
+                    ) : (
+                      <CertificatePreview
+                        config={c}
+                        logoUrl={logoPreview}
+                        secondaryLogoUrl={secondaryPreview}
+                        backgroundUrl={backgroundPreview}
+                        signature1Url={sig1Preview}
+                        signature2Url={sig2Preview}
+                      />
+                    )
+                  }
                   onPickArtwork={(file) =>
                     setFiles((f) => ({ ...f, backgroundFile: file }))
                   }
