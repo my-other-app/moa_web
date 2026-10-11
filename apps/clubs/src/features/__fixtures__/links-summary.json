@@ -1,0 +1,20 @@
+{
+  "scope": "event",
+  "period_days": 30,
+  "conversion_noun": "registration",
+  "second_noun": "checked in",
+  "links": [
+    { "id": "aaaaaaaa-0000-0000-0000-000000000001", "name": "Freshers fair QR", "code": "x7k2m9pq", "url": "https://api.myotherapp.in/l/x7k2m9pq", "destination": "https://events.myotherapp.in/37?utm_source=poster_qr&utm_medium=print&utm_campaign=event-37&ref=x7k2m9pq", "utm_source": "poster_qr", "utm_medium": "print", "utm_campaign": "event-37", "utm_content": null, "clicks": 960, "uniques": 900, "conversions": 241, "rate": 25.1, "second": 97, "created_at": "2099-05-20T08:00:00+00:00" },
+    { "id": "aaaaaaaa-0000-0000-0000-000000000002", "name": "Instagram bio", "code": "b3nq8r2t", "url": "https://api.myotherapp.in/l/b3nq8r2t", "destination": "https://events.myotherapp.in/37?utm_source=instagram&utm_medium=social&utm_campaign=event-37&ref=b3nq8r2t", "utm_source": "instagram", "utm_medium": "social", "utm_campaign": "event-37", "utm_content": null, "clicks": 2140, "uniques": 1900, "conversions": 188, "rate": 8.8, "second": 61, "created_at": "2099-05-18T08:00:00+00:00" },
+    { "id": "aaaaaaaa-0000-0000-0000-000000000003", "name": "WhatsApp community", "code": "w9pd4ks3", "url": "https://api.myotherapp.in/l/w9pd4ks3", "destination": "https://events.myotherapp.in/37?utm_source=whatsapp&utm_medium=messaging&utm_campaign=event-37&utm_content=pinned&ref=w9pd4ks3", "utm_source": "whatsapp", "utm_medium": "messaging", "utm_campaign": "event-37", "utm_content": "pinned", "clicks": 1320, "uniques": 1200, "conversions": 132, "rate": 10.0, "second": 40, "created_at": "2099-05-15T08:00:00+00:00" }
+  ],
+  "by_source": [
+    { "source": "poster_qr", "clicks": 960, "conversions": 241, "rate": 25.1 },
+    { "source": "instagram", "clicks": 2140, "conversions": 188, "rate": 8.8 },
+    { "source": "whatsapp", "clicks": 1320, "conversions": 132, "rate": 10.0 }
+  ],
+  "totals": { "clicks": 4420, "conversions": 561, "rate": 12.7, "share_of_all": 48.0, "best_source": "poster_qr", "best_conversions": 241 },
+  "deltas": { "clicks": 11.0, "conversions": 16.0, "rate_pts": -4.0 },
+  "untracked": { "conversions": 608, "total": 1169 },
+  "generated_at": "2099-06-09T09:05:00+00:00"
+}
