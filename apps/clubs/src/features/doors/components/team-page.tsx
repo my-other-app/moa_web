@@ -30,6 +30,7 @@ import {
 import { pressable } from "@moa/ui/motion";
 
 import { useEventDetail } from "@/features/events";
+import { KiosksPanel } from "@/features/kiosk";
 import { VolunteersPanel } from "@/features/volunteers";
 
 import { useCreateDoor, useDeleteDoor, useIssueGateLink, useRevokeGateLink, useTeam, useUpdateDoor, useUpdateGateSettings, useUpdateTeamVolunteer } from "../queries";
@@ -376,6 +377,7 @@ export function TeamPage({ eventId }: { eventId: number }) {
           <SettingsPanel eventId={eventId} settings={team.data.settings} />
           <DoorsPanel eventId={eventId} doors={team.data.doors} />
           <DutiesPanel eventId={eventId} team={team.data} />
+          <KiosksPanel eventId={eventId} doors={team.data.doors} />
         </>
       )}
       <VolunteersPanel eventId={eventId} />
