@@ -15,6 +15,7 @@ export const attendeeSummarySchema = z.object({
   is_paid: z.boolean().default(true),
   checked_in_at: z.string().nullish(),
   badge_printed_at: z.string().nullish(),
+  admission_no: z.string().nullish(),
 });
 export type AttendeeSummary = z.infer<typeof attendeeSummarySchema>;
 

@@ -53,6 +53,7 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[14px] font-medium">{r.name}</div>
                 <div className="truncate font-mono text-[10.5px] text-muted-foreground">
+                  {r.admission_no ? `${r.admission_no} · ` : ""}
                   {r.ticket_id} · {ROLE_LABEL[r.role] ?? r.role}
                   {r.email ? ` · ${r.email}` : ""}
                 </div>
