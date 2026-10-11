@@ -7,7 +7,7 @@ import {
   Card,
   DataTable,
   EmptyState,
-  Pagination,
+  Pager,
   SearchInput,
   Skeleton,
   type DataTableColumn,
@@ -176,14 +176,8 @@ export function ResourceList<T>({
         </Card>
       )}
 
-      {!isPending && !isEmpty && pages > 1 ? (
-        <Pagination
-          page={params.page}
-          pageCount={pages}
-          onPageChange={params.setPage}
-          pageSize={params.pageSize}
-          onPageSizeChange={params.setPageSize}
-        />
+      {!isPending && !isEmpty && total !== null ? (
+        <Pager page={params.page} pageCount={pages} total={total} pageSize={params.pageSize} onPage={params.setPage} onPageSize={params.setPageSize} />
       ) : null}
     </div>
   );

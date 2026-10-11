@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
-  Pagination,
+  Pager,
   Select,
   SelectContent,
   SelectItem,
@@ -327,8 +327,8 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
         </div>
       )}
 
-      {!isPending && rows.length > 0 && pages > 1 ? (
-        <Pagination page={params.page} pageCount={pages} onPageChange={params.setPage} pageSize={params.pageSize} onPageSizeChange={params.setPageSize} />
+      {!isPending && rows.length > 0 ? (
+        <Pager page={params.page} pageCount={pages} total={data?.total ?? rows.length} pageSize={params.pageSize} noun={["guest", "guests"]} onPage={params.setPage} onPageSize={params.setPageSize} />
       ) : null}
 
       <AttendeeFormDialog

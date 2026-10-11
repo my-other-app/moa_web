@@ -11,7 +11,7 @@ export default async function EventDesignPage({ params }: { params: Promise<{ ev
 
   return (
     <Suspense fallback={<Skeleton className="h-[32rem] w-full" />}>
-      <DesignerPage eventId={Number(eventId)} />
+      <DesignerPage scope={{ kind: "event", eventId: Number(eventId) }} />
     </Suspense>
   );
 }

@@ -12,3 +12,6 @@ coverage/
 .DS_Store
 .vercel
 .env*
+
+# Backend test runs write SQL logs relative to the shell's cwd.
+logs/

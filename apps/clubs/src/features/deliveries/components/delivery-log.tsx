@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { DownloadIcon, Loader2Icon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
-import { Button, EmptyState, Pagination, Skeleton, StatusBadge, cn } from "@moa/ui";
+import { Button, EmptyState, Pager, Skeleton, StatusBadge, cn } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
 import { useEventDetail } from "@/features/events";
@@ -206,8 +206,8 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
         </div>
       )}
 
-      {!log.isPending && pages > 1 ? (
-        <Pagination page={page} pageCount={pages} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={(n) => (setPageSize(n), setPage(1))} />
+      {!log.isPending && total > 0 ? (
+        <Pager page={page} pageCount={pages} total={total} pageSize={pageSize} noun={["send", "sends"]} busy={log.isFetching} onPage={setPage} onPageSize={(n) => (setPageSize(n), setPage(1))} />
       ) : null}
     </div>
   );

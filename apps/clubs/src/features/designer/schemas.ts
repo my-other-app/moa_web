@@ -19,6 +19,12 @@ export type Audience = (typeof AUDIENCES)[number]["value"];
 export const DESIGN_KINDS = ["ticket", "badge", "certificate", "agenda"] as const;
 export type DesignKind = (typeof DESIGN_KINDS)[number];
 
+/**
+ * Whose design the editor is on: one event's own, or the club's default
+ * that every event starts from. The routes differ; the editor does not.
+ */
+export type DesignScope = { kind: "event"; eventId: number } | { kind: "club" };
+
 export const starterSchema = z.object({
   canvas: TicketCanvas,
   layers: z.array(TicketLayer),
