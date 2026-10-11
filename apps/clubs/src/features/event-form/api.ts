@@ -158,3 +158,19 @@ const interestListSchema = z
 export async function fetchInterests() {
   return interestListSchema.parse(await api.get<unknown>("/api/v1/interests/list"));
 }
+
+const duplicatedSchema = z.object({ id: z.number(), slug: z.string(), name: z.string(), copied: z.record(z.number()) });
+export type Duplicated = z.infer<typeof duplicatedSchema>;
+export interface DuplicateInput {
+  name: string;
+  event_datetime: string;
+  duration?: number | null;
+  copy_doors: boolean;
+  copy_team: boolean;
+  copy_agenda: boolean;
+  copy_merch: boolean;
+}
+/** A new event from this one's setup; the venue, the guest list and every record of the day stay behind. */
+export async function duplicateEvent(eventId: number, body: DuplicateInput) {
+  return duplicatedSchema.parse(await api.post<unknown>(`/api/v1/events/${eventId}/duplicate`, body));
+}

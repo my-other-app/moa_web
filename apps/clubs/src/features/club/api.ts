@@ -60,6 +60,8 @@ export async function updateMyClub(input: ClubProfileForm): Promise<void> {
     youtube: input.youtube ?? "",
     linkedin: input.linkedin ?? "",
     website: input.website ?? "",
+    brand_primary: input.brand_primary ?? "",
+    brand_secondary: input.brand_secondary ?? "",
   };
   for (const [key, value] of Object.entries(text)) form.append(key, value);
 

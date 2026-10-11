@@ -6,6 +6,7 @@ export {
   useCreateEvent,
   useUpdateEvent,
   useDeleteEvent,
+  useDuplicateEvent,
 } from "./queries";
 export {
   eventFormSchema,

@@ -71,6 +71,9 @@ export const clubSelfSchema = z.object({
   followers_count: z.number().nullish(),
   contact_phone: z.string().nullish(),
   contact_email: z.string().nullish(),
+  /** Brand colours designs and emails fall back to when a template sets none. */
+  brand_primary: z.string().nullish(),
+  brand_secondary: z.string().nullish(),
   socials: clubSocialsSchema,
   interests: z.array(clubInterestSchema).catch([]).default([]),
   org: clubOrgSchema,
@@ -111,6 +114,8 @@ export const clubProfileFormSchema = z.object({
     .regex(/^[0-9+\-\s]{6,20}$/, "Enter a valid phone number")
     .or(z.literal(""))
     .optional(),
+  brand_primary: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a 6-digit hex colour, like #1db9a0").or(z.literal("")).optional(),
+  brand_secondary: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a 6-digit hex colour, like #aaaaaa").or(z.literal("")).optional(),
   instagram: optionalUrl.optional(),
   youtube: optionalUrl.optional(),
   linkedin: optionalUrl.optional(),

@@ -103,6 +103,8 @@ export function ClubProfileForm() {
           location_link: club.location_link ?? "",
           contact_email: club.contact_email ?? "",
           contact_phone: club.contact_phone ?? "",
+          brand_primary: club.brand_primary ?? "",
+          brand_secondary: club.brand_secondary ?? "",
           instagram: club.socials?.instagram ?? "",
           youtube: club.socials?.youtube ?? "",
           linkedin: club.socials?.linkedin ?? "",
@@ -248,6 +250,22 @@ export function ClubProfileForm() {
                   aria-invalid={errors.contact_phone ? true : undefined}
                   {...form.register("contact_phone")}
                 />
+              </Field>
+
+              {/* Brand colours: what a ticket, card, certificate, programme or email
+                  takes when its own design names none. Hex, like a design tool. */}
+              <Field id="club-brand-primary" label="Brand colour" error={errors.brand_primary?.message}>
+                <div className="flex items-center gap-2">
+                  <input type="color" aria-label="Pick the brand colour" value={/^#[0-9a-fA-F]{6}$/.test(form.watch("brand_primary") ?? "") ? form.watch("brand_primary") : "#1db9a0"} onChange={(e) => form.setValue("brand_primary", e.target.value, { shouldDirty: true })} disabled={isSaving} className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5" />
+                  <Input id="club-brand-primary" variant="design" placeholder="#1db9a0" disabled={isSaving} aria-invalid={errors.brand_primary ? true : undefined} {...form.register("brand_primary")} />
+                </div>
+              </Field>
+
+              <Field id="club-brand-secondary" label="Second colour" error={errors.brand_secondary?.message}>
+                <div className="flex items-center gap-2">
+                  <input type="color" aria-label="Pick the second colour" value={/^#[0-9a-fA-F]{6}$/.test(form.watch("brand_secondary") ?? "") ? form.watch("brand_secondary") : "#aaaaaa"} onChange={(e) => form.setValue("brand_secondary", e.target.value, { shouldDirty: true })} disabled={isSaving} className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5" />
+                  <Input id="club-brand-secondary" variant="design" placeholder="#aaaaaa" disabled={isSaving} aria-invalid={errors.brand_secondary ? true : undefined} {...form.register("brand_secondary")} />
+                </div>
               </Field>
             </div>
 
