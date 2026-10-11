@@ -202,7 +202,11 @@ export function SendingPanel({
       </div>
       <div className="space-y-2 border-t pt-3">
         <p className={ui.heading}>Timing</p>
-        <TriggerFields trigger={fields.trigger} onChange={(trigger) => patch({ trigger })} stage={stage} />
+        {stage === "INVITE" ? (
+          <p className={ui.note}>The invite is the ticket email. It goes out with every ticket: when a guest registers, when a payment lands, and from Send tickets on the attendees page.</p>
+        ) : (
+          <TriggerFields trigger={fields.trigger} onChange={(trigger) => patch({ trigger })} stage={stage} />
+        )}
       </div>
       <div className="border-t pt-3">
         <Toggle

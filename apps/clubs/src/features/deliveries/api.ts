@@ -64,7 +64,7 @@ export async function fetchDeliverySummary(eventId: number, kind: DocumentKind =
 
 export interface DeliveryLogQuery {
   eventId: number;
-  kind?: "ticket" | "certificate";
+  kind?: "ticket" | "certificate" | "message" | undefined;
   problem?: boolean;
   search?: string;
   page: number;

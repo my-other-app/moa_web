@@ -81,7 +81,7 @@ function StageCard({
       </div>
       <p className={ui.note}>{meta.note}</p>
       <p className="text-[12px]">
-        <span className="text-muted-foreground">Goes out:</span> {triggerSummary(t.trigger)}
+        <span className="text-muted-foreground">Goes out:</span> {t.stage === "INVITE" ? "With every ticket — at registration, after payment, and from Send tickets" : triggerSummary(t.trigger)}
         {stage.dueAt ? <span className="text-muted-foreground"> · due {formatDateTime(stage.dueAt)}</span> : null}
       </p>
       <p className="text-[12px]">
@@ -96,9 +96,17 @@ function StageCard({
             <PencilIcon /> Edit
           </Link>
         </Button>
-        <Button variant="outline" size="sm" onClick={() => onSend(t)} className={pressable}>
-          <SendIcon /> Send now
-        </Button>
+        {t.stage === "INVITE" ? (
+          <Button variant="outline" size="sm" asChild className={pressable}>
+            <Link href={`/events/${eventId}`}>
+              <SendIcon /> Send tickets
+            </Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => onSend(t)} className={pressable}>
+            <SendIcon /> Send now
+          </Button>
+        )}
       </div>
     </div>
   );

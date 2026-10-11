@@ -247,9 +247,15 @@ function Editor({ scope, template, context }: { scope: EmailScope; template: Ema
           <DropdownMenuContent align="end">
             {eventId !== undefined ? (
               <>
-                <DropdownMenuItem disabled={dirty} onSelect={() => setSendOpen(true)}>
-                  Send to the audience now…
-                </DropdownMenuItem>
+                {template.stage === "INVITE" ? (
+                  <DropdownMenuItem onSelect={() => router.push(`/events/${scope.kind === "event" ? scope.eventId : ""}`)}>
+                    Send tickets (attendees page)
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem disabled={dirty} onSelect={() => setSendOpen(true)}>
+                    Send to the audience now…
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem disabled={dirty || toLibrary.isPending} onSelect={() => toLibrary.mutate(template.id)}>
                   Make this the club&apos;s default
                 </DropdownMenuItem>
