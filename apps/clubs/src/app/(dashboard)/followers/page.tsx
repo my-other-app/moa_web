@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { PageHeader } from "@moa/app-kit";
 import { ClubFollowers } from "@/features/followers";
 
 export const metadata: Metadata = { title: "Followers" };
@@ -8,13 +7,11 @@ export const metadata: Metadata = { title: "Followers" };
 export default function FollowersPage() {
   return (
     <>
-      <PageHeader
-        title="Followers"
-        description="People who are notified when you publish an event."
-      />
-      <div className="max-w-3xl">
-        <ClubFollowers />
-      </div>
+      <header className="mb-5">
+        <h1 className="page-title">Followers</h1>
+        <p className="text-ink-2 mt-1 max-w-[62ch] text-[13.5px]">The people who are told when you publish an event, and when they arrived.</p>
+      </header>
+      <ClubFollowers />
     </>
   );
 }

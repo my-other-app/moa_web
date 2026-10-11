@@ -1,21 +1,18 @@
 "use client";
 
-import { useMyClub } from "@/features/club";
 import { Skeleton } from "@moa/ui";
 
+import { useMyClub } from "@/features/club";
 import { FollowersPanel } from "./followers-panel";
 
 /**
- * Resolves the club before asking for its followers.
- *
- * The followers endpoint is addressed by club id and the club login only
- * knows its own id via /clubs/info, so the page would otherwise have to
- * either fetch it twice or request /clubs/followers/undefined.
+ * Resolves the club before asking for its followers: the followers endpoint
+ * is addressed by club id, which the club login only knows via /clubs/info.
+ * The club's own follower count rides along, since the list endpoint does
+ * not always carry a total.
  */
 export function ClubFollowers() {
   const { data: club, isPending } = useMyClub();
-
-  if (isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
-
-  return <FollowersPanel clubId={club?.id} />;
+  if (isPending) return <Skeleton className="h-96 w-full rounded-2xl" />;
+  return <FollowersPanel clubId={club?.id} total={club?.followers_count ?? null} />;
 }

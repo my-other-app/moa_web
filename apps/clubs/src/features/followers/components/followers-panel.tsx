@@ -2,216 +2,130 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { UsersIcon } from "lucide-react";
-import { formatDate, formatNumber, initials, pickImage } from "@moa/app-kit";
-import {
-  Avatar,
-  AvatarFallback,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  EmptyState,
-  Input,
-  Pagination,
-  Skeleton,
-  cn,
-} from "@moa/ui";
-import { hoverLift, stagger } from "@moa/ui/motion";
+import { SearchIcon, UsersIcon } from "lucide-react";
+import { formatDate, formatNumber, pickImage, relativeTime } from "@moa/app-kit";
+import { CardLabel, EmptyState, FigurePanel, InitialsAvatar, Pagination, Skeleton, StatTile } from "@moa/ui";
 
 import { useClubFollowers } from "../queries";
 import { followersPerDay, type Follower } from "../schemas";
 
 /**
- * Who follows the club.
+ * Who follows the club, and when they came.
  *
- * The count was on the overview from the start and the list behind it was
- * never reachable, so "342 followers" was a number with nothing underneath --
- * no way to see who they are or when they arrived.
+ * Three figures first — how many, how many this month, the newest — then
+ * the joins over the page in hand as bars, then the people. The list is
+ * narrowed on the page you are looking at: the endpoint takes no search, so
+ * pretending to search everyone would be a lie.
  */
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 24;
 
 function name(follower: Follower): string {
-  return (
-    follower.user.profile?.full_name ||
-    follower.user.full_name ||
-    follower.user.username ||
-    "Someone"
-  );
+  return follower.user.profile?.full_name || follower.user.full_name || follower.user.username || "Someone";
 }
 
-export function FollowersPanel({ clubId }: { clubId: number | null | undefined }) {
+function inDays(iso: string | null | undefined, days: number, now: number): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return !Number.isNaN(t) && now - t <= days * 86_400_000;
+}
+
+export function FollowersPanel({ clubId, total }: { clubId: number | null | undefined; total?: number | null }) {
   const [page, setPage] = React.useState(0);
   const [search, setSearch] = React.useState("");
-
-  const { data, isPending, isError } = useClubFollowers(clubId, {
-    offset: page * PAGE_SIZE,
-    limit: PAGE_SIZE,
-  });
-
+  const { data, isPending, isError } = useClubFollowers(clubId, { offset: page * PAGE_SIZE, limit: PAGE_SIZE });
   const followers = data?.items ?? [];
-
-  /*
-   * Joins per day, over the page in hand.
-   *
-   * Every follower row carries created_at and nothing had ever read it, so a
-   * club could see 342 and not whether that was rising. It is scoped to the
-   * loaded page and labelled that way rather than implying a full history --
-   * the endpoint pages, so a trend drawn from one page describes the page.
-   */
+  const count = data?.total ?? total ?? null;
+  // Read once on mount: a clock read during render would be a different value on every pass.
+  const [now] = React.useState(() => Date.now());
+  const thisMonth = followers.filter((f) => inDays(f.created_at, 30, now)).length;
+  const newest = followers[0];
   const trend = followersPerDay(followers);
-  const busiestDay = Math.max(1, ...trend.map((point) => point.count));
-  // Filtered on the page in hand: the endpoint takes no search parameter, so
-  // this narrows what is shown rather than pretending to search everyone.
+  const busiest = Math.max(1, ...trend.map((p) => p.count));
   const term = search.trim().toLowerCase();
-  const shown = term
-    ? followers.filter((f) => name(f).toLowerCase().includes(term))
-    : followers;
+  const shown = term ? followers.filter((f) => name(f).toLowerCase().includes(term)) : followers;
+
+  if (isPending) {
+    return (
+      <div className="flex flex-col gap-3.5">
+        <div className="grid gap-3.5 sm:grid-cols-3">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="h-[126px] rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-[320px] rounded-2xl" />
+      </div>
+    );
+  }
+  if (isError) {
+    return <EmptyState tone="muted" title="Could not load followers" description="Try reloading the page." />;
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-base">Followers</CardTitle>
-            <CardDescription>
-              {data?.total != null
-                ? `${formatNumber(data.total)} people follow this club.`
-                : "People who follow this club see your events."}
-            </CardDescription>
-          </div>
-          {/* A plain input, not SearchInput: that one debounces for a server
-              query, and this filters rows already on screen. */}
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter this page…"
-            aria-label="Filter followers on this page"
-            className="w-full sm:w-56"
-          />
-        </div>
-      </CardHeader>
+    <div className="flex flex-col gap-3.5">
+      <div className="grid gap-3.5 sm:grid-cols-3">
+        <StatTile label="Followers" value={count === null ? formatNumber(followers.length) : formatNumber(count)} note="are told when you publish an event" />
+        <StatTile label="New this month" value={formatNumber(thisMonth)} note={page === 0 ? "in the last 30 days" : "on this page, in the last 30 days"} trend={thisMonth > 0 ? "up" : "none"} />
+        <StatTile label="Newest" value={newest ? name(newest).split(" ")[0]! : "—"} note={newest?.created_at ? `joined ${relativeTime(newest.created_at)}` : "nobody yet"} />
+      </div>
 
-      <CardContent className="space-y-4">
-        {!isPending && !isError && trend.length > 1 ? (
-          <div className="bg-muted/40 space-y-2.5 rounded-xl p-4">
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="text-xs font-medium">Joins over this page</p>
-              <p className="text-muted-foreground text-xs">
-                {formatNumber(followers.length)} followers across{" "}
-                {formatNumber(trend.length)} days
-              </p>
-            </div>
-            <div className="flex h-20 items-end gap-1">
-              {trend.map((point) => (
-                <div
-                  key={point.date}
-                  className="group flex min-w-0 flex-1 flex-col items-center gap-1"
-                  title={`${point.date}: ${point.count}`}
-                >
-                  <span
-                    className="bg-brand/80 group-hover:bg-brand w-full rounded-t-sm transition-colors"
-                    style={{
-                      // A floor of 4px so a day with one follower is still a
-                      // visible mark rather than an invisible sliver.
-                      height: `${Math.max(4, (point.count / busiestDay) * 64)}px`,
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="text-muted-foreground flex justify-between text-[11px]">
-              <span>{trend[0]?.date}</span>
-              <span>{trend[trend.length - 1]?.date}</span>
-            </div>
-          </div>
-        ) : null}
-
-        {isPending ? (
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+      {trend.length > 1 ? (
+        <FigurePanel>
+          <CardLabel className="mb-3" right={<span className="text-ink-3 text-[11px]">{formatNumber(followers.length)} on this page across {formatNumber(trend.length)} days</span>}>
+            Joins over this page
+          </CardLabel>
+          <div className="flex h-16 items-end gap-[3px]" aria-label="Followers joined per day">
+            {trend.map((point) => (
+              <span key={point.date} title={`${point.date}: ${point.count}`} className="bg-brand/75 hover:bg-brand flex-1 rounded-t-[2px] transition-colors" style={{ height: `${Math.max(6, (point.count / busiest) * 100)}%` }} />
             ))}
           </div>
-        ) : isError ? (
-          <EmptyState
-            tone="muted"
-            title="Could not load followers"
-            description="Try reloading the page."
-          />
-        ) : followers.length === 0 ? (
-          <EmptyState
-            tone="muted"
-            icon={<UsersIcon />}
-            title="No followers yet"
-            description="People who follow your club are notified when you publish an event."
-          />
+          <div className="text-ink-3 mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.04em] uppercase">
+            <span>{formatDate(trend[0]!.date)}</span>
+            <span>{formatDate(trend[trend.length - 1]!.date)}</span>
+          </div>
+        </FigurePanel>
+      ) : null}
+
+      <FigurePanel className="p-0">
+        <div className="border-line-soft flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+          <CardLabel>People</CardLabel>
+          <label className="bg-sunken text-ink-2 flex h-8 w-full items-center gap-2 rounded-full px-3 sm:w-64">
+            <SearchIcon className="size-3.5 shrink-0" aria-hidden="true" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filter this page"
+              aria-label="Filter followers on this page"
+              className="text-ink placeholder:text-ink-3 w-full bg-transparent text-[12.5px] outline-none"
+            />
+          </label>
+        </div>
+        {followers.length === 0 ? (
+          <EmptyState tone="default" icon={<UsersIcon />} title="No followers yet" description="People who follow your club are told when you publish an event." />
         ) : shown.length === 0 ? (
-          <EmptyState
-            tone="muted"
-            title="Nobody on this page matches"
-            description="The filter applies to the page you are looking at."
-          />
+          <EmptyState tone="default" title="Nobody on this page matches" description="The filter applies to the page you are looking at." />
         ) : (
-          <div className="space-y-2">
-            {shown.map((follower, i) => {
-              const avatar = pickImage(follower.user.profile?.avatar, [
-                "thumbnail",
-                "medium",
-              ]);
+          <ul className="grid gap-x-4 sm:grid-cols-2">
+            {shown.map((follower) => {
+              const avatar = pickImage(follower.user.profile?.avatar, ["thumbnail", "medium"]);
               return (
-                <div
-                  key={follower.user.id}
-                  style={stagger(i)}
-                  className={cn(
-                    "animate-in fade-in-0 slide-in-from-bottom-1 flex items-center gap-3 rounded-lg border p-3 duration-300 motion-reduce:animate-none",
-                    hoverLift
-                  )}
-                >
-                  {avatar ? (
-                    <Image
-                      src={avatar}
-                      alt=""
-                      width={36}
-                      height={36}
-                      className="size-9 shrink-0 rounded-full object-cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <Avatar className="size-9 shrink-0">
-                      <AvatarFallback className="text-[11px]">
-                        {initials(name(follower))}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{name(follower)}</p>
-                    {follower.user.username ? (
-                      <p className="text-muted-foreground truncate text-xs">
-                        @{follower.user.username}
-                      </p>
-                    ) : null}
-                  </div>
-                  {follower.created_at ? (
-                    <span className="text-muted-foreground shrink-0 text-xs">
-                      since {formatDate(follower.created_at)}
-                    </span>
-                  ) : null}
-                </div>
+                <li key={follower.user.id} className="border-line-soft flex items-center gap-3 border-t px-4 py-2.5 sm:[&:nth-child(-n+2)]:border-t-0">
+                  {avatar ? <Image src={avatar} alt="" width={32} height={32} className="size-8 shrink-0 rounded-full object-cover" unoptimized /> : <InitialsAvatar name={name(follower)} size={32} />}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium">{name(follower)}</span>
+                    {follower.user.username ? <span className="text-ink-3 block truncate font-mono text-[11px]">@{follower.user.username}</span> : null}
+                  </span>
+                  {follower.created_at ? <span className="text-ink-3 shrink-0 font-mono text-[11px]">{formatDate(follower.created_at)}</span> : null}
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
-
-        {data?.total != null && data.total > PAGE_SIZE ? (
-          <Pagination
-            page={page}
-            pageCount={Math.ceil(data.total / PAGE_SIZE)}
-            onPageChange={setPage}
-          />
+        {count !== null && count > PAGE_SIZE ? (
+          <div className="border-line-soft border-t px-4 py-3">
+            <Pagination page={page} pageCount={Math.ceil(count / PAGE_SIZE)} onPageChange={setPage} />
+          </div>
         ) : null}
-      </CardContent>
-    </Card>
+      </FigurePanel>
+    </div>
   );
 }

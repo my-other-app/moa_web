@@ -15,7 +15,7 @@ const columns: DataTableColumn<Announcement>[] = [
       <div className="min-w-0">
         <p className="truncate font-medium">{row.title || "Untitled"}</p>
         <p className="text-muted-foreground line-clamp-1 text-xs">
-          {row.body || row.message || ""}
+          {row.description || row.body || row.message || ""}
         </p>
       </div>
     ),
@@ -35,7 +35,10 @@ const columns: DataTableColumn<Announcement>[] = [
     className: "text-right",
     headerClassName: "text-right",
     cell: (row) => (
-      <span className="tabular-nums">{formatNumber(row.sent_count ?? 0)}</span>
+      <span className="tabular-nums">
+        {formatNumber(row.sent_count ?? 0)}
+        {row.read_count != null && (row.sent_count ?? 0) > 0 ? <span className="text-muted-foreground"> · {formatNumber(row.read_count)} read</span> : null}
+      </span>
     ),
   },
   {
