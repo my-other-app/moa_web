@@ -1,7 +1,8 @@
 import { api } from "@moa/app-kit";
+import { z } from "zod";
 import { GATEWAY_PREFIX } from "@moa/auth";
 
-import { eventAnalyticsSchema, registrationPageSchema } from "./schemas";
+import { eventAnalyticsSchema, importLogSchema, registrationDetailSchema, registrationPageSchema } from "./schemas";
 import type { RegistrationRole } from "./schemas";
 
 export interface RegistrationQuery {
@@ -9,6 +10,9 @@ export interface RegistrationQuery {
   search?: string | undefined;
   isAttended?: boolean | undefined;
   isPaid?: boolean | undefined;
+  role?: RegistrationRole | undefined;
+  /** Only guests not reached on any channel. */
+  delivery?: "not_delivered" | undefined;
   offset: number;
   limit: number;
 }
@@ -19,11 +23,65 @@ export async function fetchRegistrations(q: RegistrationQuery) {
       search: q.search,
       is_attended: q.isAttended,
       is_paid: q.isPaid,
+      role: q.role,
+      delivery: q.delivery,
       offset: q.offset,
       limit: q.limit,
     },
   });
   return registrationPageSchema.parse(raw);
+}
+
+export async function fetchRegistration(eventId: number, registrationId: string) {
+  const raw = await api.get<unknown>(`/api/v1/events/registration/${eventId}/info/${registrationId}`);
+  return registrationDetailSchema.parse(raw);
+}
+
+export interface RegistrationPatch {
+  full_name?: string;
+  email?: string;
+  phone?: string | null;
+  role?: RegistrationRole;
+  additional_details?: Record<string, unknown>;
+}
+
+/** A correction: the registration's own name, contact, role and answers. */
+export async function updateRegistration(eventId: number, registrationId: string, patch: RegistrationPatch) {
+  const raw = await api.patch<unknown>(`/api/v1/events/registration/${eventId}/info/${registrationId}`, patch);
+  return registrationDetailSchema.parse(raw);
+}
+
+/** Takes them off the list. The event's slug is typed to confirm. */
+export async function removeRegistration(eventId: number, registrationId: string, confirmSlug: string) {
+  await api.del<unknown>(`/api/v1/events/registration/${eventId}/info/${registrationId}`, undefined, {
+    query: { confirm_slug: confirmSlug },
+  });
+}
+
+export interface NewAttendee {
+  full_name: string;
+  email: string;
+  phone?: string | null;
+  role: RegistrationRole;
+  additional_details?: Record<string, unknown>;
+}
+
+/** Added by hand. Nothing is emailed; Send tickets delivers theirs. */
+export async function addAttendee(eventId: number, body: NewAttendee) {
+  const raw = await api.post<unknown>(`/api/v1/events/registration/${eventId}/attendees`, body);
+  return registrationDetailSchema.parse(raw);
+}
+
+export async function importRegistrations(eventId: number, file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const raw = await api.post<unknown>(`/api/v1/events/registration/${eventId}/import`, fd);
+  return importLogSchema.parse(raw);
+}
+
+export async function fetchImports(eventId: number) {
+  const raw = await api.get<unknown>(`/api/v1/events/registration/${eventId}/imports`);
+  return z.array(importLogSchema).parse(raw);
 }
 
 export async function fetchEventAnalytics(eventId: number) {

@@ -3,6 +3,7 @@ import {
   BuildingIcon,
   CalendarDaysIcon,
   LayoutDashboardIcon,
+  MailIcon,
   PaletteIcon,
   UsersIcon,
   type LucideIcon,
@@ -33,6 +34,7 @@ export const navItems: NavItem[] = [
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/followers", label: "Followers", icon: UsersIcon },
   { href: "/announcements", label: "Announcements", icon: BellIcon },
+  { href: "/emails", label: "Emails", icon: MailIcon },
   { href: "/templates", label: "Templates", icon: PaletteIcon },
   { href: "/profile", label: "Club profile", icon: BuildingIcon },
 ];
