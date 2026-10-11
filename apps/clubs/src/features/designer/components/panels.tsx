@@ -35,6 +35,7 @@ export const LayersPanel = ({
   onDuplicate,
   onRemove,
   onAdd,
+  agendaAllowed = false,
   problems,
   disabled,
   qrRequired,
@@ -47,6 +48,8 @@ export const LayersPanel = ({
   onDuplicate: (id: string) => void;
   onRemove: (id: string) => void;
   onAdd: (kind: TicketLayer["kind"]) => void;
+  /** The run of show may be placed on this kind of design. */
+  agendaAllowed?: boolean;
   problems: Map<string, string[]>;
   disabled: boolean;
   /** The QR cannot be hidden or deleted -- it is what the gate scans. */
@@ -54,6 +57,7 @@ export const LayersPanel = ({
 }) => {
   const [renaming, setRenaming] = React.useState<string | null>(null);
   const hasQr = layers.some((l) => l.kind === "qr");
+  const hasAgenda = layers.some((l) => l.kind === "agenda");
   // Front first, as in every design tool.
   const ordered = [...layers].reverse();
   return (
@@ -79,6 +83,17 @@ export const LayersPanel = ({
           <Button size="sm" variant="outline" disabled={disabled} onClick={() => onAdd("shape")}>
             + Shape
           </Button>
+          {agendaAllowed ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={disabled || hasAgenda}
+              title={hasAgenda ? "A design lists the run of show once" : undefined}
+              onClick={() => onAdd("agenda")}
+            >
+              + Agenda
+            </Button>
+          ) : null}
         </div>
       </div>
       <ul className="max-h-[360px] overflow-y-auto p-1.5">
@@ -504,6 +519,74 @@ export const Inspector = ({
                 ]}
               />
             ) : null}
+          </>
+        ) : null}
+
+        {layer.kind === "agenda" ? (
+          <>
+            <p className={ui.note}>
+              The event&apos;s sessions, laid into this box: time, title, then speaker and room. What does not fit shrinks, then drops with a count.
+            </p>
+            <div className="grid grid-cols-2 gap-2.5">
+              <NumberField id={id("w")} label="Width" value={layer.width} onChange={p("width")} min={40} suffix="px" disabled={d} />
+              <NumberField id={id("h")} label="Height" value={layer.height} onChange={p("height")} min={20} suffix="px" disabled={d} />
+              <NumberField id={id("size")} label="Title size" value={layer.size} onChange={p("size")} min={6} max={400} suffix="px" disabled={d} />
+              <NumberField id={id("rowGap")} label="Between sessions" value={layer.rowGap} onChange={p("rowGap")} min={0} max={1000} suffix="px" disabled={d} />
+              <NumberField
+                id={id("columns")}
+                label="Columns"
+                value={layer.columns}
+                onChange={(v) => onPatch({ columns: Math.min(3, Math.max(1, Math.round(v))) } as Partial<TicketLayer>, `${layer.id}-columns`)}
+                min={1}
+                max={3}
+                disabled={d}
+              />
+              <NumberField
+                id={id("opacity")}
+                label="Opacity"
+                value={Math.round(layer.opacity * 100)}
+                onChange={(v) => onPatch({ opacity: v / 100 } as Partial<TicketLayer>, `${layer.id}-opacity`)}
+                min={0}
+                max={100}
+                suffix="%"
+                disabled={d}
+              />
+            </div>
+            <SelectField
+              id={id("font")}
+              label="Font"
+              value={layer.font}
+              disabled={d}
+              options={(Object.keys(TICKET_FONTS) as TicketFont[]).map((f) => ({ value: f, label: TICKET_FONTS[f].label }))}
+              onChange={(font) => onPatch({ font } as Partial<TicketLayer>)}
+            />
+            <Segmented
+              label="Align"
+              value={layer.align}
+              onChange={(align) => onPatch({ align } as Partial<TicketLayer>)}
+              options={[
+                { value: "left", label: "Left" },
+                { value: "center", label: "Centre" },
+                { value: "right", label: "Right" },
+              ]}
+            />
+            <ColorRefField id={id("color")} label="Titles" value={layer.color} onChange={(v) => onPatch({ color: v ?? "#141614" } as Partial<TicketLayer>, `${layer.id}-color`)} resolve={ctx.resolve} />
+            <ColorRefField id={id("accent")} label="Times and day headings" value={layer.accent} onChange={(v) => onPatch({ accent: v ?? "brand.primary" } as Partial<TicketLayer>, `${layer.id}-accent`)} resolve={ctx.resolve} />
+            <ColorRefField id={id("muted")} label="Speaker and room" value={layer.muted} onChange={(v) => onPatch({ muted: v ?? "#5A5F5B" } as Partial<TicketLayer>, `${layer.id}-muted`)} resolve={ctx.resolve} />
+            <div className="grid gap-1.5">
+              {(
+                [
+                  ["showSpeaker", "Show the speaker"],
+                  ["showLocation", "Show the room"],
+                  ["showDayHeadings", "Head each day, when there is more than one"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2 text-[12.5px]">
+                  <input type="checkbox" checked={layer[key]} disabled={d} onChange={(e) => onPatch({ [key]: e.target.checked } as Partial<TicketLayer>)} className="size-4 accent-primary" />
+                  {label}
+                </label>
+              ))}
+            </div>
           </>
         ) : null}
 

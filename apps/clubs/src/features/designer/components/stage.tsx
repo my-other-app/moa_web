@@ -1,8 +1,11 @@
 "use client";
 
 import {
+  type AgendaEntry,
+  agendaWeights,
   areaIsWholeCanvas,
   cssFontFamily,
+  type LaidOutAgenda,
   type LaidOutText,
   lineX,
   renderTicketTemplate,
@@ -14,7 +17,7 @@ import {
 } from "@moa/layout";
 import * as React from "react";
 
-import { boxOf, type Layout, layoutLayer, textStyle, useQrPath } from "./kit";
+import { boxOf, type Layout, layoutAgendaLayer, layoutLayer, textStyle, useQrPath } from "./kit";
 
 export interface StageColors {
   primary: string;
@@ -37,6 +40,9 @@ interface StageProps {
   imageUrl: (l: Extract<TicketLayer, { kind: "image" }>) => string | null;
   fontsReady: boolean;
   problemIds: Set<string>;
+  /** The run of show an agenda layer draws, and the zone its times read in. */
+  agenda?: AgendaEntry[];
+  timezone?: string;
 }
 
 type Drag = {
@@ -95,6 +101,8 @@ export const TicketStage = ({
   imageUrl,
   fontsReady,
   problemIds,
+  agenda,
+  timezone,
 }: StageProps) => {
   const { canvas, layers } = layout;
   const area = ticketArea(canvas);
@@ -119,6 +127,13 @@ export const TicketStage = ({
     }
     return out;
   }, [layers, edit, values, fontsReady]);
+
+  const agendas = React.useMemo(() => {
+    const out = new Map<string, LaidOutAgenda>();
+    if (!fontsReady) return out;
+    for (const l of layers) if (l.kind === "agenda") out.set(l.id, layoutAgendaLayer(l, agenda ?? [], timezone ?? "UTC"));
+    return out;
+  }, [layers, agenda, timezone, fontsReady]);
 
   const box = (l: TicketLayer) => boxOf(l, texts.get(l.id)?.laid.height);
   const color = (ref: Parameters<typeof resolveColor>[0]) => resolveColor(ref, colors);
@@ -214,7 +229,7 @@ export const TicketStage = ({
           if (l.id !== s.id) return l;
           if (s.kind === "text") return { ...l, width: Math.max(10, Math.round(s.width + dx)) } as TicketLayer;
           if (s.kind === "qr") return { ...l, size: Math.max(20, Math.round(s.size + Math.max(dx, dy))) } as TicketLayer;
-          if (s.kind === "image" || s.kind === "shape") {
+          if (s.kind === "image" || s.kind === "shape" || s.kind === "agenda") {
             const w = Math.max(1, Math.round(s.width + dx));
             let h = drag.mode === "e" ? s.height : Math.max(1, Math.round(s.height + dy));
             // Shift keeps the proportions, as in every design tool.
@@ -326,6 +341,40 @@ export const TicketStage = ({
                   opacity={l.opacity}
                 />
               );
+            case "agenda": {
+              const laid = agendas.get(l.id);
+              const w = agendaWeights(l.font);
+              const mono = (role: string) => role === "time" || role === "day";
+              const fill = (role: string) => (mono(role) ? color(l.accent) : role === "title" ? color(l.color) : color(l.muted));
+              return (
+                <g key={l.id} {...common} opacity={l.opacity}>
+                  <rect
+                    x={l.x}
+                    y={l.y}
+                    width={l.width}
+                    height={l.height}
+                    fill="transparent"
+                    stroke={edit ? (problemIds.has(l.id) ? "#D2462F" : "rgba(140,145,140,0.55)") : "none"}
+                    strokeDasharray={`${4 * px} ${3 * px}`}
+                    strokeWidth={px}
+                  />
+                  {laid?.pieces.map((piece, i) => (
+                    <text
+                      key={i}
+                      x={l.x + piece.x}
+                      y={l.y + piece.y}
+                      fontFamily={cssFontFamily(mono(piece.role) ? "mono" : l.font)}
+                      fontWeight={mono(piece.role) ? 700 : piece.role === "title" ? w.title : w.detail}
+                      fontSize={piece.size}
+                      fill={fill(piece.role)}
+                      style={textStyle}
+                    >
+                      {piece.text}
+                    </text>
+                  ))}
+                </g>
+              );
+            }
             case "image": {
               const href = imageUrl(l);
               const rx = Math.min(l.radius, l.width / 2, l.height / 2);

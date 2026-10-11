@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { layoutProblems, layoutText, lineX } from "./engine";
-import { BADGE_STARTERS, badgeStarter, badgeStarterPage, CERTIFICATE_STARTERS, certificateStarter, TICKET_STARTERS, ticketStarter } from "./starters";
-import { minQrSize, PAGE_PRESETS, TicketLayoutFields } from "./ticket-layout";
+import { type AgendaEntry, type AgendaPiece, layoutAgenda, layoutProblems, layoutText, lineX, sampleAgenda } from "./engine";
+import { AGENDA_STARTERS, agendaStarter, BADGE_STARTERS, badgeStarter, badgeStarterPage, CERTIFICATE_STARTERS, certificateStarter, TICKET_STARTERS, ticketStarter } from "./starters";
+import { AgendaLayer, minQrSize, PAGE_PRESETS, TicketLayoutFields } from "./ticket-layout";
 import { canonicalToken, carriesPerGuestToken, fieldToken, parseTicketTemplate, renderTicketTemplate } from "./ticket-tokens";
 
 /**
@@ -143,5 +143,79 @@ describe("the badge starters", () => {
     expect(badgeStarterPage("insert", PAGE_PRESETS.ticket.page)).toEqual(PAGE_PRESETS.badge_87x130.page);
     expect(badgeStarterPage("label_brother", PAGE_PRESETS.label_29x90.page)).toEqual(PAGE_PRESETS.label_29x90.page);
     expect(badgeStarterPage("label_4x6")).toEqual(PAGE_PRESETS.lanyard_4x6.page);
+  });
+});
+
+describe("the agenda layer", () => {
+  const measure = (s: string, size: number) => [...s].length * size * 0.5;
+  const M = { title: measure, detail: measure, time: measure };
+  const TZ = "Asia/Kolkata";
+  const at = (h: number, m = 0, day = 20) => new Date(Date.UTC(2026, 10, day, h, m));
+  const layer = (more: Partial<AgendaLayer> = {}): AgendaLayer => AgendaLayer.parse({ id: "agenda", name: "Run of show", kind: "agenda", x: 0, y: 0, width: 600, height: 400, size: 20, rowGap: 10, ...more });
+  const entries: AgendaEntry[] = [
+    { startsAt: at(3, 30), endsAt: at(4, 0), title: "Registration", speaker: null, location: "Foyer" },
+    { startsAt: at(4, 0), endsAt: at(5, 0), title: "Opening keynote", speaker: "Ananya Iyer", location: "Main hall" },
+    { startsAt: at(5, 0), endsAt: null, title: "Group photo", speaker: null, location: null },
+  ];
+
+  it("puts the time in its own column and the detail under the title", () => {
+    const r = layoutAgenda(layer(), entries, TZ, M);
+    expect(r.dropped).toBe(0);
+    expect(r.size).toBe(20);
+    expect(r.pieces.map((p) => p.role)).toEqual(["time", "title", "detail", "time", "title", "detail", "time", "title"]);
+    const [time, title, detail] = r.pieces as [AgendaPiece, AgendaPiece, AgendaPiece];
+    expect(time.text).toBe("09:00 – 09:30");
+    expect(time.x).toBe(0);
+    expect(title.x).toBeGreaterThan(time.width);
+    expect(detail.x).toBe(title.x);
+    expect(detail.y).toBeGreaterThan(title.y);
+    expect(time.y).toBe(title.y);
+    expect(r.pieces.at(-2)!.text).toBe("10:30");
+  });
+
+  it("centres stack the time above the title; right mirrors the column", () => {
+    const c = layoutAgenda(layer({ align: "center" }), entries.slice(0, 1), TZ, M);
+    const [time, title, detail] = c.pieces as [AgendaPiece, AgendaPiece, AgendaPiece];
+    expect(time.y).toBeLessThan(title.y);
+    expect(title.y).toBeLessThan(detail.y);
+    expect(time.x + time.width / 2).toBeCloseTo(300, 6);
+    const r = layoutAgenda(layer({ align: "right" }), entries.slice(0, 1), TZ, M);
+    expect(r.pieces[0]!.x + r.pieces[0]!.width).toBeCloseTo(600, 6);
+  });
+
+  it("shrinks before it drops, and says how many did not fit", () => {
+    const many: AgendaEntry[] = Array.from({ length: 30 }, (_, i) => ({ startsAt: at(3, i), endsAt: null, title: `Session ${i}`, speaker: "Someone", location: "Room" }));
+    const r = layoutAgenda(layer({ height: 300 }), many, TZ, M);
+    expect(r.size).toBe(10);
+    expect(r.dropped).toBeGreaterThan(0);
+    expect(r.pieces.at(-1)).toMatchObject({ role: "more", text: `+ ${r.dropped} more sessions` });
+    expect(r.pieces.every((p) => p.y <= 300.5)).toBe(true);
+  });
+
+  it("balances two columns and heads each day", () => {
+    const eight: AgendaEntry[] = Array.from({ length: 8 }, (_, i) => ({ startsAt: at(3, i), endsAt: null, title: `Session ${i}`, speaker: null, location: null }));
+    const r = layoutAgenda(layer({ width: 800, columns: 2, height: 400 }), eight, TZ, M);
+    expect(r.dropped).toBe(0);
+    expect(r.pieces.filter((p) => p.role === "title" && p.x < 400)).toHaveLength(4);
+    const days = layoutAgenda(layer(), [{ startsAt: at(4), endsAt: null, title: "One", speaker: null, location: null }, { startsAt: at(4, 0, 21), endsAt: null, title: "Two", speaker: null, location: null }], TZ, M);
+    expect(days.pieces.filter((p) => p.role === "day").map((p) => p.text)).toEqual(["FRIDAY 20 NOVEMBER", "SATURDAY 21 NOVEMBER"]);
+  });
+
+  it("reads a twelve-hour clock, and the sample day falls in the event's zone", () => {
+    expect(layoutAgenda(layer(), entries.slice(0, 1), TZ, M, true).pieces[0]!.text).toBe("9:00 AM – 9:30 AM");
+    const sample = sampleAgenda("2026-11-20T03:30:00Z", TZ);
+    expect(sample).toHaveLength(6);
+    expect(new Date(sample[0]!.startsAt).toISOString()).toBe("2026-11-20T03:30:00.000Z");
+  });
+
+  it("lists the run of show once per design, and every starter is valid", () => {
+    for (const kind of Object.keys(AGENDA_STARTERS) as (keyof typeof AGENDA_STARTERS)[]) {
+      const s = agendaStarter(kind);
+      expect(layoutProblems(s.canvas, s.layers, s.page, { qrRequired: false })).toEqual([]);
+      expect(s.layers.filter((l) => l.kind === "agenda")).toHaveLength(1);
+    }
+    const s = agendaStarter("programme");
+    const twice = [...s.layers, { ...s.layers.find((l) => l.kind === "agenda")!, id: "agenda2" }];
+    expect(layoutProblems(s.canvas, twice, s.page, { qrRequired: false }).map((p) => p.message)).toContain("A design lists the run of show once.");
   });
 });

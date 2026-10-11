@@ -1,10 +1,14 @@
 "use client";
 
 import {
+  type AgendaEntry,
+  agendaWeights,
   CSS_FONT_FEATURES,
   cssFontFamily,
   fontFileOf,
+  type LaidOutAgenda,
   type LaidOutText,
+  layoutAgenda,
   layoutText,
   type MeasureText,
   type PageSpec,
@@ -137,6 +141,12 @@ export const layoutLayer = (l: Extract<TicketLayer, { kind: "text" }>, text: str
     },
     measureFor(l.font, l.weight)
   );
+
+/** Lay out the run of show exactly as the PDF will: titles and details in the layer's face, times in mono. */
+export const layoutAgendaLayer = (l: Extract<TicketLayer, { kind: "agenda" }>, entries: AgendaEntry[], tz: string): LaidOutAgenda => {
+  const w = agendaWeights(l.font);
+  return layoutAgenda(l, entries, tz, { title: measureFor(l.font, w.title), detail: measureFor(l.font, w.detail), time: measureFor("mono", 700) });
+};
 
 /** A layer's box on the canvas. Text boxes are as tall as their laid-out lines. */
 export const boxOf = (l: TicketLayer, textHeight?: number) => {
@@ -274,6 +284,8 @@ export const scaleLayer = (l: TicketLayer, k: number): TicketLayer => {
       return { ...l, ...base, width: r(l.width), height: r(l.height), radius: r(l.radius) };
     case "shape":
       return { ...l, ...base, width: r(l.width), height: r(l.height), strokeWidth: r(l.strokeWidth), radius: r(l.radius) };
+    case "agenda":
+      return { ...l, ...base, width: r(l.width), height: r(l.height), size: r(l.size), rowGap: r(l.rowGap) };
   }
 };
 
@@ -282,10 +294,12 @@ export const KIND_LABEL: Record<TicketLayer["kind"], string> = {
   qr: "QR layer",
   image: "Image layer",
   shape: "Shape layer",
+  agenda: "Run of show",
 };
 export const KIND_GLYPH: Record<TicketLayer["kind"], string> = {
   text: "T",
   qr: "▦",
   image: "▣",
   shape: "■",
+  agenda: "☰",
 };

@@ -275,7 +275,37 @@ const Editor = ({ config, eventId, eventName, design, audience, onScope, onSaved
         radius: 0,
         opacity: 1,
       };
-    else
+    else if (kind === "agenda") {
+      // One per design: a second press selects the one there is.
+      const existing = layers.find((l) => l.kind === "agenda");
+      if (existing) {
+        setSelected(existing.id);
+        setMode("edit");
+        return;
+      }
+      layer = {
+        ...base,
+        kind,
+        id: "agenda",
+        name: "Run of show",
+        x: Math.round(W * 0.08),
+        y: Math.round(H * 0.3),
+        width: Math.round(W * 0.84),
+        height: Math.round(H * 0.6),
+        font: "inter",
+        size: Math.max(12, Math.round(H * 0.035)),
+        color: "#141614",
+        accent: "brand.primary",
+        muted: "#5A5F5B",
+        align: "left",
+        rowGap: Math.round(H * 0.015),
+        columns: 1,
+        showSpeaker: true,
+        showLocation: true,
+        showDayHeadings: true,
+        opacity: 1,
+      };
+    } else
       layer = { ...base, kind, name: "Shape", y: Math.round(H * 0.1), width: Math.round(W * 0.2), height: Math.round(H * 0.1), fill: "brand.primary", stroke: null, strokeWidth: 0, radius: 0, opacity: 1, path: null };
     set((cur) => ({ ...cur, layers: [...cur.layers, layer] }));
     setSelected(layer.id);
@@ -851,12 +881,15 @@ const Editor = ({ config, eventId, eventName, design, audience, onScope, onSaved
               imageUrl={imageUrl}
               fontsReady={fontsReady}
               problemIds={problemIds}
+              agenda={design.agenda}
+              timezone={design.timezone}
             />
           </div>
         </div>
 
         <div className="flex flex-col gap-3.5">
           <LayersPanel
+            agendaAllowed={config.kind === "agenda"}
             layers={layers}
             selected={selected}
             onSelect={setSelected}

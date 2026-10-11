@@ -1,15 +1,17 @@
 import {
+  AGENDA_STARTERS,
+  agendaStarter,
   BADGE_STARTERS,
   badgeStarter,
   CERTIFICATE_STARTERS,
   certificateStarter,
   PAGE_PRESETS,
+  TICKET_STARTERS,
+  ticketStarter,
   type PagePreset,
   type PageSpec,
-  TICKET_STARTERS,
   type TicketCanvas,
   type TicketLayer,
-  ticketStarter,
   type TokenGroup,
 } from "@moa/layout";
 
@@ -112,5 +114,23 @@ export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
     savedNote: "Certificates issued from now on use it.",
     guideTitle: "Designing a certificate in Figma",
     sampleQr: `certificate:${TICKET_QR}`,
+  },
+  agenda: {
+    kind: "agenda",
+    title: "Programme design",
+    description: (name) =>
+      `${name} · the run of show as a designed screen for the kiosk, and the same design printed on A4. The sessions come from the agenda; the layer lays them out.`,
+    noun: "programme",
+    qrRequired: false,
+    pages: ["screen_landscape", "screen_portrait", "a4_portrait", "a4_landscape"],
+    dpi: 150,
+    starters: AGENDA_STARTERS,
+    starter: (name) => agendaStarter(name as keyof typeof AGENDA_STARTERS),
+    tokenGroups: ["Event", "Club"],
+    guestPhoto: false,
+    previewNote: "Rendered by the same code that prints the programme, with the event's own sessions.",
+    savedNote: "The kiosk shows it on its attract screen, and the A4 programme prints from it.",
+    guideTitle: "Designing a programme in Figma",
+    sampleQr: TICKET_QR,
   },
 };
