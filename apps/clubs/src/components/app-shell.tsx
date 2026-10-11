@@ -2,169 +2,133 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MenuIcon, UsersRoundIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, UsersRoundIcon } from "lucide-react";
 import { UserMenu, initials } from "@moa/app-kit";
 import type { SessionUser } from "@moa/auth";
-import {
-  Button,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  cn,
-} from "@moa/ui";
+import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, cn } from "@moa/ui";
 
+import { Breadcrumbs } from "./breadcrumbs";
 import { GateCard } from "./gate-card";
 import { SidebarNav } from "./sidebar-nav";
+import { ThemeToggle } from "./theme-toggle";
 
 /**
- * Shell for the club dashboard, on the v2 system.
+ * Two sheets on a canvas: the rail and the page.
  *
- * The same shape as the admin shell -- a 232px sticky rail, then a 1280px
- * main column -- because they are two views of one product and the clubs app
- * looking like a different generation of software was the most visible thing
- * wrong with it. Sharing the structure also means a fix to either lands in
- * both, which is the reason they share a component library at all.
- *
- * The design file's original 104px icon-only rail is still not used: labels
- * on hover make every destination a guess for anyone who does not already
- * know the icons.
+ * The shell is exactly one viewport tall; the rail stays where it is and
+ * only the page scrolls, so a long guest list never scrolls the menu away.
+ * The rail collapses to its tiles on request and always on a tablet; on a
+ * phone it is a drawer. The top bar carries the trail, the theme and the
+ * account — the three things every page needs and no page should draw.
  */
-function Brand({ clubName }: { clubName: string }) {
+function Brand({ clubName, collapsed }: { clubName: string; collapsed: boolean }) {
   return (
-    <div className="flex items-center gap-2.5 px-1.5">
-      <span className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--color-accent-900)] text-[var(--color-accent-300)] shadow-[inset_0_0_0_1px_var(--color-accent-700)]">
-        <UsersRoundIcon className="size-[18px]" />
+    <div className={cn("flex items-center gap-2.5 px-5 pt-[22px] pb-[18px]", collapsed && "justify-center px-0")}>
+      <span aria-hidden="true" className="bg-brand text-brand-foreground grid size-[30px] shrink-0 place-items-center rounded-full">
+        <UsersRoundIcon className="size-4" />
       </span>
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-sm font-medium">{clubName}</span>
-        <span className="text-[11px] text-[var(--color-neutral-500)]">
-          Club dashboard
-        </span>
+      <span className={cn("min-w-0", collapsed && "hidden")}>
+        <span className="text-ink block truncate text-[15px] font-semibold tracking-[-0.02em]">{clubName}</span>
+        <span className="eyebrow block">Organiser</span>
       </span>
     </div>
   );
 }
 
-/** Who is signed in, and what that account is. */
-function Identity({ user }: { user: SessionUser }) {
+function Identity({ user, collapsed }: { user: SessionUser; collapsed: boolean }) {
   const name = user.full_name || user.username;
   return (
-    <div className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-[color-mix(in_srgb,var(--color-surface)_70%,transparent)] p-3 shadow-[var(--shadow-sm)]">
-      <div className="flex items-center gap-2.5">
-        <span className="grid size-[30px] shrink-0 place-items-center rounded-full bg-[var(--color-accent-800)] text-[12px] text-[var(--color-accent-100)]">
-          {initials(name)}
-        </span>
-        <span className="flex min-w-0 flex-col">
-          <span className="truncate text-[13px]">{name}</span>
-          <span className="truncate text-[11px] text-[var(--color-neutral-500)]">
-            {user.email}
-          </span>
-        </span>
-      </div>
-      <span className="text-[11px] text-pretty text-[var(--color-neutral-500)]">
-        {/* Said plainly because club logins are shared by a committee, and
-            knowing the account is shared changes what you do with it. */}
-        This is the club&rsquo;s shared login. Anything you do here is recorded
-        against the club, not a person.
-      </span>
-    </div>
-  );
-}
-
-function Rail({
-  user,
-  clubName,
-  onNavigate,
-}: {
-  user: SessionUser;
-  clubName: string;
-  onNavigate?: () => void;
-}) {
-  return (
-    <div className="flex min-h-full flex-col gap-4 px-3.5 py-5">
-      <Brand clubName={clubName} />
-      <SidebarNav onNavigate={onNavigate} />
-      <div className="mt-auto flex flex-col gap-2">
-        <GateCard />
-        <Identity user={user} />
-      </div>
-    </div>
-  );
-}
-
-export function AppShell({
-  user,
-  children,
-}: {
-  user: SessionUser;
-  children: React.ReactNode;
-}) {
-  // Closed by the nav items' own onNavigate rather than by an effect watching
-  // the pathname: setting state from an effect costs an extra render pass and
-  // fires on every route change, including ones the sheet was not open for.
-  const [mobileOpen, setMobileOpen] = React.useState(false);
-
-  const clubName = user.full_name || user.username || "MyOtherApp";
-
-  return (
-    <div className="flex min-h-dvh">
-      <aside className="hidden w-[232px] shrink-0 shadow-[1px_0_0_var(--color-neutral-900)] lg:block">
-        <div className="sticky top-0 min-h-dvh">
-          <Rail user={user} clubName={clubName} />
+    <div className="px-3 pb-3.5">
+      <div className={cn("bg-sunken flex items-center gap-2.5 rounded-[var(--radius-card)] p-2.5", collapsed && "justify-center p-1.5")}>
+        <span className="bg-brand-soft text-brand grid size-8 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">{initials(name)}</span>
+        <div className={cn("min-w-0 flex-1", collapsed && "hidden")}>
+          <div className="truncate text-[12.5px] font-semibold">{name}</div>
+          <div className="text-ink-3 truncate font-mono text-[10px] tracking-[0.04em]">shared club login</div>
         </div>
-      </aside>
+      </div>
+    </div>
+  );
+}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <main
+function Rail({ user, clubName, collapsed, onNavigate }: { user: SessionUser; clubName: string; collapsed: boolean; onNavigate?: () => void }) {
+  return (
+    <div className="flex min-h-full flex-col">
+      <Brand clubName={clubName} collapsed={collapsed} />
+      <SidebarNav collapsed={collapsed} onNavigate={onNavigate} />
+      <div className="flex-1" />
+      <div className={cn("p-3 empty:hidden", collapsed && "hidden")}>
+        <GateCard />
+      </div>
+      <Identity user={user} collapsed={collapsed} />
+    </div>
+  );
+}
+
+export function AppShell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const clubName = user.full_name || user.username || "My Other App";
+
+  // <main> is the scroller, not the window, so a new page is put back at the top here.
+  const mainRef = React.useRef<HTMLElement>(null);
+  React.useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [pathname]);
+
+  return (
+    <div className="bg-canvas flex h-dvh flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 gap-3.5 p-3.5 max-sm:p-2">
+        <aside
           className={cn(
-            // overflow-x-clip rather than hidden: it contains children that
-            // overrun without creating a scroll container, so sticky
-            // positioning inside a page keeps working.
-            "mx-auto flex w-full max-w-[1280px] min-w-0 flex-1 flex-col gap-6 overflow-x-clip",
-            "px-[clamp(16px,3vw,40px)] pt-[22px] pb-[60px]"
+            "scroll-thin bg-surface shadow-card hidden shrink-0 flex-col overflow-x-hidden overflow-y-auto rounded-[var(--radius-sheet)] transition-[width] duration-200 lg:flex",
+            collapsed ? "w-[68px]" : "w-[236px]"
           )}
         >
-          <div className="flex items-center gap-2.5 pb-3.5 shadow-[inset_0_-1px_0_var(--color-neutral-900)]">
+          <Rail user={user} clubName={clubName} collapsed={collapsed} />
+        </aside>
+
+        <div className="bg-surface shadow-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-sheet)]">
+          <div className="flex h-[62px] shrink-0 items-center gap-2.5 px-4 max-sm:px-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 lg:hidden"
-                  aria-label="Open menu"
-                >
+                <Button variant="ghost" size="icon" className="shrink-0 rounded-full lg:hidden" aria-label="Open menu">
                   <MenuIcon />
                 </Button>
               </SheetTrigger>
-              <SheetContent
-                side="left"
-                className="w-[260px] border-none bg-[var(--color-bg)] p-0"
-              >
+              <SheetContent side="left" className="bg-surface w-[260px] border-none p-0">
                 <SheetHeader className="sr-only">
                   <SheetTitle>Navigation</SheetTitle>
                 </SheetHeader>
-                <Rail
-                  user={user}
-                  clubName={clubName}
-                  onNavigate={() => setMobileOpen(false)}
-                />
+                <Rail user={user} clubName={clubName} collapsed={false} onNavigate={() => setMobileOpen(false)} />
               </SheetContent>
             </Sheet>
-
-            <span className="flex-1" />
+            <button
+              type="button"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
+              className="border-line bg-surface text-ink-2 hover:bg-sunken hover:text-ink hidden size-9 shrink-0 place-items-center rounded-full border transition-colors lg:grid"
+            >
+              {collapsed ? <PanelLeftOpenIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
+            </button>
+            <div className="bg-sunken flex min-w-0 flex-1 items-center gap-2 rounded-full px-4 py-[10px]">
+              <Breadcrumbs />
+            </div>
+            <ThemeToggle />
             <UserMenu user={user} />
           </div>
-
-          {children}
-        </main>
+          <main ref={mainRef} className="scroll-thin min-h-0 flex-1 overflow-auto">
+            <div className="mx-auto max-w-[1180px] px-6 pt-5 pb-16 max-sm:px-4">{children}</div>
+          </main>
+        </div>
       </div>
 
       {/* The rail is behind the menu on a phone, so this is the only route
-          back to Overview for a keyboard or screen reader. */}
+          back to the dashboard for a keyboard or screen reader. */}
       <Link href="/" className="sr-only">
-        Overview
+        Dashboard
       </Link>
     </div>
   );

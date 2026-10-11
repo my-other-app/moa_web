@@ -1,8 +1,8 @@
 @import "tailwindcss";
 @import "@moa/ui/preset.css";
-/* v2 overrides the preset: the dashboards are dark-only and on the Nocturne
-   ramps. Shared from @moa/ui so the admin and clubs apps cannot drift. */
-@import "@moa/ui/nocturne.css";
+/* Meridian overrides the preset: one palette in light and dark, switched by
+   the `.dark` class next-themes sets from the OS or the toggle. */
+@import "@moa/ui/meridian.css";
 
 /*
  * Scan the shared packages for class names.

@@ -1,0 +1,441 @@
+/*
+ * "Meridian" — the organiser's theme, in light and dark.
+ *
+ * One palette, two scales. The page is a warm off-white canvas (or a near
+ * black one) with white (or charcoal) sheets on it; text is ink in three
+ * weights; the brand teal is the only accent, and it is used for one thing
+ * at a time — where you are, where you are about to go, the one primary
+ * action. Four tones say what a figure means: admit (good), caution,
+ * refuse, info. Nothing else carries colour, which is what lets a dashboard
+ * with forty numbers on it read as calm.
+ *
+ * Two sets of names live here on purpose. The raw tokens (`--canvas`,
+ * `--ink-2`, `--admit-soft`) are the design's own; the semantic tokens the
+ * component library reads (`--background`, `--card`, `--muted-foreground`)
+ * are mapped onto them so every shadcn-derived component follows the mode
+ * without a change. The Nocturne ramps (`--color-accent-900`) survive as
+ * "distance from the surface" so the few screens still written against
+ * them keep their contrast in both modes: 900 is always the faintest tint,
+ * 100 the strongest foreground.
+ *
+ * The light scale is the default; `.dark` on the root switches. next-themes
+ * sets that class from the OS or the toggle.
+ */
+:root {
+  color-scheme: light;
+
+  --canvas: #f4f5f2;
+  --surface: #ffffff;
+  --sunken: #f0f1ee;
+  --raised: #e6e8e4;
+  --line: #e0e3de;
+  --line-soft: #ebede8;
+  --ink: #15181a;
+  --ink-2: #596059;
+  --ink-3: #868d89;
+
+  --brand: #0f8a73;
+  --brand-foreground: #ffffff;
+  --brand-soft: #e3f3ee;
+  --brand-line: #c3e4d9;
+
+  --admit: #1b7a4a;
+  --admit-soft: #e4f3ea;
+  --admit-line: #c6e3d1;
+  --caution: #8a5a0f;
+  --caution-soft: #fbf2dd;
+  --caution-line: #efdcae;
+  --refuse: #a2271b;
+  --refuse-soft: #fbe9e6;
+  --refuse-line: #f1d0ca;
+  --info: #1f5f8c;
+  --info-soft: #e4f0f9;
+  --info-line: #c4ddf0;
+
+  --hero-from: #12a085;
+  --hero-to: #0a4a3d;
+
+  --elev-card: 0 1px 2px rgba(16, 20, 16, 0.04), 0 8px 24px -16px rgba(16, 20, 16, 0.14);
+  --elev-floating: 0 1px 2px rgba(16, 20, 16, 0.05), 0 12px 32px -14px rgba(16, 20, 16, 0.18);
+  --elev-hero: 0 12px 28px -14px rgba(10, 74, 61, 0.55);
+
+  /* The Nocturne ramps, as distance from the surface. */
+  --color-accent-100: #0b3b31;
+  --color-accent-200: #0f5a4a;
+  --color-accent-300: #0f7a63;
+  --color-accent-400: #12907a;
+  --color-accent-500: #17a58f;
+  --color-accent-600: #4cc8ae;
+  --color-accent-700: #9fe0d0;
+  --color-accent-800: #cdeee6;
+  --color-accent-900: #e6f5f0;
+  --color-neutral-100: #15181a;
+  --color-neutral-200: #2a2f2e;
+  --color-neutral-300: #4a5250;
+  --color-neutral-400: #5f6764;
+  --color-neutral-500: #7d8582;
+  --color-neutral-600: #9ba3a0;
+  --color-neutral-700: #c3c9c6;
+  --color-neutral-800: #dde1de;
+  --color-neutral-900: #eef0ec;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --canvas: #0b0e0d;
+  --surface: #151918;
+  --sunken: #1b201e;
+  --raised: #242a28;
+  --line: #2a302d;
+  --line-soft: #222826;
+  --ink: #eef1ee;
+  --ink-2: #a4aba6;
+  --ink-3: #777e7a;
+
+  --brand: #4fcdb0;
+  --brand-foreground: #06201c;
+  --brand-soft: #163029;
+  --brand-line: #245a4b;
+
+  --admit: #5fcf90;
+  --admit-soft: #122a1c;
+  --admit-line: #255a3a;
+  --caution: #e3b86a;
+  --caution-soft: #2b2112;
+  --caution-line: #574521;
+  --refuse: #f08b7d;
+  --refuse-soft: #2d1613;
+  --refuse-line: #5b2b25;
+  --info: #7fbbe8;
+  --info-soft: #11253a;
+  --info-line: #1f4062;
+
+  --hero-from: #1f8a70;
+  --hero-to: #0b3a30;
+
+  --elev-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -16px rgba(0, 0, 0, 0.5);
+  --elev-floating: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -14px rgba(0, 0, 0, 0.6);
+  --elev-hero: 0 12px 28px -14px rgba(0, 0, 0, 0.6);
+
+  --color-accent-100: #fdffe3;
+  --color-accent-200: #f9ffa1;
+  --color-accent-300: #d9f27a;
+  --color-accent-400: #4cc8ae;
+  --color-accent-500: #17a58f;
+  --color-accent-600: #138a77;
+  --color-accent-700: #106d5e;
+  --color-accent-800: #0d5247;
+  --color-accent-900: #173d39;
+  --color-neutral-100: #f2f3f3;
+  --color-neutral-200: #e0e2e3;
+  --color-neutral-300: #c5c8ca;
+  --color-neutral-400: #a9adb0;
+  --color-neutral-500: #979797;
+  --color-neutral-600: #767b80;
+  --color-neutral-700: #565d65;
+  --color-neutral-800: #3d454f;
+  --color-neutral-900: #262d36;
+}
+
+/* Everything below reads the scale above, so it is written once. */
+:root,
+.dark {
+  /* Radii: chip, field, card, panel, sheet. */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-chip: 8px;
+  --radius-field: 12px;
+  --radius-card: 16px;
+  --radius-panel: 20px;
+  --radius-sheet: 26px;
+
+  --space-1: 2.8px;
+  --space-2: 5.6px;
+  --space-3: 8.4px;
+  --space-4: 11.2px;
+  --space-6: 16.8px;
+  --space-8: 22.4px;
+
+  --shadow-sm: var(--elev-card);
+  --shadow-md: var(--elev-floating);
+  --shadow-lg: var(--elev-floating);
+
+  /* Legacy names a few screens still read. */
+  --color-bg: var(--canvas);
+  --color-surface: var(--surface);
+  --color-text: var(--ink);
+  --color-divider: var(--line);
+  --color-section: var(--hero-to);
+  --color-section-glow: var(--hero-from);
+  --color-section-ghost: #2a7a6c;
+
+  /* ---- Semantic tokens the component library reads ---- */
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-foreground);
+  --secondary: var(--sunken);
+  --secondary-foreground: var(--ink);
+  --muted: var(--sunken);
+  --muted-foreground: var(--ink-2);
+  --accent: var(--raised);
+  --accent-foreground: var(--ink);
+
+  --destructive: var(--refuse);
+  --destructive-foreground: #ffffff;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--brand);
+
+  --brand-muted: var(--brand-soft);
+  --highlight: var(--brand-soft);
+
+  --chart-1: var(--brand);
+  --chart-2: var(--admit);
+  --chart-3: var(--info);
+  --chart-4: var(--ink-3);
+  --chart-5: var(--caution);
+
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink-2);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: var(--brand-foreground);
+  --sidebar-accent: var(--brand-soft);
+  --sidebar-accent-foreground: var(--brand);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--brand);
+
+  /* The design-file swatches, so the screens written against them read. */
+  --swatch-ink: var(--ink);
+  --swatch-grey: var(--ink-3);
+  --swatch-grey-light: var(--line);
+  --swatch-mint: var(--brand-soft);
+  --swatch-teal: var(--brand);
+  --stat-mint-ink: var(--admit);
+  --stat-sky-ink: var(--info);
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* The palette as utilities: bg-canvas, text-ink-2, border-line, bg-admit-soft … */
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-line: var(--brand-line);
+  --color-admit: var(--admit);
+  --color-admit-soft: var(--admit-soft);
+  --color-admit-line: var(--admit-line);
+  --color-caution: var(--caution);
+  --color-caution-soft: var(--caution-soft);
+  --color-caution-line: var(--caution-line);
+  --color-refuse: var(--refuse);
+  --color-refuse-soft: var(--refuse-soft);
+  --color-refuse-line: var(--refuse-line);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-line: var(--info-line);
+  --color-hero-from: var(--hero-from);
+  --color-hero-to: var(--hero-to);
+
+  --shadow-card: var(--elev-card);
+  --shadow-floating: var(--elev-floating);
+  --shadow-hero: var(--elev-hero);
+}
+
+@layer base {
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Rules fade to transparent over 48px at each end rather than stopping cleanly. */
+  .rule-fade {
+    background:
+      linear-gradient(
+          to right,
+          transparent,
+          color-mix(in srgb, var(--ink) 9%, transparent) 48px,
+          color-mix(in srgb, var(--ink) 9%, transparent) calc(100% - 48px),
+          transparent
+        )
+        no-repeat bottom / 100% 1px;
+  }
+
+  /* Micro-label: 11px uppercase with the system's tracking. */
+  .micro {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* The eyebrow: mono, tracked, muted. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .page-title {
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.15;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+}
+
+/*
+ * The handoff's component classes, kept so the screens written against
+ * `btn btn-secondary`, `input` and `tag tag-accent` keep working. Primary is
+ * a brand fill here — the one loud control on a page.
+ */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 13.5px;
+    line-height: 1.2;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 7px 12px;
+    border-radius: var(--radius-field);
+    transition: background-color 150ms, border-color 150ms, color 150ms;
+  }
+  .btn svg {
+    display: block;
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    color: var(--brand-foreground);
+    background: var(--brand);
+    border-color: var(--brand);
+  }
+  .btn-primary:not(:disabled):hover {
+    filter: brightness(1.06);
+  }
+  .btn-secondary {
+    background: var(--surface);
+    border-color: var(--line);
+  }
+  .btn-secondary:not(:disabled):hover {
+    background: var(--sunken);
+  }
+  .btn-ghost {
+    color: var(--brand);
+    padding-inline: 6px;
+  }
+  .btn-ghost:not(:disabled):hover {
+    background: var(--brand-soft);
+  }
+  .btn-icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+
+  .field > label {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 5px;
+    color: var(--ink-2);
+  }
+
+  .input {
+    width: 100%;
+    min-height: 36px;
+    padding: 6px 10px;
+    font: inherit;
+    font-size: 13.5px;
+    color: var(--ink);
+    caret-color: var(--brand);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-field);
+  }
+  .input:hover {
+    border-color: var(--ink-3);
+  }
+  .input:focus-visible {
+    border-color: var(--brand);
+    outline-offset: 0;
+  }
+  textarea.input {
+    min-height: 90px;
+    resize: vertical;
+  }
+  select.input option {
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .input::placeholder {
+    color: var(--ink-3);
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: var(--radius-chip);
+    white-space: nowrap;
+  }
+  .tag-accent {
+    background: var(--brand-soft);
+    color: var(--brand);
+  }
+  .tag-neutral {
+    background: var(--raised);
+    color: var(--ink-2);
+  }
+  .tag-outline {
+    border: 1px solid var(--brand-line);
+    color: var(--brand);
+  }
+}
