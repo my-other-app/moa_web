@@ -23,6 +23,8 @@ export function useEventDetail(eventId: number) {
   return useQuery({
     queryKey: qk.events.detail(eventId),
     queryFn: () => fetchEventDetail(eventId),
+    // The club's own designer has no event; it passes 0 and asks for nothing.
+    enabled: eventId > 0,
     select: (raw: unknown) => eventDetailSchema.parse(raw),
   });
 }

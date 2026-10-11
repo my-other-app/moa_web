@@ -4,7 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import { SearchIcon, UsersIcon } from "lucide-react";
 import { formatDate, formatNumber, pickImage, relativeTime } from "@moa/app-kit";
-import { CardLabel, EmptyState, FigurePanel, InitialsAvatar, Pagination, Skeleton, StatTile } from "@moa/ui";
+import { CardLabel, EmptyState, FigurePanel, InitialsAvatar, Pager, Skeleton, StatTile } from "@moa/ui";
 
 import { useClubFollowers } from "../queries";
 import { followersPerDay, type Follower } from "../schemas";
@@ -30,9 +30,9 @@ function inDays(iso: string | null | undefined, days: number, now: number): bool
 }
 
 export function FollowersPanel({ clubId, total }: { clubId: number | null | undefined; total?: number | null }) {
-  const [page, setPage] = React.useState(0);
+  const [page, setPage] = React.useState(1);
   const [search, setSearch] = React.useState("");
-  const { data, isPending, isError } = useClubFollowers(clubId, { offset: page * PAGE_SIZE, limit: PAGE_SIZE });
+  const { data, isPending, isError } = useClubFollowers(clubId, { offset: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE });
   const followers = data?.items ?? [];
   const count = data?.total ?? total ?? null;
   // Read once on mount: a clock read during render would be a different value on every pass.
@@ -64,7 +64,7 @@ export function FollowersPanel({ clubId, total }: { clubId: number | null | unde
     <div className="flex flex-col gap-3.5">
       <div className="grid gap-3.5 sm:grid-cols-3">
         <StatTile label="Followers" value={count === null ? formatNumber(followers.length) : formatNumber(count)} note="are told when you publish an event" />
-        <StatTile label="New this month" value={formatNumber(thisMonth)} note={page === 0 ? "in the last 30 days" : "on this page, in the last 30 days"} trend={thisMonth > 0 ? "up" : "none"} />
+        <StatTile label="New this month" value={formatNumber(thisMonth)} note={page === 1 ? "in the last 30 days" : "on this page, in the last 30 days"} trend={thisMonth > 0 ? "up" : "none"} />
         <StatTile label="Newest" value={newest ? name(newest).split(" ")[0]! : "—"} note={newest?.created_at ? `joined ${relativeTime(newest.created_at)}` : "nobody yet"} />
       </div>
 
@@ -120,9 +120,9 @@ export function FollowersPanel({ clubId, total }: { clubId: number | null | unde
             })}
           </ul>
         )}
-        {count !== null && count > PAGE_SIZE ? (
-          <div className="border-line-soft border-t px-4 py-3">
-            <Pagination page={page} pageCount={Math.ceil(count / PAGE_SIZE)} onPageChange={setPage} />
+        {count !== null && count > 0 ? (
+          <div className="border-line-soft border-t px-4 py-2.5">
+            <Pager page={page} pageCount={Math.ceil(count / PAGE_SIZE)} total={count} pageSize={PAGE_SIZE} noun={["follower", "followers"]} onPage={setPage} />
           </div>
         ) : null}
       </FigurePanel>

@@ -4,15 +4,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 
 import { fetchLayout, resetDesign, saveLayout, type LayoutBody } from "./api";
-import type { Audience, DesignKind } from "./schemas";
+import type { Audience, DesignKind, DesignScope } from "./schemas";
 
-const layoutKey = (eventId: number, kind: DesignKind, audience: Audience) =>
-  [...qk.eventDesigns.detail(eventId, kind, audience), "layout"] as const;
+const CLUB = ["club-designs"] as const;
+const scopeKey = (scope: DesignScope) => (scope.kind === "event" ? qk.eventDesigns.forEvent(scope.eventId) : CLUB);
+const layoutKey = (scope: DesignScope, kind: DesignKind, audience: Audience) =>
+  scope.kind === "event" ? ([...qk.eventDesigns.detail(scope.eventId, kind, audience), "layout"] as const) : ([...CLUB, kind, audience, "layout"] as const);
 
-export function useLayout(eventId: number, kind: DesignKind, audience: Audience) {
+export function useLayout(scope: DesignScope, kind: DesignKind, audience: Audience) {
   return useQuery({
-    queryKey: layoutKey(eventId, kind, audience),
-    queryFn: () => fetchLayout(eventId, kind, audience),
+    queryKey: layoutKey(scope, kind, audience),
+    queryFn: () => fetchLayout(scope, kind, audience),
     /*
      * No staleTime. A design is edited and saved in the same sitting, and a
      * cached copy served after a save would show the organiser the version
@@ -22,10 +24,10 @@ export function useLayout(eventId: number, kind: DesignKind, audience: Audience)
   });
 }
 
-export function useSaveLayout(eventId: number, kind: DesignKind, audience: Audience) {
+export function useSaveLayout(scope: DesignScope, kind: DesignKind, audience: Audience) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: LayoutBody) => saveLayout(eventId, kind, audience, body),
+    mutationFn: (body: LayoutBody) => saveLayout(scope, kind, audience, body),
     onSuccess: (data) => {
       /*
        * Written straight into the cache rather than invalidated, because the
@@ -33,19 +35,19 @@ export function useSaveLayout(eventId: number, kind: DesignKind, audience: Audie
        * old one. The sibling audiences are invalidated instead: the first
        * save forks the event's design, which changes what they fall back to.
        */
-      queryClient.setQueryData(layoutKey(eventId, kind, audience), data);
+      queryClient.setQueryData(layoutKey(scope, kind, audience), data);
       void queryClient.invalidateQueries({
-        queryKey: qk.eventDesigns.forEvent(eventId),
-        predicate: (query) => query.queryKey.at(-1) === "layout" && query.queryKey[3] !== audience,
+        queryKey: scopeKey(scope),
+        predicate: (query) => query.queryKey.at(-1) === "layout" && query.queryKey.at(-2) !== audience,
       });
     },
   });
 }
 
-export function useResetLayout(eventId: number, kind: DesignKind, audience: Audience) {
+export function useResetLayout(scope: DesignScope, kind: DesignKind, audience: Audience) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => resetDesign(eventId, kind, audience),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.eventDesigns.forEvent(eventId) }),
+    mutationFn: () => resetDesign(scope, kind, audience),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: scopeKey(scope) }),
   });
 }

@@ -4,7 +4,6 @@ import { screen } from "@testing-library/react";
 import { Form } from "@moa/ui";
 
 import { render } from "@/test/render";
-import { TemplateDesigner } from "./templates/components/template-designer";
 import { BasicsStep } from "./event-form/components/steps/basics-step";
 import { DetailsStep } from "./event-form/components/steps/details-step";
 import { EntryStep } from "./event-form/components/steps/entry-step";
@@ -74,40 +73,3 @@ describe("event form steps render", () => {
   });
 });
 
-describe("template designer renders", () => {
-  it("ticket designer renders without throwing", () => {
-    // The designer uses plain useState, so any field-bound Form primitive
-    // inside it throws immediately -- this is the exact production crash.
-    expect(() => render(<TemplateDesigner kind="ticket" />)).not.toThrow();
-  });
-
-  it("certificate designer renders without throwing", () => {
-    expect(() => render(<TemplateDesigner kind="certificate" />)).not.toThrow();
-  });
-
-  it("shows the colour controls and the preview", () => {
-    render(<TemplateDesigner kind="ticket" />);
-    expect(screen.getByText("Preview")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Accent hex value/i)).toBeInTheDocument();
-  });
-
-  it("opens an existing template without losing its config", () => {
-    render(
-      <TemplateDesigner
-        kind="ticket"
-        existing={{
-          id: 1,
-          name: "Existing",
-          is_default: false,
-          config: { accent_color: "#ff0000" },
-          logo: null,
-          secondary_logo: null,
-          background_image: null,
-        }}
-      />
-    );
-    // ColorField renders both a swatch picker and a hex field for the same
-    // value, so target the labelled hex input rather than the value alone.
-    expect(screen.getByLabelText(/Accent hex value/i)).toHaveValue("#ff0000");
-  });
-});

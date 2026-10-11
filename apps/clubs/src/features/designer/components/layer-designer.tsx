@@ -38,7 +38,7 @@ import { useRegistrations } from "@/features/registrations";
 import { previewLayout, uploadLayoutImage } from "../api";
 import { DESIGNERS, type DesignerConfig } from "../config";
 import { useLayout, useResetLayout, useSaveLayout } from "../queries";
-import { AUDIENCES, type Audience, type DesignKind, type LayerDesign } from "../schemas";
+import { AUDIENCES, type Audience, type DesignKind, type DesignScope, type LayerDesign } from "../schemas";
 import { detectTicketArea } from "./detect-area";
 import { Busy } from "./fields";
 import { type Layout, layoutLayer, scaleLayer, ui, useLayoutHistory, useTicketFonts } from "./kit";
@@ -56,13 +56,15 @@ const errorCopy = (err: unknown) => (err instanceof Error && err.message ? err.m
  * top, every text layer a template of tokens, on a page of a known physical
  * size. Designs are per event, with an optional copy per audience.
  */
-export const LayerDesignerPage = ({ eventId, kind }: { eventId: number; kind: DesignKind }) => {
+export const LayerDesignerPage = ({ scope, kind }: { scope: DesignScope; kind: DesignKind }) => {
   const config = DESIGNERS[kind];
+  // The club's designer has no event: the hook stays quiet for 0.
+  const eventId = scope.kind === "event" ? scope.eventId : 0;
   const event = useEventDetail(eventId);
   const [audience, setAudience] = React.useState<Audience>("event_default");
   const [nonce, setNonce] = React.useState(0);
   const dirtyRef = React.useRef(false);
-  const design = useLayout(eventId, kind, audience);
+  const design = useLayout(scope, kind, audience);
 
   const changeScope = (next: Audience) => {
     if (next === audience) return;
@@ -83,6 +85,7 @@ export const LayerDesignerPage = ({ eventId, kind }: { eventId: number; kind: De
     <Editor
       key={`${audience}-${nonce}`}
       config={config}
+      scope={scope}
       eventId={eventId}
       eventName={eventName}
       design={d}
@@ -102,6 +105,7 @@ export const LayerDesignerPage = ({ eventId, kind }: { eventId: number; kind: De
 
 interface EditorProps {
   config: DesignerConfig;
+  scope: DesignScope;
   eventId: number;
   eventName: string;
   design: LayerDesign;
@@ -112,9 +116,9 @@ interface EditorProps {
   dirtyRef: React.MutableRefObject<boolean>;
 }
 
-const Editor = ({ config, eventId, eventName, design, audience, onScope, onSaved, onDiscard, dirtyRef }: EditorProps) => {
-  const save = useSaveLayout(eventId, config.kind, audience);
-  const reset = useResetLayout(eventId, config.kind, audience);
+const Editor = ({ config, scope, eventId, eventName, design, audience, onScope, onSaved, onDiscard, dirtyRef }: EditorProps) => {
+  const save = useSaveLayout(scope, config.kind, audience);
+  const reset = useResetLayout(scope, config.kind, audience);
   const initial = React.useMemo<Layout>(() => ({ canvas: design.canvas, layers: design.layers, page: design.page }), [design]);
   // What the server holds; updated on save so the editor need not remount -- a
   // remount would close a preview opened right after saving.
@@ -318,7 +322,7 @@ const Editor = ({ config, eventId, eventName, design, audience, onScope, onSaved
       return null;
     }
     try {
-      const res = await uploadLayoutImage(eventId, config.kind, file, purpose);
+      const res = await uploadLayoutImage(scope, config.kind, file, purpose);
       setUrls((u) => ({ ...u, [res.key]: res.url }));
       return res;
     } catch (err) {
@@ -650,7 +654,7 @@ const Editor = ({ config, eventId, eventName, design, audience, onScope, onSaved
     if (!parsed.success) return;
     setPreviewBusy(ticketId ?? "sample");
     try {
-      setPreviewImage(await previewLayout(eventId, config.kind, audience, parsed.data, ticketId ?? null));
+      setPreviewImage(await previewLayout(scope, config.kind, audience, parsed.data, ticketId ?? null));
     } catch (err) {
       toast.error(errorCopy(err));
     } finally {
@@ -745,11 +749,11 @@ const Editor = ({ config, eventId, eventName, design, audience, onScope, onSaved
     <>
       <PageHeader
         title={config.title}
-        description={config.description(eventName || "This event")}
+        description={scope.kind === "event" ? config.description(eventName || "This event") : `Your club's default ${config.noun}. Every event starts from it; an event with a design of its own keeps it.`}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="ghost">
-              <Link href={`/events/${eventId}`}>Back to event</Link>
+              <Link href={scope.kind === "event" ? `/events/${eventId}` : "/templates"}>{scope.kind === "event" ? "Back to event" : "Back to templates"}</Link>
             </Button>
             <Button variant="outline" onClick={() => setDialog("guide")}>
               Designing in Figma?
@@ -766,7 +770,7 @@ const Editor = ({ config, eventId, eventName, design, audience, onScope, onSaved
       />
 
       <div className="mb-3 flex flex-col gap-2.5">
-        <ScopePicker value={audience} onChange={onScope} />
+        {scope.kind === "event" ? <ScopePicker value={audience} onChange={onScope} /> : null}
         {audience !== "event_default" ? (
           <OverrideBanner scopeName={scopeName} isOwn={design.isOwn} dirty={dirty} onReset={() => setDialog("reset")} />
         ) : fromStarter ? (
@@ -994,8 +998,13 @@ const Editor = ({ config, eventId, eventName, design, audience, onScope, onSaved
           </DialogHeader>
           {previewImage ? (
             <PreviewImage blob={previewImage} onBack={() => setPreviewImage(null)} />
-          ) : (
+          ) : scope.kind === "event" ? (
             <PreviewPicker eventId={eventId} busy={previewBusy} onPick={preview} />
+          ) : (
+            <Button disabled={!!previewBusy} onClick={() => void preview()}>
+              <Busy on={previewBusy === "sample"} />
+              Preview with the sample guest
+            </Button>
           )}
         </DialogContent>
       </Dialog>

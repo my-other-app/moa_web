@@ -53,6 +53,8 @@ const DESIGN = {
 };
 
 const { fetchLayout, fetchStarter, resetDesign, saveLayout, uploadLayoutImage } = await import("./api");
+const EVENT = { kind: "event", eventId: 42 } as const;
+const CLUB = { kind: "club" } as const;
 
 beforeEach(() => {
   calls.length = 0;
@@ -60,7 +62,7 @@ beforeEach(() => {
 
 describe("the layout endpoints", () => {
   it("reads the layout for the audience on screen, with every default the schema fills", async () => {
-    const d = await fetchLayout(42, "ticket", "speaker");
+    const d = await fetchLayout(EVENT, "ticket", "speaker");
 
     expect(calls[0]).toMatchObject({ method: "GET", path: "/api/v1/events/42/designs/ticket/layout", options: { query: { audience: "speaker" } } });
     expect(d.layers[0]).toMatchObject({ kind: "qr", hidden: false, locked: false, preprinted: false });
@@ -68,7 +70,7 @@ describe("the layout endpoints", () => {
   });
 
   it("saves to the same audience it read from, sending only the layout", async () => {
-    await saveLayout(42, "certificate", "staff", { canvas: CANVAS, layers: LAYERS as never, page: PAGE });
+    await saveLayout(EVENT, "certificate", "staff", { canvas: CANVAS, layers: LAYERS as never, page: PAGE });
 
     expect(calls[0]).toMatchObject({
       method: "PUT",
@@ -79,13 +81,13 @@ describe("the layout endpoints", () => {
   });
 
   it("resets the audience's own copy, not the event default", async () => {
-    await resetDesign(42, "ticket", "attendee");
+    await resetDesign(EVENT, "ticket", "attendee");
 
     expect(calls[0]).toMatchObject({ method: "DELETE", path: "/api/v1/events/42/designs/ticket", options: { query: { audience: "attendee" } } });
   });
 
   it("fetches a starter by name", async () => {
-    const s = await fetchStarter(42, "ticket", "classic");
+    const s = await fetchStarter(EVENT, "ticket", "classic");
 
     expect(calls[0]?.path).toBe("/api/v1/events/42/designs/ticket/layout/starters/classic");
     expect(s.layers).toHaveLength(1);
@@ -94,11 +96,24 @@ describe("the layout endpoints", () => {
   it("uploads a template as multipart under the event, saying what it is for", async () => {
     const file = new File([new Uint8Array([137, 80, 78, 71])], "art.png", { type: "image/png" });
 
-    const res = await uploadLayoutImage(42, "ticket", file, "template");
+    const res = await uploadLayoutImage(EVENT, "ticket", file, "template");
 
     expect(calls[0]).toMatchObject({ method: "POST", path: "/api/v1/events/42/designs/ticket/layout/images", options: { query: { purpose: "template" } } });
     expect(calls[0]?.body).toBeInstanceOf(FormData);
     expect((calls[0]?.body as FormData).get("file")).toBe(file);
     expect(res).toMatchObject({ key: "base/events/42/layout/template-abc.png", width: 1560, height: 690 });
+  });
+});
+
+describe("the club's own designs", () => {
+  it("reads, saves and resets the club default under /clubs/designs", async () => {
+    await fetchLayout(CLUB, "badge", "event_default");
+    expect(calls[0]?.path).toBe("/api/v1/clubs/designs/badge/layout");
+    await saveLayout(CLUB, "badge", "event_default", { canvas: CANVAS, layers: LAYERS as never, page: PAGE });
+    expect(calls[1]).toMatchObject({ method: "PUT", path: "/api/v1/clubs/designs/badge/layout" });
+    await resetDesign(CLUB, "badge", "event_default");
+    expect(calls[2]).toMatchObject({ method: "DELETE", path: "/api/v1/clubs/designs/badge/layout" });
+    await uploadLayoutImage(CLUB, "badge", new File([new Uint8Array([137, 80, 78, 71])], "art.png", { type: "image/png" }), "image");
+    expect(calls[3]?.path).toBe("/api/v1/clubs/designs/badge/layout/images");
   });
 });

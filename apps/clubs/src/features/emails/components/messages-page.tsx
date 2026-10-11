@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
   EmptyState,
-  Pagination,
+  Pager,
   Skeleton,
   StatusBadge,
   cn,
@@ -238,9 +238,9 @@ export function MessagesPage({ eventId }: { eventId: number }) {
                 ))}
               </tbody>
             </table>
-            {pages > 1 || total > pageSize ? (
-              <div className="border-t border-border/60 px-4 py-2">
-                <Pagination page={page} pageCount={pages} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={(n) => (setPageSize(n), setPage(1))} />
+            {total > 0 ? (
+              <div className="border-t border-border/60 px-4 py-2.5">
+                <Pager page={page} pageCount={pages} total={total} pageSize={pageSize} noun={["message", "messages"]} busy={list.isFetching} onPage={setPage} onPageSize={(n) => (setPageSize(n), setPage(1))} />
               </div>
             ) : null}
           </div>

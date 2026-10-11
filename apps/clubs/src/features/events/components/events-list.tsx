@@ -11,7 +11,7 @@ import {
   useListParams,
 } from "@moa/app-kit";
 import { pageCount } from "@moa/api";
-import { Button, EmptyState, Pagination, ProgressBar, Skeleton, cn } from "@moa/ui";
+import { Button, EmptyState, Pager, ProgressBar, Skeleton, cn } from "@moa/ui";
 import { hoverLift, pressable, stagger } from "@moa/ui/motion";
 
 import { Icon } from "@/components/icon";
@@ -239,14 +239,8 @@ export function ClubEventsList() {
         </div>
       )}
 
-      {!isPending && rows.length > 0 && pages > 1 ? (
-        <Pagination
-          page={params.page}
-          pageCount={pages}
-          onPageChange={params.setPage}
-          pageSize={params.pageSize}
-          onPageSizeChange={params.setPageSize}
-        />
+      {!isPending && rows.length > 0 ? (
+        <Pager page={params.page} pageCount={pages} total={data?.total ?? rows.length} pageSize={params.pageSize} noun={["event", "events"]} onPage={params.setPage} onPageSize={params.setPageSize} />
       ) : null}
     </div>
   );

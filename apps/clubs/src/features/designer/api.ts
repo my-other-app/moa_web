@@ -8,32 +8,34 @@ import {
   uploadedImageSchema,
   type Audience,
   type DesignKind,
+  type DesignScope,
 } from "./schemas";
 
-const base = (eventId: number, kind: DesignKind) =>
-  `/api/v1/events/${eventId}/designs/${kind}`;
+const base = (scope: DesignScope, kind: DesignKind) =>
+  scope.kind === "event" ? `/api/v1/events/${scope.eventId}/designs/${kind}` : `/api/v1/clubs/designs/${kind}`;
 
 export type LayoutBody = { canvas: TicketCanvas; layers: TicketLayer[]; page: PageSpec };
 
-export async function fetchLayout(eventId: number, kind: DesignKind, audience: Audience) {
-  const raw = await api.get<unknown>(`${base(eventId, kind)}/layout`, { query: { audience } });
+export async function fetchLayout(scope: DesignScope, kind: DesignKind, audience: Audience) {
+  const raw = await api.get<unknown>(`${base(scope, kind)}/layout`, { query: { audience } });
   return layerDesignSchema.parse(raw);
 }
 
-export async function fetchStarter(eventId: number, kind: DesignKind, name: string) {
-  const raw = await api.get<unknown>(`${base(eventId, kind)}/layout/starters/${encodeURIComponent(name)}`);
+export async function fetchStarter(scope: DesignScope, kind: DesignKind, name: string) {
+  const raw = await api.get<unknown>(`${base(scope, kind)}/layout/starters/${encodeURIComponent(name)}`);
   return starterSchema.parse(raw);
 }
 
 /** Forks the design onto the event on first save and bumps its version. */
-export async function saveLayout(eventId: number, kind: DesignKind, audience: Audience, body: LayoutBody) {
-  const raw = await api.put<unknown>(`${base(eventId, kind)}/layout`, body, { query: { audience } });
+export async function saveLayout(scope: DesignScope, kind: DesignKind, audience: Audience, body: LayoutBody) {
+  const raw = await api.put<unknown>(`${base(scope, kind)}/layout`, body, { query: { audience } });
   return layerDesignSchema.parse(raw);
 }
 
-/** Drop this event's copy so it follows the club default again. */
-export async function resetDesign(eventId: number, kind: DesignKind, audience: Audience) {
-  await api.del<unknown>(base(eventId, kind), undefined, { query: { audience } });
+/** Drop this event's copy so it follows the club default again; or the club's, so events follow the system's. */
+export async function resetDesign(scope: DesignScope, kind: DesignKind, audience: Audience) {
+  const path = scope.kind === "event" ? base(scope, kind) : `${base(scope, kind)}/layout`;
+  await api.del<unknown>(path, undefined, { query: { audience } });
 }
 
 /**
@@ -42,14 +44,14 @@ export async function resetDesign(eventId: number, kind: DesignKind, audience: A
  * it now and may expire.
  */
 export async function uploadLayoutImage(
-  eventId: number,
+  scope: DesignScope,
   kind: DesignKind,
   file: File,
   purpose: "template" | "image"
 ) {
   const fd = new FormData();
   fd.append("file", file);
-  const raw = await api.post<unknown>(`${base(eventId, kind)}/layout/images`, fd, { query: { purpose } });
+  const raw = await api.post<unknown>(`${base(scope, kind)}/layout/images`, fd, { query: { purpose } });
   return uploadedImageSchema.parse(raw);
 }
 
@@ -62,13 +64,13 @@ export async function uploadLayoutImage(
  * other call, so it is authenticated the same way.
  */
 export async function previewLayout(
-  eventId: number,
+  scope: DesignScope,
   kind: DesignKind,
   audience: Audience,
   body: LayoutBody,
   ticketId: string | null
 ): Promise<Blob> {
-  const response = await fetch(`${GATEWAY_PREFIX}${base(eventId, kind)}/layout/preview?audience=${audience}`, {
+  const response = await fetch(`${GATEWAY_PREFIX}${base(scope, kind)}/layout/preview?audience=${audience}`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

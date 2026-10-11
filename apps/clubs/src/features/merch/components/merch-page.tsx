@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { DoorOpenIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, EmptyState, Pagination, Skeleton, cn, toast } from "@moa/ui";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, EmptyState, Pager, Skeleton, cn, toast } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
 import { useEventDetail } from "@/features/events";
@@ -480,9 +480,9 @@ function Handovers({ eventId }: { eventId: number }) {
               ))}
             </tbody>
           </table>
-          {total > pageSize ? (
-            <div className="border-t border-border/60 px-4 py-2">
-              <Pagination page={page} pageCount={pages} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={(n) => (setPageSize(n), setPage(1))} />
+          {total > 0 ? (
+            <div className="border-t border-border/60 px-4 py-2.5">
+              <Pager page={page} pageCount={pages} total={total} pageSize={pageSize} noun={["handover", "handovers"]} busy={log.isFetching} onPage={setPage} onPageSize={(n) => (setPageSize(n), setPage(1))} />
             </div>
           ) : null}
         </div>

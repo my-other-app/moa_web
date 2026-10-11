@@ -5,21 +5,21 @@ import { useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { DESIGNERS } from "../config";
-import { DESIGN_KINDS, type DesignKind } from "../schemas";
+import { DESIGN_KINDS, type DesignKind, type DesignScope } from "../schemas";
 import { LayerDesignerPage } from "./layer-designer";
 
 const isKind = (v: string | null): v is DesignKind => !!v && (DESIGN_KINDS as readonly string[]).includes(v);
 
 /** One page for every design: a tab each, the editor keyed so a draft never crosses over. `?kind=` opens on one. */
-export function DesignerPage({ eventId }: { eventId: number }) {
+export function DesignerPage({ scope }: { scope: DesignScope }) {
   return (
     <React.Suspense fallback={null}>
-      <Designers eventId={eventId} />
+      <Designers scope={scope} />
     </React.Suspense>
   );
 }
 
-function Designers({ eventId }: { eventId: number }) {
+function Designers({ scope }: { scope: DesignScope }) {
   const params = useSearchParams();
   const [kind, setKind] = React.useState<DesignKind>(() => {
     const asked = params.get("kind");
@@ -36,7 +36,7 @@ function Designers({ eventId }: { eventId: number }) {
           ))}
         </TabsList>
       </Tabs>
-      <LayerDesignerPage key={kind} eventId={eventId} kind={kind} />
+      <LayerDesignerPage key={kind} scope={scope} kind={kind} />
     </div>
   );
 }

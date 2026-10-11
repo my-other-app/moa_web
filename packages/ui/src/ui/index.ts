@@ -161,3 +161,4 @@ export {
   type NoticeTone,
 } from "./figure-kit";
 export { TabRail, TabPanel, type TabItem, type TabRailProps } from "./tab-rail";
+export { Pager, type PagerProps } from "./pager";

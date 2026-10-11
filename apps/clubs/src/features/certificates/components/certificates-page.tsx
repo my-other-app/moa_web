@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { AwardIcon, Loader2Icon, PaletteIcon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
-import { Button, EmptyState, Pagination, Skeleton, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, cn } from "@moa/ui";
+import { Button, EmptyState, Pager, Skeleton, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, cn } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
 import { DeliveryBar, verdictOf } from "@/features/deliveries";
@@ -269,8 +269,8 @@ export function CertificatesPage({ eventId }: { eventId: number }) {
           </div>
         )}
 
-        {!list.isPending && pages > 1 ? (
-          <Pagination page={page} pageCount={pages} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={(n) => (setPageSize(n), setPage(1))} />
+        {!list.isPending && total > 0 ? (
+          <Pager page={page} pageCount={pages} total={total} pageSize={pageSize} noun={["guest", "guests"]} busy={list.isFetching} onPage={setPage} onPageSize={(n) => (setPageSize(n), setPage(1))} />
         ) : null}
       </div>
 
