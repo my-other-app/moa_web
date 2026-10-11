@@ -21,6 +21,7 @@ import { formatNumber } from "@moa/app-kit";
 import { InlineAlert, Skeleton, cn } from "@moa/ui";
 
 import { fetchClubOverview } from "../api";
+import { ClubPulse } from "./club-pulse";
 import {
   PERIOD_OPTIONS,
   type ClubOverview,
@@ -418,6 +419,8 @@ export function ClubDashboardV2() {
         </div>
       </header>
 
+      <ClubPulse />
+
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="Registrations"
@@ -610,7 +613,7 @@ export function ClubDashboardV2() {
         </Panel>
 
         <Panel
-          title="Needs attention"
+          title="Attendance to mark"
           aside={
             data.needs_attention_total > 0 ? (
               <span className="tag tag-accent">{data.needs_attention_total}</span>

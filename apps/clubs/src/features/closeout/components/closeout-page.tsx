@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, DownloadIcon, FileTextIcon } from "lucide-react";
+import { DownloadIcon, FileTextIcon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, EmptyState, InlineAlert, Skeleton, StatusBadge, Switch, cn, toast } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
@@ -236,11 +236,6 @@ export function CloseoutPage({ eventId }: { eventId: number }) {
   const f = figures.data;
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={`/events/${eventId}`}>
-          <ArrowLeftIcon /> {event.data?.name ?? "Back to event"}
-        </Link>
-      </Button>
       <PageHeader title="Closeout" description="Where the event stands, the report that sums it up, and what happens to the guest data afterwards." action={settings.data ? <StatusBadge tone={STATUS_TONE[settings.data.status]} label={settings.data.statuses.find((o) => o.key === settings.data?.status)?.label ?? settings.data.status} /> : null} />
       {f ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

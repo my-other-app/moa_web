@@ -11,13 +11,14 @@ import {
   useListParams,
 } from "@moa/app-kit";
 import { pageCount } from "@moa/api";
-import { Button, EmptyState, Pagination, Skeleton, cn } from "@moa/ui";
+import { Button, EmptyState, Pagination, ProgressBar, Skeleton, cn } from "@moa/ui";
 import { hoverLift, pressable, stagger } from "@moa/ui/motion";
 
 import { Icon } from "@/components/icon";
 import { useClubEvents } from "../queries";
 import type { ClubEvent } from "../schemas";
 import { EventRowActions } from "./event-row-actions";
+import { EventStatusBadge } from "./event-status-badge";
 
 type Scope = "live" | "past";
 
@@ -65,10 +66,8 @@ function FilterChip({
 
 function EventRow({ event, index }: { event: ClubEvent; index: number }) {
   const poster = pickImage(event.poster, ["thumbnail", "medium", "original"]);
-  // "Live" in the design means registration is still open and the event has
-  // not finished; the list endpoint already scopes by is_ended, so this only
-  // distinguishes within the current scope.
-  const isLive = !event.reg_enddate || new Date(event.reg_enddate) > new Date();
+  const registered = event.registration_count ?? 0;
+  const attended = event.attended_count ?? 0;
 
   return (
     <div
@@ -96,22 +95,9 @@ function EventRow({ event, index }: { event: ClubEvent; index: number }) {
           {event.name}
         </Link>
         <div className="mt-1 flex items-center gap-1.5">
-          <span
-            aria-hidden="true"
-            className={cn(
-              "size-1.5 rounded-full",
-              isLive ? "bg-brand" : "bg-muted-foreground/50"
-            )}
-          />
-          <span
-            className={cn(
-              "text-xs font-medium",
-              isLive ? "text-brand" : "text-muted-foreground"
-            )}
-          >
-            {isLive ? "Live" : "Closed"}
-          </span>
-          <span className="text-muted-foreground ml-2 hidden truncate text-xs sm:inline">
+          {/* The status clock, not a guess from the registration deadline. */}
+          <EventStatusBadge status={event.status} />
+          <span className="text-muted-foreground ml-1 hidden truncate text-xs sm:inline">
             {formatDateTime(event.event_datetime)}
           </span>
         </div>
@@ -140,11 +126,17 @@ function EventRow({ event, index }: { event: ClubEvent; index: number }) {
       {/* Label under the figure and in the same voice as the rest of the
           product -- "Registration Count" was title-cased and twice the width
           of the number it described. */}
-      <div className="hidden shrink-0 text-right md:block">
-        <p className="text-foreground text-xl leading-none font-semibold tabular-nums">
-          {formatNumber(event.registration_count ?? 0)}
+      <div className="hidden w-32 shrink-0 md:block">
+        <p className="text-foreground text-right text-xl leading-none font-semibold tabular-nums">
+          {formatNumber(registered)}
         </p>
-        <p className="text-muted-foreground mt-1 text-xs">registered</p>
+        <p className="text-muted-foreground mt-1 text-right text-xs">registered</p>
+        {registered > 0 ? (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <ProgressBar value={attended} max={registered} height={6} tone={event.status === "live" ? "admit" : "muted"} label={`${event.name} checked in`} />
+            <span className="text-muted-foreground shrink-0 font-mono text-[10.5px] tabular-nums">{attended}</span>
+          </div>
+        ) : null}
       </div>
 
       <EventRowActions event={event} />

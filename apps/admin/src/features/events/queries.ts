@@ -14,6 +14,7 @@ import {
   fetchEvent,
   fetchEventCategories,
   fetchEventAnalytics,
+  fetchEventSummary,
   fetchEventRegistrations,
   fetchEvents,
   fetchDeletedEvents,
@@ -46,6 +47,14 @@ export function useEvent(eventId: number) {
   return useQuery({
     queryKey: qk.events.detail(eventId),
     queryFn: () => fetchEvent(eventId),
+  });
+}
+
+export function useEventSummary(eventId: number) {
+  return useQuery({
+    queryKey: [...qk.events.detail(eventId), "summary"],
+    queryFn: () => fetchEventSummary(eventId),
+    staleTime: 15_000,
   });
 }
 

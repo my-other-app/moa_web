@@ -54,12 +54,15 @@ import {
 } from "@moa/ui";
 import { enter, hoverLift, pressable, stagger } from "@moa/ui/motion";
 
+import { ArrivalCurveCard, EventAnalyticsPanels } from "@moa/app-kit";
+
 import { eventExportUrl } from "../api";
 import {
   useDeleteEvent,
   useEvent,
   useEventAnalytics,
   useEventRegistrations,
+  useEventSummary,
 } from "../queries";
 import type { EventRegistration } from "../schemas";
 import { PlacingControl } from "./placing-control";
@@ -196,6 +199,25 @@ function RegistrationsTab({ eventId }: { eventId: number }) {
           onPageSizeChange={params.setPageSize}
         />
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * The door as a shape: the arrival curve and its timing, the load on each
+ * door, turnout by role, whether tickets reached people, how guests were
+ * admitted. The same panels the club sees on its console, read-only here.
+ */
+function DoorTab({ eventId }: { eventId: number }) {
+  const { data: s, isPending, isError } = useEventSummary(eventId);
+  if (isPending) return <Skeleton className="h-80 w-full rounded-2xl" />;
+  if (isError || !s) {
+    return <EmptyState tone="muted" title="Could not load the door's figures" description="Try reloading the page." />;
+  }
+  return (
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(290px,1fr))] gap-3.5">
+      <ArrivalCurveCard a={s.analytics} startsAt={s.starts_at} timezone={s.timezone} fromReport={s.from_report} className="col-span-full" />
+      <EventAnalyticsPanels a={s.analytics} timezone={s.timezone} fromReport={s.from_report} registered={s.registered} doorOpen={s.door_open} />
     </div>
   );
 }
@@ -425,11 +447,15 @@ export function EventDetail({ eventId }: { eventId: number }) {
         <Tabs defaultValue="registrations">
           <TabsList>
             <TabsTrigger value="registrations">Registrations</TabsTrigger>
+            <TabsTrigger value="door">Door</TabsTrigger>
             <TabsTrigger value="institutions">Institutions</TabsTrigger>
             <TabsTrigger value="edit">Edit</TabsTrigger>
           </TabsList>
           <TabsContent value="registrations">
             <RegistrationsTab eventId={eventId} />
+          </TabsContent>
+          <TabsContent value="door">
+            <DoorTab eventId={eventId} />
           </TabsContent>
           <TabsContent value="institutions">
             <InstitutionsTab eventId={eventId} />

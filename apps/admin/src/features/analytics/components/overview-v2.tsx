@@ -20,6 +20,7 @@ import { useAdminOverview } from "../queries";
 import type { AdminOverview, TopClubSort } from "../overview-schemas";
 import { changeOf } from "../delta";
 import { Meter, Micro, Panel, PanelTitle, RuleRow, Segmented } from "./v2-primitives";
+import { PlatformDoorsPanel } from "./platform-doors-panel";
 
 /**
  * The v2 Overview.
@@ -328,6 +329,8 @@ export function AdminOverviewV2() {
           />
         </div>
       </header>
+
+      <PlatformDoorsPanel />
 
       {/* The one saturated band on the page: saturation as presence. */}
       <section className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-x-6 gap-y-[18px] overflow-hidden rounded-[var(--radius-lg)] bg-[radial-gradient(90%_140%_at_0%_0%,var(--color-section-glow),var(--color-section)_60%)] px-5 py-6 sm:px-7 sm:py-[26px]">

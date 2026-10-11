@@ -15,6 +15,7 @@ import {
   cn,
 } from "@moa/ui";
 
+import { GateCard } from "./gate-card";
 import { SidebarNav } from "./sidebar-nav";
 
 /**
@@ -86,6 +87,7 @@ function Rail({
       <Brand clubName={clubName} />
       <SidebarNav onNavigate={onNavigate} />
       <div className="mt-auto flex flex-col gap-2">
+        <GateCard />
         <Identity user={user} />
       </div>
     </div>

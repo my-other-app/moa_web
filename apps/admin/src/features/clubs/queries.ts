@@ -11,6 +11,7 @@ import {
   fetchClub,
   fetchClubEvents,
   fetchClubFollowers,
+  fetchClubLifetime,
   fetchClubs,
   fetchDeletedClubs,
   rejectClub,
@@ -97,6 +98,14 @@ export function useClub(clubId: number) {
   return useQuery({
     queryKey: qk.clubs.detail(clubId),
     queryFn: () => fetchClub(clubId),
+  });
+}
+
+export function useClubLifetime(clubId: number) {
+  return useQuery({
+    queryKey: [...qk.clubs.detail(clubId), "lifetime"],
+    queryFn: () => fetchClubLifetime(clubId),
+    staleTime: 60_000,
   });
 }
 

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, IdCardIcon, PaletteIcon, PrinterIcon } from "lucide-react";
+import { IdCardIcon, PaletteIcon, PrinterIcon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
 import { Button, EmptyState, Skeleton, cn } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
@@ -46,11 +46,6 @@ export function IdCardsPage({ eventId }: { eventId: number }) {
   };
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={`/events/${eventId}`}>
-          <ArrowLeftIcon /> {event.data?.name ?? "Back to event"}
-        </Link>
-      </Button>
       <PageHeader
         title="ID cards"
         description="The card or label each guest wears, drawn from the design at print time: at check-in from the gate, by hand from the attendees page, or all at once."

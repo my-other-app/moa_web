@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, DoorOpenIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { DoorOpenIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, EmptyState, Pagination, Skeleton, cn, toast } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
@@ -563,11 +563,6 @@ export function MerchPage({ eventId }: { eventId: number }) {
   const totalOut = items.data?.reduce((n, i) => n + i.collected, 0) ?? 0;
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={`/events/${eventId}`}>
-          <ArrowLeftIcon /> {event.data?.name ?? "Back to event"}
-        </Link>
-      </Button>
       <PageHeader
         title="Merchandise"
         description="What the event hands out, who may have it, and every handover. Volunteers with the merch duty find the guest at the gate and see exactly what they are owed."

@@ -1,6 +1,11 @@
 import { paginatedSchema } from "@moa/api";
-import { imageFieldSchema, namedRefSchema } from "@moa/app-kit";
+import { EVENT_STATUSES, imageFieldSchema, namedRefSchema, type EventLifecycle } from "@moa/app-kit";
 import { z } from "zod";
+
+export { EVENT_STATUSES, type EventLifecycle };
+
+/** The status clock, tolerant of a payload cached from before it existed. */
+const lifecycleSchema = z.enum(EVENT_STATUSES).catch("published");
 
 /** GET /clubs/events/list — the signed-in club's own events. */
 export const clubEventSchema = z.object({
@@ -22,6 +27,7 @@ export const clubEventSchema = z.object({
   page_views: z.number().nullish(),
   registration_count: z.number().nullish(),
   attended_count: z.number().nullish(),
+  status: lifecycleSchema,
 });
 
 export const clubEventPageSchema = paginatedSchema(clubEventSchema);
@@ -54,6 +60,15 @@ export const eventDetailSchema = z
     // undeclared key cannot be read without casting.
     rating: z.number().nullish(),
     total_rating: z.coerce.number().nullish(),
+    // The console header names the club and reads the status clock.
+    club: z.object({ id: z.coerce.number(), name: z.string() }).nullish(),
+    status: lifecycleSchema,
+    status_clock: z.boolean().catch(true),
+    retention_mode: z.string().catch("keep"),
+    max_participants: z.coerce.number().nullish(),
+    has_fee: z.boolean().nullish(),
+    reg_fee: z.coerce.number().nullish(),
+    about: z.string().nullish(),
   })
   .passthrough();
 

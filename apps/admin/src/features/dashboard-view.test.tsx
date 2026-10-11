@@ -34,6 +34,14 @@ const TRENDS: Record<number, unknown> = {
   },
 };
 
+const DOORS = {
+  stats: { events: { total: 42, draft: 3, published: 7, live: 1, closed: 30, archived: 1 }, on_file: 1480, retention_due: 0, next_retention_at: null, doors_open: 1 },
+  attention: [],
+  live: [{ event_id: 9, name: "Hack Night", club: "Chess Club", registered: 25, checked_in: 10, gates: ["Main door"], volunteers: 2, door_open: true, starts_at: "2026-09-01T10:00:00Z" }],
+  clubs_live: 1,
+  generated_at: "2026-09-01T11:00:00Z",
+};
+
 const DAYS_WAITING = 20;
 const applied = new Date(Date.now() - DAYS_WAITING * 86_400_000).toISOString();
 
@@ -75,6 +83,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         const url = q ? `${path}?${q}` : path;
         calls.push(url);
 
+        if (path.endsWith("/admin/doors")) return DOORS;
         if (path.endsWith("/admin/analytics")) return ANALYTICS;
         if (path.includes("/admin/analytics/trends")) {
           return TRENDS[Number(init?.query?.days)] ?? TRENDS[30];

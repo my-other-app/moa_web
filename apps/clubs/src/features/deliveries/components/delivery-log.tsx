@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, DownloadIcon, Loader2Icon } from "lucide-react";
+import { DownloadIcon, Loader2Icon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
 import { Button, EmptyState, Pagination, Skeleton, StatusBadge, cn } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
@@ -82,11 +82,6 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={`/events/${eventId}`}>
-          <ArrowLeftIcon /> {event.data?.name ?? "Back to event"}
-        </Link>
-      </Button>
       <PageHeader
         title="Delivery log"
         description="Every ticket and certificate sent to a guest, with what became of it."

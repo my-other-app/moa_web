@@ -61,6 +61,7 @@ import {
   useClub,
   useClubEvents,
   useClubFollowers,
+  useClubLifetime,
   useDeleteClub,
 } from "../queries";
 import type { ClubEvent, ClubFollower } from "../schemas";
@@ -233,6 +234,44 @@ function EventsTab({ clubId }: { clubId: number }) {
         <Pagination page={page} pageCount={pages} onPageChange={setPage} />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * What the club has done over every event it has run, and the colours its
+ * designs fall back to. The lifetime figures are the ones a reviewer quotes.
+ */
+function LifetimeSection({ clubId, brand }: { clubId: number; brand: { primary: string | null; secondary: string | null } }) {
+  const { data: life, isError } = useClubLifetime(clubId);
+  if (isError) return null;
+  const cards = [
+    { label: "Events run", value: life ? formatNumber(life.events_run) : "--", caption: "finished, not drafts" },
+    { label: "Guests admitted", value: life ? formatNumber(life.guests_admitted) : "--", caption: life ? `of ${formatNumber(life.registered)} registered` : undefined },
+    { label: "Average turnout", value: life ? (life.average_turnout_pct === null ? "--" : `${life.average_turnout_pct}%`) : "--", caption: "across finished events" },
+    { label: "Reports delivered", value: life ? formatNumber(life.reports_delivered) : "--", caption: "closeout reports sent" },
+  ];
+  return (
+    <section className="space-y-3">
+      <SectionTitle>Lifetime</SectionTitle>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map((card) => (
+          <StatCard key={card.label} label={card.label} value={card.value} caption={card.caption} className="h-full" />
+        ))}
+      </div>
+      <div className="bg-card ring-border/70 flex flex-wrap items-center gap-3 rounded-2xl p-4 shadow-sm ring-1">
+        <span className="text-muted-foreground font-mono text-[10px] font-medium tracking-[0.09em] uppercase">Brand</span>
+        {[
+          ["Primary", brand.primary],
+          ["Secondary", brand.secondary],
+        ].map(([label, colour]) => (
+          <span key={label} className="flex items-center gap-2 text-[12.5px]">
+            <span aria-hidden="true" className="border-border/60 size-6 rounded-md border" style={{ background: colour ?? "transparent" }} />
+            <span>{label}</span>
+            <span className="text-muted-foreground font-mono text-[11px]">{colour ?? "not set"}</span>
+          </span>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -414,6 +453,8 @@ export function ClubDetail({ clubId }: { clubId: number }) {
             ))}
           </div>
         </section>
+
+        {club ? <LifetimeSection clubId={clubId} brand={{ primary: club.brand_primary ?? null, secondary: club.brand_secondary ?? null }} /> : null}
 
         {club?.interests?.length ? (
           <section className="space-y-3">

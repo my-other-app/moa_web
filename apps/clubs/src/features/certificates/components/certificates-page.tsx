@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, AwardIcon, Loader2Icon, PaletteIcon } from "lucide-react";
+import { AwardIcon, Loader2Icon, PaletteIcon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
 import { Button, EmptyState, Pagination, Skeleton, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, cn } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
@@ -62,11 +62,6 @@ export function CertificatesPage({ eventId }: { eventId: number }) {
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={`/events/${eventId}`}>
-          <ArrowLeftIcon /> {event.data?.name ?? "Back to event"}
-        </Link>
-      </Button>
       <PageHeader
         title="Certificates"
         description="Who gets one, sending them, and taking one back. Each carries a number and a QR that says whether it is genuine."

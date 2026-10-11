@@ -5,6 +5,7 @@ import detailFixture from "../__fixtures__/club-detail.json";
 import eventsFixture from "../__fixtures__/club-events.json";
 import followersFixture from "../__fixtures__/club-followers.json";
 import pendingFixture from "../__fixtures__/club-pending.json";
+import lifetimeFixture from "../__fixtures__/club-lifetime.json";
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
 let detail: unknown = detailFixture;
@@ -18,6 +19,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         calls.push({ method: "GET", path });
         if (/\/clubs\/followers\//.test(path)) return followersFixture;
         if (/\/clubs\/\d+\/events/.test(path)) return eventsFixture;
+        if (/\/clubs\/admin\/\d+\/lifetime$/.test(path)) return lifetimeFixture;
         if (/\/clubs\/admin\/\d+$/.test(path)) return detail;
         throw new Error(`unstubbed GET ${path}`);
       }),
@@ -83,6 +85,15 @@ describe("club detail page", () => {
     expect((await screen.findAllByText("Followers")).length).toBeGreaterThan(0);
     expect(await screen.findByText("128")).toBeInTheDocument();
     expect(await screen.findByText("Revenue")).toBeInTheDocument();
+  });
+
+  it("shows the lifetime figures from their own endpoint", async () => {
+    render(<ClubDetail clubId={5} />);
+    expect(await screen.findByText("Events run")).toBeInTheDocument();
+    expect(await screen.findByText("Guests admitted")).toBeInTheDocument();
+    expect(await screen.findByText("388")).toBeInTheDocument();
+    expect(await screen.findByText("63%")).toBeInTheDocument();
+    expect(calls.some((c) => c.path.endsWith("/clubs/admin/5/lifetime"))).toBe(true);
   });
 
   it("names the account owner, which the list cannot show", async () => {

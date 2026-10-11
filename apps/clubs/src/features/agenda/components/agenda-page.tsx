@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, CalendarClockIcon, PaletteIcon, PencilIcon, PrinterIcon, Trash2Icon } from "lucide-react";
+import { CalendarClockIcon, PaletteIcon, PencilIcon, PrinterIcon, Trash2Icon } from "lucide-react";
 import { PageHeader } from "@moa/app-kit";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Button, EmptyState, InlineAlert, Skeleton, StatusBadge, cn } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
@@ -181,10 +181,8 @@ export function AgendaPage({ eventId }: { eventId: number }) {
   const agenda = useAgenda(eventId);
   const [editing, setEditing] = React.useState<AgendaItem | null>(null);
   const [printing, setPrinting] = React.useState(false);
-  const defaultStart = React.useMemo(() => {
-    const start = event.data?.event_datetime ? new Date(event.data.event_datetime) : new Date();
-    return toLocalInput(start.toISOString());
-  }, [event.data?.event_datetime]);
+  const startIso = event.data?.event_datetime;
+  const defaultStart = React.useMemo(() => toLocalInput((startIso ? new Date(startIso) : new Date()).toISOString()), [startIso]);
   const download = () => {
     setPrinting(true);
     openPdf(programmePdfUrl(eventId));
@@ -192,11 +190,6 @@ export function AgendaPage({ eventId }: { eventId: number }) {
   };
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={`/events/${eventId}`}>
-          <ArrowLeftIcon /> {event.data?.name ?? "Back to event"}
-        </Link>
-      </Button>
       <PageHeader
         title="Agenda"
         description="The run of show. Guests see it on the event page and in the app; the kiosk plays it while a card prints; the programme prints from it."

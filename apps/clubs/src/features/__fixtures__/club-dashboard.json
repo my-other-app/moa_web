@@ -1,0 +1,17 @@
+{
+  "stats": {
+    "events": { "total": 4, "draft": 1, "published": 1, "live": 1, "closed": 1, "archived": 0 },
+    "on_file": 61,
+    "retention_due": 1,
+    "next_retention_at": "2099-06-10T10:00:00+00:00",
+    "doors_open": 1
+  },
+  "attention": [
+    { "kind": "RETENTION_FAILED", "tone": "red", "title": "Retention failed for Demo Day", "body": "SES refused the report. Nothing was deleted; it retries next cycle.", "event_id": 12 },
+    { "kind": "TICKETS_MISSING", "tone": "amber", "title": "SF Sea Hackathon has guests without a ticket", "body": "4 on the list have not been sent a ticket yet. Sending is safe to repeat.", "event_id": 37 }
+  ],
+  "live": [
+    { "event_id": 37, "name": "SF Sea Hackathon", "club": "Yukthi", "registered": 24, "checked_in": 3, "gates": ["Gate A"], "volunteers": 2, "door_open": true, "starts_at": "2099-06-09T08:20:00+00:00" }
+  ],
+  "generated_at": "2099-06-09T09:05:00+00:00"
+}

@@ -124,6 +124,8 @@ export function ClubProfileForm() {
   const orgId = useWatch({ control, name: "org_id" });
   const interestIds = useWatch({ control, name: "interest_ids" }) ?? [];
   const about = useWatch({ control, name: "about" });
+  const brandPrimary = useWatch({ control, name: "brand_primary" });
+  const brandSecondary = useWatch({ control, name: "brand_secondary" });
 
   if (isPending) return <FormSkeleton />;
 
@@ -256,14 +258,14 @@ export function ClubProfileForm() {
                   takes when its own design names none. Hex, like a design tool. */}
               <Field id="club-brand-primary" label="Brand colour" error={errors.brand_primary?.message}>
                 <div className="flex items-center gap-2">
-                  <input type="color" aria-label="Pick the brand colour" value={/^#[0-9a-fA-F]{6}$/.test(form.watch("brand_primary") ?? "") ? form.watch("brand_primary") : "#1db9a0"} onChange={(e) => form.setValue("brand_primary", e.target.value, { shouldDirty: true })} disabled={isSaving} className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5" />
+                  <input type="color" aria-label="Pick the brand colour" value={/^#[0-9a-fA-F]{6}$/.test(brandPrimary ?? "") ? brandPrimary : "#1db9a0"} onChange={(e) => form.setValue("brand_primary", e.target.value, { shouldDirty: true })} disabled={isSaving} className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5" />
                   <Input id="club-brand-primary" variant="design" placeholder="#1db9a0" disabled={isSaving} aria-invalid={errors.brand_primary ? true : undefined} {...form.register("brand_primary")} />
                 </div>
               </Field>
 
               <Field id="club-brand-secondary" label="Second colour" error={errors.brand_secondary?.message}>
                 <div className="flex items-center gap-2">
-                  <input type="color" aria-label="Pick the second colour" value={/^#[0-9a-fA-F]{6}$/.test(form.watch("brand_secondary") ?? "") ? form.watch("brand_secondary") : "#aaaaaa"} onChange={(e) => form.setValue("brand_secondary", e.target.value, { shouldDirty: true })} disabled={isSaving} className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5" />
+                  <input type="color" aria-label="Pick the second colour" value={/^#[0-9a-fA-F]{6}$/.test(brandSecondary ?? "") ? brandSecondary : "#aaaaaa"} onChange={(e) => form.setValue("brand_secondary", e.target.value, { shouldDirty: true })} disabled={isSaving} className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5" />
                   <Input id="club-brand-secondary" variant="design" placeholder="#aaaaaa" disabled={isSaving} aria-invalid={errors.brand_secondary ? true : undefined} {...form.register("brand_secondary")} />
                 </div>
               </Field>

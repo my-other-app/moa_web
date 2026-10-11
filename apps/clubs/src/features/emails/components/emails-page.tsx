@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, CopyIcon, MailIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon } from "lucide-react";
+import { CopyIcon, MailIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
 import {
   AlertDialog,
@@ -130,11 +130,6 @@ export function EmailsPage({ eventId }: { eventId: number }) {
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={`/events/${eventId}`}>
-          <ArrowLeftIcon /> {event.data?.name ?? "Back to event"}
-        </Link>
-      </Button>
       <PageHeader
         title="Emails"
         description="The four emails every guest journey has, and any others you write. Each is designed once, sent to its audience, and remembers who it reached."

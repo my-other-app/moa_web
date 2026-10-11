@@ -1,0 +1,19 @@
+{
+  "stats": {
+    "events": { "total": 42, "draft": 3, "published": 7, "live": 2, "closed": 30, "archived": 4 },
+    "on_file": 1480,
+    "retention_due": 2,
+    "next_retention_at": "2099-06-10T10:00:00+00:00",
+    "doors_open": 2
+  },
+  "attention": [
+    { "kind": "RETENTION_FAILED", "tone": "red", "title": "Retention failed for Demo Day", "body": "SES refused the report. Nothing was deleted; it retries next cycle.", "event_id": 12 },
+    { "kind": "NO_PROVIDER", "tone": "amber", "title": "No email provider is configured", "body": "Tickets, certificates and messages are recorded as skipped rather than sent. Connect Amazon SES to send them.", "event_id": null }
+  ],
+  "live": [
+    { "event_id": 37, "name": "SF Sea Hackathon", "club": "Yukthi", "registered": 24, "checked_in": 3, "gates": ["Gate A"], "volunteers": 2, "door_open": true, "starts_at": "2099-06-09T08:20:00+00:00" },
+    { "event_id": 41, "name": "Chess Night", "club": "Chess Club", "registered": 40, "checked_in": 31, "gates": ["Main door", "Side door"], "volunteers": 3, "door_open": true, "starts_at": "2099-06-09T09:00:00+00:00" }
+  ],
+  "clubs_live": 2,
+  "generated_at": "2099-06-09T09:05:00+00:00"
+}

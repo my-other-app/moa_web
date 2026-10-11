@@ -1,4 +1,4 @@
-import { api } from "@moa/app-kit";
+import { api, clubLifetimeSchema } from "@moa/app-kit";
 import {
   adminClubDetailSchema,
   adminClubPageSchema,
@@ -55,6 +55,12 @@ export async function fetchClub(clubId: number): Promise<AdminClubDetail> {
 export interface SubListQuery {
   offset: number;
   limit: number;
+}
+
+/** What the club has done over every event it has run. */
+export async function fetchClubLifetime(clubId: number) {
+  const raw = await api.get<unknown>(`/api/v1/clubs/admin/${clubId}/lifetime`);
+  return clubLifetimeSchema.parse(raw);
 }
 
 export async function fetchClubFollowers(clubId: number, query: SubListQuery) {

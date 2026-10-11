@@ -4,6 +4,7 @@ import { screen } from "@testing-library/react";
 import analyticsFixture from "../__fixtures__/event-analytics-admin.json";
 import detailFixture from "../__fixtures__/event-detail.json";
 import registrationsFixture from "../__fixtures__/event-registrations-admin.json";
+import summaryFixture from "../__fixtures__/event-summary.json";
 
 const calls: string[] = [];
 const putBodies: unknown[] = [];
@@ -22,6 +23,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         calls.push(q ? `${path}?${q}` : path);
 
         if (path.includes("/analytics")) return analyticsFixture;
+        if (/\/events\/\d+\/summary$/.test(path)) return summaryFixture;
         if (path.includes("/registration/") && path.includes("/list"))
           return registrationsFixture;
         if (path.includes("/events/info/")) return detailFixture;
@@ -89,6 +91,17 @@ describe("admin event page", () => {
     expect(await screen.findByText("Conversion")).toBeInTheDocument();
     expect(await screen.findByText("Page views")).toBeInTheDocument();
     expect(await screen.findByText("234")).toBeInTheDocument();
+  });
+
+  it("draws the door from the summary on its own tab", async () => {
+    render(<EventDetail eventId={37} />);
+    const { fireEvent } = await import("@testing-library/react");
+    // Radix tabs activate on pointer-down, not click.
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Door" }), { button: 0, ctrlKey: false });
+    expect(await screen.findByText("Arrival curve")).toBeInTheDocument();
+    expect(await screen.findByText("Load by door")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Gate A admitted" })).toHaveAttribute("aria-valuenow", "2");
+    expect(calls.some((c) => c.endsWith("/events/37/summary"))).toBe(true);
   });
 
   it("reads analytics, which used to 403 for every admin", async () => {

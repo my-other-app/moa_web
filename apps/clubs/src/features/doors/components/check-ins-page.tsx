@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, DoorOpenIcon, Undo2Icon, UsersIcon } from "lucide-react";
+import { DoorOpenIcon, Undo2Icon, UsersIcon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
 import { Button, EmptyState, Pagination, Skeleton, cn } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
@@ -40,11 +40,6 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={`/events/${eventId}`}>
-          <ArrowLeftIcon /> {event.data?.name ?? "Back to event"}
-        </Link>
-      </Button>
       <PageHeader
         title="Check-ins"
         description={f ? `${f.total} admitted${f.first_at ? `, from ${formatDateTime(f.first_at)}` : ""}${f.last_at && f.total > 1 ? ` to ${formatDateTime(f.last_at)}` : ""}.` : "Every admission: where, how and by whom."}

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, MailIcon, SendIcon } from "lucide-react";
+import { MailIcon, SendIcon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
 import {
   AlertDialog,
@@ -184,11 +184,6 @@ export function MessagesPage({ eventId }: { eventId: number }) {
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={`/events/${eventId}`}>
-          <ArrowLeftIcon /> {event.data?.name ?? "Back to event"}
-        </Link>
-      </Button>
       <PageHeader
         title="Messages"
         description="A one-off email to the guests, and the record of every email that went out: journey emails, timers and notes like this one."
