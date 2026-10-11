@@ -15,7 +15,7 @@ import { useCardSummary, usePrintJobs, useRefreshCards, useUpdateCardSettings } 
 import { SOURCE_LABEL, type ReprintPolicy } from "../schemas";
 import { openPdf } from "./print-frame";
 
-const panel = "rounded-lg border-[0.5px] border-[var(--swatch-grey)]";
+const panel = "rounded-2xl bg-card ring-1 ring-border/70 shadow-sm";
 const heading = "font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground";
 const note = "text-[12px] leading-[1.5] text-muted-foreground";
 const ROLE: Record<string, string> = { attendee: "Attendees", speaker: "Speakers", staff: "Staff" };
@@ -24,7 +24,7 @@ function Tile({ label, value, sub }: { label: string; value: React.ReactNode; su
   return (
     <div className={cn(panel, "px-4 py-3")}>
       <p className={heading}>{label}</p>
-      <p className="text-2xl font-medium text-[var(--swatch-ink)] tabular-nums">{value}</p>
+      <p className="text-2xl font-medium tabular-nums">{value}</p>
       {sub ? <p className={note}>{sub}</p> : null}
     </div>
   );
@@ -72,7 +72,7 @@ export function IdCardsPage({ eventId }: { eventId: number }) {
 
           <section className={cn(panel, "space-y-3 p-4")}>
             <div>
-              <p className="text-xl font-medium text-[var(--swatch-ink)]">Print a batch</p>
+              <p className="text-[15px] font-medium text-foreground">Print a batch</p>
               <p className={note}>One PDF, a card per page at the card&apos;s own size — for a card printer on the desk machine, or a print shop. Ticking “record” marks each card as printed, which the reprint rule and “not yet printed” read.</p>
             </div>
             <label className="flex items-center gap-2 text-[13px]">
@@ -95,7 +95,7 @@ export function IdCardsPage({ eventId }: { eventId: number }) {
 
           <section className={cn(panel, "space-y-4 p-4")}>
             <div>
-              <p className="text-xl font-medium text-[var(--swatch-ink)]">Rules</p>
+              <p className="text-[15px] font-medium text-foreground">Rules</p>
             </div>
             <div>
               <p className={heading}>Who may print a second card</p>
@@ -153,7 +153,7 @@ export function IdCardsPage({ eventId }: { eventId: number }) {
                   </thead>
                   <tbody>
                     {jobs.data.map((j) => (
-                      <tr key={j.id} className="border-t-[0.5px] border-[var(--swatch-grey)]">
+                      <tr key={j.id} className="border-t border-border/60">
                         <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">{formatDateTime(j.created_at)}</td>
                         <td className="px-4 py-2.5">
                           {j.guest ?? `${j.cards} cards`}

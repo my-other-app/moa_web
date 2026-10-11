@@ -52,7 +52,7 @@ function PasswordField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id} className="text-xs font-normal text-[var(--swatch-ink)]">
+      <Label htmlFor={id} className="text-xs font-normal text-foreground">
         {label}
       </Label>
       <div className="relative">
@@ -72,7 +72,7 @@ function PasswordField({
           onClick={() => setVisible((v) => !v)}
           tabIndex={-1}
           aria-label={visible ? "Hide password" : "Show password"}
-          className="absolute inset-y-0 right-0 grid w-10 place-items-center text-[var(--swatch-grey)] hover:text-[var(--swatch-ink)]"
+          className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted-foreground hover:text-foreground"
         >
           {visible ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
         </button>
@@ -121,9 +121,9 @@ export function ChangePasswordDialog() {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          size="display"
+          size="lg"
           className={cn(
-            "bebas w-full border border-[var(--swatch-ink)] bg-white tracking-wide text-[var(--swatch-ink)] shadow-none hover:bg-[#f3f3f3] sm:w-[240px]",
+            "w-full sm:w-auto",
             pressable
           )}
         >
@@ -133,7 +133,7 @@ export function ChangePasswordDialog() {
 
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle className="bebas text-2xl tracking-wide uppercase">
+          <DialogTitle className="text-lg font-medium">
             Change password
           </DialogTitle>
           <DialogDescription>

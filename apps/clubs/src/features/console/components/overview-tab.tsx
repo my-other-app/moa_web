@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { ArrivalCurveCard, EventAnalyticsPanels, formatCurrency, formatWindow, pct, relativeTime } from "@moa/app-kit";
+import { ArrivalCurveCard, EventAnalyticsPanels, formatCurrency, formatWindow, pct, pickImage, relativeTime } from "@moa/app-kit";
 import { CardLabel, DefinitionRows, FigurePanel, InitialsAvatar, ProgressBar, RollingNumber, Skeleton, cn } from "@moa/ui";
 
 import type { EventDetail } from "@/features/events";
@@ -43,6 +44,7 @@ export function EventOverviewTab({ eventId, event }: { eventId: number; event: E
   const deleted = s.retention.state === "deleted";
   const turnout = pct(s.checked_in, s.registered);
   const base = `/events/${eventId}`;
+  const poster = pickImage(event?.poster, ["medium", "large", "original", "thumbnail"]);
   const mixTotal = Math.max(1, s.by_source.reduce((a, b) => a + b.registered, 0));
   // Each slice starts where the one before it ended: a running total, kept out of render-time mutation.
   const pie = s.by_source
@@ -96,7 +98,31 @@ export function EventOverviewTab({ eventId, event }: { eventId: number; event: E
 
       <FigurePanel>
         <CardLabel className="mb-3">About</CardLabel>
-        <p className="text-muted-foreground mb-3 line-clamp-4 text-[13px] leading-[1.55]">{event?.about || "No description yet."}</p>
+        <div className="mb-3 flex items-start gap-3">
+          {/* The poster, small: it fronts the public page, the ticket and the app. */}
+          <div className="bg-muted relative size-20 shrink-0 overflow-hidden rounded-xl">
+            {poster ? (
+              <Image src={poster} alt={`Poster for ${event?.name ?? "this event"}`} fill sizes="80px" className="object-cover" unoptimized />
+            ) : (
+              <span className="text-muted-foreground grid size-full place-items-center text-center font-mono text-[9px] leading-tight tracking-[0.06em] uppercase">
+                no
+                <br />
+                poster
+              </span>
+            )}
+          </div>
+          <p className="text-muted-foreground line-clamp-4 min-w-0 flex-1 text-[13px] leading-[1.55]">
+            {event?.about || (
+              <>
+                No description yet. The poster and the description are set under{" "}
+                <Link href={`${base}/edit`} className="text-brand hover:text-foreground">
+                  Settings
+                </Link>
+                .
+              </>
+            )}
+          </p>
+        </div>
         <DefinitionRows
           rows={[
             { k: "Club", v: event?.club?.name ?? "—" },

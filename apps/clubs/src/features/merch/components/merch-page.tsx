@@ -13,7 +13,7 @@ import { uploadMerchPhoto } from "../api";
 import { useAddMerchVariant, useCreateMerchItem, useDeleteMerchItem, useDeleteMerchVariant, useMerchAnalytics, useMerchFields, useMerchItems, useMerchLog, useUpdateMerchItem, useUpdateMerchVariant } from "../queries";
 import type { MerchField, MerchItem, MerchItemInput } from "../schemas";
 
-const panel = "rounded-lg border-[0.5px] border-[var(--swatch-grey)]";
+const panel = "rounded-2xl bg-card ring-1 ring-border/70 shadow-sm";
 const heading = "font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground";
 const note = "text-[12px] leading-[1.5] text-muted-foreground";
 const control = "h-9 w-full rounded-md border bg-muted/40 px-2.5 text-[13px]";
@@ -394,7 +394,7 @@ function Handovers({ eventId }: { eventId: number }) {
   return (
     <section className="space-y-3">
       <div>
-        <p className="text-xl font-medium text-[var(--swatch-ink)]">Handovers</p>
+        <p className="text-[15px] font-medium text-foreground">Handovers</p>
         <p className={note}>{f ? `${f.total} handed over${f.first_at ? `, from ${formatDateTime(f.first_at)}` : ""}${f.last_at && f.total > 1 ? ` to ${formatDateTime(f.last_at)}` : ""}${f.without_door ? ` · ${f.without_door} with no door recorded` : ""}.` : "Every handover: who took what, where, and who gave it to them."}</p>
       </div>
       {f && f.total > 0 ? (
@@ -462,7 +462,7 @@ function Handovers({ eventId }: { eventId: number }) {
             </thead>
             <tbody>
               {log.data.items.map((r) => (
-                <tr key={r.id} className="border-t-[0.5px] border-[var(--swatch-grey)]">
+                <tr key={r.id} className="border-t border-border/60">
                   <td className="px-4 py-3 align-top">
                     <div className="font-medium">{r.name}</div>
                     <div className="font-mono text-[10.5px] text-muted-foreground">
@@ -481,7 +481,7 @@ function Handovers({ eventId }: { eventId: number }) {
             </tbody>
           </table>
           {total > pageSize ? (
-            <div className="border-t-[0.5px] border-[var(--swatch-grey)] px-4 py-2">
+            <div className="border-t border-border/60 px-4 py-2">
               <Pagination page={page} pageCount={pages} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={(n) => (setPageSize(n), setPage(1))} />
             </div>
           ) : null}

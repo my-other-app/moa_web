@@ -152,13 +152,15 @@ describe("event screen", () => {
     expect(within(card as HTMLElement).queryByText("5")).toBeNull();
   });
 
-  it("offers Add Volunteers and the door's figures; the row actions live in the console", async () => {
+  it("draws the door's figures and the status from the clock; the row actions live in the console", async () => {
     render(<EventWorkspace eventId={37} />);
-    expect(
-      await screen.findByRole("button", { name: "Add Volunteers" })
-    ).toBeInTheDocument();
     expect(await screen.findByText("Arrival curve")).toBeInTheDocument();
+    // The fixture's dates would say "ended"; the clock says live, and the clock wins.
+    const label = await screen.findByText("Status");
+    const card = label.closest("div.bg-card");
+    expect(within(card as HTMLElement).getByText("Live")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Edit SF Sea Hackathon/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Add Volunteers/i })).toBeNull();
   });
 });
 

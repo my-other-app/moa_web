@@ -18,5 +18,11 @@
   "reg_fee": null,
   "page_views": 234,
   "max_participants": 100,
-  "category": { "id": 2, "name": "Hackathon" }
+  "category": {
+    "id": 2,
+    "name": "Hackathon"
+  },
+  "status": "live",
+  "status_clock": true,
+  "retention_mode": "keep"
 }

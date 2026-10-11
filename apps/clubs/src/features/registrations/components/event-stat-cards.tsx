@@ -10,7 +10,7 @@ import { formatNumber } from "@moa/app-kit";
 import { MetricCard, Skeleton, StatusBadge, cn, type StatusTone } from "@moa/ui";
 import { hoverLift, stagger } from "@moa/ui/motion";
 
-import { eventStatus, type EventDetail, type EventStatus } from "@/features/events";
+import type { EventDetail, EventLifecycle } from "@/features/events";
 import { useEventAnalytics } from "../queries";
 
 /**
@@ -23,25 +23,12 @@ import { useEventAnalytics } from "../queries";
  * dashboards, so colour carries meaning (the event's state) rather than
  * decorating every tile equally.
  */
-const STATUS_COPY: Record<
-  EventStatus,
-  { label: string; caption: string; tone: StatusTone }
-> = {
-  live: {
-    label: "Live",
-    caption: "registrations are open",
-    tone: "success",
-  },
-  closed: {
-    label: "Closed",
-    caption: "registrations closed, not yet held",
-    tone: "warning",
-  },
-  ended: {
-    label: "Ended",
-    caption: "this event has finished",
-    tone: "default",
-  },
+const STATUS_COPY: Record<EventLifecycle, { label: string; caption: string; tone: StatusTone }> = {
+  draft: { label: "Draft", caption: "not published; the gate refuses scans", tone: "warning" },
+  published: { label: "Published", caption: "tickets can go out; the door opens at the start", tone: "info" },
+  live: { label: "Live", caption: "the door is open", tone: "success" },
+  closed: { label: "Closed", caption: "the door is shut and settings are locked", tone: "default" },
+  archived: { label: "Archived", caption: "hidden from the events list", tone: "default" },
 };
 
 export function EventStatCards({ event }: { event: EventDetail | undefined }) {
@@ -49,7 +36,7 @@ export function EventStatCards({ event }: { event: EventDetail | undefined }) {
 
   if (isPending || !event) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-[8.75rem] w-full rounded-2xl" />
         ))}
@@ -57,7 +44,8 @@ export function EventStatCards({ event }: { event: EventDetail | undefined }) {
     );
   }
 
-  const status = STATUS_COPY[eventStatus(event)];
+  // The status clock, not a guess from the dates: the header badge reads the same field.
+  const status = STATUS_COPY[event.status];
   // Page views live on the event, not on the analytics response -- the
   // endpoint only exposes them indirectly, through conversion_rate.
   const visitors = event.page_views ?? 0;
@@ -94,7 +82,7 @@ export function EventStatCards({ event }: { event: EventDetail | undefined }) {
   ];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card, i) => (
         <div
           key={card.label}

@@ -17,7 +17,7 @@ const inputVariants = cva(
          * both dashboards keeps one implementation.
          */
         design:
-          "placeholder:text-[var(--swatch-grey)] h-11 rounded-lg border-[0.5px] border-[var(--swatch-ink)] bg-white pl-2 pr-3.5 py-1.5 text-base font-medium focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+          "placeholder:text-muted-foreground border-border bg-card text-foreground h-11 rounded-lg border pl-3 pr-3.5 py-1.5 text-base focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
       },
     },
     defaultVariants: { variant: "default" },

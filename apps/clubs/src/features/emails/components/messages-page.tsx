@@ -63,7 +63,7 @@ function Composer({ eventId }: { eventId: number }) {
   return (
     <section className={cn(ui.panel, "space-y-3 p-4")}>
       <div>
-        <p className="text-xl font-medium text-[var(--swatch-ink)]">Write to the guests</p>
+        <p className="text-[15px] font-medium text-foreground">Write to the guests</p>
         <p className={ui.note}>A plain email in the event&apos;s design. Tokens fill in per guest; **bold**, _italic_ and [links](https://…) work. A blank line starts a new paragraph.</p>
       </div>
       <TemplateField id="m-subject" label="Subject" value={subject} single onChange={setSubject} tokens={tokens} samples={samples} placeholder="A change to {{event_name}}" />
@@ -205,7 +205,7 @@ export function MessagesPage({ eventId }: { eventId: number }) {
         ) : !list.data.items.length ? (
           <EmptyState tone="muted" title="Nothing sent yet" description="Journey emails, timers and notes you write here all show up once they go out." />
         ) : (
-          <div className="overflow-hidden rounded-lg border-[0.5px] border-[var(--swatch-grey)]">
+          <div className="overflow-hidden rounded-2xl bg-card ring-1 ring-border/70 shadow-sm">
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
                 <tr>
@@ -218,7 +218,7 @@ export function MessagesPage({ eventId }: { eventId: number }) {
               </thead>
               <tbody>
                 {list.data.items.map((m) => (
-                  <tr key={m.id} className="cursor-pointer border-t-[0.5px] border-[var(--swatch-grey)] hover:bg-muted/40" onClick={() => setOpen(m)}>
+                  <tr key={m.id} className="cursor-pointer border-t border-border/60 hover:bg-muted/40" onClick={() => setOpen(m)}>
                     <td className={cn(CELL, "whitespace-nowrap text-muted-foreground")}>{formatDateTime(m.createdAt)}</td>
                     <td className={CELL}>
                       <span className="font-medium">{m.subject}</span>
@@ -239,7 +239,7 @@ export function MessagesPage({ eventId }: { eventId: number }) {
               </tbody>
             </table>
             {pages > 1 || total > pageSize ? (
-              <div className="border-t-[0.5px] border-[var(--swatch-grey)] px-4 py-2">
+              <div className="border-t border-border/60 px-4 py-2">
                 <Pagination page={page} pageCount={pages} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={(n) => (setPageSize(n), setPage(1))} />
               </div>
             ) : null}

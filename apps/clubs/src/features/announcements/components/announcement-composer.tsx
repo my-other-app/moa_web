@@ -70,7 +70,7 @@ export function AnnouncementComposer({
       <div className="flex flex-col gap-1">
         <Label
           htmlFor="announcement-body"
-          className="text-xs font-normal text-[var(--swatch-ink)]"
+          className="text-xs font-normal text-foreground"
         >
           Send message to the registered participants as notifications
         </Label>
@@ -88,7 +88,7 @@ export function AnnouncementComposer({
         />
         <p
           id="announcement-help"
-          className="flex justify-between text-xs text-[var(--swatch-grey)]"
+          className="flex justify-between text-xs text-muted-foreground"
         >
           <span>
             {tooShort ? (
@@ -107,11 +107,11 @@ export function AnnouncementComposer({
         <Button
           type="button"
           variant="outline"
-          size="display"
+          size="lg"
           disabled={!canSend}
           onClick={() => setConfirmOpen(true)}
           className={cn(
-            "bebas w-full border border-[var(--swatch-ink)] bg-white tracking-wide text-[var(--swatch-ink)] shadow-none hover:bg-[#f3f3f3] sm:w-[240px]",
+            "w-full sm:w-auto",
             pressable
           )}
         >

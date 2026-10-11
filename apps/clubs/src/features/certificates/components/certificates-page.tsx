@@ -24,9 +24,9 @@ const CELL = "px-4 py-3 text-left align-middle";
 
 function Tile({ label, value, note }: { label: string; value: React.ReactNode; note?: React.ReactNode }) {
   return (
-    <div className="rounded-lg border-[0.5px] border-[var(--swatch-grey)] px-4 py-3">
+    <div className="rounded-2xl bg-card ring-1 ring-border/70 shadow-sm px-4 py-3">
       <p className="text-muted-foreground font-mono text-[11px] uppercase tracking-[0.08em]">{label}</p>
-      <p className="text-2xl font-medium text-[var(--swatch-ink)] tabular-nums">{value}</p>
+      <p className="text-2xl font-medium tabular-nums">{value}</p>
       {note ? <p className="text-muted-foreground text-xs">{note}</p> : null}
     </div>
   );
@@ -85,8 +85,8 @@ export function CertificatesPage({ eventId }: { eventId: number }) {
         <Tile label="Sent" value={email?.sent ?? "—"} note={`of ${s?.issued ?? "—"} issued`} />
       </div>
 
-      <div className="rounded-lg border-[0.5px] border-[var(--swatch-grey)] p-4">
-        <p className="text-xl font-medium text-[var(--swatch-ink)]">Issue certificates</p>
+      <div className="rounded-2xl bg-card ring-1 ring-border/70 shadow-sm p-4">
+        <p className="text-[15px] font-medium text-foreground">Issue certificates</p>
         <p className="text-muted-foreground mb-3 text-sm">
           Each guest gets one certificate with its own number, drawn from the current design. Issuing again after a design change
           refreshes the ones made with an older design; nobody is ever issued twice.
@@ -193,7 +193,7 @@ export function CertificatesPage({ eventId }: { eventId: number }) {
         {list.isPending ? (
           <Skeleton className="h-[320px] w-full rounded-lg" />
         ) : rows.length === 0 ? (
-          <div className="rounded-lg border-[0.5px] border-[var(--swatch-grey)] p-10">
+          <div className="rounded-2xl bg-card ring-1 ring-border/70 shadow-sm p-10">
             <EmptyState
               tone="muted"
               title={search || status ? "Nobody matches" : "No certificates yet"}
@@ -201,11 +201,11 @@ export function CertificatesPage({ eventId }: { eventId: number }) {
             />
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border-[0.5px] border-[var(--swatch-grey)]">
+          <div className="overflow-hidden rounded-2xl bg-card ring-1 ring-border/70 shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] border-collapse text-sm">
                 <thead>
-                  <tr className="bg-[var(--swatch-mint)] text-base font-light text-[var(--swatch-ink)]">
+                  <tr className="bg-muted/60 text-[13px] font-medium text-muted-foreground">
                     <th scope="col" className={cn(CELL, "font-light")}>Number</th>
                     <th scope="col" className={cn(CELL, "font-light")}>Guest</th>
                     <th scope="col" className={cn(CELL, "font-light")}>Role</th>
@@ -221,10 +221,10 @@ export function CertificatesPage({ eventId }: { eventId: number }) {
                   {rows.map((r) => {
                     const d = r.deliveries.find((x) => x.channel === "email");
                     return (
-                      <tr key={r.registration_id} className="border-t border-[#e5e5e5] transition-colors hover:bg-[#fafafa]">
+                      <tr key={r.registration_id} className="border-t border-border/60 transition-colors hover:bg-muted/40">
                         <td className={cn(CELL, "font-mono text-xs")}>{r.number}</td>
                         <td className={CELL}>
-                          <div className="text-[var(--swatch-ink)]">{r.name}</div>
+                          <div className="text-foreground">{r.name}</div>
                           <div className="text-muted-foreground font-mono text-xs">{r.email ?? "no email"}</div>
                         </td>
                         <td className={cn(CELL, "capitalize")}>{r.role}</td>

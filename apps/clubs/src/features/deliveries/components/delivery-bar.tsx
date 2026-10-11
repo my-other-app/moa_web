@@ -57,10 +57,10 @@ export function DeliveryBar({ eventId, kind = "ticket", className }: { eventId: 
   const busy = send.isPending;
 
   return (
-    <div className={cn("rounded-lg border-[0.5px] border-[var(--swatch-grey)] p-4", className)}>
+    <div className={cn("rounded-2xl bg-card ring-1 ring-border/70 shadow-sm p-4", className)}>
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <p className="text-xl font-medium text-[var(--swatch-ink)]">{kind === "ticket" ? "Tickets" : "Certificates"} by email</p>
+          <p className="text-[15px] font-medium text-foreground">{kind === "ticket" ? "Tickets" : "Certificates"} by email</p>
           <p className="text-muted-foreground font-mono text-xs tabular-nums">
             {email.sent} of {total} {kind === "ticket" ? "sent" : "issued, sent"}
             {email.pending ? ` · ${email.pending} sending…` : ""}

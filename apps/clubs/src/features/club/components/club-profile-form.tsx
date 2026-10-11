@@ -54,7 +54,7 @@ function Field({
 }) {
   return (
     <div className={cn("flex w-full flex-col gap-1.5", className)}>
-      <Label htmlFor={id} className="text-xs font-normal text-[var(--swatch-ink)]">
+      <Label htmlFor={id} className="text-xs font-normal text-foreground">
         {label}
       </Label>
       {children}
@@ -287,7 +287,7 @@ export function ClubProfileForm() {
                 className="min-h-[196px]"
                 {...form.register("about")}
               />
-              <p className="text-right text-xs text-[var(--swatch-grey)]">
+              <p className="text-right text-xs text-muted-foreground">
                 {(about?.length ?? 0).toLocaleString("en-IN")} / 2,000
               </p>
             </Field>
@@ -343,7 +343,7 @@ export function ClubProfileForm() {
         <Button
           type="submit"
           variant="display"
-          size="display"
+          size="lg"
           disabled={isSaving}
           className={cn("w-full sm:w-[240px]", pressable)}
         >

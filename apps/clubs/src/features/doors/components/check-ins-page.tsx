@@ -111,7 +111,7 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
       ) : !log.data.items.length ? (
         <EmptyState tone="muted" title={f?.total ? "Nobody matches" : "Nobody checked in yet"} description={f?.total ? "Try a wider filter." : "Open the gate and scan the first ticket."} />
       ) : (
-        <div className="overflow-hidden rounded-lg border-[0.5px] border-[var(--swatch-grey)]">
+        <div className="overflow-hidden rounded-2xl bg-card ring-1 ring-border/70 shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               <tr>
@@ -125,7 +125,7 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
             </thead>
             <tbody>
               {log.data.items.map((r) => (
-                <tr key={r.id} className="border-t-[0.5px] border-[var(--swatch-grey)]">
+                <tr key={r.id} className="border-t border-border/60">
                   <td className={CELL}>
                     <div className="font-medium">{r.name}</div>
                     <div className="font-mono text-[10.5px] text-muted-foreground">
@@ -149,7 +149,7 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
             </tbody>
           </table>
           {total > pageSize ? (
-            <div className="border-t-[0.5px] border-[var(--swatch-grey)] px-4 py-2">
+            <div className="border-t border-border/60 px-4 py-2">
               <Pagination page={page} pageCount={pages} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={(n) => (setPageSize(n), setPage(1))} />
             </div>
           ) : null}

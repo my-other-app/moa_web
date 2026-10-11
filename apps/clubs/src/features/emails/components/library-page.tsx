@@ -69,7 +69,7 @@ export function EmailLibraryPage() {
               {journey.map((t) => (
                 <div key={t.id} className={cn(ui.panel, "flex flex-col gap-2 p-4")}>
                   <p className={ui.heading}>{STAGE_META[t.stage].label}</p>
-                  <p className="truncate text-[15px] font-medium text-[var(--swatch-ink)]">{t.name}</p>
+                  <p className="truncate text-[15px] font-medium">{t.name}</p>
                   <p className={cn(ui.note, "truncate")}>{t.subject}</p>
                   <p className={ui.note}>{STAGE_META[t.stage].note}</p>
                   <p className="text-[12px]">
@@ -92,7 +92,7 @@ export function EmailLibraryPage() {
           <section className="space-y-3">
             <p className={ui.heading}>Other emails</p>
             {custom.length ? (
-              <ul className="divide-y rounded-lg border-[0.5px] border-[var(--swatch-grey)]">
+              <ul className="divide-y rounded-2xl bg-card ring-1 ring-border/70 shadow-sm">
                 {custom.map((t) => (
                   <li key={t.id} className="flex items-center gap-3 px-4 py-3">
                     <div className="min-w-0 flex-1">

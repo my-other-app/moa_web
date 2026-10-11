@@ -156,12 +156,12 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
       <DeliveryBar eventId={eventId} />
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <p className="text-xl font-medium text-[var(--swatch-ink)]">
+        <p className="text-[15px] font-medium text-foreground">
           Guest list{data?.total != null ? ` · ${data.total}` : ""}
         </p>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="flex h-12 w-full items-center gap-1.5 rounded-lg border border-[var(--swatch-grey)] bg-white px-3 sm:w-[401px]">
-            <Icon name="search-lg" className="text-[var(--swatch-grey)]" />
+          <div className="bg-card ring-border flex h-11 w-full items-center gap-2 rounded-xl px-3 ring-1 sm:w-[360px]">
+            <Icon name="search-lg" className="text-muted-foreground" />
             <input
               value={params.searchInput}
               onChange={(e) => params.setSearchInput(e.target.value)}
@@ -169,10 +169,10 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
               onKeyDown={(e) => e.key === "Enter" && params.commitSearch(params.searchInput)}
               placeholder="Search name, email, phone or ticket"
               aria-label="Search guests"
-              className="w-full bg-transparent text-base font-light outline-none placeholder:text-[var(--swatch-grey)]"
+              className="placeholder:text-muted-foreground text-foreground w-full bg-transparent text-sm outline-none"
             />
           </div>
-          <Button asChild className={cn("h-12 shrink-0 gap-4 rounded-lg bg-[var(--swatch-ink)] px-4 text-xs font-normal text-white hover:bg-[var(--swatch-ink)]/90", pressable)}>
+          <Button asChild variant="outline" className={cn("h-11 shrink-0 gap-2 rounded-lg px-4", pressable)}>
             {/* A real navigation, not fetch: the browser handles the file and
                 the cookie rides along because the gateway is same-origin. The
                 endpoint returns an xlsx workbook, so the label says so. */}
@@ -217,7 +217,7 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
       ) : isError ? (
         <EmptyState tone="muted" title="Could not load registrations" description="Try reloading the page." />
       ) : rows.length === 0 ? (
-        <div className="rounded-lg border-[0.5px] border-[var(--swatch-grey)] p-10">
+        <div className="rounded-2xl bg-card ring-1 ring-border/70 shadow-sm p-10">
           <EmptyState
             tone="muted"
             title={filtered ? "Nobody matches" : "No guests on the list yet"}
@@ -239,11 +239,11 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
           />
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border-[0.5px] border-[var(--swatch-grey)]">
+        <div className="overflow-hidden rounded-2xl bg-card ring-1 ring-border/70 shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px] border-collapse">
               <thead>
-                <tr className="bg-[var(--swatch-mint)] text-base font-light text-[var(--swatch-ink)]">
+                <tr className="bg-muted/60 text-[13px] font-medium text-muted-foreground">
                   <th scope="col" className={cn(CELL, "font-light")}>Name</th>
                   <th scope="col" className={cn(CELL, "font-light")}>Institution</th>
                   <th scope="col" className={cn(CELL, "font-light")}>Role</th>
@@ -255,14 +255,14 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="text-base font-light text-[var(--swatch-grey)]">
+              <tbody className="text-sm text-muted-foreground">
                 {rows.map((row) => {
                   const name = row.full_name || row.name || row.user?.full_name || "Unknown";
                   return (
-                    <tr key={row.id} className="border-t border-[#e5e5e5] transition-colors hover:bg-[#fafafa]">
+                    <tr key={row.id} className="border-t border-border/60 transition-colors hover:bg-muted/40">
                       <td className={CELL}>
                         <button type="button" onClick={() => setDialog({ kind: "detail", id: row.id })} className="min-w-0 max-w-full text-left" aria-label={`Open ${name}`}>
-                          <span className="hover:text-primary block font-medium text-[var(--swatch-ink)] hover:underline">{name}</span>
+                          <span className="hover:text-primary block font-medium text-foreground hover:underline">{name}</span>
                           <span className="text-muted-foreground block font-mono text-xs break-all">
                             {[row.email, row.phone].filter(Boolean).join(" · ") || "no contact on file"}
                           </span>

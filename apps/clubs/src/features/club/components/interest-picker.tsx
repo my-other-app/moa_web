@@ -40,8 +40,8 @@ function InterestPill({
         "focus-visible:ring-ring/60 focus-visible:outline-none focus-visible:ring-[3px]",
         "disabled:pointer-events-none disabled:opacity-50",
         selected
-          ? "bg-[var(--swatch-ink)] text-white"
-          : "bg-white text-black hover:bg-[var(--swatch-lime)]",
+          ? "bg-brand text-brand-foreground"
+          : "bg-card text-foreground hover:bg-muted",
         pressable
       )}
     >
@@ -73,7 +73,7 @@ export function InterestPicker({
 
   if (isPending) {
     return (
-      <div className="space-y-9 rounded-2xl bg-[#f3f3f3] px-4 py-6">
+      <div className="space-y-9 rounded-2xl bg-muted px-4 py-6">
         {Array.from({ length: 2 }).map((_, group) => (
           <div key={group} className="space-y-4">
             <Skeleton className="h-5 w-32" />
@@ -90,8 +90,8 @@ export function InterestPicker({
 
   if (isError || !categories?.length) {
     return (
-      <div className="rounded-2xl bg-[#f3f3f3] px-4 py-6">
-        <p className="text-sm text-[var(--swatch-grey)]">
+      <div className="rounded-2xl bg-muted px-4 py-6">
+        <p className="text-sm text-muted-foreground">
           Focus areas could not be loaded, so they are left unchanged when you
           save.
         </p>
@@ -100,10 +100,10 @@ export function InterestPicker({
   }
 
   return (
-    <div className="flex max-h-[520px] flex-col gap-9 overflow-y-auto rounded-2xl bg-[#f3f3f3] px-4 py-2">
+    <div className="flex max-h-[520px] flex-col gap-9 overflow-y-auto rounded-2xl bg-muted px-4 py-2">
       {categories.map((category) => (
         <fieldset key={category.id} className="flex flex-col gap-4">
-          <legend className="text-base font-bold text-black">{category.name}</legend>
+          <legend className="text-base font-medium">{category.name}</legend>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
             {category.interests.map((interest) => (
               <InterestPill
