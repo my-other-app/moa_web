@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { layoutProblems, layoutText, lineX } from "./engine";
-import { CERTIFICATE_STARTERS, certificateStarter, TICKET_STARTERS, ticketStarter } from "./starters";
+import { BADGE_STARTERS, badgeStarter, badgeStarterPage, CERTIFICATE_STARTERS, certificateStarter, TICKET_STARTERS, ticketStarter } from "./starters";
 import { minQrSize, PAGE_PRESETS, TicketLayoutFields } from "./ticket-layout";
 import { canonicalToken, carriesPerGuestToken, fieldToken, parseTicketTemplate, renderTicketTemplate } from "./ticket-tokens";
 
@@ -124,5 +124,24 @@ describe("what a design may not be", () => {
     expect(layoutProblems(s.canvas, s.layers, PAGE_PRESETS.a4_portrait.page).map((p) => p.message)).toContainEqual(expect.stringContaining("not the shape of a 210 × 297 mm page"));
     const tiny = s.layers.map((l) => (l.kind === "qr" ? { ...l, size: 40 } : l));
     expect(layoutProblems(s.canvas, tiny, s.page).map((p) => p.message)).toContainEqual(expect.stringContaining(`at least ${minQrSize(s.canvas, s.page)} px`));
+  });
+});
+
+describe("the badge starters", () => {
+  it.each(Object.keys(BADGE_STARTERS) as (keyof typeof BADGE_STARTERS)[])("the %s badge starter is valid as it comes", (kind) => {
+    for (const page of [null, PAGE_PRESETS.cr80_landscape.page, PAGE_PRESETS.label_38x90.page]) {
+      const s = badgeStarter(kind, { seats: false, page });
+      const parsed = TicketLayoutFields.parse({ canvas: s.canvas, layers: s.layers, page: s.page });
+      expect(layoutProblems(parsed.canvas, parsed.layers, parsed.page, { qrRequired: true })).toEqual([]);
+      expect(parsed.layers.some((l) => l.kind === "qr")).toBe(true);
+    }
+  });
+
+  it("draws the insert and label starters for the page the designer is on", () => {
+    expect(badgeStarterPage("classic")).toEqual(PAGE_PRESETS.cr80_portrait.page);
+    expect(badgeStarterPage("insert", PAGE_PRESETS.cr80_landscape.page)).toEqual(PAGE_PRESETS.cr80_landscape.page);
+    expect(badgeStarterPage("insert", PAGE_PRESETS.ticket.page)).toEqual(PAGE_PRESETS.badge_87x130.page);
+    expect(badgeStarterPage("label_brother", PAGE_PRESETS.label_29x90.page)).toEqual(PAGE_PRESETS.label_29x90.page);
+    expect(badgeStarterPage("label_4x6")).toEqual(PAGE_PRESETS.lanyard_4x6.page);
   });
 });

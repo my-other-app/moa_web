@@ -1,4 +1,6 @@
 import {
+  BADGE_STARTERS,
+  badgeStarter,
   CERTIFICATE_STARTERS,
   certificateStarter,
   PAGE_PRESETS,
@@ -73,6 +75,24 @@ export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
     previewNote: "Rendered by the same code that issues tickets. The QR in a preview admits nobody.",
     savedNote: "Tickets opened from now on use it.",
     guideTitle: "Designing a ticket in Figma",
+    sampleQr: TICKET_QR,
+  },
+  badge: {
+    kind: "badge",
+    title: "ID card design",
+    description: (name) =>
+      `${name} · the card or label printed at the door. Pick the size, upload a template or start from a layout, and mark what the blank stock already carries.`,
+    noun: "card",
+    qrRequired: true,
+    pages: ["cr80_portrait", "cr80_landscape", "badge_87x130", "badge_130x87", "a6_portrait", "label_4x3", "lanyard_4x6", "label_62x90", "label_54x90", "label_50x90", "label_38x90", "label_29x90"],
+    dpi: 300,
+    starters: BADGE_STARTERS,
+    starter: (name, o) => badgeStarter(name as keyof typeof BADGE_STARTERS, o),
+    tokenGroups: ["Guest", "Ticket", "Event", "Club"],
+    guestPhoto: true,
+    previewNote: "Rendered by the same code that prints at the door, at the card's real size. The QR in a preview admits nobody.",
+    savedNote: "Cards are drawn at print time, so every card printed from now on uses it.",
+    guideTitle: "Designing an ID card in Figma",
     sampleQr: TICKET_QR,
   },
   certificate: {

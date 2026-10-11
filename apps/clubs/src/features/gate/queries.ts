@@ -66,8 +66,10 @@ export function useOfflineQueue(key: string | null, eventId: number, onDrained?:
   const [queued, setQueued] = React.useState(0);
   const draining = React.useRef(false);
 
-  const refreshCount = React.useCallback(async () => {
-    if (supportsQueue()) setQueued(await scanQueue.count(eventId));
+  // The count lands in a callback, never in the effect body itself.
+  const refreshCount = React.useCallback((): Promise<void> => {
+    if (!supportsQueue()) return Promise.resolve();
+    return scanQueue.count(eventId).then((n) => setQueued(n));
   }, [eventId]);
 
   const drain = React.useCallback(async () => {
