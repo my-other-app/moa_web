@@ -8,6 +8,7 @@ import { Button, EmptyState, Pagination, Skeleton, StatusBadge, cn } from "@moa/
 import { pressable } from "@moa/ui/motion";
 
 import { Icon } from "@/components/icon";
+import { DeliveryBar, TicketCell } from "@/features/deliveries";
 import { exportUrl } from "../api";
 import { useMarkAttendance, useRegistrations } from "../queries";
 import type { Registration } from "../schemas";
@@ -67,10 +68,11 @@ function CheckInButton({ eventId, row }: { eventId: number; row: Registration })
       size="xs"
       variant="outline"
       className={pressable}
-      disabled={mark.isPending}
+      // A revoked ticket is refused at the door; the API answers 409 to say so.
+      disabled={mark.isPending || !!row.ticket_revoked_at}
       onClick={() => mark.mutate(row.id)}
       // The API has no un-mark endpoint, so this is one-way.
-      title="Marks attendance — this cannot be undone here"
+      title={row.ticket_revoked_at ? "This ticket was revoked — reinstate it first" : "Marks attendance — this cannot be undone here"}
     >
       {mark.isPending ? <Loader2Icon className="animate-spin" /> : <CheckIcon />}
       Check in
@@ -156,6 +158,9 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
         </div>
       </div>
 
+      {/* Who has their ticket, and the sends -- on the registration list, where the organiser already is. */}
+      {!isAttendance ? <DeliveryBar eventId={eventId} /> : null}
+
       {isPending ? (
         <Skeleton className="h-[400px] w-full rounded-lg" />
       ) : isError ? (
@@ -198,7 +203,7 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
       ) : (
         <div className="overflow-hidden rounded-lg border-[0.5px] border-[var(--swatch-grey)]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse">
+            <table className="w-full min-w-[1080px] border-collapse">
               <thead>
                 <tr className="bg-[var(--swatch-mint)] text-xl font-light text-[var(--swatch-ink)]">
                   <th scope="col" className={cn(CELL, "font-light")}>
@@ -215,6 +220,9 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
                   </th>
                   <th scope="col" className={cn(CELL, "font-light")}>
                     College Name
+                  </th>
+                  <th scope="col" className={cn(CELL, "font-light text-right")}>
+                    Ticket
                   </th>
                   <th scope="col" className={cn(CELL, "font-light text-right")}>
                     <span className="sr-only">Attendance</span>
@@ -244,6 +252,9 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
                       >
                         {row.institution || "--"}
                       </span>
+                    </td>
+                    <td className={cn(CELL, "text-right")}>
+                      <TicketCell eventId={eventId} row={row} />
                     </td>
                     <td className={cn(CELL, "text-right")}>
                       <CheckInButton eventId={eventId} row={row} />

@@ -1,6 +1,8 @@
 import { paginatedSchema } from "@moa/api";
 import { z } from "zod";
 
+import { deliveryBriefSchema } from "@/features/deliveries";
+
 /**
  * What someone is attending as, which picks the ticket and certificate
  * variant they are issued. Mirrors the backend's RegistrationRole.
@@ -29,6 +31,9 @@ export const registrationSchema = z.object({
    */
   role: z.enum(REGISTRATION_ROLES).default("attendee"),
   created_at: z.string().nullish(),
+  // The ticket's own state: whether it was taken back, and what was sent for it.
+  ticket_revoked_at: z.string().nullish(),
+  ticket_deliveries: z.array(deliveryBriefSchema).default([]),
   user: z
     .object({
       id: z.coerce.number().nullish(),
