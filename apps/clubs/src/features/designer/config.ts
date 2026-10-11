@@ -1,0 +1,96 @@
+import {
+  CERTIFICATE_STARTERS,
+  certificateStarter,
+  PAGE_PRESETS,
+  type PagePreset,
+  type PageSpec,
+  TICKET_STARTERS,
+  type TicketCanvas,
+  type TicketLayer,
+  ticketStarter,
+  type TokenGroup,
+} from "@moa/layout";
+
+import type { DesignKind } from "./schemas";
+
+/**
+ * What differs between the two designers -- everything else is one editor.
+ * The routes are the same shape for both, so the editor never needs to know
+ * which it is drawing.
+ */
+export interface DesignerConfig {
+  kind: DesignKind;
+  /** Page and tab title. */
+  title: string;
+  /** What this thing is, in one line under the title. */
+  description: (eventName: string) => string;
+  /** The word for one of them: "ticket", "certificate". */
+  noun: string;
+  /** Whether a QR is compulsory -- it is what the gate scans on tickets. */
+  qrRequired: boolean;
+  /** Pages this kind is printed on; the first is the default. */
+  pages: PagePreset[];
+  /** Templates are exported at this resolution. */
+  dpi: number;
+  starters: Record<string, { label: string; note: string }>;
+  starter: (
+    name: string,
+    opts: { seats: boolean; page?: PageSpec | null }
+  ) => { canvas: TicketCanvas; layers: TicketLayer[]; page: PageSpec };
+  /** Token groups offered in the insert menu, in order. */
+  tokenGroups: TokenGroup[];
+  /** The guest-photo image source makes sense here. */
+  guestPhoto: boolean;
+  /** The message on the preview dialog. */
+  previewNote: string;
+  /** What a saved design changes, for the save toast. */
+  savedNote: string;
+  /** The Figma guide's title. */
+  guideTitle: string;
+  /** Sample QR content -- as long as the real thing, so the sample looks right. */
+  sampleQr: string;
+}
+
+const TICKET_QR = "MOA-2BCEBA8-PFZG3";
+
+export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
+  ticket: {
+    kind: "ticket",
+    title: "Ticket design",
+    description: (name) =>
+      `${name} · the ticket each attendee receives. Upload a template from Figma, or start from a layout, then place the fields on it.`,
+    noun: "ticket",
+    qrRequired: true,
+    pages: ["ticket"],
+    dpi: 300,
+    starters: TICKET_STARTERS,
+    starter: (name, o) => ({
+      ...ticketStarter(name as keyof typeof TICKET_STARTERS, { seats: o.seats }),
+      page: PAGE_PRESETS.ticket.page,
+    }),
+    tokenGroups: ["Guest", "Ticket", "Event", "Club"],
+    guestPhoto: false,
+    previewNote: "Rendered by the same code that issues tickets. The QR in a preview admits nobody.",
+    savedNote: "Tickets opened from now on use it.",
+    guideTitle: "Designing a ticket in Figma",
+    sampleQr: TICKET_QR,
+  },
+  certificate: {
+    kind: "certificate",
+    title: "Certificate design",
+    description: (name) =>
+      `${name} · the certificate each attendee can receive after the event. A4 by default; the QR, if you keep one, verifies the certificate.`,
+    noun: "certificate",
+    qrRequired: false,
+    pages: ["a4_landscape", "a4_portrait", "letter_landscape"],
+    dpi: 150,
+    starters: CERTIFICATE_STARTERS,
+    starter: (name) => certificateStarter(name as keyof typeof CERTIFICATE_STARTERS),
+    tokenGroups: ["Guest", "Certificate", "Event", "Club", "Ticket"],
+    guestPhoto: true,
+    previewNote: "Rendered by the same code that issues certificates. The QR in a preview verifies nothing.",
+    savedNote: "Certificates issued from now on use it.",
+    guideTitle: "Designing a certificate in Figma",
+    sampleQr: `certificate:${TICKET_QR}`,
+  },
+};
