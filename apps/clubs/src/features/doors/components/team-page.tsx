@@ -223,9 +223,10 @@ function DoorsPanel({ eventId, doors }: { eventId: number; doors: Door[] }) {
   );
 }
 
-const SWITCHES: { key: "can_check_in" | "can_walkup"; label: string }[] = [
+const SWITCHES: { key: "can_check_in" | "can_walkup" | "can_merch"; label: string }[] = [
   { key: "can_check_in", label: "Check-in" },
   { key: "can_walkup", label: "Walk-up" },
+  { key: "can_merch", label: "Hands out merch" },
 ];
 
 function DutiesPanel({ eventId, team }: { eventId: number; team: Team }) {

@@ -73,6 +73,8 @@ export const gateContextSchema = z.object({
   expected_door_id: z.string().nullable(),
   guest_fields: z.array(z.object({ key: z.string(), label: z.string(), field_type: z.string().optional(), options: z.array(z.string()).optional(), required: z.boolean().optional() }).passthrough()),
   me: z.object({ name: z.string(), kind: z.enum(["user", "door"]) }),
+  /** Whether there is anything to hand out; the console shows the merch tab only then. */
+  has_merch: z.boolean().default(false),
 });
 export type GateContext = z.infer<typeof gateContextSchema>;
 
