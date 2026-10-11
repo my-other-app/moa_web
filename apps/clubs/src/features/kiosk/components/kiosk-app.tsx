@@ -11,6 +11,7 @@ import { cameraProblem, startScanner, type Scanner } from "@/features/gate";
 
 import { KIOSK_TOKEN_STORAGE, kioskCardUrl, kioskSelfCardUrl, kioskStaff, markSelfPrinted, notMe, redeemAtKiosk } from "../api";
 import { useKioskContext, useSelfQr } from "../queries";
+import { AgendaCycle } from "./agenda-cycle";
 import { newRef, type KioskContext, type RedeemResult, type StaffInfo } from "../schemas";
 
 type Step = "attract" | "result";
@@ -292,9 +293,12 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
                 {g.display_name} · {g.role_label} · {g.ticket_id}
               </p>
               {printing ? (
-                <p className="mt-6 text-[16px]" style={{ color: brand }}>
-                  Printing your card…
-                </p>
+                <>
+                  <p className="mt-6 text-[16px]" style={{ color: brand }}>
+                    Printing your card…
+                  </p>
+                  {ctx.agenda.length ? <AgendaCycle items={ctx.agenda} brand={brand} /> : null}
+                </>
               ) : result.print_url && g.may_print ? (
                 <button type="button" onClick={printAgain} className="mt-6 min-h-14 rounded-xl px-6 text-[16px] font-medium text-[#06190E]" style={{ background: brand }}>
                   {g.has_card ? "Print my card again" : "Print my card"}

@@ -17,6 +17,9 @@ export const kioskContextSchema = z.object({
   }),
   self_check_in: z.object({ self_check_in_enabled: z.boolean(), self_check_in_verify: z.string(), self_check_in_print: z.boolean(), has_pin: z.boolean() }),
   counters: z.object({ registered: z.number(), checked_in: z.number(), checked_in_here: z.number() }),
+  /** What is still to come today, the running session first: shown while a card prints. */
+  agenda: z.array(z.object({ starts_at: z.string(), ends_at: z.string().nullable(), title: z.string(), speaker: z.string().nullable(), location: z.string().nullable(), parallel: z.boolean() })).default([]),
+  has_programme: z.boolean().default(false),
 });
 export type KioskContext = z.infer<typeof kioskContextSchema>;
 

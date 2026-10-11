@@ -16,7 +16,7 @@ export const AUDIENCES = [
 ] as const;
 export type Audience = (typeof AUDIENCES)[number]["value"];
 
-export const DESIGN_KINDS = ["ticket", "badge", "certificate"] as const;
+export const DESIGN_KINDS = ["ticket", "badge", "certificate", "agenda"] as const;
 export type DesignKind = (typeof DESIGN_KINDS)[number];
 
 export const starterSchema = z.object({
@@ -62,6 +62,10 @@ export const layerDesignSchema = z.object({
   qrRequired: z.boolean(),
   /** What the canvas fills tokens with, made by the same code the renderer uses. */
   sampleValues: z.record(z.string()).default({}),
+  /** The run of show an agenda layer draws on the stage: the event's own sessions, or samples while it has none. */
+  agenda: z.array(z.object({ startsAt: z.string(), endsAt: z.string().nullable(), title: z.string(), speaker: z.string().nullable(), location: z.string().nullable() })).default([]),
+  /** The zone an agenda layer's times read in. */
+  timezone: z.string().default("Asia/Kolkata"),
 });
 export type LayerDesign = z.infer<typeof layerDesignSchema>;
 

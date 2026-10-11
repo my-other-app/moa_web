@@ -135,7 +135,35 @@ export const scaleShapePath = (path: string, sx: number, sy: number) => {
   });
 };
 
-export const TicketLayer = z.discriminatedUnion("kind", [TextLayer, QrLayer, ImageLayer, ShapeLayer]);
+/**
+ * The run of show, laid into a box: time, title and detail per session.
+ * Rows that will not fit shrink first, then drop with a "+N more" line.
+ * One per design; the sessions come from the event, never from the layer.
+ */
+export const AgendaLayer = LayerBase.extend({
+  kind: z.literal("agenda"),
+  width: z.number().min(40).max(10_000),
+  height: z.number().min(20).max(10_000),
+  font: TicketFontSchema.default("inter"),
+  /** Title size; times and details are scaled from it. */
+  size: z.number().min(6).max(400).default(28),
+  color: ColorRef.default("#141614"),
+  /** Times and day headings. */
+  accent: ColorRef.default("brand.primary"),
+  /** Speaker and location. */
+  muted: ColorRef.default("#5A5F5B"),
+  align: z.enum(["left", "center", "right"]).default("left"),
+  /** Extra pixels between sessions. */
+  rowGap: z.number().min(0).max(1_000).default(16),
+  columns: z.number().int().min(1).max(3).default(1),
+  showSpeaker: z.boolean().default(true),
+  showLocation: z.boolean().default(true),
+  showDayHeadings: z.boolean().default(true),
+  opacity: z.number().min(0).max(1).default(1),
+});
+export type AgendaLayer = z.infer<typeof AgendaLayer>;
+
+export const TicketLayer = z.discriminatedUnion("kind", [TextLayer, QrLayer, ImageLayer, ShapeLayer, AgendaLayer]);
 export type TicketLayer = z.infer<typeof TicketLayer>;
 export type TicketLayerKind = TicketLayer["kind"];
 
@@ -196,6 +224,8 @@ export const PAGE_PRESETS = {
   label_50x90: { label: "Brother label · 50 × 90 mm", page: { widthMm: 50, heightMm: 90 } },
   label_54x90: { label: "Brother label · 54 × 90 mm", page: { widthMm: 54, heightMm: 90 } },
   label_62x90: { label: "Brother label · 62 × 90 mm", page: { widthMm: 62, heightMm: 90 } },
+  screen_landscape: { label: "Kiosk screen · landscape 16:9", page: { widthMm: 332, heightMm: 186.75 } },
+  screen_portrait: { label: "Kiosk screen · portrait 9:16", page: { widthMm: 186.75, heightMm: 332 } },
   a4_landscape: { label: "A4 landscape · 297 × 210 mm", page: { widthMm: 297, heightMm: 210 } },
   a4_portrait: { label: "A4 portrait · 210 × 297 mm", page: { widthMm: 210, heightMm: 297 } },
   letter_landscape: { label: "Letter landscape · 11 × 8.5 in", page: { widthMm: 279.4, heightMm: 215.9 } },

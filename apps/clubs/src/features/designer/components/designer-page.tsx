@@ -1,15 +1,30 @@
 "use client";
 
 import { Tabs, TabsList, TabsTrigger } from "@moa/ui";
+import { useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { DESIGNERS } from "../config";
 import { DESIGN_KINDS, type DesignKind } from "../schemas";
 import { LayerDesignerPage } from "./layer-designer";
 
-/** One page for both designs: a tab each, the editor keyed so a draft never crosses over. */
+const isKind = (v: string | null): v is DesignKind => !!v && (DESIGN_KINDS as readonly string[]).includes(v);
+
+/** One page for every design: a tab each, the editor keyed so a draft never crosses over. `?kind=` opens on one. */
 export function DesignerPage({ eventId }: { eventId: number }) {
-  const [kind, setKind] = React.useState<DesignKind>("ticket");
+  return (
+    <React.Suspense fallback={null}>
+      <Designers eventId={eventId} />
+    </React.Suspense>
+  );
+}
+
+function Designers({ eventId }: { eventId: number }) {
+  const params = useSearchParams();
+  const [kind, setKind] = React.useState<DesignKind>(() => {
+    const asked = params.get("kind");
+    return isKind(asked) ? asked : "ticket";
+  });
   return (
     <div className="space-y-4">
       <Tabs value={kind} onValueChange={(v) => setKind(v as DesignKind)}>
