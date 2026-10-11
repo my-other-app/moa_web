@@ -2,10 +2,18 @@ import { z } from "zod";
 
 export const announcementSchema = z
   .object({
-    id: z.coerce.number().nullish(),
+    /*
+     * A string: the history endpoint mints "{event_id}-{index}" per grouped
+     * send. Coercing it to a number gave NaN, which zod refuses, so the whole
+     * page failed to load for any club that had ever sent an announcement.
+     */
+    id: z.union([z.string(), z.number()]).nullish(),
     title: z.string().nullish(),
+    /* The text comes back as `description`; `body` and `message` are older names. */
+    description: z.string().nullish(),
     body: z.string().nullish(),
     message: z.string().nullish(),
+    read_count: z.number().nullish(),
     event_id: z.coerce.number().nullish(),
     event_name: z.string().nullish(),
     created_at: z.string().nullish(),

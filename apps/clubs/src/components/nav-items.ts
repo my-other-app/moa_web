@@ -1,6 +1,5 @@
 import {
   BellIcon,
-  BookUserIcon,
   BuildingIcon,
   CalendarDaysIcon,
   LayoutDashboardIcon,
@@ -34,7 +33,6 @@ export const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboardIcon, exact: true },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/followers", label: "Followers", icon: UsersIcon },
-  { href: "/contacts", label: "Contacts", icon: BookUserIcon },
   { href: "/announcements", label: "Announcements", icon: BellIcon },
   { href: "/emails", label: "Emails", icon: MailIcon },
   { href: "/templates", label: "Templates", icon: PaletteIcon },
