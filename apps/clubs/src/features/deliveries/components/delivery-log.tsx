@@ -9,12 +9,18 @@ import { pressable } from "@moa/ui/motion";
 
 import { useEventDetail } from "@/features/events";
 
-import { fetchDeliveryLog } from "../api";
+import { fetchDeliveryLog, type DeliveryLogQuery } from "../api";
 import { useDeliveryLog } from "../queries";
 import { type DeliveryLogRow, verdictOf } from "../schemas";
 
 const csvCell = (v: string | null | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
 const CELL = "px-4 py-3 text-left align-top";
+const KINDS: { value: DeliveryLogQuery["kind"]; label: string }[] = [
+  { value: undefined, label: "Everything" },
+  { value: "ticket", label: "Tickets" },
+  { value: "certificate", label: "Certificates" },
+  { value: "message", label: "Messages" },
+];
 
 /**
  * Every send to every guest, newest first. The tally is always the whole
@@ -24,11 +30,12 @@ const CELL = "px-4 py-3 text-left align-top";
 export function DeliveryLog({ eventId }: { eventId: number }) {
   const event = useEventDetail(eventId);
   const [problem, setProblem] = React.useState(false);
+  const [kind, setKind] = React.useState<DeliveryLogQuery["kind"]>(undefined);
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(50);
   const [downloading, setDownloading] = React.useState(false);
-  const q = { eventId, problem, search: search.trim() || undefined, page, pageSize };
+  const q = { eventId, kind, problem, search: search.trim() || undefined, page, pageSize };
   const log = useDeliveryLog(q);
 
   const tally = log.data?.tally;
@@ -55,7 +62,7 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
             csvCell(r.ticket_id),
             csvCell(r.address),
             csvCell(r.channel),
-            csvCell(r.kind),
+            csvCell(r.kind === "message" ? `message: ${r.what ?? ""}` : r.kind),
             csvCell(r.sent_at ? formatDateTime(r.sent_at) : ""),
             csvCell(verdictOf(r).label),
             csvCell(r.reason),
@@ -101,6 +108,23 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
           {tally?.skipped ? <span>{tally.skipped} skipped</span> : null}
         </div>
         <span className="flex-1" />
+        <div role="radiogroup" aria-label="What was sent" className="flex h-9 overflow-hidden rounded-md border bg-muted/40 p-0.5 text-[12px]">
+          {KINDS.map((k) => (
+            <button
+              key={k.label}
+              type="button"
+              role="radio"
+              aria-checked={kind === k.value}
+              onClick={() => {
+                setKind(k.value);
+                setPage(1);
+              }}
+              className={cn("rounded-[7px] px-2.5 transition-colors", kind === k.value ? "bg-card font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            >
+              {k.label}
+            </button>
+          ))}
+        </div>
         <input
           value={search}
           onChange={(e) => {
@@ -165,7 +189,7 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
                         <div className="text-muted-foreground font-mono text-xs">{r.address || "— no address —"}</div>
                       </td>
                       <td className={CELL}>
-                        <div className="capitalize">{r.kind}</div>
+                        <div className={r.kind === "message" ? undefined : "capitalize"}>{r.kind === "message" ? (r.what ?? "Message") : r.kind}</div>
                         <div className="text-muted-foreground font-mono text-xs">
                           {r.ticket_id} · {r.channel}
                           {r.attempts > 1 ? ` · ${r.attempts} attempts` : ""}

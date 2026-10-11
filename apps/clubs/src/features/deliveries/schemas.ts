@@ -67,6 +67,8 @@ export const deliveryLogRowSchema = z.object({
   name: z.string(),
   address: z.string().nullish(),
   kind: z.string(),
+  /** A message's subject; nothing for a ticket or certificate. */
+  what: z.string().nullish(),
   channel: z.string(),
   status: z.enum(DELIVERY_STATUSES),
   outcome: z.enum(DELIVERY_OUTCOMES).nullish(),
