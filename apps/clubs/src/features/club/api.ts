@@ -12,6 +12,13 @@ import {
   type Organization,
 } from "./schemas";
 import { clubOverviewSchema } from "./overview-schemas";
+import { clubDashboardSchema } from "@moa/app-kit";
+
+/** Where the club's events stand, what needs a decision, which doors are open. */
+export async function fetchClubDashboard() {
+  const raw = await api.get<unknown>("/api/v1/clubs/dashboard");
+  return clubDashboardSchema.parse(raw);
+}
 
 /** Everything the dashboard shows, in one call. */
 export async function fetchClubOverview(days: number) {

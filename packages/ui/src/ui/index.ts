@@ -148,3 +148,16 @@ export {
   type InlineAlertProps,
   type AlertTone,
 } from "./inline-alert";
+export { StatTile, RollingNumber, type StatTileProps } from "./stat-tile";
+export {
+  FigurePanel,
+  CardLabel,
+  ProgressBar,
+  DefinitionRows,
+  Chip,
+  Notice,
+  InitialsAvatar,
+  type BarTone,
+  type NoticeTone,
+} from "./figure-kit";
+export { TabRail, TabPanel, type TabItem, type TabRailProps } from "./tab-rail";

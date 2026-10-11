@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { ArrowLeftIcon, CopyIcon, DoorOpenIcon, LinkIcon, PlusIcon, ScanLineIcon, Trash2Icon } from "lucide-react";
+import { CopyIcon, DoorOpenIcon, LinkIcon, PlusIcon, ScanLineIcon, Trash2Icon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
 import {
   AlertDialog,
@@ -346,11 +346,6 @@ export function TeamPage({ eventId }: { eventId: number }) {
   const team = useTeam(eventId);
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={`/events/${eventId}`}>
-          <ArrowLeftIcon /> {event.data?.name ?? "Back to event"}
-        </Link>
-      </Button>
       <PageHeader
         title="Team & doors"
         description="The people and places that admit guests. Every scan is recorded with its door and who made it."

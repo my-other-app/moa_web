@@ -4,6 +4,7 @@ import { screen, within } from "@testing-library/react";
 import analyticsFixture from "../__fixtures__/event-analytics.json";
 import eventFixture from "../__fixtures__/event-detail.json";
 import registrationsFixture from "../__fixtures__/registrations.json";
+import summaryFixture from "../__fixtures__/event-summary.json";
 
 vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
@@ -12,6 +13,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     api: {
       get: vi.fn(async (path: string) => {
         if (path.includes("/events/info/")) return eventFixture;
+        // The event summary, not the delivery summary, which also ends in /summary.
+        if (/\/events\/\d+\/summary$/.test(path)) return summaryFixture;
         if (path.includes("/analytics")) return analyticsFixture;
         if (path.includes("/list")) return registrationsFixture;
         if (path.endsWith("/imports")) return [];
@@ -28,6 +31,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 
 const { render } = await import("@/test/render");
 const { EventWorkspace } = await import("./components/event-workspace");
+const { RegistrationsPanel } = await import("./components/registrations-panel");
 const { eventStatus } = await import("@/features/events");
 
 describe("event status derivation", () => {
@@ -111,13 +115,6 @@ describe("event screen", () => {
     expect(() => render(<EventWorkspace eventId={37} />)).not.toThrow();
   });
 
-  it("shows the event name as the page title", async () => {
-    render(<EventWorkspace eventId={37} />);
-    expect(
-      await screen.findByRole("heading", { name: "SF Sea Hackathon" })
-    ).toBeInTheDocument();
-  });
-
   it("shows the four stat cards with real numbers", async () => {
     render(<EventWorkspace eventId={37} />);
     /*
@@ -155,24 +152,19 @@ describe("event screen", () => {
     expect(within(card as HTMLElement).queryByText("5")).toBeNull();
   });
 
-  it("offers the three row actions and Add Volunteers", async () => {
+  it("offers Add Volunteers and the door's figures; the row actions live in the console", async () => {
     render(<EventWorkspace eventId={37} />);
-    expect(
-      await screen.findByRole("link", { name: /Edit SF Sea Hackathon/ })
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByRole("button", { name: /Delete SF Sea Hackathon/ })
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByRole("button", { name: /Copy public link/ })
-    ).toBeInTheDocument();
     expect(
       await screen.findByRole("button", { name: "Add Volunteers" })
     ).toBeInTheDocument();
+    expect(await screen.findByText("Arrival curve")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Edit SF Sea Hackathon/ })).toBeNull();
   });
+});
 
+describe("attendees tab", () => {
   it("renders the guest list with its filters, the delivery bar and the import", async () => {
-    render(<EventWorkspace eventId={37} />);
+    render(<RegistrationsPanel eventId={37} />);
     expect(await screen.findByRole("button", { name: "CHECKED IN" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "NOT DELIVERED" })).toBeInTheDocument();
     expect(await screen.findByText("NEX25AA001")).toBeInTheDocument();
@@ -184,7 +176,7 @@ describe("event screen", () => {
   it("shows the role each person is attending as, treating a missing one as attendee", async () => {
     // The second fixture row deliberately carries no `role`, standing in for a
     // response cached from before the field existed.
-    render(<EventWorkspace eventId={37} />);
+    render(<RegistrationsPanel eventId={37} />);
     const speaker = await screen.findByLabelText("Role for Test Participant One");
     expect(within(speaker).getByText("Speaker")).toBeInTheDocument();
     const other = await screen.findByLabelText("Role for Test Participant Two");
@@ -193,7 +185,7 @@ describe("event screen", () => {
 
   it("labels the export as what actually downloads", async () => {
     // The design says "Download CSV file"; the endpoint returns an xlsx workbook.
-    render(<EventWorkspace eventId={37} />);
+    render(<RegistrationsPanel eventId={37} />);
     expect(
       await screen.findByRole("link", { name: /Download Excel file/ })
     ).toBeInTheDocument();

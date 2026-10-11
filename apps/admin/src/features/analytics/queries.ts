@@ -10,6 +10,7 @@ import {
   fetchModerationQueue,
   fetchDashboardSignals,
   fetchAdminOverview,
+  fetchPlatformDoors,
 } from "./api";
 import type { TopClubSort } from "./overview-schemas";
 
@@ -60,5 +61,15 @@ export function useAdminOverview(days: number, topBy: TopClubSort) {
     // Sorting the top-clubs table re-queries; keeping the previous rows on
     // screen stops the whole card collapsing to a skeleton for one column.
     placeholderData: (previous) => previous,
+  });
+}
+
+/** Refreshes while a door is open anywhere, so the overview's counts move. */
+export function usePlatformDoors() {
+  return useQuery({
+    queryKey: [...qk.analytics.all, "doors"],
+    queryFn: fetchPlatformDoors,
+    staleTime: 15_000,
+    refetchInterval: (q) => (q.state.data?.live.length ? 15_000 : 60_000),
   });
 }

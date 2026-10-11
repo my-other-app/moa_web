@@ -1,4 +1,4 @@
-import { api } from "@moa/app-kit";
+import { api, eventSummarySchema } from "@moa/app-kit";
 import { GATEWAY_PREFIX } from "@moa/auth";
 
 import {
@@ -49,6 +49,12 @@ export async function fetchEventCategories() {
 export async function fetchEvent(eventId: number) {
   const raw = await api.get<unknown>(`/api/v1/events/info/${eventId}`);
   return adminEventDetailSchema.parse(raw);
+}
+
+/** The door as a shape, with the head counts around it. */
+export async function fetchEventSummary(eventId: number) {
+  const raw = await api.get<unknown>(`/api/v1/events/${eventId}/summary`);
+  return eventSummarySchema.parse(raw);
 }
 
 export async function fetchEventAnalytics(eventId: number) {

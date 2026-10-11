@@ -3,9 +3,8 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArchiveIcon, ArrowLeftIcon, AwardIcon, CalendarRangeIcon, DoorOpenIcon, IdCardIcon, ImageOffIcon, MailIcon, PaletteIcon, ShoppingBagIcon } from "lucide-react";
-import { PageHeader, pickImage } from "@moa/app-kit";
+import { ImageOffIcon, UsersIcon } from "lucide-react";
+import { pickImage } from "@moa/app-kit";
 import {
   Button,
   Dialog,
@@ -18,30 +17,27 @@ import {
 } from "@moa/ui";
 import { enter, pressable } from "@moa/ui/motion";
 
-import { Icon } from "@/components/icon";
 import { AnnouncementComposer } from "@/features/announcements";
-import { EventRowActions, useEventDetail } from "@/features/events";
+import { EventOverviewTab } from "@/features/console";
+import { useEventDetail } from "@/features/events";
 import { VolunteersPanel } from "@/features/volunteers";
 import { EventStatCards } from "./event-stat-cards";
 import { EventReviewsPanel } from "@/features/reviews";
 import { EventInsightsPanel } from "./event-insights-panel";
-import { RegistrationsPanel } from "./registrations-panel";
 import { useEventAnalytics } from "../queries";
 
 /**
- * Event screen from the design (node 158:260).
+ * The event's Overview tab.
  *
- * Top row: the event name, the three icon actions and Add Volunteers. Below
- * it a 600px poster beside the four stat cards and the announcement composer,
- * then the registrations table.
+ * The console around it carries the name, the status, the actions and the
+ * rail, so this is only the panel: the poster beside the four stat cards and
+ * the announcement composer, then the door's figures, then the sign-up
+ * insights and the reviews. The guest list has its own tab.
  *
- * Volunteers are a dialog rather than the design's second tab: the design's
- * tabs are Registration and Attendance, which are two views of one list, and
- * there is nowhere on the screen for a third panel. The button the design
- * gives them is the one that opens it.
+ * Volunteers are a dialog rather than a tab: the team page sets what each
+ * may do at the door; this is where they are added.
  */
 export function EventWorkspace({ eventId }: { eventId: number }) {
-  const router = useRouter();
   const [volunteersOpen, setVolunteersOpen] = React.useState(false);
   const { data: event, isPending, isError } = useEventDetail(eventId);
   const { data: analytics } = useEventAnalytics(eventId);
@@ -66,105 +62,15 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
   const poster = pickImage(event?.poster, ["large", "medium", "original", "thumbnail"]);
 
   return (
-    <div className={cn(enter)}>
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-        <Link href="/events">
-          <ArrowLeftIcon /> All events
-        </Link>
-      </Button>
-
-      <PageHeader
-        title={event?.name ?? "Event"}
-        action={
-          <div className="flex items-center gap-4 sm:gap-6">
-            {event ? (
-              <EventRowActions
-                event={{
-                  id: event.id,
-                  name: event.name,
-                  registration_count: registered,
-                }}
-                // Nothing left to show once it is gone.
-                onDeleted={() => router.replace("/events")}
-              />
-            ) : null}
-
-            {/*
-              * The designer is per-event, so it belongs on the event rather
-              * than only in the club's template library -- an organiser
-              * looking for "this event's ticket" looks here first.
-              */}
-            <Button variant="outline" asChild className={cn("h-12 shrink-0 gap-2 rounded-lg px-4", pressable)}>
-              <Link href={`/events/${eventId}/design`}>
-                <PaletteIcon /> Ticket &amp; certificate
-              </Link>
-            </Button>
-            <Button variant="outline" asChild className={cn("h-12 shrink-0 gap-2 rounded-lg px-4", pressable)}>
-              <Link href={`/events/${eventId}/certificates`}>
-                <AwardIcon /> Certificates
-              </Link>
-            </Button>
-            <Button variant="outline" asChild className={cn("h-12 shrink-0 gap-2 rounded-lg px-4", pressable)}>
-              <Link href={`/events/${eventId}/emails`}>
-                <MailIcon /> Emails
-              </Link>
-            </Button>
-            <Button variant="outline" asChild className={cn("h-12 shrink-0 gap-2 rounded-lg px-4", pressable)}>
-              <Link href={`/events/${eventId}/team`}>
-                <DoorOpenIcon /> Team &amp; doors
-              </Link>
-            </Button>
-            <Button variant="outline" asChild className={cn("h-12 shrink-0 gap-2 rounded-lg px-4", pressable)}>
-              <Link href={`/events/${eventId}/idcards`}>
-                <IdCardIcon /> ID cards
-              </Link>
-            </Button>
-            <Button variant="outline" asChild className={cn("h-12 shrink-0 gap-2 rounded-lg px-4", pressable)}>
-              <Link href={`/events/${eventId}/agenda`}>
-                <CalendarRangeIcon /> Agenda
-              </Link>
-            </Button>
-            <Button variant="outline" asChild className={cn("h-12 shrink-0 gap-2 rounded-lg px-4", pressable)}>
-              <Link href={`/events/${eventId}/merch`}>
-                <ShoppingBagIcon /> Merchandise
-              </Link>
-            </Button>
-            <Button variant="outline" asChild className={cn("h-12 shrink-0 gap-2 rounded-lg px-4", pressable)}>
-              <Link href={`/events/${eventId}/closeout`}>
-                <ArchiveIcon /> Closeout
-              </Link>
-            </Button>
-
-            <Button
-              type="button"
-              onClick={() => setVolunteersOpen(true)}
-              className={cn(
-                "h-12 shrink-0 gap-2 rounded-lg bg-[var(--swatch-ink)] px-4 text-base font-medium text-white hover:bg-[var(--swatch-ink)]/90",
-                pressable
-              )}
-            >
-              <Icon name="user-plus-01" />
-              Add Volunteers
-            </Button>
-          </div>
-        }
-      />
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,600px)_minmax(0,1fr)]">
-        <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-[#f3f3f3]">
+    <div className={cn(enter, "space-y-8")}>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+        <div className="bg-muted relative aspect-square w-full overflow-hidden rounded-2xl">
           {isPending ? (
             <Skeleton className="size-full" />
           ) : poster ? (
-            <Image
-              src={poster}
-              alt={`Poster for ${event?.name ?? "this event"}`}
-              fill
-              sizes="(min-width: 1280px) 600px, 100vw"
-              className="object-cover"
-              unoptimized
-            />
+            <Image src={poster} alt={`Poster for ${event?.name ?? "this event"}`} fill sizes="(min-width: 1280px) 420px, 100vw" className="object-cover" unoptimized />
           ) : (
-            <div className="grid size-full place-items-center text-[var(--swatch-grey)]">
+            <div className="text-muted-foreground grid size-full place-items-center">
               <div className="flex flex-col items-center gap-2">
                 <ImageOffIcon className="size-8" />
                 <p className="text-sm">No poster</p>
@@ -174,36 +80,25 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
         </div>
 
         <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-end">
+            <Button type="button" variant="outline" onClick={() => setVolunteersOpen(true)} className={cn("gap-2", pressable)}>
+              <UsersIcon /> Add Volunteers
+            </Button>
+          </div>
           <EventStatCards event={event} />
-
-          {event ? (
-            <AnnouncementComposer
-              eventId={eventId}
-              eventName={event.name}
-              recipientCount={registered}
-            />
-          ) : (
-            <Skeleton className="h-[280px] w-full rounded-lg" />
-          )}
+          {event ? <AnnouncementComposer eventId={eventId} eventName={event.name} recipientCount={registered} /> : <Skeleton className="h-[280px] w-full rounded-lg" />}
         </div>
       </div>
 
-      <div className="mt-11 space-y-11">
-        <RegistrationsPanel eventId={eventId} />
-        <EventInsightsPanel eventId={eventId} />
-        <EventReviewsPanel
-          eventId={eventId}
-          rating={event?.rating}
-          totalRatings={event?.total_rating}
-        />
-      </div>
+      <EventOverviewTab eventId={eventId} event={event} />
+
+      <EventInsightsPanel eventId={eventId} />
+      <EventReviewsPanel eventId={eventId} rating={event?.rating} totalRatings={event?.total_rating} />
 
       <Dialog open={volunteersOpen} onOpenChange={setVolunteersOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="bebas text-2xl tracking-wide uppercase">
-              Volunteers
-            </DialogTitle>
+            <DialogTitle className="text-xl">Volunteers</DialogTitle>
           </DialogHeader>
           <VolunteersPanel eventId={eventId} />
         </DialogContent>

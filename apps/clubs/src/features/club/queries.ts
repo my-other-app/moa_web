@@ -7,12 +7,26 @@ import { toast } from "@moa/ui";
 
 import {
   changePassword,
+  fetchClubDashboard,
   fetchInterestCategories,
   fetchMyClub,
   fetchOrganizations,
   updateClubLogo,
   updateMyClub,
 } from "./api";
+
+/**
+ * The pulse: shared by the dashboard and the sidebar's gate card, so the
+ * home page does not ask twice. Refreshes while a door is open.
+ */
+export function useClubDashboard() {
+  return useQuery({
+    queryKey: [...qk.clubs.self(), "dashboard"],
+    queryFn: fetchClubDashboard,
+    staleTime: 15_000,
+    refetchInterval: (q) => (q.state.data?.live.length ? 15_000 : 60_000),
+  });
+}
 import type { ChangePasswordForm, ClubProfileForm } from "./schemas";
 
 export function useMyClub() {

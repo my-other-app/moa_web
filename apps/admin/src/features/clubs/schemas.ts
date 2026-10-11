@@ -65,6 +65,9 @@ export const adminClubDetailSchema = z.object({
   is_verified: z.boolean().default(false),
   is_deleted: z.boolean().default(false),
   created_at: z.string().nullish(),
+  // The colours designs and emails fall back to; null when the club set none.
+  brand_primary: z.string().nullish(),
+  brand_secondary: z.string().nullish(),
   owner: z
     .object({
       id: z.coerce.number(),
