@@ -12,8 +12,9 @@ import type { GateContext } from "../schemas";
 import { FindPanel } from "./find-panel";
 import { ScanStage } from "./scan-stage";
 import { WalkupPanel } from "./walkup-panel";
+import { MerchPanel } from "@/features/merch";
 
-type Tab = "checkin" | "find" | "walkup";
+type Tab = "checkin" | "find" | "walkup" | "merch";
 
 const read = (k: string) => {
   try {
@@ -116,10 +117,11 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
   const allowed: { key: Tab; label: string }[] = [
     ...(p.check_in ? [{ key: "checkin" as Tab, label: "Check-in" }, { key: "find" as Tab, label: "Find" }] : []),
     ...(p.walkup ? [{ key: "walkup" as Tab, label: "Walk-up" }] : []),
+    ...(p.merch && ctx.has_merch ? [{ key: "merch" as Tab, label: "Merch" }] : []),
   ];
   const [tab, setTab] = React.useState<Tab>("checkin");
   const current = allowed.some((a) => a.key === tab) ? tab : allowed[0]?.key;
-  const permLine = p.full ? "FULL GATE ACCESS" : [p.check_in && "CHECK-IN", p.walkup && "WALK-UP"].filter(Boolean).join(" · ") || "NO DOOR PERMISSIONS";
+  const permLine = p.full ? "FULL GATE ACCESS" : [p.check_in && "CHECK-IN", p.walkup && "WALK-UP", p.merch && "MERCH"].filter(Boolean).join(" · ") || "NO DOOR PERMISSIONS";
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[512px] flex-col bg-background">
@@ -167,6 +169,7 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
             {current === "checkin" && door ? <ScanStage key={door} gateKey={gateKey} ctx={ctx} door={door} online={online} enqueue={enqueue} /> : null}
             {current === "find" && door ? <FindPanel gateKey={gateKey} ctx={ctx} door={door} /> : null}
             {current === "walkup" && door ? <WalkupPanel gateKey={gateKey} ctx={ctx} door={door} /> : null}
+            {current === "merch" && door ? <MerchPanel gateKey={gateKey} ctx={ctx} door={door} /> : null}
           </div>
         </main>
       )}
