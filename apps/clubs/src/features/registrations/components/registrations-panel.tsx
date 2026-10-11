@@ -281,7 +281,10 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
                       <td className={CELL}>
                         <RoleSelect eventId={eventId} row={row} />
                       </td>
-                      <td className={cn(CELL, "font-mono text-xs")}>{row.ticket_id || "—"}</td>
+                      <td className={cn(CELL, "font-mono text-xs")}>
+                        {row.ticket_id || "—"}
+                        {row.admission_no ? <div className="text-muted-foreground text-[10.5px]">{row.admission_no}</div> : null}
+                      </td>
                       <td className={CELL}>
                         <TicketCell eventId={eventId} row={row} />
                       </td>

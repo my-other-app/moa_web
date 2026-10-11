@@ -7,6 +7,7 @@ import { PageHeader, formatDateTime } from "@moa/app-kit";
 import { Button, EmptyState, Skeleton, cn } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
+import { AdmissionPanel } from "@/features/admission";
 import { useEventDetail } from "@/features/events";
 
 import { batchPdfUrl } from "../api";
@@ -138,6 +139,8 @@ export function IdCardsPage({ eventId }: { eventId: number }) {
               </div>
             </div>
           </section>
+
+          <AdmissionPanel eventId={eventId} />
 
           <section className="space-y-3">
             <p className={heading}>Cards put out</p>

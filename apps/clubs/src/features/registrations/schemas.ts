@@ -22,6 +22,8 @@ export const registrationSchema = z.object({
   /** Set by the provider's bounce notice; later sends skip the address until it is corrected. */
   email_bounced_at: z.string().nullish(),
   email_bounce_reason: z.string().nullish(),
+  /** The admission number the ticket prints beside the scan code. */
+  admission_no: z.string().nullish(),
   institution: z.string().nullish(),
   actual_amount: z.number().nullish(),
   paid_amount: z.number().nullish(),
