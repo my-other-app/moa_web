@@ -77,7 +77,7 @@ export function ContactsPage() {
       ) : !contacts.data.items.length ? (
         <EmptyState tone="muted" title={total || groups.length ? "Nobody matches" : "No contacts kept yet"} description={groups.length ? "Try a wider filter." : "Contacts are kept when an event's guest data is scrubbed on its closeout page, with “Keep contacts for the club” on."} />
       ) : (
-        <div className="overflow-hidden rounded-lg border-[0.5px] border-[var(--swatch-grey)]">
+        <div className="overflow-hidden rounded-2xl bg-card ring-1 ring-border/70 shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               <tr>
@@ -90,7 +90,7 @@ export function ContactsPage() {
             </thead>
             <tbody>
               {contacts.data.items.map((c) => (
-                <tr key={c.id} className="border-t-[0.5px] border-[var(--swatch-grey)]">
+                <tr key={c.id} className="border-t border-border/60">
                   <td className={CELL}>
                     <div className="font-medium">{c.name}</div>
                     <div className="font-mono text-[10.5px] text-muted-foreground">{ROLE[c.role] ?? c.role}</div>
@@ -107,7 +107,7 @@ export function ContactsPage() {
             </tbody>
           </table>
           {total > pageSize ? (
-            <div className="border-t-[0.5px] border-[var(--swatch-grey)] px-4 py-2">
+            <div className="border-t border-border/60 px-4 py-2">
               <Pagination page={page} pageCount={pages} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={(n) => (setPageSize(n), setPage(1))} />
             </div>
           ) : null}

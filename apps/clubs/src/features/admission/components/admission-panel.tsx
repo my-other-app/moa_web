@@ -7,7 +7,7 @@ import { pressable } from "@moa/ui/motion";
 import { useAdmission, useNumberEveryone, useUpdateAdmission } from "../queries";
 import { previewNumber } from "../schemas";
 
-const panel = "rounded-lg border-[0.5px] border-[var(--swatch-grey)]";
+const panel = "rounded-2xl bg-card ring-1 ring-border/70 shadow-sm";
 const heading = "font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground";
 const note = "text-[12px] leading-[1.5] text-muted-foreground";
 const control = "h-9 rounded-md border bg-muted/40 px-2.5 text-[13px]";
@@ -27,7 +27,7 @@ export function AdmissionPanel({ eventId }: { eventId: number }) {
   return (
     <section className={cn(panel, "space-y-3 p-4")}>
       <div>
-        <p className="text-xl font-medium text-[var(--swatch-ink)]">Admission numbers</p>
+        <p className="text-[15px] font-medium text-foreground">Admission numbers</p>
         <p className={note}>
           The number a ticket and a card carry beside the scan code: a prefix, a padded sequence, and the event code that keeps two events apart. Numbers already given out are never rewritten; a new format applies to the next ticket. Next: <span className="font-mono text-foreground">{s.next_number}</span>
         </p>

@@ -14,7 +14,7 @@ import { programmePdfUrl } from "../api";
 import { useAgenda, useCreateAgendaItem, useDeleteAgendaItem, useUpdateAgendaItem } from "../queries";
 import { agendaDay, agendaTime, dayOf, type Agenda, type AgendaItem, type AgendaItemInput } from "../schemas";
 
-const panel = "rounded-lg border-[0.5px] border-[var(--swatch-grey)]";
+const panel = "rounded-2xl bg-card ring-1 ring-border/70 shadow-sm";
 const heading = "font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground";
 const note = "text-[12px] leading-[1.5] text-muted-foreground";
 const control = "h-9 w-full rounded-md border bg-muted/40 px-2.5 text-[13px]";

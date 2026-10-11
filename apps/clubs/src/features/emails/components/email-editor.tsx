@@ -230,7 +230,7 @@ function Editor({ scope, template, context }: { scope: EmailScope; template: Ema
             {stageMeta.label}
             {scope.kind === "library" ? " · library" : ""} · v{template.version}
           </p>
-          <h1 className="truncate text-2xl font-medium text-[var(--swatch-ink)]">{fields.name || "Untitled email"}</h1>
+          <h1 className="truncate text-2xl font-medium">{fields.name || "Untitled email"}</h1>
         </div>
         {dirty ? <StatusBadge tone="warning" label="Unsaved changes" /> : <StatusBadge tone="default" label="Saved" />}
         {eventId !== undefined ? (

@@ -149,7 +149,7 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
       {log.isPending ? (
         <Skeleton className="h-[320px] w-full rounded-lg" />
       ) : !items.length ? (
-        <div className="rounded-lg border-[0.5px] border-[var(--swatch-grey)] p-10">
+        <div className="rounded-2xl bg-card ring-1 ring-border/70 shadow-sm p-10">
           <EmptyState
             tone="muted"
             title={problem ? "Nothing went wrong" : search ? "Nobody matches" : "Nothing sent yet"}
@@ -163,11 +163,11 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
           />
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border-[0.5px] border-[var(--swatch-grey)]">
+        <div className="overflow-hidden rounded-2xl bg-card ring-1 ring-border/70 shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse text-sm">
               <thead>
-                <tr className="bg-[var(--swatch-mint)] text-base font-light text-[var(--swatch-ink)]">
+                <tr className="bg-muted/60 text-[13px] font-medium text-muted-foreground">
                   <th scope="col" className={cn(CELL, "font-light")}>Guest</th>
                   <th scope="col" className={cn(CELL, "font-light")}>What</th>
                   <th scope="col" className={cn(CELL, "font-light")}>Sent</th>
@@ -178,9 +178,9 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
                 {items.map((r) => {
                   const v = verdictOf(r);
                   return (
-                    <tr key={r.id} className="border-t border-[#e5e5e5]">
+                    <tr key={r.id} className="border-t border-border/60">
                       <td className={CELL}>
-                        <div className="text-[var(--swatch-ink)]">{r.name}</div>
+                        <div className="text-foreground">{r.name}</div>
                         <div className="text-muted-foreground font-mono text-xs">{r.address || "— no address —"}</div>
                       </td>
                       <td className={CELL}>

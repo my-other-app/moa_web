@@ -71,7 +71,7 @@ function StageCard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className={ui.heading}>{meta.label}</p>
-          <p className="truncate text-[15px] font-medium text-[var(--swatch-ink)]">{t.name}</p>
+          <p className="truncate text-[15px] font-medium">{t.name}</p>
           <p className={cn(ui.note, "truncate")}>{t.subject}</p>
         </div>
         <label className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -170,7 +170,7 @@ export function EmailsPage({ eventId }: { eventId: number }) {
           <section className="space-y-3">
             <p className={ui.heading}>Other emails</p>
             {list.data.custom.length ? (
-              <div className="overflow-hidden rounded-lg border-[0.5px] border-[var(--swatch-grey)]">
+              <div className="overflow-hidden rounded-2xl bg-card ring-1 ring-border/70 shadow-sm">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
                     <tr>
@@ -183,7 +183,7 @@ export function EmailsPage({ eventId }: { eventId: number }) {
                   </thead>
                   <tbody>
                     {list.data.custom.map((t) => (
-                      <tr key={t.id} className="border-t-[0.5px] border-[var(--swatch-grey)]">
+                      <tr key={t.id} className="border-t border-border/60">
                         <td className="px-4 py-3">
                           <Link href={`/events/${eventId}/emails/${t.id}`} className="font-medium hover:underline">
                             {t.name}

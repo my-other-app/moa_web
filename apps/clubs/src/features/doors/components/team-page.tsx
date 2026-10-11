@@ -36,7 +36,7 @@ import { VolunteersPanel } from "@/features/volunteers";
 import { useCreateDoor, useDeleteDoor, useIssueGateLink, useRevokeGateLink, useTeam, useUpdateDoor, useUpdateGateSettings, useUpdateTeamVolunteer } from "../queries";
 import { DOOR_KINDS, DOOR_KIND_META, type Door, type DoorKind, type GateLink, type GateSettings, type Team, type TeamVolunteer } from "../schemas";
 
-const panel = "rounded-lg border-[0.5px] border-[var(--swatch-grey)]";
+const panel = "rounded-2xl bg-card ring-1 ring-border/70 shadow-sm";
 const heading = "font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground";
 const note = "text-[12px] leading-[1.5] text-muted-foreground";
 const control = "h-9 rounded-md border bg-muted/40 px-2.5 text-[13px]";
@@ -100,7 +100,7 @@ function DoorRow({ eventId, door, onLink }: { eventId: number; door: Door; onLin
     update.mutate({ doorId: door.id, name: next }, { onSuccess: () => toast.success(`Renamed to ${next}`) });
   };
   return (
-    <div className={cn("border-t-[0.5px] border-[var(--swatch-grey)] px-4 py-3", !door.active && "opacity-60")}>
+    <div className={cn("border-t border-border/60 px-4 py-3", !door.active && "opacity-60")}>
       <div className="flex flex-wrap items-center gap-2">
         {editing ? (
           <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={rename} onKeyDown={(e) => (e.key === "Enter" ? rename() : e.key === "Escape" ? setEditing(false) : undefined)} aria-label={`Rename ${door.name}`} className={cn(control, "h-8 max-w-[220px]")} />
@@ -188,7 +188,7 @@ function DoorsPanel({ eventId, doors }: { eventId: number; doors: Door[] }) {
         <DoorRow key={d.id} eventId={eventId} door={d} onLink={(l, door) => setLink({ link: l, door })} />
       ))}
       <form
-        className="flex flex-wrap items-end gap-2 border-t-[0.5px] border-[var(--swatch-grey)] px-4 py-3"
+        className="flex flex-wrap items-end gap-2 border-t border-border/60 px-4 py-3"
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
@@ -233,7 +233,7 @@ function DutiesPanel({ eventId, team }: { eventId: number; team: Team }) {
   const update = useUpdateTeamVolunteer(eventId);
   const doors = team.doors.filter((d) => d.active);
   const row = (v: TeamVolunteer) => (
-    <tr key={v.id} className="border-t-[0.5px] border-[var(--swatch-grey)]">
+    <tr key={v.id} className="border-t border-border/60">
       <td className="px-4 py-2.5">
         <div className="text-[13.5px] font-medium">{v.name ?? v.email}</div>
         <div className="font-mono text-[10.5px] text-muted-foreground">

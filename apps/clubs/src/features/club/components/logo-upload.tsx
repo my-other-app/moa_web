@@ -59,9 +59,9 @@ export function LogoUpload({ currentLogo }: { currentLogo: string | null }) {
         disabled={upload.isPending}
         aria-label={shown ? "Change club logo" : "Add club logo"}
         className={cn(
-          "relative grid size-[100px] place-items-center overflow-hidden rounded-full border-[0.5px] border-[var(--swatch-grey)] bg-[#f3f3f3] transition-colors",
+          "relative grid size-[100px] place-items-center overflow-hidden rounded-full border border-border bg-muted transition-colors",
           "focus-visible:ring-ring/60 focus-visible:outline-none focus-visible:ring-[3px]",
-          "hover:border-[var(--swatch-ink)] disabled:opacity-60",
+          "hover:border-foreground/40 disabled:opacity-60",
           pressable
         )}
       >
@@ -75,7 +75,7 @@ export function LogoUpload({ currentLogo }: { currentLogo: string | null }) {
             unoptimized
           />
         ) : (
-          <Icon name="image-plus" size={48} className="text-[var(--swatch-grey)]" />
+          <Icon name="image-plus" size={48} className="text-muted-foreground" />
         )}
 
         {upload.isPending ? (
@@ -94,10 +94,10 @@ export function LogoUpload({ currentLogo }: { currentLogo: string | null }) {
         tabIndex={-1}
       />
 
-      <p className="text-center text-xs text-black">
+      <p className="text-center text-xs text-foreground">
         {shown ? "Change Club Logo" : "Add Club Logo"}
         <br />
-        <span className="text-[var(--swatch-grey)]">(1:1 ratio, under 5 MB)</span>
+        <span className="text-muted-foreground">(1:1 ratio, under 5 MB)</span>
       </p>
     </div>
   );

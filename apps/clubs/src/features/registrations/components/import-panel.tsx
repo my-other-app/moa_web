@@ -65,8 +65,8 @@ export function ImportPanel({
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <div className="rounded-lg border-[0.5px] border-[var(--swatch-grey)] p-4">
-        <p className="mb-3 text-xl font-medium text-[var(--swatch-ink)]">Import a guest list</p>
+      <div className="rounded-2xl bg-card ring-1 ring-border/70 shadow-sm p-4">
+        <p className="mb-3 text-[15px] font-medium text-foreground">Import a guest list</p>
         {running ? (
           <div className="rounded-md border border-primary bg-primary/10 px-4 py-6 text-center">
             <Loader2Icon className="text-primary mx-auto size-5 animate-spin" />
@@ -121,9 +121,9 @@ export function ImportPanel({
         />
       </div>
 
-      <div className="overflow-hidden rounded-lg border-[0.5px] border-[var(--swatch-grey)]">
+      <div className="overflow-hidden rounded-2xl bg-card ring-1 ring-border/70 shadow-sm">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <p className="text-xl font-medium text-[var(--swatch-ink)]">Import record</p>
+          <p className="text-[15px] font-medium text-foreground">Import record</p>
           <span className="text-muted-foreground font-mono text-[10px]">PERMANENT</span>
         </div>
         {imports.data?.length === 0 ? <p className="text-muted-foreground px-4 py-7 text-center text-sm">Nothing has been imported yet.</p> : null}

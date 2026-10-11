@@ -2,12 +2,11 @@ import type * as React from "react";
 import { cn } from "@moa/ui";
 
 /**
- * Section heading inside a page: Bebas Neue, uppercase, 24px (design nodes
- * 368:299 / 368:372 / 368:392). One step down from `PageHeader`'s 48px title.
+ * Section heading inside a page: 15px medium, sentence case, the same voice
+ * as the v2 panel titles. It was Bebas Neue uppercase at 24px from the design
+ * file, which read as a different product beside the Nocturne panels.
  *
- * Shared rather than local so admin and clubs use the same rhythm -- a page
- * that mixes a Bebas title with semibold sans section headings is the exact
- * drift that made the first build look like stock shadcn.
+ * Shared rather than local so admin and clubs keep one rhythm.
  */
 export function SectionTitle({
   children,
@@ -20,9 +19,7 @@ export function SectionTitle({
 }) {
   return (
     <div className={cn("flex items-center justify-between gap-4", className)}>
-      <h2 className="bebas text-2xl leading-none tracking-wide uppercase">
-        {children}
-      </h2>
+      <h2 className="m-0 text-[15px] leading-none font-medium">{children}</h2>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );

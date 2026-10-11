@@ -26,9 +26,9 @@ import { useDeleteEvent } from "@/features/event-form";
 import { DuplicateDialog } from "./duplicate-dialog";
 import type { ClubEvent } from "../schemas";
 
-/** 48px square, #f3f3f3 fill, 4px radius — the design's row action (3:834). */
+/** A quiet outline icon button, the same size as the console's other buttons. */
 const ACTION =
-  "grid size-12 shrink-0 place-items-center rounded bg-[#f3f3f3] text-[var(--swatch-grey)] transition-colors hover:bg-[var(--swatch-ink)] hover:text-white focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-[3px]";
+  "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground grid size-9 shrink-0 place-items-center rounded-lg border transition-colors focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-[3px]";
 
 /**
  * The design shows the same three actions on the list row (3:834) and on the
@@ -67,7 +67,7 @@ export function EventRowActions({
   }
 
   return (
-    <div className="flex shrink-0 items-center gap-3 sm:gap-6">
+    <div className="flex shrink-0 items-center gap-1.5">
       <Tooltip>
         <TooltipTrigger asChild>
           <Link
@@ -75,7 +75,7 @@ export function EventRowActions({
             aria-label={`Edit ${event.name}`}
             className={cn(ACTION, pressable)}
           >
-            <Icon name="edit-05" />
+            <Icon name="edit-05" size={18} />
           </Link>
         </TooltipTrigger>
         <TooltipContent>Edit</TooltipContent>
@@ -87,9 +87,9 @@ export function EventRowActions({
             type="button"
             onClick={() => setConfirmOpen(true)}
             aria-label={`Delete ${event.name}`}
-            className={cn(ACTION, "hover:bg-destructive hover:text-white", pressable)}
+            className={cn(ACTION, "hover:border-destructive/50 hover:text-destructive", pressable)}
           >
-            <Icon name="trash-03" />
+            <Icon name="trash-03" size={18} />
           </button>
         </TooltipTrigger>
         <TooltipContent>Delete</TooltipContent>
@@ -103,7 +103,7 @@ export function EventRowActions({
             aria-label={`Duplicate ${event.name}`}
             className={cn(ACTION, pressable)}
           >
-            <CopyIcon className="size-5" aria-hidden />
+            <CopyIcon className="size-4" aria-hidden />
           </button>
         </TooltipTrigger>
         <TooltipContent>Duplicate</TooltipContent>
@@ -118,7 +118,7 @@ export function EventRowActions({
             aria-label={`Copy public link for ${event.name}`}
             className={cn(ACTION, pressable)}
           >
-            <Icon name="share-04" />
+            <Icon name="share-04" size={18} />
           </button>
         </TooltipTrigger>
         <TooltipContent>Copy public link</TooltipContent>

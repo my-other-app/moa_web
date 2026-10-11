@@ -120,6 +120,21 @@
   --sidebar-accent-foreground: var(--color-accent-200);
   --sidebar-border: var(--color-neutral-900);
   --sidebar-ring: var(--color-accent-500);
+
+  /*
+   * The legacy design-file swatches, remapped for this surface. Screens
+   * written against them (hairline ink borders, grey captions, a mint table
+   * band) were drawn for a white page; on Nocturne the ink is the text
+   * colour, the grey is the muted one, and the mint is a tinted band rather
+   * than a pastel. Chip tints stay pastel: they carry their own dark text.
+   */
+  --swatch-ink: var(--color-text);
+  --swatch-grey: var(--color-neutral-500);
+  --swatch-grey-light: var(--color-neutral-700);
+  --swatch-mint: var(--color-accent-900);
+  --swatch-teal: var(--color-accent-400);
+  --stat-mint-ink: var(--color-accent-200);
+  --stat-sky-ink: #bfe2f5;
 }
 
 @theme inline {

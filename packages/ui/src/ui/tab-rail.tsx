@@ -49,7 +49,7 @@ function TabRail({ items, value, onChange, renderLink, label, className }: TabRa
       {items.map((t) => {
         const active = t.key === value;
         const cls = cn(
-          "relative shrink-0 whitespace-nowrap border-0 bg-transparent px-3 py-2.5 text-[13px] transition-colors duration-150 hover:text-foreground focus-visible:text-foreground",
+          "relative shrink-0 whitespace-nowrap border-0 bg-transparent px-2.5 py-2.5 text-[13px] transition-colors duration-150 hover:text-foreground focus-visible:text-foreground",
           active ? "text-foreground" : "text-muted-foreground"
         );
         const inner = (

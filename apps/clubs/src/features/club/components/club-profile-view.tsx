@@ -70,17 +70,17 @@ function FactCard({
   value: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-lg border-[0.5px] border-[var(--swatch-ink)] bg-white px-[7px] py-1">
+    <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-2xl bg-card ring-1 ring-border/70 shadow-sm px-[7px] py-1">
       <div className="flex flex-col gap-2">
         <span
           aria-hidden="true"
-          className="grid size-9 shrink-0 place-items-center rounded-full bg-[#f3f3f3] text-base"
+          className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-base"
         >
           {emoji}
         </span>
-        <p className="text-base font-light text-black">{label}</p>
+        <p className="text-base font-light text-foreground">{label}</p>
       </div>
-      <p className="bebas truncate text-2xl leading-none text-black" title={value}>
+      <p className="truncate text-lg font-medium" title={value}>
         {value}
       </p>
     </div>
@@ -116,8 +116,8 @@ function LinksCard({ club }: { club: ClubSelf }) {
   const anyLinked = rows.some((row) => row.href);
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border-[0.5px] border-[var(--swatch-ink)] bg-white p-4">
-      <h2 className="bebas text-2xl leading-none text-black">Links</h2>
+    <div className="flex flex-col gap-4 rounded-2xl bg-card ring-1 ring-border/70 shadow-sm p-4">
+      <h2 className="text-lg font-medium">Links</h2>
 
       {anyLinked ? (
         <ul className="flex flex-col gap-3">
@@ -126,13 +126,13 @@ function LinksCard({ club }: { club: ClubSelf }) {
               <span
                 aria-hidden="true"
                 className={cn(
-                  "grid size-9 shrink-0 place-items-center rounded-full bg-[#f3f3f3]",
-                  href ? "text-[var(--swatch-ink)]" : "text-[var(--swatch-grey-light)]"
+                  "grid size-9 shrink-0 place-items-center rounded-full bg-muted",
+                  href ? "text-foreground" : "text-muted-foreground/70"
                 )}
               >
                 <LinkIcon className="size-5" />
               </span>
-              <span className="w-[74px] shrink-0 text-base text-[var(--swatch-grey)]">
+              <span className="w-[74px] shrink-0 text-base text-muted-foreground">
                 {label}
               </span>
               {href ? (
@@ -140,13 +140,13 @@ function LinksCard({ club }: { club: ClubSelf }) {
                   href={href}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="min-w-0 truncate text-[13px] text-[var(--swatch-grey)] underline-offset-4 hover:text-[var(--swatch-teal)] hover:underline"
+                  className="min-w-0 truncate text-[13px] text-muted-foreground underline-offset-4 hover:text-brand hover:underline"
                   title={href}
                 >
                   {displayUrl(href)}
                 </a>
               ) : (
-                <span className="text-[13px] text-[var(--swatch-grey-light)]">
+                <span className="text-[13px] text-muted-foreground/70">
                   Not added
                 </span>
               )}
@@ -154,11 +154,11 @@ function LinksCard({ club }: { club: ClubSelf }) {
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-[var(--swatch-grey)]">
+        <p className="text-sm text-muted-foreground">
           No links yet.{" "}
           <Link
             href="/profile/edit"
-            className="font-semibold text-[var(--swatch-teal)] underline underline-offset-2"
+            className="font-semibold text-brand underline underline-offset-2"
           >
             Add them
           </Link>{" "}
@@ -190,13 +190,13 @@ function AboutCard({ about }: { about: string | null | undefined }) {
   }, [about]);
 
   return (
-    <div className="flex min-h-[200px] flex-col gap-2 rounded-lg border-[0.5px] border-[var(--swatch-ink)] bg-white px-4 py-6 lg:min-h-[379px]">
+    <div className="flex min-h-[200px] flex-col gap-2 rounded-2xl bg-card ring-1 ring-border/70 shadow-sm px-4 py-6 lg:min-h-[379px]">
       {about ? (
         <>
           <div
             ref={bodyRef}
             className={cn(
-              "overflow-hidden text-base leading-6 font-light whitespace-pre-wrap text-black",
+              "overflow-hidden text-base leading-6 font-light whitespace-pre-wrap text-foreground",
               expanded ? "max-h-none" : "max-h-[280px]"
             )}
           >
@@ -206,14 +206,14 @@ function AboutCard({ about }: { about: string | null | undefined }) {
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="self-start text-base leading-6 font-semibold text-[var(--swatch-teal)] underline underline-offset-2"
+              className="self-start text-base leading-6 font-semibold text-brand underline underline-offset-2"
             >
               {expanded ? "Read Less" : "Read More"}
             </button>
           ) : null}
         </>
       ) : (
-        <p className="text-base font-light text-[var(--swatch-grey)]">
+        <p className="text-sm text-muted-foreground">
           No description yet. Tell students what your club does, who it is for
           and what you run — it is the first thing they read.
         </p>
@@ -260,7 +260,7 @@ export function ClubProfileView() {
   return (
     <div className={cn("space-y-6", enter)}>
       {/* Identity card */}
-      <div className="flex flex-col gap-6 rounded-lg border-[0.5px] border-[var(--swatch-ink)] bg-white px-4 py-6 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex flex-col gap-6 rounded-2xl bg-card ring-1 ring-border/70 shadow-sm px-4 py-6 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 gap-6">
           {logo ? (
             <Image
@@ -272,13 +272,13 @@ export function ClubProfileView() {
               unoptimized
             />
           ) : (
-            <span className="bebas grid size-[100px] shrink-0 place-items-center rounded-lg bg-[#f3f3f3] text-3xl text-[var(--swatch-ink)]">
+            <span className="grid size-[100px] shrink-0 place-items-center rounded-lg bg-muted text-2xl font-medium text-foreground">
               {initials(club.name)}
             </span>
           )}
 
           <div className="flex min-w-0 flex-col gap-2">
-            <h2 className="text-2xl font-bold break-words text-black">{club.name}</h2>
+            <h2 className="text-2xl font-medium break-words">{club.name}</h2>
             {club.interests.length > 0 ? (
               <div className="flex max-w-[430px] flex-wrap gap-2">
                 {club.interests.map((interest) => (
@@ -286,7 +286,7 @@ export function ClubProfileView() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-[var(--swatch-grey)]">
+              <p className="text-sm text-muted-foreground">
                 No focus areas selected yet.
               </p>
             )}
@@ -296,7 +296,7 @@ export function ClubProfileView() {
         <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center">
           <Button
             variant="display"
-            size="display"
+            size="lg"
             asChild
             className={cn("w-full sm:w-[240px]", pressable)}
           >
