@@ -32,10 +32,15 @@ export const ticketStateSchema = z.object({
   revoked_at: z.string().nullish(),
 });
 
+export const providerSchema = z.object({ channel: z.string(), name: z.string(), configured: z.boolean(), note: z.string() });
+export type ChannelProvider = z.infer<typeof providerSchema>;
+
 export const deliverySummarySchema = z.object({
   kind: z.string(),
   registrations: z.number(),
   revoked: z.number(),
+  /** Which channels have a provider behind them; one without sends nothing and says so. */
+  providers: z.array(providerSchema).default([]),
   channels: z.array(
     z.object({
       channel: z.string(),
