@@ -2,6 +2,9 @@
 
 import * as React from "react";
 import { Button, cn, toast } from "@moa/ui";
+import { PrinterIcon } from "lucide-react";
+
+import { PrintFrame, cardPdfUrl } from "@/features/idcards";
 import { formatDateTime } from "@moa/app-kit";
 
 import { outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
@@ -20,6 +23,8 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
   const results = useGuestSearch(gateKey, ctx.event.id, settled);
   const byHand = useCheckInByHand(gateKey, ctx.event.id);
   const [card, setCard] = React.useState<OutcomeCardModel | null>(null);
+  const [printing, setPrinting] = React.useState<string | null>(null);
+  const mayPrint = (printedAt: string | null | undefined) => !printedAt || ctx.event.reprint_policy === "anyone" || (ctx.event.reprint_policy === "organiser" && ctx.permissions.full);
   const admit = async (id: string) => {
     try {
       const res = await byHand.mutateAsync({ registrationId: id, door });
@@ -31,6 +36,7 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
   };
   return (
     <div className="flex flex-col gap-3.5">
+      {printing ? <PrintFrame key={printing} url={printing} onDone={() => setTimeout(() => setPrinting(null), 4000)} /> : null}
       {card ? <OutcomeCard card={card} onDismiss={() => setCard(null)} /> : null}
       <div>
         <label htmlFor="gate-find" className="mb-1.5 block font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
@@ -52,7 +58,14 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
                 </div>
               </div>
               {r.checked_in_at ? (
-                <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] text-emerald-700 dark:text-emerald-300">IN · {formatDateTime(r.checked_in_at)}</span>
+                <>
+                  {mayPrint(r.badge_printed_at) ? (
+                    <Button type="button" size="sm" variant="outline" className="h-10" aria-label={`Print card for ${r.name}`} onClick={() => setPrinting(cardPdfUrl(ctx.event.id, r.id, { source: "manual", record: true, door, key: gateKey }))}>
+                      <PrinterIcon />
+                    </Button>
+                  ) : null}
+                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] text-emerald-700 dark:text-emerald-300">IN · {formatDateTime(r.checked_in_at)}</span>
+                </>
               ) : (
                 <Button type="button" size="sm" className={cn("h-10")} disabled={byHand.isPending || !r.is_paid} onClick={() => void admit(r.id)}>
                   {r.is_paid ? "Check in" : "Not paid"}

@@ -12,6 +12,7 @@ const base: ScanResult = {
   revoked_at: null,
   capture: { ask: false, required: false, reason: "DISABLED" },
   replayed: false,
+  badge: { auto: false, may_print: true, printed_at: null, policy: "anyone" },
 };
 
 describe("the outcome card", () => {

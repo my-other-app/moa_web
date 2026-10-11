@@ -14,6 +14,7 @@ export const attendeeSummarySchema = z.object({
   has_contact: z.boolean().default(false),
   is_paid: z.boolean().default(true),
   checked_in_at: z.string().nullish(),
+  badge_printed_at: z.string().nullish(),
 });
 export type AttendeeSummary = z.infer<typeof attendeeSummarySchema>;
 
@@ -26,6 +27,8 @@ export const scanResultSchema = z.object({
   revoked_at: z.string().nullable(),
   capture: z.object({ ask: z.boolean(), required: z.boolean(), reason: z.string() }),
   replayed: z.boolean().default(false),
+  /** What the console should do about the ID card. */
+  badge: z.object({ auto: z.boolean(), may_print: z.boolean(), printed_at: z.string().nullish(), policy: z.string() }).default({ auto: false, may_print: false, printed_at: null, policy: "anyone" }),
 });
 export type ScanResult = z.infer<typeof scanResultSchema>;
 
@@ -60,6 +63,8 @@ export const gateContextSchema = z.object({
     has_fee: z.boolean().default(false),
     starts_at: z.string().nullish(),
     ticket_example: z.string().default("MOA-XXXXX-XXXXX"),
+    auto_print_badges: z.boolean().default(false),
+    reprint_policy: z.string().default("anyone"),
   }),
   permissions: z.object({ check_in: z.boolean(), walkup: z.boolean(), merch: z.boolean(), full: z.boolean() }),
   counters: z.object({ registered: z.number(), checked_in: z.number() }),

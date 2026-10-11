@@ -16,7 +16,7 @@ export const AUDIENCES = [
 ] as const;
 export type Audience = (typeof AUDIENCES)[number]["value"];
 
-export const DESIGN_KINDS = ["ticket", "certificate"] as const;
+export const DESIGN_KINDS = ["ticket", "badge", "certificate"] as const;
 export type DesignKind = (typeof DESIGN_KINDS)[number];
 
 export const starterSchema = z.object({

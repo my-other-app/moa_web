@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, Loader2Icon, MoreHorizontalIcon } from "lucide-react";
+import { CheckIcon, IdCardIcon, Loader2Icon, MoreHorizontalIcon } from "lucide-react";
 import { useListParams } from "@moa/app-kit";
 import { pageCount } from "@moa/api";
 import {
@@ -29,6 +29,7 @@ import { pressable } from "@moa/ui/motion";
 
 import { Icon } from "@/components/icon";
 import { DeliveryBar, TicketCell } from "@/features/deliveries";
+import { cardPdfUrl, openPdf } from "@/features/idcards";
 import { useEventDetail } from "@/features/events";
 
 import { exportUrl } from "../api";
@@ -295,6 +296,9 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
                                 <span>View everything</span>
                                 <span className="text-muted-foreground text-xs">Contact, answers, ticket, deliveries, check-in.</span>
                               </span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => openPdf(cardPdfUrl(eventId, row.id, { source: "manual", record: true }))}>
+                              <IdCardIcon /> Print ID card
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem variant="destructive" onSelect={() => setDialog({ kind: "remove", row: { id: row.id, name } })}>

@@ -4,7 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, AwardIcon, DoorOpenIcon, ImageOffIcon, MailIcon, PaletteIcon } from "lucide-react";
+import { ArrowLeftIcon, AwardIcon, DoorOpenIcon, IdCardIcon, ImageOffIcon, MailIcon, PaletteIcon } from "lucide-react";
 import { PageHeader, pickImage } from "@moa/app-kit";
 import {
   Button,
@@ -112,6 +112,11 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
             <Button variant="outline" asChild className={cn("h-12 shrink-0 gap-2 rounded-lg px-4", pressable)}>
               <Link href={`/events/${eventId}/team`}>
                 <DoorOpenIcon /> Team &amp; doors
+              </Link>
+            </Button>
+            <Button variant="outline" asChild className={cn("h-12 shrink-0 gap-2 rounded-lg px-4", pressable)}>
+              <Link href={`/events/${eventId}/idcards`}>
+                <IdCardIcon /> ID cards
               </Link>
             </Button>
 
