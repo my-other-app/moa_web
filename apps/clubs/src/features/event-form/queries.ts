@@ -5,14 +5,7 @@ import { qk } from "@moa/api";
 import { staleTimes } from "@moa/app-kit";
 import { toast } from "@moa/ui";
 
-import {
-  createEvent,
-  deleteEvent,
-  fetchCategories,
-  fetchEvent,
-  fetchInterests,
-  updateEvent,
-} from "./api";
+import { createEvent, deleteEvent, fetchCategories, fetchEvent, fetchInterests, updateEvent, duplicateEvent, type DuplicateInput } from "./api";
 import type { EventFormParsed } from "./schemas";
 
 export function useEventCategories() {
@@ -72,6 +65,18 @@ export function useDeleteEvent() {
     mutationFn: deleteEvent,
     onSuccess: async () => {
       toast.success("Event deleted");
+      await queryClient.invalidateQueries({ queryKey: qk.events.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useDuplicateEvent(eventId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: DuplicateInput) => duplicateEvent(eventId, body),
+    onSuccess: async (made) => {
+      toast.success(`${made.name} created as a draft`, { description: "Set its venue and dates, then publish it." });
       await queryClient.invalidateQueries({ queryKey: qk.events.all });
     },
     onError: (error: Error) => toast.error(error.message),

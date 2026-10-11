@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { CopyIcon } from "lucide-react";
 import Link from "next/link";
 import {
   AlertDialog,
@@ -22,6 +23,7 @@ import { pressable } from "@moa/ui/motion";
 
 import { Icon } from "@/components/icon";
 import { useDeleteEvent } from "@/features/event-form";
+import { DuplicateDialog } from "./duplicate-dialog";
 import type { ClubEvent } from "../schemas";
 
 /** 48px square, #f3f3f3 fill, 4px radius — the design's row action (3:834). */
@@ -47,6 +49,7 @@ export function EventRowActions({
 }) {
   const remove = useDeleteEvent();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [dupOpen, setDupOpen] = React.useState(false);
   const registered = event.registration_count ?? 0;
 
   async function onShare() {
@@ -91,6 +94,21 @@ export function EventRowActions({
         </TooltipTrigger>
         <TooltipContent>Delete</TooltipContent>
       </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={() => setDupOpen(true)}
+            aria-label={`Duplicate ${event.name}`}
+            className={cn(ACTION, pressable)}
+          >
+            <CopyIcon className="size-5" aria-hidden />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Duplicate</TooltipContent>
+      </Tooltip>
+      {dupOpen ? <DuplicateDialog event={event} onClose={() => setDupOpen(false)} /> : null}
 
       <Tooltip>
         <TooltipTrigger asChild>
