@@ -2,285 +2,102 @@
 
 import * as React from "react";
 import Link from "next/link";
-import {
-  ArrowRightIcon,
-  CalendarIcon,
-  CheckCircleIcon,
-  CheckSquareIcon,
-  DownloadIcon,
-  EyeIcon,
-  IndianRupeeIcon,
-  MapPinIcon,
-  MegaphoneIcon,
-  ScanLineIcon,
-  TicketIcon,
-  UsersIcon,
-} from "lucide-react";
+import { ArrowRightIcon, CalendarIcon, DownloadIcon, IndianRupeeIcon, MapPinIcon, UsersIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { formatNumber } from "@moa/app-kit";
-import { InlineAlert, Skeleton, cn } from "@moa/ui";
+import { AttentionCard, DoorsOpenCard, attentionPath, formatNumber, type AttentionItem } from "@moa/app-kit";
+import { CardLabel, FigurePanel, InlineAlert, ProgressBar, Skeleton, StatTile, cn } from "@moa/ui";
 
 import { fetchClubOverview } from "../api";
-import { ClubPulse } from "./club-pulse";
-import {
-  PERIOD_OPTIONS,
-  type ClubOverview,
-  type Kpi,
-  type OverviewEvent,
-} from "../overview-schemas";
+import { useClubDashboard, useMyClub } from "../queries";
+import { PERIOD_OPTIONS, type ClubOverview, type Kpi, type OverviewEvent } from "../overview-schemas";
 
 /**
- * The club Dashboard, built to "Clubs Dashboard v2".
+ * The club's home page, in four rows.
  *
- * Every figure comes from one `/clubs/overview` response, so nothing on the
- * page can describe a different moment from anything else on it.
- *
- * Three panels in the design are not here, and deliberately so rather than
- * filled with plausible numbers: "Attendees by ticket type" needs a ticket
- * type domain that does not exist (API_SPEC_V2 §4.3), and the "Ask about your
- * club" assistant and the widget catalogue have no endpoints at all. A panel
- * showing invented data is worse than one that is absent, because nobody can
- * tell it is invented.
+ * A greeting and one sentence on where things stand; four figures for the
+ * period; what needs a decision beside what is happening now (the doors
+ * open, or the next event when none is); the money and the calendar; the
+ * audience and the reach. Eight panels in one vocabulary, instead of the
+ * fifteen in two it replaced. Every figure comes from one of two responses
+ * — the period overview and the live pulse — so nothing on the page can
+ * describe a different moment from the panel beside it.
  */
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
 function inr(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
   return `₹${formatNumber(Math.round(value))}`;
 }
 
-function pct(value: number | null | undefined): string {
-  return value === null || value === undefined ? "—" : `${value}%`;
+function greeting(): string {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
-/** The delta chip. Absent rather than zero when there is no comparison. */
-function Delta({ kpi, goodWhenUp = true }: { kpi: Kpi; goodWhenUp?: boolean }) {
-  if (kpi.delta === null) {
-    return (
-      <span className="text-[11px] text-[var(--color-neutral-500)]">
-        no comparison yet
-      </span>
-    );
-  }
-  const up = kpi.delta >= 0;
-  const good = goodWhenUp ? up : !up;
+function deltaOf(kpi: Kpi, unit = "%"): { delta?: string; trend: "none" | "up" | "down" } {
+  if (kpi.delta === null) return { trend: "none" };
+  return { delta: `${kpi.delta > 0 ? "+" : kpi.delta < 0 ? "−" : ""}${Math.abs(kpi.delta)}${unit}`, trend: kpi.delta > 0 ? "up" : kpi.delta < 0 ? "down" : "none" };
+}
+
+/** A clock that ticks once a second, lifted so the digits and "has it started" agree. */
+function useNow(active: boolean): number {
+  const [now, setNow] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    if (!active) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [active]);
+  return now;
+}
+
+function Countdown({ target, now }: { target: number; now: number }) {
+  const remaining = Math.max(0, target - now);
+  const days = Math.floor(remaining / 86_400_000);
+  const hours = Math.floor((remaining % 86_400_000) / 3_600_000);
+  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+  const seconds = Math.floor((remaining % 60_000) / 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
   return (
-    <span
-      className={cn(
-        "flex items-center gap-1 rounded-[999px] px-2 py-0.5 text-[12px] whitespace-nowrap",
-        good
-          ? "bg-[var(--color-accent-900)] text-[var(--color-accent-200)]"
-          : "bg-[var(--color-neutral-800)] text-[var(--color-neutral-200)]"
-      )}
-    >
-      {up ? "▲" : "▼"} {Math.abs(kpi.delta)}%
+    <span className="font-mono text-[22px] leading-none tracking-[-0.02em] tabular-nums">
+      {days > 0 ? `${days}d ` : ""}
+      {pad(hours)}:{pad(minutes)}:{pad(seconds)}
     </span>
   );
 }
 
-function KpiCard({
-  label,
-  icon,
-  kpi,
-  format,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  kpi: Kpi;
-  format: (value: number | null) => string;
-}) {
-  return (
-    <div
-      role="group"
-      aria-label={label}
-      className="flex flex-col gap-1 rounded-[var(--radius-lg)] bg-[var(--color-surface)] px-5 py-[18px] shadow-[var(--shadow-sm)]"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[13.5px] text-[var(--color-neutral-200)]">{label}</span>
-        <span className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-[var(--color-accent-900)] text-[var(--color-accent-300)]">
-          {icon}
-        </span>
-      </div>
-      <div className="flex flex-wrap items-center gap-2.5">
-        <span className="text-[24px] tracking-[-0.02em]">{format(kpi.value)}</span>
-        <Delta kpi={kpi} />
-      </div>
-      <span className="text-[11px] text-[var(--color-neutral-500)]">
-        vs. {format(kpi.previous)} last period
-      </span>
-    </div>
-  );
-}
-
-/**
- * Two polylines over a filled area, in a 400x140 viewBox and stretched.
- *
- * Hand-rolled rather than a chart library: the design wants a solid current
- * line, a dashed previous one and a tinted fill, and nothing else -- no axes,
- * grid, tooltip or legend. Pulling in recharts to then hide all of it costs
- * more than the geometry does.
- */
-function RevenueChart({ series }: { series: ClubOverview["revenue_series"] }) {
-  const current = series.current;
-  const previous = series.previous;
-  const max = Math.max(
-    1,
-    ...current.map((p) => p.revenue),
-    ...previous.map((p) => p.revenue)
-  );
-
-  const points = (data: typeof current) =>
-    data
-      .map((point, i) => {
-        const x = data.length > 1 ? (i / (data.length - 1)) * 400 : 0;
-        const y = 140 - (point.revenue / max) * 130;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(" ");
-
-  const line = points(current);
-  const area = current.length ? `0,140 ${line} 400,140` : "";
-
-  return (
-    <svg
-      viewBox="0 0 400 140"
-      preserveAspectRatio="none"
-      className="h-[140px] w-full"
-      role="img"
-      aria-label="Captured ticket revenue over the period"
-    >
-      {area ? <polygon points={area} fill="var(--color-accent-900)" /> : null}
-      {previous.length > 1 ? (
-        <polyline
-          points={points(previous)}
-          fill="none"
-          stroke="var(--color-neutral-600)"
-          strokeWidth="1.5"
-          strokeDasharray="4 4"
-          vectorEffect="non-scaling-stroke"
-        />
-      ) : null}
-      {current.length > 1 ? (
-        <polyline
-          points={line}
-          fill="none"
-          stroke="var(--color-accent-400)"
-          strokeWidth="2"
-          vectorEffect="non-scaling-stroke"
-        />
-      ) : null}
-    </svg>
-  );
-}
-
-function Panel({
-  title,
-  aside,
-  children,
-  className,
-}: {
-  title: string;
-  aside?: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-col gap-3 rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-[18px] shadow-[var(--shadow-sm)]",
-        className
-      )}
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-[15px]">{title}</span>
-        {aside}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-/**
- * A clock that ticks once a second.
- *
- * Lifted out of the countdown so the same `now` decides both the digits and
- * whether the event has started -- reading `Date.now()` during render would
- * only re-evaluate when something else re-rendered the parent, so "doors
- * open" would appear whenever the page happened to update rather than when
- * the event actually began.
- */
-function useNow(active: boolean): number {
-  const [now, setNow] = React.useState(() => Date.now());
-
-  React.useEffect(() => {
-    if (!active) return;
-    // One second is the point of a countdown; anything slower reads as broken.
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [active]);
-
-  return now;
-}
-
-/** Hours/minutes/seconds remaining, from an already-ticking clock. */
-function Countdown({ target, now }: { target: number; now: number }) {
-  if (Number.isNaN(target)) return null;
-
-  const remaining = Math.max(0, target - now);
-  const hours = Math.floor(remaining / 3_600_000);
-  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
-  const seconds = Math.floor((remaining % 60_000) / 1000);
-  const pad = (n: number) => String(n).padStart(2, "0");
-
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <span className="text-[12px] text-[var(--color-neutral-400)]">Starts in</span>
-      <span className="font-mono text-[20px] text-[var(--color-accent-200)] tabular-nums">
-        {pad(hours)}
-      </span>
-      <span className="text-[12px] text-[var(--color-neutral-500)]">h</span>
-      <span className="font-mono text-[20px] text-[var(--color-accent-200)] tabular-nums">
-        {pad(minutes)}
-      </span>
-      <span className="text-[12px] text-[var(--color-neutral-500)]">m</span>
-      <span className="font-mono text-[20px] text-[var(--color-accent-200)] tabular-nums">
-        {pad(seconds)}
-      </span>
-      <span className="text-[12px] text-[var(--color-neutral-500)]">s</span>
-    </div>
-  );
-}
-
-function NextEvent({ event }: { event: OverviewEvent }) {
-  const when = event.event_datetime ? new Date(event.event_datetime) : null;
+/** The next event as the one highlight, when no door is open. */
+function NextEventCard({ event }: { event: OverviewEvent | null }) {
+  const when = event?.event_datetime ? new Date(event.event_datetime) : null;
   const target = when ? when.getTime() : NaN;
   const now = useNow(!Number.isNaN(target));
-  const live = !Number.isNaN(target) && target <= now;
-
+  if (!event) {
+    return (
+      <FigurePanel className="flex flex-col">
+        <CardLabel className="mb-3">Next event</CardLabel>
+        <p className="text-ink-2 text-[12.5px] leading-[1.55]">Nothing scheduled. Create an event and it appears here with its sign-ups and a countdown.</p>
+        <Link href="/events/new" className="btn btn-primary mt-4 self-start">
+          Create an event
+        </Link>
+      </FigurePanel>
+    );
+  }
+  const started = !Number.isNaN(target) && target <= now;
   return (
-    <section className="relative flex flex-col gap-4 overflow-hidden rounded-[var(--radius-lg)] bg-[radial-gradient(90%_140%_at_0%_0%,var(--color-section-glow),var(--color-section)_60%)] p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="tag tag-accent">
-          {live ? "Doors open · check-in live" : "Next event"}
-        </span>
-        {!live ? <Countdown target={target} now={now} /> : null}
+    <div className="shadow-hero relative flex flex-col gap-3 overflow-hidden rounded-2xl bg-[linear-gradient(150deg,var(--hero-from)_0%,var(--hero-to)_100%)] p-4 text-white">
+      <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(130%_100%_at_88%_4%,rgba(255,255,255,0.2)_0%,transparent_58%)]" />
+      <div className="relative flex flex-wrap items-center justify-between gap-2">
+        <span className="font-mono text-[10px] font-medium tracking-[0.09em] text-white/75 uppercase">{started ? "Doors open · next event" : "Next event"}</span>
+        {!started && !Number.isNaN(target) ? <Countdown target={target} now={now} /> : null}
       </div>
-
-      <div className="flex flex-col gap-2">
-        <h3 className="m-0 text-[22px] leading-[1.15] tracking-[-0.02em] text-[var(--color-neutral-100)]">
+      <div className="relative">
+        <Link href={`/events/${event.id}`} className="block text-[20px] leading-[1.2] font-semibold tracking-[-0.02em] hover:underline">
           {event.name}
-        </h3>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[var(--color-neutral-200)]">
+        </Link>
+        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-white/80">
           {when ? (
             <span className="flex items-center gap-1.5">
               <CalendarIcon className="size-3.5" />
-              {when.toLocaleString("en-IN", {
-                weekday: "short",
-                day: "numeric",
-                month: "short",
-                hour: "numeric",
-                minute: "2-digit",
-              })}
+              {when.toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
             </span>
           ) : null}
           {event.location_name ? (
@@ -295,66 +112,216 @@ function NextEvent({ event }: { event: OverviewEvent }) {
           </span>
         </div>
       </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Link href={`/events/${event.id}`} className="btn btn-primary whitespace-nowrap">
-          <ArrowRightIcon className="size-4" />
+      <div className="relative grid grid-cols-3 gap-2 rounded-xl bg-black/20 p-3">
+        {[
+          ["Page views", formatNumber(event.page_views)],
+          ["Registrations", formatNumber(event.registrations)],
+          ["View → sign-up", event.view_to_signup === null ? "—" : `${event.view_to_signup}%`],
+        ].map(([label, value]) => (
+          <span key={label} className="flex min-w-0 flex-col">
+            <span className="truncate font-mono text-[9.5px] tracking-[0.06em] text-white/70 uppercase">{label}</span>
+            <span className="font-mono text-[17px] tabular-nums">{value}</span>
+          </span>
+        ))}
+      </div>
+      <div className="relative flex flex-wrap gap-2">
+        <Link href={`/events/${event.id}`} className="rounded-full bg-white/95 px-3.5 py-[7px] text-[12.5px] font-semibold text-[var(--hero-to)] transition-colors hover:bg-white">
           Manage event
         </Link>
-        <Link
-          href={`/events/${event.id}#check-in`}
-          className="btn btn-secondary whitespace-nowrap"
-        >
-          <ScanLineIcon className="size-4" />
-          Door check-in
-        </Link>
-        <Link href="/announcements" className="btn btn-ghost whitespace-nowrap">
-          <MegaphoneIcon className="size-4" />
-          Announce
+        <Link href={`/events/${event.id}/attendees`} className="rounded-full bg-white/15 px-3.5 py-[7px] text-[12.5px] font-medium text-white transition-colors hover:bg-white/25">
+          Guest list
         </Link>
       </div>
+    </div>
+  );
+}
 
-      <div className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-[color-mix(in_srgb,var(--color-neutral-900)_45%,transparent)] p-3.5">
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            ["Page views", formatNumber(event.page_views)],
-            ["Registrations", formatNumber(event.registrations)],
-            ["Checked in", formatNumber(event.attended)],
-          ].map(([label, value]) => (
-            <span key={label} className="flex flex-col">
-              <span className="text-[11px] text-[var(--color-neutral-300)]">{label}</span>
-              <span className="text-[17px] text-[var(--color-neutral-100)]">{value}</span>
+/** Two lines over a filled area: this period solid, the previous one dashed. */
+function RevenueChart({ series }: { series: ClubOverview["revenue_series"] }) {
+  const current = series.current;
+  const previous = series.previous;
+  const max = Math.max(1, ...current.map((p) => p.revenue), ...previous.map((p) => p.revenue));
+  const points = (data: typeof current) =>
+    data.map((point, i) => `${(data.length > 1 ? (i / (data.length - 1)) * 400 : 0).toFixed(1)},${(140 - (point.revenue / max) * 130).toFixed(1)}`).join(" ");
+  const line = points(current);
+  return (
+    <svg viewBox="0 0 400 140" preserveAspectRatio="none" className="h-[130px] w-full" role="img" aria-label="Captured ticket revenue over the period, against the previous one">
+      {current.length ? <polygon points={`0,140 ${line} 400,140`} fill="color-mix(in srgb, var(--brand) 14%, transparent)" /> : null}
+      {previous.length > 1 ? <polyline points={points(previous)} fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" /> : null}
+      {current.length > 1 ? <polyline points={line} fill="none" stroke="var(--brand)" strokeWidth="2" vectorEffect="non-scaling-stroke" /> : null}
+    </svg>
+  );
+}
+
+function RevenuePanel({ o, days }: { o: ClubOverview; days: number }) {
+  const d = deltaOf(o.kpis.revenue);
+  const first = o.revenue_series.current[0]?.date;
+  const last = o.revenue_series.current.at(-1)?.date;
+  const day = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  return (
+    <FigurePanel>
+      <CardLabel className="mb-3" right={<span className="text-ink-3 text-[11px]">money captured, last {days} days</span>}>
+        Ticket revenue
+      </CardLabel>
+      <div className="flex flex-wrap items-baseline gap-2.5">
+        <span className="font-mono text-[28px] leading-none tracking-[-0.02em] tabular-nums">{inr(o.kpis.revenue.value)}</span>
+        {d.delta ? (
+          <span className={cn("rounded-full px-1.5 py-1 font-mono text-[10px] font-medium leading-none", d.trend === "down" ? "bg-caution-soft text-caution" : "bg-admit-soft text-admit")}>
+            {d.trend === "up" ? "▲ " : d.trend === "down" ? "▼ " : ""}
+            {d.delta}
+          </span>
+        ) : (
+          <span className="text-ink-3 text-[11px]">no comparison yet</span>
+        )}
+      </div>
+      <div className="mt-3">
+        <RevenueChart series={o.revenue_series} />
+      </div>
+      <div className="text-ink-3 mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.04em] uppercase">
+        <span>{first ? day(first) : ""}</span>
+        <span className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden="true" className="bg-brand inline-block h-[2px] w-3 rounded-full" /> this period
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden="true" className="bg-ink-3 inline-block h-[2px] w-3 rounded-full opacity-70" /> previous
+          </span>
+        </span>
+        <span>{last ? day(last) : ""}</span>
+      </div>
+    </FigurePanel>
+  );
+}
+
+function ComingUp({ events }: { events: OverviewEvent[] }) {
+  const best = Math.max(1, ...events.map((e) => e.registrations));
+  return (
+    <FigurePanel className="flex flex-col p-0">
+      <div className="border-line-soft flex items-center justify-between border-b px-4 py-3">
+        <CardLabel>Coming up</CardLabel>
+        <Link href="/events" className="text-brand hover:text-ink text-[12px] font-medium">
+          All events →
+        </Link>
+      </div>
+      {events.length === 0 ? <p className="text-ink-2 px-4 py-7 text-center text-[12.5px]">Nothing scheduled.</p> : null}
+      {events.map((event) => {
+        const when = event.event_datetime ? new Date(event.event_datetime) : null;
+        return (
+          <Link key={event.id} href={`/events/${event.id}`} className="border-line-soft hover:bg-sunken flex items-center gap-3 border-t px-4 py-2.5 transition-colors first:border-t-0">
+            <span className="bg-sunken flex w-11 shrink-0 flex-col items-center rounded-lg py-1 leading-[1.1]">
+              <span className="text-ink-3 font-mono text-[9px] tracking-[0.08em]">{when ? MONTHS[when.getMonth()] : "—"}</span>
+              <span className="font-mono text-[16px] tabular-nums">{when ? when.getDate() : ""}</span>
             </span>
-          ))}
+            <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <span className="truncate text-[13px] font-medium">{event.name}</span>
+              <ProgressBar value={event.registrations} max={best} height={5} label={`${event.name} registrations`} />
+            </span>
+            <span className="text-ink-2 shrink-0 font-mono text-[12px] tabular-nums">{formatNumber(event.registrations)}</span>
+          </Link>
+        );
+      })}
+      {events.length > 1 ? <p className="text-ink-3 border-line-soft border-t px-4 py-2.5 text-[11px]">Bars compare against your best upcoming event.</p> : null}
+    </FigurePanel>
+  );
+}
+
+function AudiencePanel({ o }: { o: ClubOverview }) {
+  const followerMax = Math.max(1, ...o.followers.series.map((f) => f.value));
+  const busiestMax = Math.max(1, ...o.busiest_day.map((d) => d.value));
+  const top = o.busiest_day.reduce<{ label: string; value: number } | null>((m, d) => (m === null || d.value > m.value ? d : m), null);
+  return (
+    <FigurePanel>
+      <CardLabel className="mb-3">Audience</CardLabel>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="min-w-0">
+          <div className="eyebrow">Followers</div>
+          <div className="mt-1 font-mono text-[22px] leading-none tabular-nums">{formatNumber(o.followers.total)}</div>
+          <div className="mt-2 flex h-9 items-end gap-[3px]" aria-label="New followers per week, last twelve weeks">
+            {o.followers.series.length === 0 ? (
+              <span className="text-ink-3 text-[11px]">none new in 12 weeks</span>
+            ) : (
+              o.followers.series.map((week, index) => (
+                <span key={index} title={`${week.value} in the week of ${week.week}`} className="bg-brand/70 flex-1 rounded-t-[2px]" style={{ height: `${Math.max(8, (week.value / followerMax) * 100)}%` }} />
+              ))
+            )}
+          </div>
+          <div className="text-ink-3 mt-1 text-[11px]">new per week, 12 weeks</div>
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-[var(--color-neutral-300)]">
-          <span>
-            <span className="text-[var(--color-accent-200)]">
-              {pct(event.view_to_signup)}
-            </span>{" "}
-            of viewers signed up
-          </span>
-          <span>
-            <span className="text-[var(--color-accent-200)]">{pct(event.turnout)}</span>{" "}
-            of sign-ups here so far
-          </span>
+        <div className="min-w-0">
+          <div className="eyebrow">Repeat attendees</div>
+          <div className="text-admit mt-1 font-mono text-[22px] leading-none tabular-nums">{o.repeat_rate === null ? "—" : `${o.repeat_rate}%`}</div>
+          <p className="text-ink-3 mt-2 text-[11px] leading-[1.5]">{o.repeat_rate === null ? "Nobody has attended an event yet." : "of everyone who has attended came to more than one event."}</p>
+          <Link href="/followers" className="text-brand hover:text-ink mt-1.5 inline-block text-[11.5px] font-medium">
+            See regulars →
+          </Link>
+        </div>
+        <div className="min-w-0">
+          <div className="eyebrow">Busiest sign-up day</div>
+          <div className="mt-1 font-mono text-[22px] leading-none tabular-nums">{top ? top.label : "—"}</div>
+          <div className="mt-2 flex h-9 items-end gap-[3px]" aria-label="Sign-ups by weekday">
+            {o.busiest_day.map((d) => (
+              <span key={d.label} title={`${d.value} on ${d.label}`} className={cn("flex-1 rounded-t-[2px]", d.label === top?.label ? "bg-brand" : "bg-raised")} style={{ height: `${Math.max(8, (d.value / busiestMax) * 100)}%` }} />
+            ))}
+          </div>
+          <div className="text-ink-3 mt-1 flex justify-between font-mono text-[9px] tracking-[0.04em]">
+            <span>MON</span>
+            <span>SUN</span>
+          </div>
         </div>
       </div>
-    </section>
+    </FigurePanel>
+  );
+}
+
+function ReachPanel({ rows }: { rows: OverviewEvent[] }) {
+  return (
+    <FigurePanel className="p-0">
+      <div className="border-line-soft flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+        <CardLabel>Reach</CardLabel>
+        <span className="text-ink-3 text-[11px]">past events · views tell unseen from unappealing</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-ink-2 px-4 py-7 text-center text-[12.5px]">No finished events yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <div className="min-w-[520px]">
+            <div className="text-ink-3 grid grid-cols-[minmax(0,1.6fr)_70px_70px_100px_80px] gap-2 px-4 py-2 font-mono text-[10px] tracking-[0.06em] uppercase">
+              <span>Event</span>
+              <span className="text-right">Views</span>
+              <span className="text-right">Sign-ups</span>
+              <span className="text-right">View → sign-up</span>
+              <span className="text-right">Turnout</span>
+            </div>
+            {rows.map((event) => (
+              <Link key={event.id} href={`/events/${event.id}`} className="border-line-soft hover:bg-sunken grid grid-cols-[minmax(0,1.6fr)_70px_70px_100px_80px] items-center gap-2 border-t px-4 py-2.5 text-[12.5px] transition-colors">
+                <span className="truncate font-medium">{event.name}</span>
+                <span className="text-ink-2 text-right font-mono tabular-nums">{formatNumber(event.page_views)}</span>
+                <span className="text-right font-mono tabular-nums">{formatNumber(event.registrations)}</span>
+                <span className="text-ink-2 text-right font-mono tabular-nums">{event.view_to_signup === null ? "—" : `${event.view_to_signup}%`}</span>
+                <span className={cn("text-right font-mono tabular-nums", event.turnout === null ? "text-ink-3" : event.turnout < 50 ? "text-caution" : "text-admit")}>
+                  {event.turnout === null ? "—" : `${event.turnout}%`}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </FigurePanel>
   );
 }
 
 function DashboardSkeleton() {
   return (
     <div aria-busy="true" className="flex flex-col gap-5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Skeleton className="h-12 w-72 rounded-xl" />
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }, (_, i) => (
-          <Skeleton key={i} className="h-[112px] rounded-[var(--radius-lg)]" />
+          <Skeleton key={i} className="h-[126px] rounded-2xl" />
         ))}
       </div>
-      <div className="grid gap-3.5 lg:grid-cols-[1.4fr_1fr]">
-        <Skeleton className="h-[280px] rounded-[var(--radius-lg)]" />
-        <Skeleton className="h-[280px] rounded-[var(--radius-lg)]" />
+      <div className="grid gap-3.5 lg:grid-cols-2">
+        <Skeleton className="h-[260px] rounded-2xl" />
+        <Skeleton className="h-[260px] rounded-2xl" />
       </div>
     </div>
   );
@@ -362,343 +329,110 @@ function DashboardSkeleton() {
 
 export function ClubDashboardV2() {
   const [days, setDays] = React.useState(30);
+  const overview = useQuery({ queryKey: ["club-overview", days], queryFn: () => fetchClubOverview(days) });
+  const pulse = useClubDashboard();
+  const club = useMyClub();
 
-  const { data, isPending, isError, error } = useQuery({
-    queryKey: ["club-overview", days],
-    queryFn: () => fetchClubOverview(days),
-  });
-
-  if (isError) {
+  if (overview.isError) {
     return (
       <InlineAlert tone="destructive" title="Could not load your dashboard">
-        {error instanceof Error ? error.message : "Try again in a moment."}
+        {overview.error instanceof Error ? overview.error.message : "Try again in a moment."}
       </InlineAlert>
     );
   }
+  const o = overview.data;
+  if (!o) return <DashboardSkeleton />;
+  const d = pulse.data;
+  const live = d?.live ?? [];
 
-  if (isPending || !data) return <DashboardSkeleton />;
+  // One list of decisions: the pulse's, then the finished events nobody marked attendance for.
+  const attention: AttentionItem[] = [
+    ...(d?.attention ?? []),
+    ...o.needs_attention.map((e) => ({
+      kind: "NO_ATTENDANCE",
+      tone: "amber" as const,
+      title: `${e.name} finished with nobody marked present`,
+      body: `${formatNumber(e.registrations)} registered. Certificates and winners wait on attendance; mark it from the guest list.`,
+      event_id: e.id,
+    })),
+  ].slice(0, 6);
+  const hrefFor = (item: AttentionItem) => (item.kind === "NO_ATTENDANCE" && item.event_id !== null ? `/events/${item.event_id}/attendees` : attentionPath(item));
 
-  const next = data.next_event;
-  const busiestMax = Math.max(1, ...data.busiest_day.map((d) => d.value));
-  const followerMax = Math.max(1, ...data.followers.series.map((f) => f.value));
-  const bestUpcoming = Math.max(1, ...data.upcoming.map((e) => e.registrations));
-
-  const today = new Date();
-  const subtitle = next
-    ? `${today.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })} · ${next.name}`
-    : today.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" });
+  const doors = live.length === 0 ? "No doors are" : live.length === 1 ? "One door is" : `${live.length} doors are`;
+  const decisions = attention.length === 0 ? "Nothing needs a decision." : attention.length === 1 ? "One thing needs a decision." : `${attention.length} things need a decision.`;
+  const regs = deltaOf(o.kpis.registrations);
+  const rev = deltaOf(o.kpis.revenue);
+  const turn = deltaOf(o.kpis.attendance_rate, " pts");
 
   return (
-    <div className="flex flex-col gap-[18px]">
-      <header className="flex flex-wrap items-end gap-3.5">
-        <div className="flex-1 basis-[300px]">
-          <h2 className="m-0 text-[32px] leading-[1.12] tracking-[-0.015em]">Dashboard</h2>
-          <span className="text-[13px] text-[var(--color-neutral-500)]">{subtitle}</span>
+    <div className="flex flex-col gap-5">
+      <header className="flex flex-wrap items-end justify-between gap-3.5">
+        <div className="min-w-0">
+          <h1 className="page-title">
+            {greeting()}
+            {club.data?.name ? `, ${club.data.name}` : ""}
+          </h1>
+          <p className="text-ink-2 mt-1 max-w-[62ch] text-[13.5px]">
+            {doors} open right now. {decisions}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            className="input w-[150px]"
-            aria-label="Period"
-            value={days}
-            onChange={(event) => setDays(Number(event.target.value))}
-          >
+          <select className="input h-9 w-[150px] py-0" aria-label="Period" value={days} onChange={(event) => setDays(Number(event.target.value))}>
             {PERIOD_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
-          <a
-            className="btn btn-secondary whitespace-nowrap"
-            href={`/api/gateway/api/v1/clubs/overview?days=${days}`}
-            download={`club-overview-${days}d.json`}
-          >
+          <a className="btn btn-secondary" href={`/api/gateway/api/v1/clubs/overview?days=${days}`} download={`club-overview-${days}d.json`}>
             <DownloadIcon className="size-4" />
             Export
           </a>
         </div>
       </header>
 
-      <ClubPulse />
-
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="Registrations"
-          icon={<TicketIcon className="size-4" />}
-          kpi={data.kpis.registrations}
-          format={(v) => formatNumber(v ?? 0)}
-        />
-        <KpiCard
-          label="Page views"
-          icon={<EyeIcon className="size-4" />}
-          kpi={data.kpis.page_views}
-          format={(v) => formatNumber(v ?? 0)}
-        />
-        <KpiCard
-          label="Captured revenue"
-          icon={<IndianRupeeIcon className="size-4" />}
-          kpi={data.kpis.revenue}
-          format={inr}
-        />
-        <KpiCard
-          label="Turnout"
-          icon={<CheckCircleIcon className="size-4" />}
-          kpi={data.kpis.attendance_rate}
-          format={pct}
+      <section className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile label="Registrations" value={formatNumber(o.kpis.registrations.value ?? 0)} delta={regs.delta} trend={regs.trend} note={`in the last ${days} days`} />
+        <StatTile label="Revenue captured" value={inr(o.kpis.revenue.value)} delta={rev.delta} trend={rev.trend} note={rev.delta ? `vs the ${days} days before` : "no comparison yet"} />
+        <StatTile label="Turnout" value={o.kpis.attendance_rate.value === null ? "—" : `${Math.round(o.kpis.attendance_rate.value)}%`} delta={turn.delta} trend={turn.trend} note="of sign-ups came through the door" />
+        <StatTile
+          linkAs={Link}
+          label="Events"
+          value={d ? d.stats.events.total : "—"}
+          note={d ? `${d.stats.events.live} live · ${d.stats.events.draft} draft · ${d.stats.events.closed} closed · ${formatNumber(d.stats.on_file)} on file` : "loading"}
+          action={{ label: "Open events", href: "/events" }}
         />
       </section>
 
-      <div className="grid gap-3.5 lg:grid-cols-[1.4fr_1fr]">
-        <div className="flex min-w-0 flex-col gap-3.5">
-          <Panel
-            title="Ticket revenue"
-            aside={
-              <span className="text-[12px] text-[var(--color-neutral-500)]">
-                money actually captured
-              </span>
-            }
-          >
-            <div className="flex flex-wrap items-baseline gap-2.5">
-              <span className="text-[24px] tracking-[-0.02em]">
-                {inr(data.kpis.revenue.value)}
-              </span>
-              <Delta kpi={data.kpis.revenue} />
-            </div>
-            <RevenueChart series={data.revenue_series} />
-            <div className="flex justify-between text-[11px] text-[var(--color-neutral-500)]">
-              <span>
-                {data.revenue_series.current[0]?.date.slice(5).replace("-", "/") ?? ""}
-              </span>
-              <span>
-                {data.revenue_series.current.at(-1)?.date.slice(5).replace("-", "/") ?? ""}
-              </span>
-            </div>
-          </Panel>
-
-          <div className="grid gap-3.5 sm:grid-cols-2">
-            <Panel title="Busiest sign-up day">
-              <div className="flex h-[110px] items-end gap-1.5">
-                {data.busiest_day.map((day) => (
-                  <div
-                    key={day.label}
-                    className="flex h-full flex-1 flex-col items-center justify-end gap-1"
-                  >
-                    <span className="text-[10.5px] text-[var(--color-neutral-300)]">
-                      {day.value}
-                    </span>
-                    <div
-                      className="w-full rounded-t-[4px] bg-[var(--color-accent-600)]"
-                      style={{ height: `${Math.max(2, (day.value / busiestMax) * 80)}px` }}
-                    />
-                    <span className="text-[10.5px] text-[var(--color-neutral-500)]">
-                      {day.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Panel>
-
-            <Panel title="Repeat attendees">
-              <div className="flex flex-1 flex-col justify-center gap-1">
-                <span className="text-[28px] tracking-[-0.02em] text-[var(--color-accent-200)]">
-                  {pct(data.repeat_rate)}
-                </span>
-                <span className="text-[12px] text-pretty text-[var(--color-neutral-400)]">
-                  {data.repeat_rate === null
-                    ? "Nobody has attended an event yet, so there is nothing to repeat."
-                    : "of the people who have attended came to more than one event."}
-                </span>
-              </div>
-              <Link href="/followers" className="btn btn-secondary self-start">
-                See regulars
-              </Link>
-            </Panel>
-          </div>
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-3.5">
-          {next ? (
-            <NextEvent event={next} />
-          ) : (
-            <Panel title="Next event">
-              <span className="text-[13px] text-[var(--color-neutral-400)]">
-                Nothing scheduled. Create an event and it will appear here with its
-                sign-ups and a live countdown.
-              </span>
-              <Link href="/events/new" className="btn btn-primary self-start">
-                Create an event
-              </Link>
-            </Panel>
-          )}
-
-          <Panel
-            title="New followers"
-            aside={
-              <span className="text-[12px] text-[var(--color-neutral-500)]">
-                {formatNumber(data.followers.total)} total
-              </span>
-            }
-          >
-            <div className="flex h-[70px] items-end gap-1">
-              {data.followers.series.length === 0 ? (
-                <span className="text-[13px] text-[var(--color-neutral-500)]">
-                  No new followers in the last 12 weeks.
-                </span>
-              ) : (
-                data.followers.series.map((week, index) => (
-                  <div
-                    // Position is identity for a bar in a fixed-length
-                    // sparkline, and it is the only key that cannot collide:
-                    // two buckets sharing a date would silently drop a bar.
-                    key={index}
-                    title={`${week.value} in the week of ${week.week}`}
-                    className="flex-1 rounded-t-[3px] bg-[var(--color-accent-700)]"
-                    style={{ height: `${Math.max(3, (week.value / followerMax) * 70)}px` }}
-                  />
-                ))
-              )}
-            </div>
-          </Panel>
-        </div>
-      </div>
-
-      <div className="grid gap-3.5 lg:grid-cols-2">
-        <Panel
-          title="Coming up"
-          aside={
-            data.upcoming.length > 1 ? (
-              <span className="text-[12px] text-[var(--color-neutral-500)]">
-                bars compare against your best upcoming
-              </span>
-            ) : undefined
-          }
-        >
-          {data.upcoming.length === 0 ? (
-            <span className="text-[13px] text-[var(--color-neutral-500)]">
-              Nothing scheduled.
-            </span>
-          ) : (
-            data.upcoming.map((event) => {
-              const when = event.event_datetime ? new Date(event.event_datetime) : null;
-              return (
-                <Link
-                  key={event.id}
-                  href={`/events/${event.id}`}
-                  className="rule-fade flex items-center gap-3 py-2.5"
-                >
-                  <span className="flex w-10 shrink-0 flex-col leading-[1.1]">
-                    <span className="text-[10px] tracking-[0.08em] text-[var(--color-neutral-500)]">
-                      {when ? MONTHS[when.getMonth()] : "—"}
-                    </span>
-                    <span className="text-[17px]">{when ? when.getDate() : ""}</span>
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="truncate text-[13.5px]">{event.name}</span>
-                    <span className="h-1.5 rounded-[3px] bg-[var(--color-neutral-900)]">
-                      <span
-                        className="block h-full rounded-[3px] bg-[var(--color-accent-500)]"
-                        style={{
-                          width: `${Math.min(100, (event.registrations / bestUpcoming) * 100)}%`,
-                        }}
-                      />
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[13.5px] tabular-nums">
-                    {formatNumber(event.registrations)}
-                  </span>
-                </Link>
-              );
-            })
-          )}
-        </Panel>
-
-        <Panel
-          title="Attendance to mark"
-          aside={
-            data.needs_attention_total > 0 ? (
-              <span className="tag tag-accent">{data.needs_attention_total}</span>
-            ) : undefined
-          }
-        >
-          {data.needs_attention.length === 0 ? (
-            <span className="flex items-center gap-2 text-[13px] text-[var(--color-neutral-400)]">
-              <CheckCircleIcon className="size-4 text-[var(--color-accent-300)]" />
-              All caught up — every finished event has attendance.
-            </span>
-          ) : (
-            <>
-              <p className="m-0 text-[12.5px] text-pretty text-[var(--color-neutral-400)]">
-                Finished, but nobody was marked present — so no certificates or winners
-                can be issued.
-              </p>
-              {data.needs_attention.map((event) => (
-                <Link
-                  key={event.id}
-                  href={`/events/${event.id}`}
-                  className="flex flex-col gap-1 rounded-[var(--radius-md)] bg-[var(--color-bg)] p-3"
-                >
-                  <span className="truncate text-[13.5px]">{event.name}</span>
-                  <span className="flex items-center gap-1.5 text-[12px] text-[var(--color-accent-300)]">
-                    <CheckSquareIcon className="size-3.5" />
-                    {formatNumber(event.registrations)} registered · 0 present
-                  </span>
-                </Link>
-              ))}
-            </>
-          )}
-        </Panel>
-      </div>
-
-      <Panel
-        title="Reach"
-        aside={
-          <span className="text-[12px] text-[var(--color-neutral-500)]">
-            unseen or unappealing? views tell the two apart
-          </span>
-        }
-      >
-        {data.reach.length === 0 ? (
-          <span className="text-[13px] text-[var(--color-neutral-500)]">
-            No finished events yet.
-          </span>
+      <section className="grid gap-3.5 lg:grid-cols-2">
+        <AttentionCard items={attention} hrefFor={hrefFor} allClear="Nothing is waiting on you. Every finished event has its attendance marked and every open one has its tickets out." />
+        {live.length ? (
+          <DoorsOpenCard live={live} eventHref={(l) => `/events/${l.event_id}`} gateHref={(l) => `/gate/${l.event_id}`} refreshing={pulse.isFetching} emptyBody="" />
         ) : (
-          <div className="overflow-x-auto">
-            <div className="min-w-[560px]">
-              <div className="micro rule-fade grid grid-cols-[minmax(0,1.6fr)_80px_80px_110px_90px] gap-2 py-2">
-                <span>Past event</span>
-                <span className="text-right">Views</span>
-                <span className="text-right">Sign-ups</span>
-                <span className="text-right">View → sign-up</span>
-                <span className="text-right">Turnout</span>
-              </div>
-              {data.reach.map((event) => (
-                <Link
-                  key={event.id}
-                  href={`/events/${event.id}`}
-                  className="rule-fade grid grid-cols-[minmax(0,1.6fr)_80px_80px_110px_90px] items-center gap-2 py-2.5 text-[13px]"
-                >
-                  <span className="truncate">{event.name}</span>
-                  <span className="text-right text-[var(--color-neutral-300)]">
-                    {formatNumber(event.page_views)}
-                  </span>
-                  <span className="text-right">{formatNumber(event.registrations)}</span>
-                  <span className="text-right text-[var(--color-neutral-300)]">
-                    {pct(event.view_to_signup)}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-right",
-                      event.turnout === null && "text-[var(--color-neutral-600)]"
-                    )}
-                  >
-                    {pct(event.turnout)}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
+          <NextEventCard event={o.next_event} />
         )}
-      </Panel>
+      </section>
+
+      <section className="grid gap-3.5 lg:grid-cols-[1.4fr_1fr]">
+        <RevenuePanel o={o} days={days} />
+        <ComingUp events={o.upcoming} />
+      </section>
+
+      <section className="grid gap-3.5 lg:grid-cols-[1fr_1.4fr]">
+        <AudiencePanel o={o} />
+        <ReachPanel rows={o.reach} />
+      </section>
+
+      {d && d.stats.retention_due > 0 ? (
+        <p className="text-ink-3 flex items-center gap-1.5 text-[12px]">
+          <UsersIcon className="size-3.5" />
+          {d.stats.retention_due === 1 ? "One event's guest data is due for deletion this week" : `${d.stats.retention_due} events' guest data are due for deletion this week`}
+          {" · "}
+          <Link href="/events?scope=past" className="text-brand hover:text-ink inline-flex items-center gap-1 font-medium">
+            past events <ArrowRightIcon className="size-3" />
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

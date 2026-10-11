@@ -15,10 +15,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* forcedTheme, not defaultTheme: v2 has no light variant, and letting
-          next-themes follow the OS would leave half the UI on the old light
-          palette for anyone whose machine is set to light. */}
-      <ThemeProvider attribute="class" forcedTheme="dark" disableTransitionOnChange>
+      {/* Meridian has both scales, so the theme follows the OS until the
+          toggle in the top bar says otherwise; the choice is remembered. */}
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="moa.theme" disableTransitionOnChange>
         <TooltipProvider>
           {children}
           <Toaster position="bottom-right" richColors closeButton />

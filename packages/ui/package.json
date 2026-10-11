@@ -12,7 +12,8 @@
     "./cn": "./src/lib/cn.ts",
     "./preset.css": "./src/styles/preset.css",
     "./motion": "./src/lib/motion.ts",
-    "./nocturne.css": "./src/styles/nocturne.css"
+    "./nocturne.css": "./src/styles/nocturne.css",
+    "./meridian.css": "./src/styles/meridian.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -1,0 +1,70 @@
+{
+  "generated_at": "2099-06-09T09:05:00+00:00",
+  "period_days": 30,
+  "kpis": {
+    "registrations": { "value": 184, "previous": 150, "delta": 23 },
+    "page_views": { "value": 2310, "previous": 2500, "delta": -8 },
+    "revenue": { "value": 46500, "previous": 31000, "delta": 50 },
+    "attendance_rate": { "value": 71, "previous": 64, "delta": 7 }
+  },
+  "revenue_series": {
+    "current": [
+      { "date": "2099-05-10", "revenue": 1200, "registrations": 6 },
+      { "date": "2099-05-20", "revenue": 8800, "registrations": 30 },
+      { "date": "2099-05-30", "revenue": 15000, "registrations": 60 },
+      { "date": "2099-06-09", "revenue": 21500, "registrations": 88 }
+    ],
+    "previous": [
+      { "date": "2099-04-10", "revenue": 900, "registrations": 4 },
+      { "date": "2099-04-20", "revenue": 7000, "registrations": 22 },
+      { "date": "2099-04-30", "revenue": 11000, "registrations": 50 },
+      { "date": "2099-05-09", "revenue": 12100, "registrations": 74 }
+    ]
+  },
+  "busiest_day": [
+    { "label": "Mon", "value": 12 },
+    { "label": "Tue", "value": 30 },
+    { "label": "Wed", "value": 18 },
+    { "label": "Thu", "value": 41 },
+    { "label": "Fri", "value": 25 },
+    { "label": "Sat", "value": 9 },
+    { "label": "Sun", "value": 4 }
+  ],
+  "repeat_rate": 38,
+  "followers": {
+    "total": 1240,
+    "series": [
+      { "week": "2099-03-23", "value": 8 },
+      { "week": "2099-03-30", "value": 12 },
+      { "week": "2099-04-06", "value": 5 },
+      { "week": "2099-04-13", "value": 21 },
+      { "week": "2099-04-20", "value": 17 },
+      { "week": "2099-04-27", "value": 9 }
+    ]
+  },
+  "next_event": {
+    "id": 41,
+    "name": "Chess Night",
+    "event_datetime": "2099-06-12T13:30:00+00:00",
+    "location_name": "Main Auditorium",
+    "has_fee": true,
+    "reg_fee": 150,
+    "page_views": 410,
+    "registrations": 40,
+    "attended": 0,
+    "view_to_signup": 10,
+    "turnout": null
+  },
+  "upcoming": [
+    { "id": 41, "name": "Chess Night", "event_datetime": "2099-06-12T13:30:00+00:00", "location_name": "Main Auditorium", "has_fee": true, "reg_fee": 150, "page_views": 410, "registrations": 40, "attended": 0, "view_to_signup": 10, "turnout": null },
+    { "id": 42, "name": "Robotics Jam", "event_datetime": "2099-06-20T04:30:00+00:00", "location_name": "Lab 2", "has_fee": false, "reg_fee": null, "page_views": 120, "registrations": 12, "attended": 0, "view_to_signup": 10, "turnout": null }
+  ],
+  "needs_attention": [
+    { "id": 12, "name": "Demo Day", "event_datetime": "2099-05-01T04:30:00+00:00", "location_name": null, "has_fee": false, "reg_fee": null, "page_views": 300, "registrations": 25, "attended": 0, "view_to_signup": 8, "turnout": 0 }
+  ],
+  "needs_attention_total": 1,
+  "reach": [
+    { "id": 12, "name": "Demo Day", "event_datetime": "2099-05-01T04:30:00+00:00", "location_name": null, "has_fee": false, "reg_fee": null, "page_views": 300, "registrations": 25, "attended": 0, "view_to_signup": 8, "turnout": 0 },
+    { "id": 9, "name": "Hack Night", "event_datetime": "2099-04-11T04:30:00+00:00", "location_name": "Lab 1", "has_fee": true, "reg_fee": 100, "page_views": 640, "registrations": 58, "attended": 44, "view_to_signup": 9, "turnout": 76 }
+  ]
+}
