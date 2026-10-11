@@ -1,68 +1,72 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, Loader2Icon } from "lucide-react";
+import { CheckIcon, Loader2Icon, MoreHorizontalIcon } from "lucide-react";
 import { useListParams } from "@moa/app-kit";
 import { pageCount } from "@moa/api";
-import { Button, EmptyState, Pagination, Skeleton, StatusBadge, cn } from "@moa/ui";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  EmptyState,
+  Pagination,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+  StatusBadge,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  cn,
+} from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
 import { Icon } from "@/components/icon";
 import { DeliveryBar, TicketCell } from "@/features/deliveries";
+import { useEventDetail } from "@/features/events";
+
 import { exportUrl } from "../api";
-import { useMarkAttendance, useRegistrations } from "../queries";
-import type { Registration } from "../schemas";
+import { useMarkAttendance, useRegistrations, useSetRegistrationRole } from "../queries";
+import { REGISTRATION_ROLES, eventFieldSchema, type EventField, type Registration, type RegistrationDetail, type RegistrationRole } from "../schemas";
+import { AttendeeDetailDialog } from "./attendee-detail-dialog";
+import { AttendeeFormDialog } from "./attendee-form-dialog";
+import { ImportPanel } from "./import-panel";
+import { RemoveAttendeeDialog } from "./remove-attendee-dialog";
 
-/**
- * Registrations from the design (node 301:850): two underlined tabs, a search
- * field and a download button above a table whose header row is a solid mint
- * band inside a hairline-bordered card.
- *
- * Not the shared ResourceList: that renders a bordered shadcn table with its
- * own toolbar and pagination layout, and every part of this -- the band, the
- * 20px light row type, the tab row sitting outside the card -- would have to
- * be overridden.
- */
-type Tab = "registration" | "attendance";
+const ROLE_LABELS: Record<RegistrationRole, string> = { attendee: "Attendee", speaker: "Speaker", staff: "Staff" };
 
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
+/** A filter as a chip: pressed is on, pressed again is off. */
+function Chip({ active, onClick, tone = "default", children }: { active: boolean; onClick: () => void; tone?: "default" | "success" | "destructive"; children: React.ReactNode }) {
   return (
     <button
       type="button"
-      onClick={onClick}
       aria-pressed={active}
+      onClick={onClick}
       className={cn(
-        "relative pb-1 text-xl font-medium transition-colors",
-        "focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-[3px]",
+        "rounded-md border px-2.5 py-1.5 font-mono text-[11px] font-medium tracking-[0.05em] transition-colors",
         active
-          ? "text-[var(--swatch-ink)]"
-          : "text-[var(--swatch-grey-light)] hover:text-[var(--swatch-grey)]"
+          ? "border-primary bg-primary text-primary-foreground"
+          : tone === "success"
+            ? "border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
+            : tone === "destructive"
+              ? "border-destructive/40 text-destructive hover:bg-destructive/10"
+              : "text-muted-foreground hover:bg-muted"
       )}
     >
       {children}
-      {active ? (
-        <span
-          aria-hidden="true"
-          className="absolute inset-x-0 -bottom-px block h-px bg-[var(--swatch-ink)]"
-        />
-      ) : null}
     </button>
   );
 }
 
 function CheckInButton({ eventId, row }: { eventId: number; row: Registration }) {
   const mark = useMarkAttendance(eventId);
-
   if (row.is_attended) return <StatusBadge tone="success" label="Attended" />;
-
   return (
     <Button
       size="xs"
@@ -80,77 +84,98 @@ function CheckInButton({ eventId, row }: { eventId: number; row: Registration })
   );
 }
 
-const CELL = "px-4 py-4 text-left align-middle";
+/**
+ * Which role someone is attending as. It decides which ticket and
+ * certificate variant they are issued, so an event with a speaker design
+ * needs this to reach anyone.
+ */
+function RoleSelect({ eventId, row }: { eventId: number; row: Registration }) {
+  const setRole = useSetRegistrationRole(eventId);
+  return (
+    <Select value={row.role} disabled={setRole.isPending} onValueChange={(role) => setRole.mutate({ registrationId: row.id, role: role as RegistrationRole })}>
+      <SelectTrigger size="sm" aria-label={`Role for ${row.full_name ?? "this person"}`} className="w-[7.5rem]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {REGISTRATION_ROLES.map((role) => (
+          <SelectItem key={role} value={role}>
+            {ROLE_LABELS[role]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
+const CELL = "px-4 py-3 text-left align-middle";
+
+type DialogState =
+  | { kind: "add" }
+  | { kind: "edit"; row: RegistrationDetail }
+  | { kind: "remove"; row: { id: string; name: string } }
+  | { kind: "detail"; id: string }
+  | null;
+
+/**
+ * The guest list, ported from Muster's attendees tab: the delivery bar and
+ * the import above it; search and filter chips a desk actually uses; a row
+ * per guest with their contact, role, ticket and check-in; and a menu that
+ * opens the guest in full, corrects them, or takes them off the list.
+ */
 export function RegistrationsPanel({ eventId }: { eventId: number }) {
   const params = useListParams();
-  const [tab, setTab] = React.useState<Tab>("registration");
+  const event = useEventDetail(eventId);
+  const role = params.param("role") as RegistrationRole | undefined;
+  const checkedIn = params.param("in");
+  const delivery = params.param("delivery") === "not_delivered" ? "not_delivered" : undefined;
+  const [dialog, setDialog] = React.useState<DialogState>(null);
 
-  // The attendance tab is the same list filtered to people who turned up --
-  // the design shows one table with two headings, not two endpoints.
-  const isAttendance = tab === "attendance";
+  const fields: EventField[] = React.useMemo(() => {
+    const raw = (event.data as { additional_details?: unknown } | undefined)?.additional_details;
+    return Array.isArray(raw) ? raw.flatMap((f) => (eventFieldSchema.safeParse(f).success ? [eventFieldSchema.parse(f)] : [])) : [];
+  }, [event.data]);
+  const slug = event.data?.slug ?? "";
 
   const { data, isPending, isError } = useRegistrations({
     eventId,
     search: params.search || undefined,
-    isAttended: isAttendance ? true : undefined,
+    isAttended: checkedIn === "yes" ? true : checkedIn === "no" ? false : undefined,
+    role: role && (REGISTRATION_ROLES as readonly string[]).includes(role) ? role : undefined,
+    delivery,
     offset: params.offset,
     limit: params.pageSize,
   });
-
   const rows = data?.items ?? [];
   const pages = pageCount(data?.total ?? null, params.pageSize) ?? 1;
-
-  function switchTab(next: Tab) {
-    setTab(next);
-    params.setPage(1);
-  }
+  const filtered = !!(params.search || role || checkedIn || delivery);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex items-center gap-9">
-          <TabButton
-            active={tab === "registration"}
-            onClick={() => switchTab("registration")}
-          >
-            Registration
-          </TabButton>
-          <TabButton
-            active={isAttendance}
-            onClick={() => switchTab("attendance")}
-          >
-            Attendance
-          </TabButton>
-        </div>
+      <ImportPanel eventId={eventId} eventSlug={slug} fields={fields} onAddManually={() => setDialog({ kind: "add" })} />
+      <DeliveryBar eventId={eventId} />
 
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <p className="text-xl font-medium text-[var(--swatch-ink)]">
+          Guest list{data?.total != null ? ` · ${data.total}` : ""}
+        </p>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="flex h-12 w-full items-center gap-1.5 rounded-lg border border-[var(--swatch-grey)] bg-white px-3 sm:w-[401px]">
             <Icon name="search-lg" className="text-[var(--swatch-grey)]" />
             <input
               value={params.searchInput}
               onChange={(e) => params.setSearchInput(e.target.value)}
-              placeholder="Search for participants"
-              aria-label="Search for participants"
+              onBlur={() => params.commitSearch(params.searchInput)}
+              onKeyDown={(e) => e.key === "Enter" && params.commitSearch(params.searchInput)}
+              placeholder="Search name, email, phone or ticket"
+              aria-label="Search guests"
               className="w-full bg-transparent text-base font-light outline-none placeholder:text-[var(--swatch-grey)]"
             />
           </div>
-
-          <Button
-            asChild
-            className={cn(
-              "h-12 shrink-0 gap-4 rounded-lg bg-[var(--swatch-ink)] px-4 text-xs font-normal text-white hover:bg-[var(--swatch-ink)]/90",
-              pressable
-            )}
-          >
+          <Button asChild className={cn("h-12 shrink-0 gap-4 rounded-lg bg-[var(--swatch-ink)] px-4 text-xs font-normal text-white hover:bg-[var(--swatch-ink)]/90", pressable)}>
             {/* A real navigation, not fetch: the browser handles the file and
                 the cookie rides along because the gateway is same-origin. The
-                design labels this CSV; the endpoint returns an xlsx workbook,
-                so the label says what actually downloads. */}
-            <a
-              href={exportUrl(eventId, isAttendance ? { isAttended: true } : {})}
-              download
-            >
+                endpoint returns an xlsx workbook, so the label says so. */}
+            <a href={exportUrl(eventId, checkedIn === "yes" ? { isAttended: true } : checkedIn === "no" ? { isAttended: false } : {})} download>
               <Icon name="file-02" />
               Download Excel file
             </a>
@@ -158,43 +183,55 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
         </div>
       </div>
 
-      {/* Who has their ticket, and the sends -- on the registration list, where the organiser already is. */}
-      {!isAttendance ? <DeliveryBar eventId={eventId} /> : null}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Chip active={!role} onClick={() => params.setParam("role", undefined)}>
+          ALL ROLES
+        </Chip>
+        {REGISTRATION_ROLES.map((r) => (
+          <Chip key={r} active={role === r} onClick={() => params.setParam("role", role === r ? undefined : r)}>
+            {ROLE_LABELS[r].toUpperCase() + "S"}
+          </Chip>
+        ))}
+        <span className="flex-1" />
+        <Chip active={checkedIn === "yes"} tone="success" onClick={() => params.setParam("in", checkedIn === "yes" ? undefined : "yes")}>
+          CHECKED IN
+        </Chip>
+        <Chip active={checkedIn === "no"} onClick={() => params.setParam("in", checkedIn === "no" ? undefined : "no")}>
+          NOT YET
+        </Chip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Chip active={!!delivery} tone="destructive" onClick={() => params.setParam("delivery", delivery ? undefined : "not_delivered")}>
+                NOT DELIVERED
+              </Chip>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Nothing sent, nothing that worked, or something that came back. A guest reached by email is not here.</TooltipContent>
+        </Tooltip>
+      </div>
 
       {isPending ? (
         <Skeleton className="h-[400px] w-full rounded-lg" />
       ) : isError ? (
-        <EmptyState
-          tone="muted"
-          title="Could not load registrations"
-          description="Try reloading the page."
-        />
+        <EmptyState tone="muted" title="Could not load registrations" description="Try reloading the page." />
       ) : rows.length === 0 ? (
         <div className="rounded-lg border-[0.5px] border-[var(--swatch-grey)] p-10">
           <EmptyState
             tone="muted"
-            title={
-              params.search
-                ? "No matches"
-                : isAttendance
-                  ? "Nobody has been checked in yet"
-                  : "No registrations yet"
-            }
-            description={
-              params.search
-                ? `Nothing matched “${params.search}”.`
-                : isAttendance
-                  ? "People you check in on the day will appear here."
-                  : "People who register for this event will appear here."
-            }
+            title={filtered ? "Nobody matches" : "No guests on the list yet"}
+            description={filtered ? "Try a shorter search, or clear the filters." : "Import a file, add someone by hand, or wait for registrations through the event page."}
             action={
-              params.search ? (
+              filtered ? (
                 <button
                   type="button"
-                  onClick={params.reset}
+                  onClick={() => {
+                    params.clearParams(["role", "in", "delivery"]);
+                    params.reset();
+                  }}
                   className="text-primary text-sm underline-offset-4 hover:underline"
                 >
-                  Clear search
+                  Clear filters
                 </button>
               ) : null
             }
@@ -203,64 +240,75 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
       ) : (
         <div className="overflow-hidden rounded-lg border-[0.5px] border-[var(--swatch-grey)]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] border-collapse">
+            <table className="w-full min-w-[1100px] border-collapse">
               <thead>
-                <tr className="bg-[var(--swatch-mint)] text-xl font-light text-[var(--swatch-ink)]">
-                  <th scope="col" className={cn(CELL, "font-light")}>
-                    Registration ID
-                  </th>
-                  <th scope="col" className={cn(CELL, "font-light")}>
-                    Participant Name
-                  </th>
-                  <th scope="col" className={cn(CELL, "font-light")}>
-                    Email
-                  </th>
-                  <th scope="col" className={cn(CELL, "font-light")}>
-                    Number
-                  </th>
-                  <th scope="col" className={cn(CELL, "font-light")}>
-                    College Name
-                  </th>
+                <tr className="bg-[var(--swatch-mint)] text-base font-light text-[var(--swatch-ink)]">
+                  <th scope="col" className={cn(CELL, "font-light")}>Name</th>
+                  <th scope="col" className={cn(CELL, "font-light")}>Institution</th>
+                  <th scope="col" className={cn(CELL, "font-light")}>Role</th>
+                  <th scope="col" className={cn(CELL, "font-light")}>Ticket</th>
+                  <th scope="col" className={cn(CELL, "font-light")}>Delivery</th>
+                  <th scope="col" className={cn(CELL, "font-light")}>Check-in</th>
                   <th scope="col" className={cn(CELL, "font-light text-right")}>
-                    Ticket
-                  </th>
-                  <th scope="col" className={cn(CELL, "font-light text-right")}>
-                    <span className="sr-only">Attendance</span>
+                    <span className="sr-only">Actions</span>
                   </th>
                 </tr>
               </thead>
-              <tbody className="text-xl font-light text-[var(--swatch-grey)]">
-                {rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-t border-[#e5e5e5] transition-colors hover:bg-[#fafafa]"
-                  >
-                    <td className={CELL}>{row.ticket_id || "--"}</td>
-                    <td className={cn(CELL, "text-[var(--swatch-ink)]")}>
-                      {row.full_name || row.name || row.user?.full_name || "Unknown"}
-                    </td>
-                    <td className={CELL}>
-                      <span className="block max-w-[280px] truncate" title={row.email ?? ""}>
-                        {row.email || "--"}
-                      </span>
-                    </td>
-                    <td className={cn(CELL, "tabular-nums")}>{row.phone || "--"}</td>
-                    <td className={CELL}>
-                      <span
-                        className="block max-w-[320px] truncate"
-                        title={row.institution ?? ""}
-                      >
-                        {row.institution || "--"}
-                      </span>
-                    </td>
-                    <td className={cn(CELL, "text-right")}>
-                      <TicketCell eventId={eventId} row={row} />
-                    </td>
-                    <td className={cn(CELL, "text-right")}>
-                      <CheckInButton eventId={eventId} row={row} />
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="text-base font-light text-[var(--swatch-grey)]">
+                {rows.map((row) => {
+                  const name = row.full_name || row.name || row.user?.full_name || "Unknown";
+                  return (
+                    <tr key={row.id} className="border-t border-[#e5e5e5] transition-colors hover:bg-[#fafafa]">
+                      <td className={CELL}>
+                        <button type="button" onClick={() => setDialog({ kind: "detail", id: row.id })} className="min-w-0 max-w-full text-left" aria-label={`Open ${name}`}>
+                          <span className="hover:text-primary block font-medium text-[var(--swatch-ink)] hover:underline">{name}</span>
+                          <span className="text-muted-foreground block font-mono text-xs break-all">
+                            {[row.email, row.phone].filter(Boolean).join(" · ") || "no contact on file"}
+                          </span>
+                        </button>
+                      </td>
+                      <td className={CELL}>
+                        <span className="block max-w-[260px] truncate" title={row.institution ?? ""}>
+                          {row.institution || "—"}
+                        </span>
+                      </td>
+                      <td className={CELL}>
+                        <RoleSelect eventId={eventId} row={row} />
+                      </td>
+                      <td className={cn(CELL, "font-mono text-xs")}>{row.ticket_id || "—"}</td>
+                      <td className={CELL}>
+                        <TicketCell eventId={eventId} row={row} />
+                      </td>
+                      <td className={cn(CELL, "whitespace-nowrap")}>
+                        <CheckInButton eventId={eventId} row={row} />
+                      </td>
+                      <td className={cn(CELL, "text-right")}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button type="button" size="icon-xs" variant="ghost" aria-label={`Actions for ${name}`}>
+                              <MoreHorizontalIcon />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => setDialog({ kind: "detail", id: row.id })}>
+                              <span className="flex flex-col">
+                                <span>View everything</span>
+                                <span className="text-muted-foreground text-xs">Contact, answers, ticket, deliveries, check-in.</span>
+                              </span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem variant="destructive" onSelect={() => setDialog({ kind: "remove", row: { id: row.id, name } })}>
+                              <span className="flex flex-col">
+                                <span>Remove from the list</span>
+                                <span className="text-xs opacity-80">Deletes the registration, ticket and check-in.</span>
+                              </span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -268,14 +316,33 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
       )}
 
       {!isPending && rows.length > 0 && pages > 1 ? (
-        <Pagination
-          page={params.page}
-          pageCount={pages}
-          onPageChange={params.setPage}
-          pageSize={params.pageSize}
-          onPageSizeChange={params.setPageSize}
-        />
+        <Pagination page={params.page} pageCount={pages} onPageChange={params.setPage} pageSize={params.pageSize} onPageSizeChange={params.setPageSize} />
       ) : null}
+
+      <AttendeeFormDialog
+        key={dialog?.kind === "edit" ? dialog.row.id : "add"}
+        eventId={eventId}
+        fields={fields}
+        existing={dialog?.kind === "edit" ? dialog.row : null}
+        open={dialog?.kind === "add" || dialog?.kind === "edit"}
+        onOpenChange={(o) => !o && setDialog(null)}
+      />
+      <RemoveAttendeeDialog
+        eventId={eventId}
+        eventSlug={slug}
+        attendee={dialog?.kind === "remove" ? dialog.row : null}
+        open={dialog?.kind === "remove"}
+        onOpenChange={(o) => !o && setDialog(null)}
+      />
+      <AttendeeDetailDialog
+        eventId={eventId}
+        registrationId={dialog?.kind === "detail" ? dialog.id : null}
+        fields={fields}
+        open={dialog?.kind === "detail"}
+        onOpenChange={(o) => !o && setDialog(null)}
+        onEdit={(a) => setDialog({ kind: "edit", row: a })}
+        onRemove={(a) => setDialog({ kind: "remove", row: { id: a.id, name: a.full_name ?? a.name ?? "this guest" } })}
+      />
     </div>
   );
 }

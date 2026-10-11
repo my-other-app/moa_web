@@ -14,6 +14,9 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path.includes("/events/info/")) return eventFixture;
         if (path.includes("/analytics")) return analyticsFixture;
         if (path.includes("/list")) return registrationsFixture;
+        if (path.endsWith("/imports")) return [];
+        if (path.endsWith("/deliveries/summary"))
+          return { kind: "ticket", registrations: 2, revoked: 0, channels: [{ channel: "email", sent: 0, failed: 0, skipped: 0, pending: 0, unsent: 2 }] };
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(),
@@ -168,14 +171,24 @@ describe("event screen", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders both registration tabs and the participant list", async () => {
+  it("renders the guest list with its filters, the delivery bar and the import", async () => {
     render(<EventWorkspace eventId={37} />);
-    expect(
-      await screen.findByRole("button", { name: "Registration" })
-    ).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Attendance" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "CHECKED IN" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "NOT DELIVERED" })).toBeInTheDocument();
     expect(await screen.findByText("NEX25AA001")).toBeInTheDocument();
     expect(await screen.findByText("Test Participant One")).toBeInTheDocument();
+    expect(await screen.findByText("Tickets by email")).toBeInTheDocument();
+    expect(await screen.findByText("Import a guest list")).toBeInTheDocument();
+  });
+
+  it("shows the role each person is attending as, treating a missing one as attendee", async () => {
+    // The second fixture row deliberately carries no `role`, standing in for a
+    // response cached from before the field existed.
+    render(<EventWorkspace eventId={37} />);
+    const speaker = await screen.findByLabelText("Role for Test Participant One");
+    expect(within(speaker).getByText("Speaker")).toBeInTheDocument();
+    const other = await screen.findByLabelText("Role for Test Participant Two");
+    expect(within(other).getByText("Attendee")).toBeInTheDocument();
   });
 
   it("labels the export as what actually downloads", async () => {

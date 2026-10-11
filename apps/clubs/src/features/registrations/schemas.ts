@@ -47,6 +47,40 @@ export const registrationSchema = z.object({
 
 export const registrationPageSchema = paginatedSchema(registrationSchema);
 
+/** One guest in full: the record, and everything that was sent to them. */
+export const registrationDetailSchema = registrationSchema.extend({
+  attended_on: z.string().nullish(),
+  additional_details: z.record(z.unknown()).nullish(),
+  certificate_issued_at: z.string().nullish(),
+  certificate_revoked_at: z.string().nullish(),
+  certificate_deliveries: z.array(deliveryBriefSchema).default([]),
+  updated_at: z.string().nullish(),
+});
+export type RegistrationDetail = z.infer<typeof registrationDetailSchema>;
+
+export const importLogSchema = z.object({
+  id: z.string(),
+  task_name: z.string(),
+  status: z.string(),
+  created_at: z.string(),
+  imported: z.number().default(0),
+  failed: z.number().default(0),
+  issues: z.array(z.string()).default([]),
+});
+export type ImportLog = z.infer<typeof importLogSchema>;
+
+/** A question on the event's registration form, as the event carries it. */
+export const eventFieldSchema = z
+  .object({
+    key: z.string(),
+    label: z.string().nullish(),
+    field_type: z.string().nullish(),
+    options: z.array(z.string()).nullish(),
+    required: z.boolean().nullish(),
+  })
+  .passthrough();
+export type EventField = z.infer<typeof eventFieldSchema>;
+
 export const eventAnalyticsSchema = z
   .object({
     total_registrations: z.number().default(0),
