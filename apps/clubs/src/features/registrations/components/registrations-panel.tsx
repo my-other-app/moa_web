@@ -267,6 +267,11 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
                             {[row.email, row.phone].filter(Boolean).join(" · ") || "no contact on file"}
                           </span>
                         </button>
+                        {row.email_bounced_at ? (
+                          <span className="mt-1 inline-block rounded-full border border-destructive/50 px-2 py-0.5 font-mono text-[10px] text-destructive" title={row.email_bounce_reason ?? "That address bounced"}>
+                            EMAIL BOUNCED · correct it to send again
+                          </span>
+                        ) : null}
                       </td>
                       <td className={CELL}>
                         <span className="block max-w-[260px] truncate" title={row.institution ?? ""}>

@@ -19,6 +19,9 @@ export const registrationSchema = z.object({
   name: z.string().nullish(),
   email: z.string().nullish(),
   phone: z.string().nullish(),
+  /** Set by the provider's bounce notice; later sends skip the address until it is corrected. */
+  email_bounced_at: z.string().nullish(),
+  email_bounce_reason: z.string().nullish(),
   institution: z.string().nullish(),
   actual_amount: z.number().nullish(),
   paid_amount: z.number().nullish(),

@@ -44,6 +44,7 @@ export function DeliveryBar({ eventId, kind = "ticket", className }: { eventId: 
   if (summary.isError || !summary.data) return null;
 
   const total = summary.data.registrations;
+  const unconfigured = summary.data.providers.filter((p) => !p.configured);
   const email = summary.data.channels.find((c) => c.channel === "email") ?? {
     channel: "email",
     sent: 0,
@@ -67,6 +68,11 @@ export function DeliveryBar({ eventId, kind = "ticket", className }: { eventId: 
             {email.skipped ? ` · ${email.skipped} without an address` : ""}
             {summary.data.revoked ? ` · ${summary.data.revoked} revoked` : ""}
           </p>
+          {unconfigured.length ? (
+            <p className="text-muted-foreground mt-1 text-xs">
+              {unconfigured.map((p) => `${p.name}: ${p.note}`).join(" ")}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
