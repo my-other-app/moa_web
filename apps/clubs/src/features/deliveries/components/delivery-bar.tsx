@@ -23,8 +23,8 @@ import {
 } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
-import { bundleUrl } from "../api";
-import { useDeliverySummary, useSendTickets } from "../queries";
+import { bundleUrl, type DocumentKind } from "../api";
+import { useDeliverySummary, useSendDocuments } from "../queries";
 
 /**
  * How many guests have their ticket, as one bar, with the sends beside it.
@@ -34,9 +34,10 @@ import { useDeliverySummary, useSendTickets } from "../queries";
  * things an organiser does about it: send to whoever has none, retry what
  * failed, or send to everyone again.
  */
-export function DeliveryBar({ eventId, className }: { eventId: number; className?: string }) {
-  const summary = useDeliverySummary(eventId);
-  const send = useSendTickets(eventId);
+export function DeliveryBar({ eventId, kind = "ticket", className }: { eventId: number; kind?: DocumentKind; className?: string }) {
+  const summary = useDeliverySummary(eventId, kind);
+  const send = useSendDocuments(eventId, kind);
+  const noun = kind === "ticket" ? "ticket" : "certificate";
   const [confirmAll, setConfirmAll] = React.useState(false);
 
   if (summary.isPending) return <Skeleton className={cn("h-[108px] w-full rounded-lg", className)} />;
@@ -58,9 +59,9 @@ export function DeliveryBar({ eventId, className }: { eventId: number; className
     <div className={cn("rounded-lg border-[0.5px] border-[var(--swatch-grey)] p-4", className)}>
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <p className="text-xl font-medium text-[var(--swatch-ink)]">Tickets by email</p>
+          <p className="text-xl font-medium text-[var(--swatch-ink)]">{kind === "ticket" ? "Tickets" : "Certificates"} by email</p>
           <p className="text-muted-foreground font-mono text-xs tabular-nums">
-            {email.sent} of {total} sent
+            {email.sent} of {total} {kind === "ticket" ? "sent" : "issued, sent"}
             {email.pending ? ` · ${email.pending} sending…` : ""}
             {email.failed ? ` · ${email.failed} failed` : ""}
             {email.skipped ? ` · ${email.skipped} without an address` : ""}
@@ -74,10 +75,10 @@ export function DeliveryBar({ eventId, className }: { eventId: number; className
             className={pressable}
             disabled={busy || toSend === 0}
             onClick={() => send.mutate("unsent")}
-            title={toSend === 0 ? "Everyone with an address has their ticket" : undefined}
+            title={toSend === 0 ? `Everyone with an address has their ${noun}` : undefined}
           >
             {busy ? <Loader2Icon className="animate-spin" /> : <SendIcon />}
-            {toSend > 0 ? `Send ${toSend} ${toSend === 1 ? "ticket" : "tickets"}` : "Send tickets"}
+            {toSend > 0 ? `Send ${toSend} ${toSend === 1 ? noun : `${noun}s`}` : `Send ${noun}s`}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -102,7 +103,7 @@ export function DeliveryBar({ eventId, className }: { eventId: number; className
           </DropdownMenu>
           <Button type="button" size="sm" variant="outline" className={pressable} asChild>
             {/* A real navigation: the browser handles the file. */}
-            <a href={bundleUrl(eventId)} download>
+            <a href={bundleUrl(eventId, kind)} download>
               <DownloadIcon /> All PDFs (ZIP)
             </a>
           </Button>
@@ -129,9 +130,9 @@ export function DeliveryBar({ eventId, className }: { eventId: number; className
       <AlertDialog open={confirmAll} onOpenChange={setConfirmAll}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Send every ticket again?</AlertDialogTitle>
+            <AlertDialogTitle>Send every {noun} again?</AlertDialogTitle>
             <AlertDialogDescription>
-              {total} {total === 1 ? "guest gets" : "guests get"} their ticket by email again, including everyone who already has
+              {total} {total === 1 ? "guest gets" : "guests get"} their {noun} by email again, including everyone who already has
               it. Use this after changing the design, or if the first send went out wrong.
             </AlertDialogDescription>
           </AlertDialogHeader>

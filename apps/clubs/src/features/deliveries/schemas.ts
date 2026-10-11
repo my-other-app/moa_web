@@ -49,6 +49,17 @@ export const deliverySummarySchema = z.object({
 });
 export type DeliverySummary = z.infer<typeof deliverySummarySchema>;
 
+export const certificateSummarySchema = z.object({
+  issued: z.number(),
+  revoked: z.number(),
+  attended: z.number(),
+  registrations: z.number(),
+  outdated: z.number(),
+  design_version: z.number(),
+  channels: deliverySummarySchema.shape.channels,
+});
+export type CertificateSummary = z.infer<typeof certificateSummarySchema>;
+
 export const deliveryLogRowSchema = z.object({
   id: z.string(),
   registration_id: z.string(),

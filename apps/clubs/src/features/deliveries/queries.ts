@@ -9,20 +9,21 @@ import {
   fetchDeliverySummary,
   reinstateTicket,
   revokeTicket,
-  sendOneTicket,
-  sendTickets,
+  sendDocuments,
+  sendOneDocument,
   type DeliveryLogQuery,
+  type DocumentKind,
   type SendScope,
 } from "./api";
 import type { SendResponse } from "./schemas";
 
-const summaryKey = (eventId: number) => [...qk.events.detail(eventId), "deliveries", "summary"] as const;
+const summaryKey = (eventId: number, kind: DocumentKind) => [...qk.events.detail(eventId), "deliveries", "summary", kind] as const;
 const logKey = (q: DeliveryLogQuery) => [...qk.events.detail(q.eventId), "deliveries", "log", q] as const;
 
-export function useDeliverySummary(eventId: number) {
+export function useDeliverySummary(eventId: number, kind: DocumentKind = "ticket") {
   return useQuery({
-    queryKey: summaryKey(eventId),
-    queryFn: () => fetchDeliverySummary(eventId),
+    queryKey: summaryKey(eventId, kind),
+    queryFn: () => fetchDeliverySummary(eventId, kind),
     // Sends finish in the background after the click; the numbers follow.
     refetchInterval: (query) => (query.state.data?.channels.some((c) => c.pending > 0) ? 3_000 : false),
     staleTime: 10_000,
@@ -46,19 +47,21 @@ const describeSend = (r: SendResponse) => {
   return parts.join(" ");
 };
 
-/** Every mutation here changes what the attendee list and the summary say, so both are refreshed. */
-function useRefresh(eventId: number) {
+/** Every mutation here changes what the lists and the summaries say, so all of them are refreshed. */
+export function useRefreshDeliveries(eventId: number) {
   const queryClient = useQueryClient();
   return () => {
     void queryClient.invalidateQueries({ queryKey: qk.events.registrations(eventId) });
     void queryClient.invalidateQueries({ queryKey: [...qk.events.detail(eventId), "deliveries"] });
+    void queryClient.invalidateQueries({ queryKey: [...qk.events.detail(eventId), "certificates"] });
   };
 }
+const useRefresh = useRefreshDeliveries;
 
-export function useSendTickets(eventId: number) {
+export function useSendDocuments(eventId: number, kind: DocumentKind) {
   const refresh = useRefresh(eventId);
   return useMutation({
-    mutationFn: (only: SendScope) => sendTickets(eventId, only),
+    mutationFn: (only: SendScope) => sendDocuments(eventId, kind, only),
     onSuccess: (r) => {
       toast.success(r.queued ? `Sending to ${r.queued} ${r.queued === 1 ? "guest" : "guests"}` : "Nothing to send", {
         description: describeSend(r),
@@ -69,12 +72,14 @@ export function useSendTickets(eventId: number) {
   });
 }
 
-export function useSendOneTicket(eventId: number) {
+export const useSendTickets = (eventId: number) => useSendDocuments(eventId, "ticket");
+
+export function useSendOneDocument(eventId: number, kind: DocumentKind) {
   const refresh = useRefresh(eventId);
   return useMutation({
-    mutationFn: (registrationId: string) => sendOneTicket(eventId, registrationId),
+    mutationFn: (registrationId: string) => sendOneDocument(eventId, kind, registrationId),
     onSuccess: (r) => {
-      toast.success(r.queued ? "Ticket queued again" : "Nothing to send", {
+      toast.success(r.queued ? `${kind === "ticket" ? "Ticket" : "Certificate"} queued again` : "Nothing to send", {
         description: r.queued ? "Delivery shows on the list as it lands." : describeSend(r),
       });
       refresh();
@@ -82,6 +87,8 @@ export function useSendOneTicket(eventId: number) {
     onError: (error: Error) => toast.error(error.message),
   });
 }
+
+export const useSendOneTicket = (eventId: number) => useSendOneDocument(eventId, "ticket");
 
 export function useRevokeTicket(eventId: number) {
   const refresh = useRefresh(eventId);
