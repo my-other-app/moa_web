@@ -10,6 +10,9 @@ import {
   type ClubSelf,
   type InterestCategory,
   type Organization,
+  clubPartnerSchema,
+  type ClubPartner,
+  type PartnerForm,
 } from "./schemas";
 import { clubOverviewSchema } from "./overview-schemas";
 import { clubDashboardSchema } from "@moa/app-kit";
@@ -59,6 +62,7 @@ export async function updateMyClub(input: ClubProfileForm): Promise<void> {
   const text = {
     name: input.name,
     about: input.about ?? "",
+    tagline: input.tagline ?? "",
     location_name: input.location_name ?? "",
     location_link: input.location_link ?? "",
     contact_email: input.contact_email ?? "",
@@ -89,4 +93,24 @@ export async function changePassword(input: ChangePasswordForm): Promise<void> {
     old_password: input.old_password,
     new_password: input.new_password,
   });
+}
+
+export async function updateClubCover(file: File): Promise<void> {
+  const form = new FormData();
+  form.append("cover", file);
+  await api.put<void>("/api/v1/clubs/cover", form);
+}
+
+export async function createPartner(form: PartnerForm): Promise<ClubPartner> {
+  const raw = await api.post<unknown>("/api/v1/clubs/partners", { name: form.name, role: form.role || null, since: form.since });
+  return clubPartnerSchema.parse(raw);
+}
+
+export async function updatePartner(id: number, form: PartnerForm): Promise<ClubPartner> {
+  const raw = await api.patch<unknown>(`/api/v1/clubs/partners/${id}`, { name: form.name, role: form.role || null, since: form.since });
+  return clubPartnerSchema.parse(raw);
+}
+
+export async function deletePartner(id: number): Promise<void> {
+  await api.del<unknown>(`/api/v1/clubs/partners/${id}`);
 }
