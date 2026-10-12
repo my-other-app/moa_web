@@ -67,3 +67,7 @@ export async function fetchAttendeeMerch(key: string | null, eventId: number, re
 export async function collectMerch(key: string | null, eventId: number, itemId: string, body: { registration_id: string; variant_label?: string; door?: string | null }) {
   return collectResultSchema.parse(await gateClient(key).post<unknown>(`${gate(eventId)}/${itemId}/collect`, body));
 }
+
+export async function handOutByHand(eventId: number, itemId: string, undo = false) {
+  return merchItemSchema.parse(await api.post<unknown>(`${base(eventId)}/${itemId}/handout${undo ? "/undo" : ""}`, {}));
+}

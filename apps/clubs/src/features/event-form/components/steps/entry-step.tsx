@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
-import { IndianRupeeIcon, TrophyIcon, UsersIcon } from "lucide-react";
+import { GiftIcon, IndianRupeeIcon, ShoppingBagIcon, TrophyIcon, UsersIcon } from "lucide-react";
 import {
   FormControl,
   FormDescription,
@@ -91,6 +91,42 @@ export function EntryStep() {
           )}
         />
       ) : null}
+
+      <FormField
+        control={form.control}
+        name="merch_enabled"
+        render={({ field }) => (
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <FormLabel className="flex items-center gap-2">
+                <ShoppingBagIcon className="size-4" /> Merchandise for sale
+              </FormLabel>
+              <FormDescription>Guests pick items when they register and pay once, with the ticket. A Merchandise tab appears on the event.</FormDescription>
+            </div>
+            <FormControl>
+              <Switch checked={field.value} onCheckedChange={field.onChange} />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="swag_enabled"
+        render={({ field }) => (
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <FormLabel className="flex items-center gap-2">
+                <GiftIcon className="size-4" /> Swag
+              </FormLabel>
+              <FormDescription>Free giveaways, set by who gets each and counted out at the door. A Swag tab appears on the event.</FormDescription>
+            </div>
+            <FormControl>
+              <Switch checked={field.value} onCheckedChange={field.onChange} />
+            </FormControl>
+          </FormItem>
+        )}
+      />
 
       <FormField
         control={form.control}

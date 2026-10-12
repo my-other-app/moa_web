@@ -4,7 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
-import { addMerchVariant, collectMerch, createMerchItem, deleteMerchItem, deleteMerchVariant, fetchAttendeeMerch, fetchMerchAnalytics, fetchMerchFields, fetchMerchItems, fetchMerchLog, updateMerchItem, updateMerchVariant, type MerchLogQuery } from "./api";
+import { addMerchVariant, collectMerch, createMerchItem, deleteMerchItem, deleteMerchVariant, fetchAttendeeMerch, fetchMerchAnalytics, fetchMerchFields, fetchMerchItems, fetchMerchLog, handOutByHand, updateMerchItem, updateMerchVariant, type MerchLogQuery } from "./api";
 import type { MerchItemInput } from "./schemas";
 
 const key = (eventId: number) => [...qk.events.detail(eventId), "merch"] as const;
@@ -62,5 +62,15 @@ export function useCollectMerch(key: string | null, eventId: number) {
   return useMutation({
     mutationFn: ({ itemId, body }: { itemId: string; body: { registration_id: string; variant_label?: string; door?: string | null } }) => collectMerch(key, eventId, itemId, body),
     onSuccess: (_r, v) => void qc.invalidateQueries({ queryKey: ["gate", eventId, "merch", v.body.registration_id] }),
+  });
+}
+
+/** A piece given out without a scan, counted on the card; Undo takes one back. */
+export function useHandOutByHand(eventId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, undo }: { itemId: string; undo?: boolean }) => handOutByHand(eventId, itemId, undo),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: key(eventId) }),
+    onError: (error: Error) => toast.error(error.message),
   });
 }

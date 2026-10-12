@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "items_total": 4,
+  "items_on_sale": 3,
+  "sold_out": 1,
+  "units_sold": 111,
+  "orders_paid": 54,
+  "revenue": 46270,
+  "ticket_revenue": 15100,
+  "to_hand_over": 19,
+  "sizes": [ { "label": "S", "sold": 8 }, { "label": "M", "sold": 19 }, { "label": "L", "sold": 15 }, { "label": "XL", "sold": 6 } ],
+  "sizes_item": "Hack Night tee",
+  "latest_orders": []
+}

@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { DoorOpenIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { PageHeader, formatDateTime } from "@moa/app-kit";
+import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { formatDateTime } from "@moa/app-kit";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, EmptyState, Pager, Skeleton, cn, toast } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
 import { useEventDetail } from "@/features/events";
+
+import { SwagTop } from "./swag-top";
 
 import { uploadMerchPhoto } from "../api";
 import { useAddMerchVariant, useCreateMerchItem, useDeleteMerchItem, useDeleteMerchVariant, useMerchAnalytics, useMerchFields, useMerchItems, useMerchLog, useUpdateMerchItem, useUpdateMerchVariant } from "../queries";
@@ -29,15 +30,6 @@ function Bar({ value, max, tone = "primary" }: { value: number; max: number; ton
   );
 }
 
-function Tile({ label, value, sub }: { label: string; value: React.ReactNode; sub: string }) {
-  return (
-    <div className={cn(panel, "p-4")}>
-      <p className={heading}>{label}</p>
-      <p className="mt-1 text-2xl font-medium tabular-nums">{value}</p>
-      <p className={note}>{sub}</p>
-    </div>
-  );
-}
 
 const eligibilityNote = (m: MerchItem) => (m.eligibility_field ? `${m.eligibility_field} = ${m.eligibility_value}` : "Everyone");
 
@@ -563,22 +555,7 @@ export function MerchPage({ eventId }: { eventId: number }) {
   const totalOut = items.data?.reduce((n, i) => n + i.collected, 0) ?? 0;
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Merchandise"
-        description="What the event hands out, who may have it, and every handover. Volunteers with the merch duty find the guest at the gate and see exactly what they are owed."
-        action={
-          <Button asChild className={pressable}>
-            <Link href={`/gate/${eventId}`} target="_blank" rel="noopener">
-              <DoorOpenIcon /> Open the gate
-            </Link>
-          </Button>
-        }
-      />
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Tile label="Handed out" value={totalOut} sub={`of ${totalStock} in stock`} />
-        <Tile label="Guests served" value={an.data?.collectors ?? "—"} sub="collected at least one thing" />
-        <Tile label="Items" value={items.data?.length ?? "—"} sub="set up for this event" />
-      </div>
+      <SwagTop eventId={eventId} items={items.data ?? []} onEdit={(i) => setEditing(i)} />
       {items.isPending || fields.isPending ? (
         <Skeleton className="h-64 w-full" />
       ) : items.isError ? (

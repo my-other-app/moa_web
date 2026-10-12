@@ -423,7 +423,7 @@ function Tiles({ s }: { s: FinanceSummary }) {
       ) : (
         <StatTile label="Paying guests" value={formatNumber(f.paying)} note={`of ${formatNumber(f.regs)} registered${f.avg_ticket !== null ? ` · ${rupees(f.avg_ticket)} each` : ""}`} />
       )}
-      <StatTile label="Gross income" value={rupees(f.gross)} {...delta(d.gross)} note={`${rupees(f.tickets)} held · ${rupees(f.refunds)} refunded`} />
+      <StatTile label="Gross income" value={rupees(f.gross)} {...delta(d.gross)} note={f.merch > 0 ? `${rupees(f.tickets)} tickets · ${rupees(f.merch)} merch · ${rupees(f.refunds)} refunded` : `${rupees(f.tickets)} held · ${rupees(f.refunds)} refunded`} />
       <StatTile label="Expenses" value={rupees(f.expenses)} {...flat(d.expenses)} note={`${f.expense_count} ${plural(f.expense_count, "entry", "entries")} logged`} />
       <StatTile label="Net surplus" value={rupees(f.net)} {...delta(d.net)} note="After refunds and expenses" />
       <StatTile label="Outstanding" value={rupees(f.outstanding)} note={`${f.outstanding_count} unpaid at paid events`} />
