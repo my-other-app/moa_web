@@ -117,7 +117,7 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
   const allowed: { key: Tab; label: string }[] = [
     ...(p.check_in ? [{ key: "checkin" as Tab, label: "Check-in" }, { key: "find" as Tab, label: "Find" }] : []),
     ...(p.walkup ? [{ key: "walkup" as Tab, label: "Walk-up" }] : []),
-    ...(p.merch && ctx.has_merch ? [{ key: "merch" as Tab, label: "Merch" }] : []),
+    ...(p.merch && (ctx.has_merch || ctx.has_store) ? [{ key: "merch" as Tab, label: "Merch" }] : []),
   ];
   const [tab, setTab] = React.useState<Tab>("checkin");
   const current = allowed.some((a) => a.key === tab) ? tab : allowed[0]?.key;

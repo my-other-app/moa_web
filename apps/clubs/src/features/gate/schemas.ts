@@ -76,6 +76,8 @@ export const gateContextSchema = z.object({
   me: z.object({ name: z.string(), kind: z.enum(["user", "door"]) }),
   /** Whether there is anything to hand out; the console shows the merch tab only then. */
   has_merch: z.boolean().default(false),
+  /** Whether the event sells merchandise: the walk-up form shows the shelf, and the merch tab shows paid orders. */
+  has_store: z.boolean().default(false),
 });
 export type GateContext = z.infer<typeof gateContextSchema>;
 
@@ -97,7 +99,26 @@ export interface WalkupBody {
   confirm_new?: boolean;
   door?: string | null;
   client_ref: string;
+  /** What they take from the shelf, paid at the desk with the ticket. */
+  store?: { item_id: string; variant_id: string | null; qty: number }[];
 }
+
+export const gateStoreOrderSchema = z.object({
+  id: z.string(),
+  guest: z.string(),
+  status: z.string(),
+  total: z.number(),
+  summary: z.string(),
+  lines: z.array(z.object({ item_name: z.string(), variant_label: z.string().nullable(), qty: z.number(), is_free: z.boolean() })),
+  handed_over_at: z.string().nullable(),
+});
+export type GateStoreOrder = z.infer<typeof gateStoreOrderSchema>;
+
+export const gateCatalogSchema = z.object({
+  enabled: z.boolean(),
+  items: z.array(z.object({ id: z.string(), name: z.string(), price: z.number(), left: z.number().nullable(), variants: z.array(z.object({ id: z.string(), label: z.string(), left: z.number() })) })),
+});
+export type GateCatalog = z.infer<typeof gateCatalogSchema>;
 
 export const ROLE_LABEL: Record<string, string> = { attendee: "Attendee", speaker: "Speaker", staff: "Staff" };
 

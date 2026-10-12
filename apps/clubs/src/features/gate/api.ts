@@ -1,16 +1,14 @@
 import { createApiClient } from "@moa/api";
 import { GATEWAY_PREFIX } from "@moa/auth";
 
-import {
-  attendeeSummarySchema,
+import {attendeeSummarySchema,
   captureResultSchema,
   gateContextSchema,
   scanBatchResultSchema,
   scanResultSchema,
   walkupResultSchema,
   type ScanBody,
-  type WalkupBody,
-} from "./schemas";
+  type WalkupBody, gateCatalogSchema, gateStoreOrderSchema } from "./schemas";
 import { z } from "zod";
 
 export const GATE_KEY_HEADER = "X-Gate-Key";
@@ -69,3 +67,13 @@ export async function captureContact(key: string | null, eventId: number, regist
 /** Where this phone keeps the key and the door it was set to. */
 export const KEY_STORAGE = (eventId: number) => `moa.gate.${eventId}.key`;
 export const DOOR_STORAGE = (eventId: number) => `moa.gate.${eventId}.door`;
+
+export async function fetchGateStoreOrders(key: string | null, eventId: number, registrationId: string) {
+  return z.array(gateStoreOrderSchema).parse(await gateClient(key).get<unknown>(`/api/v1/events/${eventId}/gate/store/${registrationId}`));
+}
+export async function gateHandOver(key: string | null, eventId: number, orderId: string) {
+  return gateStoreOrderSchema.parse(await gateClient(key).post<unknown>(`/api/v1/events/${eventId}/gate/store/${orderId}/handover`, {}));
+}
+export async function fetchGateCatalog(key: string | null, eventId: number) {
+  return gateCatalogSchema.parse(await gateClient(key).get<unknown>(`/api/v1/events/${eventId}/store/catalog`));
+}
