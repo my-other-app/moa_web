@@ -16,6 +16,7 @@ export const EVENT_TABS = [
   { key: "overview", label: "Overview", path: "" },
   { key: "attendees", label: "Attendees", path: "/attendees" },
   { key: "links", label: "Links", path: "/links" },
+  { key: "finance", label: "Finance", path: "/finance" },
   { key: "check-ins", label: "Check-ins", path: "/check-ins" },
   { key: "team", label: "Doors", path: "/team" },
   { key: "agenda", label: "Agenda", path: "/agenda" },
