@@ -6,6 +6,7 @@ import {
   LinkIcon,
   MailIcon,
   PaletteIcon,
+  ShieldCheckIcon,
   UsersIcon,
   WalletIcon,
   type LucideIcon,
@@ -49,6 +50,7 @@ export const navItems: NavItem[] = [
   { href: "/links", label: "Tracking links", icon: LinkIcon, group: "grow" },
   { href: "/templates", label: "Templates", icon: PaletteIcon, group: "grow" },
   { href: "/finance", label: "Finance", icon: WalletIcon, group: "manage" },
+  { href: "/security", label: "Security", icon: ShieldCheckIcon, group: "manage" },
   { href: "/profile", label: "Club profile", icon: BuildingIcon, group: "manage" },
 ];
 

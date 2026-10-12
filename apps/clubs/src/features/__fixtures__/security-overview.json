@@ -1,0 +1,31 @@
+{
+  "account": "circuit-society",
+  "counts": { "active_sessions": 5, "sessions_30d": 37, "sessions_delta": 18, "places_30d": 5, "places_delta": 13, "failed_30d": 4, "failed_delta": 16, "last_blocked_place": "Frankfurt, Germany" },
+  "sessions": [
+    { "id": "s1", "device": "Chrome on Windows", "kind": "computer", "place": "Pune, Maharashtra", "ip_address": "103.21.58.14", "created_at": "2026-10-12T11:32:00+00:00", "last_seen_at": "2026-10-12T11:40:00+00:00", "current": true },
+    { "id": "s2", "device": "Safari on iPhone", "kind": "phone", "place": "Pune, Maharashtra", "ip_address": "49.36.112.7", "created_at": "2026-10-12T11:10:00+00:00", "last_seen_at": "2026-10-12T11:28:00+00:00", "current": false },
+    { "id": "s3", "device": "Chrome on Android", "kind": "phone", "place": "Mumbai, Maharashtra", "ip_address": "152.58.31.90", "created_at": "2026-10-06T17:50:00+00:00", "last_seen_at": "2026-10-11T09:00:00+00:00", "current": false },
+    { "id": "s4", "device": "Firefox on macOS", "kind": "computer", "place": "Bengaluru, Karnataka", "ip_address": "106.51.77.203", "created_at": "2026-10-03T04:11:00+00:00", "last_seen_at": "2026-10-09T10:00:00+00:00", "current": false },
+    { "id": "s5", "device": "Edge on Windows", "kind": "computer", "place": "Pune, Maharashtra", "ip_address": "14.139.110.6", "created_at": "2026-09-28T10:52:00+00:00", "last_seen_at": "2026-10-03T08:00:00+00:00", "current": false }
+  ],
+  "by_place": [
+    { "place": "Pune, Maharashtra", "total": 6, "failed": 1 },
+    { "place": "Frankfurt, Germany", "total": 3, "failed": 3 },
+    { "place": "Mumbai, Maharashtra", "total": 1, "failed": 0 },
+    { "place": "Bengaluru, Karnataka", "total": 1, "failed": 0 },
+    { "place": "Nashik, Maharashtra", "total": 1, "failed": 0 }
+  ],
+  "history": [
+    { "id": "h1", "at": "2026-10-12T11:32:00+00:00", "place": "Pune, Maharashtra", "device": "Chrome on Windows", "ip_address": "103.21.58.14", "method": "password", "result": "signed_in" },
+    { "id": "h2", "at": "2026-10-12T11:10:00+00:00", "place": "Pune, Maharashtra", "device": "Safari on iPhone", "ip_address": "49.36.112.7", "method": "password", "result": "signed_in" },
+    { "id": "h3", "at": "2026-10-11T20:45:00+00:00", "place": "Frankfurt, Germany", "device": "Unknown browser on Linux", "ip_address": "185.220.101.4", "method": "password", "result": "wrong_password" },
+    { "id": "h4", "at": "2026-10-11T20:44:30+00:00", "place": "Frankfurt, Germany", "device": "Unknown browser on Linux", "ip_address": "185.220.101.4", "method": "password", "result": "wrong_password" },
+    { "id": "h5", "at": "2026-10-11T20:44:00+00:00", "place": "Frankfurt, Germany", "device": "Unknown browser on Linux", "ip_address": "185.220.101.4", "method": "password", "result": "blocked" },
+    { "id": "h6", "at": "2026-10-06T17:50:00+00:00", "place": "Mumbai, Maharashtra", "device": "Chrome on Android", "ip_address": "152.58.31.90", "method": "password", "result": "signed_in" },
+    { "id": "h7", "at": "2026-10-01T13:40:00+00:00", "place": "Pune, Maharashtra", "device": "Safari on iPhone", "ip_address": "49.36.112.7", "method": "password", "result": "wrong_password" }
+  ],
+  "two_factor": { "enabled": false, "recovery_codes_remaining": 0 },
+  "notify_new_device": true,
+  "lockout": { "max_failed": 5, "window_minutes": 15 },
+  "generated_at": "2026-10-12T11:41:00+00:00"
+}
