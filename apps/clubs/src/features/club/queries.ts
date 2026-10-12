@@ -17,6 +17,7 @@ import {
   updateClubLogo,
   updateMyClub,
   updatePartner,
+  updatePartnerLogo,
 } from "./api";
 
 /**
@@ -141,6 +142,18 @@ export function useDeletePartner() {
     mutationFn: (id: number) => deletePartner(id),
     onSuccess: async () => {
       toast.success("Partner removed");
+      await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useUpdatePartnerLogo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: number; file: File }) => updatePartnerLogo(id, file),
+    onSuccess: async () => {
+      toast.success("Logo updated");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
     onError: (error: Error) => toast.error(error.message),

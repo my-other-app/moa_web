@@ -55,7 +55,10 @@ beforeEach(() => {
 describe("club profile", () => {
   it("shows the club, its handle read-only, its partners, and nothing about follower counts", async () => {
     render(<ClubProfilePage />);
-    expect(await screen.findByLabelText("Club name")).toHaveValue("LetMeGoo");
+    expect(await screen.findByTestId("club-name")).toHaveTextContent("LetMeGoo");
+    expect(screen.queryByDisplayValue("LetMeGoo")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Change password/ })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Organisation")).toHaveAttribute("list", "club-org-options");
     expect(screen.getByLabelText("Tagline")).toHaveValue("Trivandrum's maker collective");
     expect(screen.getByTestId("club-handle")).toHaveTextContent("letmegoo-33b259");
     expect(screen.queryByDisplayValue("letmegoo-33b259")).not.toBeInTheDocument();
@@ -74,7 +77,7 @@ describe("club profile", () => {
 
   it("saves the tagline and the brand colour with everything else", async () => {
     render(<ClubProfilePage />);
-    await screen.findByLabelText("Club name");
+    await screen.findByTestId("club-name");
     fireEvent.change(screen.getByLabelText("Tagline"), { target: { value: "Pune's student electronics and robotics club" } });
     fireEvent.click(screen.getByRole("button", { name: "Brand colour #2f6fed" }));
     const save = await screen.findByRole("button", { name: "Save changes" });
@@ -91,7 +94,8 @@ describe("club profile", () => {
 
   it("adds a partner, corrects one on blur, and removes one on a second click", async () => {
     render(<ClubProfilePage />);
-    await screen.findByLabelText("Club name");
+    await screen.findByTestId("club-name");
+    expect(screen.getByRole("button", { name: "Add Kinetic Labs logo" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Add partner/ }));
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(await screen.findByText("Name the partner")).toBeInTheDocument();

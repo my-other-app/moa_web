@@ -7,6 +7,7 @@ export {
   useCreatePartner,
   useUpdatePartner,
   useDeletePartner,
+  useUpdatePartnerLogo,
   useInterestCategories,
   useOrganizations,
   useChangePassword,

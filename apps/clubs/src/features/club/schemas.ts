@@ -61,6 +61,7 @@ export const clubPartnerSchema = z.object({
   role: z.string().nullish(),
   since: z.number().nullish(),
   sort_order: z.number().default(0),
+  logo: imageFieldSchema,
 });
 export type ClubPartner = z.infer<typeof clubPartnerSchema>;
 

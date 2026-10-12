@@ -57,7 +57,7 @@ export function AnnouncementComposer({
   async function onConfirm() {
     await send.mutateAsync({
       eventId,
-      input: { title: eventName.slice(0, 120), body: trimmed },
+      input: { title: eventName.slice(0, 120), body: trimmed, audience: "all" },
     });
     setBody("");
     setConfirmOpen(false);

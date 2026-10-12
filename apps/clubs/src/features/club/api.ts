@@ -114,3 +114,10 @@ export async function updatePartner(id: number, form: PartnerForm): Promise<Club
 export async function deletePartner(id: number): Promise<void> {
   await api.del<unknown>(`/api/v1/clubs/partners/${id}`);
 }
+
+export async function updatePartnerLogo(id: number, file: File): Promise<ClubPartner> {
+  const form = new FormData();
+  form.append("logo", file);
+  const raw = await api.put<unknown>(`/api/v1/clubs/partners/${id}/logo`, form);
+  return clubPartnerSchema.parse(raw);
+}
