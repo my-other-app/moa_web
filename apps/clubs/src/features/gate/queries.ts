@@ -18,7 +18,10 @@ export function useGateContext(key: string | null, eventId: number) {
     refetchInterval: 15_000,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
-    retry: (count, err) => !(err instanceof ApiError) && count < 2,
+    // A refused request is an answer; a dropped connection or a server that
+    // is restarting (a 502 while a deploy comes up) is worth three more tries.
+    retry: (count, err) => (!(err instanceof ApiError) || err.isServer) && count < 3,
+    retryDelay: (count) => Math.min(1000 * 2 ** count, 8000),
   });
 }
 

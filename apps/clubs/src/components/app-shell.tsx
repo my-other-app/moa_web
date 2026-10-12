@@ -2,16 +2,32 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
-import { UserMenu, initials } from "@moa/app-kit";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronsUpDownIcon, LogOutIcon, MenuIcon, MonitorIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SunIcon } from "lucide-react";
+import { useTheme } from "next-themes";
+import { initials, useLogout } from "@moa/app-kit";
 import type { SessionUser } from "@moa/auth";
-import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, cn } from "@moa/ui";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  cn,
+} from "@moa/ui";
 
 import { Breadcrumbs } from "./breadcrumbs";
 import { GateCard } from "./gate-card";
 import { SidebarNav } from "./sidebar-nav";
-import { ThemeToggle } from "./theme-toggle";
 
 /**
  * Two sheets on a canvas: the rail and the page.
@@ -19,8 +35,8 @@ import { ThemeToggle } from "./theme-toggle";
  * The shell is exactly one viewport tall; the rail stays where it is and
  * only the page scrolls, so a long guest list never scrolls the menu away.
  * The rail collapses to its tiles on request and always on a tablet; on a
- * phone it is a drawer. The top bar carries the trail, the theme and the
- * account — the three things every page needs and no page should draw.
+ * phone it is a drawer. The top bar carries only the trail; the account and
+ * the appearance choice sit with the club's name at the foot of the rail.
  */
 /** The product's name, top left; the club signed in sits at the bottom with its account. */
 const PRODUCT = "MyOtherApp";
@@ -34,20 +50,69 @@ function Brand({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+const THEMES = [
+  { value: "system", label: "Follow the system", Icon: MonitorIcon },
+  { value: "light", label: "Light", Icon: SunIcon },
+  { value: "dark", label: "Dark", Icon: MoonIcon },
+] as const;
+
+/**
+ * The club signed in, at the foot of the rail. The whole card is one button:
+ * it opens the account menu, where the appearance choice and sign-out live,
+ * so the row itself is only a name and never crowds at 236px.
+ */
 function Identity({ user, clubName, collapsed }: { user: SessionUser; clubName: string; collapsed: boolean }) {
+  const router = useRouter();
+  const logout = useLogout();
+  const { theme, setTheme } = useTheme();
+  const mode = THEMES.some((t) => t.value === theme) ? (theme as string) : "system";
+
+  async function signOut() {
+    await logout.mutateAsync();
+    router.replace("/login");
+    router.refresh();
+  }
+
   return (
-    <div className="px-3 pb-3.5">
-      <div className={cn("bg-sunken flex items-center gap-2 rounded-[var(--radius-card)] p-2", collapsed && "flex-col p-1.5")}>
-        <span className="bg-brand-soft text-brand grid size-8 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">{initials(clubName)}</span>
-        <div className={cn("min-w-0 flex-1", collapsed && "hidden")}>
-          <div className="truncate text-[12.5px] font-semibold">{clubName}</div>
-          <div className="text-ink-3 truncate font-mono text-[10px] tracking-[0.04em]">shared club login</div>
-        </div>
-        <div className={cn("flex shrink-0 items-center gap-1", collapsed && "flex-col")}>
-          <ThemeToggle className="size-8" />
-          <UserMenu user={user} />
-        </div>
-      </div>
+    <div className={cn("px-3 pb-3.5", collapsed && "px-2")}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={`${clubName}: account and appearance`}
+            className={cn(
+              "bg-sunken hover:bg-raised focus-visible:ring-brand/40 flex w-full items-center gap-2.5 rounded-[var(--radius-card)] p-2 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none",
+              collapsed && "justify-center p-1.5"
+            )}
+          >
+            <span className="bg-brand-soft text-brand grid size-8 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">{initials(clubName)}</span>
+            <span className={cn("min-w-0 flex-1", collapsed && "hidden")}>
+              <span className="text-ink block truncate text-[12.5px] font-semibold">{clubName}</span>
+              <span className="text-ink-3 block truncate font-mono text-[10px] tracking-[0.04em]">Shared club login</span>
+            </span>
+            <ChevronsUpDownIcon className={cn("text-ink-3 size-4 shrink-0", collapsed && "hidden")} aria-hidden="true" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side={collapsed ? "right" : "top"} align={collapsed ? "end" : "start"} sideOffset={8} className="w-60">
+          <DropdownMenuLabel className="font-normal">
+            <span className="block truncate text-sm font-medium">{clubName}</span>
+            <span className="text-ink-3 block truncate text-xs">{user.email}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="eyebrow">Appearance</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={mode} onValueChange={setTheme}>
+            {THEMES.map(({ value, label, Icon }) => (
+              <DropdownMenuRadioItem key={value} value={value}>
+                <Icon className="size-4" aria-hidden="true" /> {label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={signOut} disabled={logout.isPending}>
+            <LogOutIcon className="size-4" aria-hidden="true" /> {logout.isPending ? "Signing out…" : "Sign out"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

@@ -56,6 +56,7 @@ export function GateConsole({ eventId }: { eventId: number }) {
     const err = ctxQ.error;
     const status = err instanceof ApiError ? err.status : 0;
     const invalidKey = status === 403 && key;
+    const serverDown = status >= 500 || status === 0;
     return (
       <main className="mx-auto flex min-h-dvh max-w-[512px] items-center px-5">
         <EmptyState
@@ -68,7 +69,9 @@ export function GateConsole({ eventId }: { eventId: number }) {
                 ? "The organiser made a new link or switched this one off. Ask them for the current one."
                 : status === 403
                   ? "Ask the organiser to add you under Team & doors. Nothing is broken — your account simply has no door permissions here yet."
-                  : (err instanceof Error ? err.message : "Try again.")
+                  : serverDown
+                    ? "The server did not answer. It may be restarting or your connection dropped — nothing on this phone is lost. Try again in a moment."
+                    : (err instanceof Error ? err.message : "Try again.")
           }
         />
         <div className="absolute inset-x-0 bottom-8 flex justify-center gap-2">
@@ -80,6 +83,11 @@ export function GateConsole({ eventId }: { eventId: number }) {
           {invalidKey ? (
             <Button variant="outline" onClick={() => (write(KEY_STORAGE(eventId), null), setKey(null))}>
               Forget this link
+            </Button>
+          ) : null}
+          {status !== 401 && !invalidKey ? (
+            <Button onClick={() => ctxQ.refetch()} disabled={ctxQ.isFetching}>
+              {ctxQ.isFetching ? "Trying…" : "Try again"}
             </Button>
           ) : null}
         </div>
