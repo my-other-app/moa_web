@@ -4,9 +4,10 @@ import * as React from "react";
 import { Button, cn, toast } from "@moa/ui";
 
 import { walkupCard, type OutcomeCardModel } from "../lib/outcome-copy";
-import { useWalkup } from "../queries";
+import { useGateCatalog, useWalkup } from "../queries";
 import { newRef, ROLE_LABEL, type GateContext, type WalkupBody } from "../schemas";
 import { OutcomeCard } from "./outcome-card";
+import { ShelfPicker, picksToStore, type ShelfPicks } from "./shelf-picker";
 
 /** One form does three things: adds them to the list, checks them in, and sends their ticket if they gave an address. */
 export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx: GateContext; door: string }) {
@@ -18,6 +19,8 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
   const [fieldError, setFieldError] = React.useState<string | null>(null);
   const ref = React.useRef(newRef());
   const walkup = useWalkup(gateKey, ctx.event.id);
+  const [picks, setPicks] = React.useState<ShelfPicks>({});
+  const catalog = useGateCatalog(gateKey, ctx.event.id, ctx.has_store);
 
   const submit = async (e?: React.FormEvent, confirmNew = false) => {
     e?.preventDefault();
@@ -37,6 +40,7 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
       door,
       client_ref: ref.current,
       ...(confirmNew ? { confirm_new: true } : {}),
+      ...(picksToStore(catalog.data, picks).length ? { store: picksToStore(catalog.data, picks) } : {}),
     };
     try {
       const res = await walkup.mutateAsync(body);
@@ -46,6 +50,7 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
         setName("");
         setContact("");
         setCustom({});
+        setPicks({});
         ref.current = newRef();
       }
     } catch (err) {
@@ -124,6 +129,7 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
               )}
             </div>
           ))}
+          {ctx.has_store && catalog.data?.enabled ? <ShelfPicker catalog={catalog.data} picks={picks} onChange={setPicks} /> : null}
           <Button type="submit" className="mt-1 h-12 w-full">
             Register and check in
           </Button>

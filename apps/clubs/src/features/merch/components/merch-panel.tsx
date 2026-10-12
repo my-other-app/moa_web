@@ -5,7 +5,7 @@ import { Button, EmptyState, cn, toast } from "@moa/ui";
 
 import { cameraProblem, startScanner, type GateContext, type Scanner } from "@/features/gate";
 import { searchGuests } from "@/features/gate/api";
-import { useGuestSearch } from "@/features/gate/queries";
+import { useGateHandOver, useGateStoreOrders, useGuestSearch } from "@/features/gate/queries";
 
 import { useAttendeeMerch, useCollectMerch } from "../queries";
 import { STATUS_COPY, type MerchStatus } from "../schemas";
@@ -29,6 +29,8 @@ export function MerchPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx
   const results = useGuestSearch(gateKey, ctx.event.id, selected ? "" : settled);
   const status = useAttendeeMerch(gateKey, ctx.event.id, selected);
   const collect = useCollectMerch(gateKey, ctx.event.id);
+  const bought = useGateStoreOrders(gateKey, ctx.event.id, selected, ctx.has_store);
+  const handOverOrder = useGateHandOver(gateKey, ctx.event.id);
 
   const stopCamera = React.useCallback(() => {
     scannerRef.current?.stop();
@@ -139,7 +141,25 @@ export function MerchPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx
                   Change
                 </Button>
               </div>
-              {status.data.items.length === 0 ? <p className="px-3.5 py-4 text-[13px] text-muted-foreground">Nothing is set up for this event.</p> : null}
+              {bought.data && bought.data.length > 0 ? (
+                <div className="border-b bg-primary/5">
+                  <p className="px-3.5 pt-3 font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">Bought with the ticket</p>
+                  {bought.data.map((o) => (
+                    <div key={o.id} className="flex items-center gap-3 px-3.5 py-3">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-medium">{o.summary}</span>
+                        <span className={cn("mt-0.5 block font-mono text-[11.5px]", o.handed_over_at ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground")}>{o.handed_over_at ? "Handed over" : "Paid · still to hand over"}</span>
+                      </span>
+                      {o.handed_over_at ? null : (
+                        <Button size="sm" className="h-11 shrink-0 px-4" disabled={handOverOrder.isPending} onClick={() => handOverOrder.mutate(o.id, { onError: (err) => toast.error(err instanceof Error ? err.message : "Could not hand it over") })}>
+                          Hand over
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {status.data.items.length === 0 && !(bought.data && bought.data.length > 0) ? <p className="px-3.5 py-4 text-[13px] text-muted-foreground">Nothing is set up for this event.</p> : null}
               {status.data.items.map((item) => {
                 const collectable = item.status === "COLLECTABLE";
                 const copy = collectable ? null : STATUS_COPY[item.status as Exclude<MerchStatus, "COLLECTABLE">];

@@ -4,7 +4,7 @@ import * as React from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@moa/api";
 
-import { captureContact, checkInByHand, fetchGateContext, registerWalkup, scanBatch, scanTicket, searchGuests, undoCheckIn } from "./api";
+import { captureContact, checkInByHand, fetchGateContext, registerWalkup, scanBatch, scanTicket, searchGuests, undoCheckIn, fetchGateStoreOrders, gateHandOver, fetchGateCatalog } from "./api";
 import { scanQueue, supportsQueue, type QueuedScan } from "./lib/queue";
 import type { GateContext, ScanBody, ScanResult, WalkupBody } from "./schemas";
 
@@ -160,4 +160,24 @@ export function useCaptureContact(key: string | null, eventId: number) {
   return useMutation({
     mutationFn: ({ registrationId, phone }: { registrationId: string; phone: string }) => captureContact(key, eventId, registrationId, phone),
   });
+}
+
+export function useGateStoreOrders(key: string | null, eventId: number, registrationId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["gate", eventId, "store", registrationId ?? ""],
+    queryFn: () => fetchGateStoreOrders(key, eventId, registrationId as string),
+    enabled: enabled && !!registrationId,
+  });
+}
+
+export function useGateHandOver(key: string | null, eventId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => gateHandOver(key, eventId, orderId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["gate", eventId, "store"] }),
+  });
+}
+
+export function useGateCatalog(key: string | null, eventId: number, enabled: boolean) {
+  return useQuery({ queryKey: ["gate", eventId, "catalog"], queryFn: () => fetchGateCatalog(key, eventId), enabled, staleTime: 30_000 });
 }
