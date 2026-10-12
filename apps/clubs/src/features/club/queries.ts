@@ -11,8 +11,12 @@ import {
   fetchInterestCategories,
   fetchMyClub,
   fetchOrganizations,
+  createPartner,
+  deletePartner,
+  updateClubCover,
   updateClubLogo,
   updateMyClub,
+  updatePartner,
 } from "./api";
 
 /**
@@ -27,7 +31,7 @@ export function useClubDashboard() {
     refetchInterval: (q) => (q.state.data?.live.length ? 15_000 : 60_000),
   });
 }
-import type { ChangePasswordForm, ClubProfileForm } from "./schemas";
+import type { ChangePasswordForm, ClubProfileForm, PartnerForm } from "./schemas";
 
 export function useMyClub() {
   return useQuery({
@@ -92,6 +96,53 @@ export function useUpdateClubLogo() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: (input: ChangePasswordForm) => changePassword(input),
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useUpdateClubCover() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => updateClubCover(file),
+    onSuccess: async () => {
+      toast.success("Cover updated");
+      await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useCreatePartner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (form: PartnerForm) => createPartner(form),
+    onSuccess: async () => {
+      toast.success("Partner added");
+      await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useUpdatePartner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, form }: { id: number; form: PartnerForm }) => updatePartner(id, form),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useDeletePartner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deletePartner(id),
+    onSuccess: async () => {
+      toast.success("Partner removed");
+      await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
+    },
     onError: (error: Error) => toast.error(error.message),
   });
 }

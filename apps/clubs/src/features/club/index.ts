@@ -3,6 +3,10 @@ export {
   useClubDashboard,
   useUpdateMyClub,
   useUpdateClubLogo,
+  useUpdateClubCover,
+  useCreatePartner,
+  useUpdatePartner,
+  useDeletePartner,
   useInterestCategories,
   useOrganizations,
   useChangePassword,
@@ -10,20 +14,24 @@ export {
 export {
   clubSelfSchema,
   clubProfileFormSchema,
+  clubPartnerSchema,
+  partnerFormSchema,
+  BRAND_PRESETS,
   changePasswordSchema,
   interestCategorySchema,
   organizationSchema,
   interestEmoji,
   type ClubSelf,
   type ClubProfileForm,
+  type ClubPartner,
+  type PartnerForm,
   type ChangePasswordForm,
   type ClubInterest,
   type InterestCategory,
   type Organization,
 } from "./schemas";
 export { ClubOverview } from "./components/club-overview";
-export { ClubProfileView, InterestChip } from "./components/club-profile-view";
-export { ClubProfileForm as ClubProfileFormView } from "./components/club-profile-form";
+export { ClubProfilePage } from "./components/club-profile-page";
 export { ChangePasswordDialog } from "./components/change-password-dialog";
 export { InterestPicker } from "./components/interest-picker";
 export { NextEventCard } from "./components/next-event-card";

@@ -55,6 +55,15 @@ export const clubOrgSchema = z
   .nullish();
 
 /** GET /clubs/info — the signed-in user's own club. */
+export const clubPartnerSchema = z.object({
+  id: z.coerce.number(),
+  name: z.string(),
+  role: z.string().nullish(),
+  since: z.number().nullish(),
+  sort_order: z.number().default(0),
+});
+export type ClubPartner = z.infer<typeof clubPartnerSchema>;
+
 export const clubSelfSchema = z.object({
   id: z.coerce.number(),
   name: z.string(),
@@ -63,6 +72,10 @@ export const clubSelfSchema = z.object({
   location_name: z.string().nullish(),
   location_link: z.string().nullish(),
   about: z.string().nullish(),
+  /** One line under the name; the about is the long form. */
+  tagline: z.string().nullish(),
+  cover: imageFieldSchema,
+  partners: z.array(clubPartnerSchema).catch([]).default([]),
   rating: z.number().nullish(),
   total_ratings: z.number().nullish(),
   total_events: z.number().nullish(),
@@ -104,6 +117,7 @@ export const clubProfileFormSchema = z.object({
     .min(3, "Club name needs at least 3 characters")
     .max(20, "Club name can be at most 20 characters"),
   about: z.string().trim().max(2000, "Keep this under 2000 characters").optional(),
+  tagline: z.string().trim().max(120, "Keep the tagline under 120 characters").optional(),
   org_id: z.number().int().nullable().default(null),
   location_name: z.string().trim().max(200).optional(),
   location_link: z.string().trim().max(500).optional(),
@@ -156,3 +170,16 @@ export function interestEmoji(interest: {
   if (!interest.icon || interest.icon_type !== "emoji") return null;
   return /[^\u0000-\u007F]/.test(interest.icon) ? interest.icon : null;
 }
+
+/** One partner row: a name, what they are to the club, and since when. */
+export const partnerFormSchema = z.object({
+  name: z.string().trim().min(1, "Name the partner").max(100, "Keep the name under 100 characters"),
+  role: z.string().trim().max(80, "Keep the role under 80 characters"),
+  since: z
+    .union([z.literal(""), z.coerce.number().int().min(1900, "Enter a year like 2024").max(2100, "Enter a year like 2024")])
+    .transform((v) => (v === "" ? null : v)),
+});
+export type PartnerForm = z.infer<typeof partnerFormSchema>;
+
+/** Swatches offered before the custom picker; the first is the product's own teal. */
+export const BRAND_PRESETS = ["#17a58f", "#2f6fed", "#7c4dff", "#ef6c35", "#e24a8d", "#f2b136"] as const;
