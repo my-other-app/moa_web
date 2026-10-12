@@ -124,7 +124,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
         className="mt-4"
         label="Event sections"
         value={tab}
-        items={EVENT_TABS.map((t) => ({
+        items={EVENT_TABS.filter((t) => !("when" in t) || event.data?.[t.when] !== false).map((t) => ({
           key: t.key,
           label: t.label,
           href: `${base}${t.path}`,

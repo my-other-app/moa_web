@@ -77,6 +77,10 @@ export const eventFormSchema = z
     has_prize: z.boolean().default(false),
     prize_amount: z.coerce.number().nonnegative().optional(),
     max_participants: z.coerce.number().int().positive().optional(),
+    /** Sell merchandise at registration, paid with the ticket. */
+    merch_enabled: z.boolean().default(false),
+    /** Free giveaways counted out at the door. */
+    swag_enabled: z.boolean().default(false),
 
     // --- contact
     contact_name: z.string().trim().max(100).optional(),

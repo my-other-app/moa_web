@@ -52,6 +52,8 @@ export const emptyEventForm: EventFormValues = {
   url: "",
   has_fee: false,
   has_prize: false,
+  merch_enabled: false,
+  swag_enabled: false,
   contact_name: "",
   contact_phone: "",
   contact_email: "",

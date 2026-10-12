@@ -24,6 +24,8 @@ export const clubEventSchema = z.object({
   reg_startdate: z.string().nullish(),
   reg_enddate: z.string().nullish(),
   category: namedRefSchema,
+  merch_enabled: z.boolean().nullish(),
+  swag_enabled: z.boolean().nullish(),
   page_views: z.number().nullish(),
   registration_count: z.number().nullish(),
   attended_count: z.number().nullish(),

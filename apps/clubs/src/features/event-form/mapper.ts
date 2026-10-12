@@ -26,6 +26,8 @@ const detailSchema = z
     reg_fee: z.coerce.number().nullish(),
     has_prize: z.boolean().nullish(),
     prize_amount: z.coerce.number().nullish(),
+    merch_enabled: z.boolean().nullish(),
+    swag_enabled: z.boolean().nullish(),
     max_participants: z.coerce.number().nullish(),
     contact_name: z.string().nullish(),
     contact_phone: z.string().nullish(),
@@ -110,6 +112,8 @@ export function eventDetailToFormValues(raw: unknown): EventFormValues {
     reg_fee: d.reg_fee ?? undefined,
     has_prize: d.has_prize ?? false,
     prize_amount: d.prize_amount ?? undefined,
+    merch_enabled: d.merch_enabled ?? false,
+    swag_enabled: d.swag_enabled ?? false,
     max_participants: d.max_participants ?? undefined,
 
     contact_name: d.contact_name ?? "",

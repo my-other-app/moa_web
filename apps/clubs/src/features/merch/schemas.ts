@@ -17,6 +17,10 @@ export const merchItemSchema = z.object({
   eligibility_value: z.string().nullable(),
   variant_field: z.string().nullable(),
   variants: z.array(merchVariantSchema),
+  sponsor: z.string().nullish(),
+  handout_rule: z.string().nullish(),
+  manual_handed_out: z.number().default(0),
+  handed_out: z.number().default(0),
   created_at: z.string().nullish(),
 });
 export type MerchItem = z.infer<typeof merchItemSchema>;
@@ -32,6 +36,8 @@ export interface MerchItemInput {
   eligibility_value?: string | null;
   variant_field?: string | null;
   variants?: { label: string; stock: number }[];
+  sponsor?: string | null;
+  handout_rule?: string | null;
 }
 
 export const MERCH_STATUSES = ["COLLECTABLE", "ALREADY_COLLECTED", "NOT_ELIGIBLE", "NO_VARIANT_VALUE", "NO_MATCHING_VARIANT", "OUT_OF_STOCK"] as const;
@@ -107,3 +113,19 @@ export const STATUS_COPY: Record<Exclude<MerchStatus, "COLLECTABLE">, { note: st
   NO_MATCHING_VARIANT: { note: "Their size isn’t one of the options — pick what they take.", chip: "No match" },
   OUT_OF_STOCK: { note: "Out of stock in their size", chip: "None left" },
 };
+
+/** How a swag item is given out, as the card says it. */
+export const HANDOUT_RULES = [
+  { value: "door", label: "Everyone who checks in" },
+  { value: "first_n", label: "First arrivals at the door" },
+  { value: "winners", label: "Winners only · handed over at results" },
+] as const;
+
+export function whoGetsIt(item: MerchItem): string {
+  const rule = HANDOUT_RULES.find((r) => r.value === item.handout_rule)?.label;
+  if (item.eligibility_field && item.eligibility_value) {
+    const who = `Only ${item.eligibility_value}`;
+    return rule && item.handout_rule !== "door" ? `${who} · ${rule.toLowerCase()}` : who;
+  }
+  return rule ?? "Everyone who checks in";
+}

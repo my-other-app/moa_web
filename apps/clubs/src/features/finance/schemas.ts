@@ -26,6 +26,7 @@ export const financeSummarySchema = z.object({
     paying: z.number(),
     gross: money,
     tickets: money,
+    merch: money.default(0),
     refunds: money,
     refund_count: z.number(),
     expenses: money,
@@ -38,12 +39,13 @@ export const financeSummarySchema = z.object({
   deltas: z.object({
     gross: z.number().nullable(),
     tickets: z.number().nullable(),
+    merch: z.number().nullish(),
     refunds: z.number().nullable(),
     expenses: z.number().nullable(),
     net: z.number().nullable(),
   }),
-  by_month: z.array(z.object({ month: z.string(), tickets: money, refunds: money, expenses: money, net: money })),
-  by_type: z.array(z.object({ type: z.string(), events: z.number(), tickets: money, expenses: money, net: money })),
+  by_month: z.array(z.object({ month: z.string(), tickets: money, merch: money.default(0), refunds: money, expenses: money, net: money })),
+  by_type: z.array(z.object({ type: z.string(), events: z.number(), tickets: money, merch: money.default(0), expenses: money, net: money })),
   by_event: z.array(
     z.object({
       id: z.number(),
@@ -54,6 +56,7 @@ export const financeSummarySchema = z.object({
       regs: z.number(),
       paying: z.number(),
       tickets: money,
+      merch: money.default(0),
       refunds: money,
       expenses: money,
       net: money,

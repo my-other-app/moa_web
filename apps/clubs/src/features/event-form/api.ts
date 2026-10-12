@@ -46,6 +46,8 @@ export function toEventFormData(values: EventFormParsed): FormData {
   fd.append("is_online", String(values.is_online));
   fd.append("has_fee", String(values.has_fee));
   fd.append("has_prize", String(values.has_prize));
+  fd.append("merch_enabled", String(values.merch_enabled));
+  fd.append("swag_enabled", String(values.swag_enabled));
 
   put("location_name", values.is_online ? undefined : values.location_name);
   put("url", values.url);
