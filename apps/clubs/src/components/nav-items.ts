@@ -7,16 +7,26 @@ import {
   MailIcon,
   PaletteIcon,
   UsersIcon,
+  WalletIcon,
   type LucideIcon,
 } from "lucide-react";
+
+export type NavGroup = "grow" | "manage";
 
 export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  /** Exact match only -- otherwise "/" would light up on every route. */
   exact?: boolean;
+  /** Ungrouped items are the day's work; Grow and Manage sit under their own headings. */
+  group?: NavGroup;
 }
+
+export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
+  { key: "grow", label: "Grow" },
+  { key: "manage", label: "Manage" },
+];
+
 
 /**
  * The rail, now labelled.
@@ -34,11 +44,12 @@ export const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboardIcon, exact: true },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/followers", label: "Followers", icon: UsersIcon },
-  { href: "/links", label: "Tracking links", icon: LinkIcon },
   { href: "/announcements", label: "Announcements", icon: BellIcon },
   { href: "/emails", label: "Emails", icon: MailIcon },
-  { href: "/templates", label: "Templates", icon: PaletteIcon },
-  { href: "/profile", label: "Club profile", icon: BuildingIcon },
+  { href: "/links", label: "Tracking links", icon: LinkIcon, group: "grow" },
+  { href: "/templates", label: "Templates", icon: PaletteIcon, group: "grow" },
+  { href: "/finance", label: "Finance", icon: WalletIcon, group: "manage" },
+  { href: "/profile", label: "Club profile", icon: BuildingIcon, group: "manage" },
 ];
 
 export function isActive(pathname: string, item: NavItem): boolean {

@@ -1,0 +1,52 @@
+{
+  "scope": "club",
+  "period": { "start": "2026-07-01", "end": "2026-11-30" },
+  "figures": {
+    "events": { "conducted": 14, "upcoming": 6, "delta": 13 },
+    "regs": 1169,
+    "paying": 412,
+    "gross": 197046,
+    "tickets": 196196,
+    "refunds": 850,
+    "refund_count": 2,
+    "expenses": 86424,
+    "expense_count": 23,
+    "net": 109772,
+    "outstanding": 4500,
+    "outstanding_count": 9,
+    "avg_ticket": 476.2
+  },
+  "deltas": { "gross": 9, "tickets": 9, "refunds": 5, "expenses": 2, "net": 3 },
+  "by_month": [
+    { "month": "2026-07", "tickets": 18900, "refunds": 0, "expenses": 9000, "net": 9900 },
+    { "month": "2026-08", "tickets": 39600, "refunds": 350, "expenses": 18000, "net": 21600 },
+    { "month": "2026-09", "tickets": 66800, "refunds": 0, "expenses": 30000, "net": 36800 },
+    { "month": "2026-10", "tickets": 61400, "refunds": 500, "expenses": 24000, "net": 37400 },
+    { "month": "2026-11", "tickets": 9496, "refunds": 0, "expenses": 5424, "net": 4072 }
+  ],
+  "by_type": [
+    { "type": "Hackathon", "events": 5, "tickets": 108866, "expenses": 51000, "net": 57866 },
+    { "type": "Competition", "events": 3, "tickets": 56992, "expenses": 20000, "net": 36992 },
+    { "type": "Workshop", "events": 6, "tickets": 20838, "expenses": 9000, "net": 11838 },
+    { "type": "Bootcamp", "events": 1, "tickets": 10350, "expenses": 4000, "net": 6350 },
+    { "type": "Meetup", "events": 2, "tickets": 0, "expenses": 1200, "net": -1200 },
+    { "type": "Social", "events": 2, "tickets": 0, "expenses": 800, "net": -800 },
+    { "type": "Seminar", "events": 1, "tickets": 0, "expenses": 0, "net": 0 },
+    { "type": "Club", "events": 0, "tickets": 0, "expenses": 424, "net": -424 }
+  ],
+  "by_event": [
+    { "id": 51, "name": "Hack Night 05", "starts_at": "2026-11-04T12:30:00+00:00", "type": "Hackathon", "status": "published", "regs": 0, "paying": 0, "tickets": 0, "refunds": 0, "expenses": 0, "net": 0 },
+    { "id": 48, "name": "Drone Build Weekend", "starts_at": "2026-11-02T04:30:00+00:00", "type": "Bootcamp", "status": "published", "regs": 25, "paying": 23, "tickets": 10350, "refunds": 0, "expenses": 207, "net": 10143 },
+    { "id": 44, "name": "TinyML Study Circle", "starts_at": "2026-10-28T13:00:00+00:00", "type": "Meetup", "status": "published", "regs": 39, "paying": 0, "tickets": 0, "refunds": 0, "expenses": 0, "net": 0 },
+    { "id": 41, "name": "Intro to KiCad", "starts_at": "2026-10-23T10:00:00+00:00", "type": "Workshop", "status": "published", "regs": 41, "paying": 0, "tickets": 0, "refunds": 0, "expenses": 0, "net": 0 },
+    { "id": 37, "name": "Hack Night 04", "starts_at": "2026-10-04T12:30:00+00:00", "type": "Hackathon", "status": "closed", "regs": 186, "paying": 180, "tickets": 46500, "refunds": 500, "expenses": 21300, "net": 25200 },
+    { "id": 33, "name": "Autonomous Rover Cup", "starts_at": "2026-09-20T04:00:00+00:00", "type": "Competition", "status": "closed", "regs": 120, "paying": 118, "tickets": 29500, "refunds": 0, "expenses": 11000, "net": 18500 }
+  ],
+  "expenses": [
+    { "id": "e1", "event_id": 37, "event_name": "Hack Night 04", "title": "Venue hire", "category": "venue", "amount": 15000, "incurred_on": "2026-10-04", "note": "Main hall, 14 hours", "created_at": "2026-10-05T09:00:00+00:00" },
+    { "id": "e2", "event_id": 37, "event_name": "Hack Night 04", "title": "Midnight pizza", "category": "food", "amount": 6300, "incurred_on": "2026-10-04", "note": null, "created_at": "2026-10-05T09:02:00+00:00" },
+    { "id": "e3", "event_id": null, "event_name": null, "title": "Domain renewal", "category": "other", "amount": 424, "incurred_on": "2026-09-14", "note": null, "created_at": "2026-09-14T06:00:00+00:00" }
+  ],
+  "categories": ["venue", "food", "prizes", "printing", "marketing", "equipment", "travel", "speakers", "other"],
+  "generated_at": "2026-10-12T02:00:00+00:00"
+}
