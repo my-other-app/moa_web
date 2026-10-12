@@ -1,0 +1,38 @@
+{
+ "limit": 20,
+ "offset": 0,
+ "total": 3,
+ "next": null,
+ "items": [
+  {
+   "user": {
+    "id": 4,
+    "full_name": "Test User",
+    "username": "dumpfan2",
+    "profile": null
+   },
+   "is_following": true,
+   "created_at": "2026-10-12T14:03:35.173773+05:30"
+  },
+  {
+   "user": {
+    "id": 3,
+    "full_name": "Test User",
+    "username": "dumpfan1",
+    "profile": null
+   },
+   "is_following": true,
+   "created_at": "2026-10-12T14:03:35.167868+05:30"
+  },
+  {
+   "user": {
+    "id": 2,
+    "full_name": "Test User",
+    "username": "dumpfan0",
+    "profile": null
+   },
+   "is_following": true,
+   "created_at": "2026-10-12T14:03:35.157114+05:30"
+  }
+ ]
+}

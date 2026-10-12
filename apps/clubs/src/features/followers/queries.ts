@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { staleTimes } from "@moa/app-kit";
 
-import { fetchClubFollowers } from "./api";
+import { fetchClubFollowers, fetchFollowerProfile } from "./api";
 
 export function useClubFollowers(
   clubId: number | null | undefined,
@@ -16,5 +16,13 @@ export function useClubFollowers(
     // The club id comes from /clubs/info, so this waits rather than firing a
     // request at /clubs/followers/undefined.
     enabled: typeof clubId === "number" && clubId > 0,
+  });
+}
+
+export function useFollowerProfile(clubId: number | null | undefined, userId: number) {
+  return useQuery({
+    queryKey: ["followers", "profile", clubId ?? 0, userId],
+    queryFn: () => fetchFollowerProfile(clubId as number, userId),
+    enabled: !!clubId && userId > 0,
   });
 }

@@ -49,3 +49,31 @@ export function followersPerDay(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, count]) => ({ date, count }));
 }
+
+/** GET /clubs/followers/{club_id}/{user_id}: one follower, as far as the club may know them. */
+export const followerProfileSchema = z.object({
+  user: z.object({
+    id: z.coerce.number(),
+    full_name: z.string().nullish(),
+    username: z.string().nullish(),
+    avatar: z.any().nullish(),
+    org: z.string().nullish(),
+    interests: z.array(z.string()).default([]),
+  }),
+  followed_at: z.string().nullish(),
+  contact: z.object({ email: z.string().nullish(), phone: z.string().nullish() }),
+  events: z.array(
+    z.object({
+      event_id: z.coerce.number(),
+      name: z.string(),
+      starts_at: z.string().nullish(),
+      status: z.string(),
+      attended: z.boolean(),
+      paid: z.boolean(),
+      paid_amount: z.number(),
+      registered_at: z.string().nullish(),
+    })
+  ),
+  totals: z.object({ registrations: z.number(), attended: z.number(), paid: z.number() }),
+});
+export type FollowerProfile = z.infer<typeof followerProfileSchema>;

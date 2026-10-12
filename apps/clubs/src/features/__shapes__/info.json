@@ -1,0 +1,30 @@
+{
+ "id": 1,
+ "name": "Dumpers",
+ "slug": "dumpers-e5873e",
+ "logo": null,
+ "cover": null,
+ "tagline": null,
+ "partners": [],
+ "location_name": null,
+ "location_link": null,
+ "about": null,
+ "rating": 0.0,
+ "total_ratings": 0,
+ "total_events": 2,
+ "live_events": 1,
+ "past_events": 1,
+ "socials": null,
+ "interests": [],
+ "followers_count": 3,
+ "contact_phone": null,
+ "contact_email": null,
+ "brand_primary": null,
+ "brand_secondary": null,
+ "user_data": {
+  "is_following": false,
+  "is_pinned": false,
+  "is_hidden": false
+ },
+ "org": null
+}
