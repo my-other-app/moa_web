@@ -1,0 +1,417 @@
+{
+ "generated_at": "2026-10-12T08:33:35.180262Z",
+ "period_days": 30,
+ "kpis": {
+  "registrations": {
+   "value": 2,
+   "previous": 0,
+   "delta": null
+  },
+  "page_views": {
+   "value": 0,
+   "previous": 0,
+   "delta": null
+  },
+  "revenue": {
+   "value": 200.0,
+   "previous": 0.0,
+   "delta": null
+  },
+  "attendance_rate": {
+   "value": 50.0,
+   "previous": null,
+   "delta": null
+  }
+ },
+ "revenue_series": {
+  "current": [
+   {
+    "date": "2026-09-13",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-14",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-15",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-16",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-17",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-18",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-19",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-20",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-21",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-22",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-23",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-24",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-25",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-26",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-27",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-28",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-29",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-30",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-01",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-02",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-03",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-04",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-05",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-06",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-07",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-08",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-09",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-10",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-11",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-10-12",
+    "revenue": 200.0,
+    "registrations": 2
+   }
+  ],
+  "previous": [
+   {
+    "date": "2026-08-14",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-15",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-16",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-17",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-18",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-19",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-20",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-21",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-22",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-23",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-24",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-25",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-26",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-27",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-28",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-29",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-30",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-08-31",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-01",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-02",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-03",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-04",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-05",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-06",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-07",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-08",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-09",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-10",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-11",
+    "revenue": 0.0,
+    "registrations": 0
+   },
+   {
+    "date": "2026-09-12",
+    "revenue": 0.0,
+    "registrations": 0
+   }
+  ]
+ },
+ "busiest_day": [
+  {
+   "label": "Mon",
+   "value": 2
+  },
+  {
+   "label": "Tue",
+   "value": 0
+  },
+  {
+   "label": "Wed",
+   "value": 0
+  },
+  {
+   "label": "Thu",
+   "value": 0
+  },
+  {
+   "label": "Fri",
+   "value": 0
+  },
+  {
+   "label": "Sat",
+   "value": 0
+  },
+  {
+   "label": "Sun",
+   "value": 0
+  }
+ ],
+ "repeat_rate": 0.0,
+ "followers": {
+  "total": 3,
+  "series": [
+   {
+    "week": "2026-10-12",
+    "value": 3
+   }
+  ]
+ },
+ "next_event": {
+  "id": 2,
+  "name": "Soon Night",
+  "event_datetime": "2026-10-16T08:33:34.210498Z",
+  "location_name": null,
+  "has_fee": false,
+  "reg_fee": null,
+  "page_views": 0,
+  "registrations": 1,
+  "attended": 0,
+  "view_to_signup": null,
+  "turnout": 0.0
+ },
+ "upcoming": [
+  {
+   "id": 2,
+   "name": "Soon Night",
+   "event_datetime": "2026-10-16T08:33:34.210498Z",
+   "location_name": null,
+   "has_fee": false,
+   "reg_fee": null,
+   "page_views": 0,
+   "registrations": 1,
+   "attended": 0,
+   "view_to_signup": null,
+   "turnout": 0.0
+  }
+ ],
+ "needs_attention": [],
+ "needs_attention_total": 0,
+ "reach": [
+  {
+   "id": 1,
+   "name": "Past Night",
+   "event_datetime": "2026-10-09T08:33:34.210498Z",
+   "location_name": null,
+   "has_fee": true,
+   "reg_fee": 200.0,
+   "page_views": 0,
+   "registrations": 1,
+   "attended": 1,
+   "view_to_signup": null,
+   "turnout": 100.0
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+{
+ "stats": {
+  "events": {
+   "total": 2,
+   "draft": 0,
+   "published": 0,
+   "live": 1,
+   "closed": 1,
+   "archived": 0
+  },
+  "on_file": 1,
+  "retention_due": 0,
+  "next_retention_at": null,
+  "doors_open": 1
+ },
+ "attention": [
+  {
+   "kind": "TICKETS_MISSING",
+   "tone": "amber",
+   "title": "Soon Night has a guest without a ticket",
+   "body": "1 on the list has not been sent a ticket yet. Sending is safe to repeat.",
+   "event_id": 2
+  }
+ ],
+ "live": [
+  {
+   "event_id": 2,
+   "name": "Soon Night",
+   "club": "Dumpers",
+   "registered": 1,
+   "checked_in": 0,
+   "gates": [],
+   "volunteers": 0,
+   "door_open": true,
+   "starts_at": "2026-10-16T08:33:34.210498+00:00"
+  }
+ ],
+ "generated_at": "2026-10-12T08:33:35.209557+00:00"
+}

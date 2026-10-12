@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { SearchIcon, UsersIcon } from "lucide-react";
 import { formatDate, formatNumber, pickImage, relativeTime } from "@moa/app-kit";
 import { CardLabel, EmptyState, FigurePanel, InitialsAvatar, Pager, Skeleton, StatTile } from "@moa/ui";
@@ -108,13 +109,15 @@ export function FollowersPanel({ clubId, total }: { clubId: number | null | unde
             {shown.map((follower) => {
               const avatar = pickImage(follower.user.profile?.avatar, ["thumbnail", "medium"]);
               return (
-                <li key={follower.user.id} className="border-line-soft flex items-center gap-3 border-t px-4 py-2.5 sm:[&:nth-child(-n+2)]:border-t-0">
-                  {avatar ? <Image src={avatar} alt="" width={32} height={32} className="size-8 shrink-0 rounded-full object-cover" unoptimized /> : <InitialsAvatar name={name(follower)} size={32} />}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-medium">{name(follower)}</span>
-                    {follower.user.username ? <span className="text-ink-3 block truncate font-mono text-[11px]">@{follower.user.username}</span> : null}
-                  </span>
-                  {follower.created_at ? <span className="text-ink-3 shrink-0 font-mono text-[11px]">{formatDate(follower.created_at)}</span> : null}
+                <li key={follower.user.id} className="border-line-soft border-t sm:[&:nth-child(-n+2)]:border-t-0">
+                  <Link href={`/followers/${follower.user.id}`} className="hover:bg-sunken flex items-center gap-3 rounded-lg px-4 py-2.5 transition-colors" aria-label={`Open ${name(follower)}`}>
+                    {avatar ? <Image src={avatar} alt="" width={32} height={32} className="size-8 shrink-0 rounded-full object-cover" unoptimized /> : <InitialsAvatar name={name(follower)} size={32} />}
+                    <span className="min-w-0 flex-1">
+                      <span className="text-ink block truncate text-[13px] font-medium">{name(follower)}</span>
+                      {follower.user.username ? <span className="text-ink-3 block truncate font-mono text-[11px]">@{follower.user.username}</span> : null}
+                    </span>
+                    {follower.created_at ? <span className="text-ink-3 shrink-0 font-mono text-[11px]">{formatDate(follower.created_at)}</span> : null}
+                  </Link>
                 </li>
               );
             })}
