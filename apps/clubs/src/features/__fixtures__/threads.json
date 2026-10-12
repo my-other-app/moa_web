@@ -1,0 +1,10 @@
+{
+  "items": [
+    { "id": "t1", "body": "Hack Night 04 is tonight! 148 of you registered — the most we've ever had. See you at Lab 3 from 6:30.", "image": null, "kind": "post", "poll": null, "pinned": true, "notify_followers": true, "likes": 96, "comments": 2, "views": 1840, "liked": false, "created_at": "2026-10-12T10:40:00+00:00" },
+    { "id": "t2", "body": "What should the theme of Hack Night 05 be?", "image": null, "kind": "poll", "poll": { "options": [ { "id": "o1", "label": "Robotics", "votes": 129, "share": 44 }, { "id": "o2", "label": "Wearables", "votes": 94, "share": 32 }, { "id": "o3", "label": "Space tech", "votes": 70, "share": 24 } ], "votes": 293, "voted_option_id": null }, "pinned": false, "notify_followers": false, "likes": 54, "comments": 1, "views": 1290, "liked": false, "created_at": "2026-10-03T08:00:00+00:00" },
+    { "id": "t3", "body": "Line Follower Cup results are in. Congratulations Byte Benders on first place — photos from the day are up on our website.", "image": { "thumbnail": "https://example.test/p.jpg", "medium": "https://example.test/p.jpg", "large": null, "original": null }, "kind": "post", "poll": null, "pinned": false, "notify_followers": true, "likes": 133, "comments": 0, "views": 2410, "liked": false, "created_at": "2026-09-28T13:00:00+00:00" }
+  ],
+  "total": 3,
+  "limit": 20,
+  "offset": 0
+}
