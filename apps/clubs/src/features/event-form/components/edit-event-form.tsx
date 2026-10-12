@@ -13,9 +13,9 @@ export function EditEventForm({ eventId }: { eventId: number }) {
 
   if (isPending) {
     return (
-      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-[32rem] w-full" />
+      <div className="grid gap-3.5 lg:grid-cols-[180px_1fr]">
+        <Skeleton className="h-48 w-full rounded-2xl" />
+        <Skeleton className="h-[40rem] w-full rounded-2xl" />
       </div>
     );
   }

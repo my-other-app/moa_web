@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, UsersRoundIcon } from "lucide-react";
+import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import { UserMenu, initials } from "@moa/app-kit";
 import type { SessionUser } from "@moa/auth";
 import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, cn } from "@moa/ui";
@@ -22,29 +22,30 @@ import { ThemeToggle } from "./theme-toggle";
  * phone it is a drawer. The top bar carries the trail, the theme and the
  * account — the three things every page needs and no page should draw.
  */
-function Brand({ clubName, collapsed }: { clubName: string; collapsed: boolean }) {
+/** The product's name, top left; the club signed in sits at the bottom with its account. */
+const PRODUCT = "MyOtherApp";
+
+function Brand({ collapsed }: { collapsed: boolean }) {
   return (
-    <div className={cn("flex items-center gap-2.5 px-5 pt-[22px] pb-[18px]", collapsed && "justify-center px-0")}>
-      <span aria-hidden="true" className="bg-brand text-brand-foreground grid size-[30px] shrink-0 place-items-center rounded-full">
-        <UsersRoundIcon className="size-4" />
-      </span>
-      <span className={cn("min-w-0", collapsed && "hidden")}>
-        <span className="text-ink block truncate text-[15px] font-semibold tracking-[-0.02em]">{clubName}</span>
-        <span className="eyebrow block">Organiser</span>
-      </span>
+    <div className={cn("px-5 pt-[22px] pb-[18px]", collapsed && "px-0 text-center")}>
+      <span className="text-ink block truncate text-[15px] font-semibold tracking-[-0.02em]">{collapsed ? PRODUCT.slice(0, 2) : PRODUCT}</span>
+      <span className={cn("eyebrow block", collapsed && "hidden")}>Clubs</span>
     </div>
   );
 }
 
-function Identity({ user, collapsed }: { user: SessionUser; collapsed: boolean }) {
-  const name = user.full_name || user.username;
+function Identity({ user, clubName, collapsed }: { user: SessionUser; clubName: string; collapsed: boolean }) {
   return (
     <div className="px-3 pb-3.5">
-      <div className={cn("bg-sunken flex items-center gap-2.5 rounded-[var(--radius-card)] p-2.5", collapsed && "justify-center p-1.5")}>
-        <span className="bg-brand-soft text-brand grid size-8 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">{initials(name)}</span>
+      <div className={cn("bg-sunken flex items-center gap-2 rounded-[var(--radius-card)] p-2", collapsed && "flex-col p-1.5")}>
+        <span className="bg-brand-soft text-brand grid size-8 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">{initials(clubName)}</span>
         <div className={cn("min-w-0 flex-1", collapsed && "hidden")}>
-          <div className="truncate text-[12.5px] font-semibold">{name}</div>
+          <div className="truncate text-[12.5px] font-semibold">{clubName}</div>
           <div className="text-ink-3 truncate font-mono text-[10px] tracking-[0.04em]">shared club login</div>
+        </div>
+        <div className={cn("flex shrink-0 items-center gap-1", collapsed && "flex-col")}>
+          <ThemeToggle className="size-8" />
+          <UserMenu user={user} />
         </div>
       </div>
     </div>
@@ -54,13 +55,13 @@ function Identity({ user, collapsed }: { user: SessionUser; collapsed: boolean }
 function Rail({ user, clubName, collapsed, onNavigate }: { user: SessionUser; clubName: string; collapsed: boolean; onNavigate?: () => void }) {
   return (
     <div className="flex min-h-full flex-col">
-      <Brand clubName={clubName} collapsed={collapsed} />
+      <Brand collapsed={collapsed} />
       <SidebarNav collapsed={collapsed} onNavigate={onNavigate} />
       <div className="flex-1" />
       <div className={cn("p-3 empty:hidden", collapsed && "hidden")}>
         <GateCard />
       </div>
-      <Identity user={user} collapsed={collapsed} />
+      <Identity user={user} clubName={clubName} collapsed={collapsed} />
     </div>
   );
 }
@@ -116,8 +117,6 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
             <div className="bg-sunken flex min-w-0 flex-1 items-center gap-2 rounded-full px-4 py-[10px]">
               <Breadcrumbs />
             </div>
-            <ThemeToggle />
-            <UserMenu user={user} />
           </div>
           <main ref={mainRef} className="scroll-thin min-h-0 flex-1 overflow-auto">
             <div className="mx-auto max-w-[1180px] px-6 pt-5 pb-16 max-sm:px-4">{children}</div>

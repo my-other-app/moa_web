@@ -4,19 +4,9 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, Loader2Icon } from "lucide-react";
+import { CheckIcon, Loader2Icon } from "lucide-react";
 import { ApiError } from "@moa/api";
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Form,
-  cn,
-} from "@moa/ui";
-import { pressable } from "@moa/ui/motion";
+import { Form, cn } from "@moa/ui";
 
 import { useCreateEvent, useUpdateEvent } from "../queries";
 import { eventFormSchema, type EventFormValues } from "../schemas";
@@ -28,7 +18,13 @@ import { PlaceStep } from "./steps/place-step";
 import { QuestionsStep } from "./steps/questions-step";
 import { ScheduleStep } from "./steps/schedule-step";
 
-const STEP_COMPONENTS: Record<string, React.ComponentType> = {
+/**
+ * One page, every detail. The sections run down the page in the order of
+ * STEPS — what it is, when, where, entry, details, questions — with a
+ * rail of links on the left to jump between them and one Save at the end.
+ * Validation runs on save; a section with a problem is scrolled to.
+ */
+const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
   basics: BasicsStep,
   schedule: ScheduleStep,
   place: PlaceStep,
@@ -62,172 +58,109 @@ export const emptyEventForm: EventFormValues = {
   speakers: [],
 };
 
-export function EventForm({
-  mode,
-  eventId,
-  defaultValues,
-}: {
-  mode: "create" | "edit";
-  eventId?: number;
-  defaultValues?: EventFormValues;
-}) {
+export function EventForm({ mode, eventId, defaultValues }: { mode: "create" | "edit"; eventId?: number; defaultValues?: EventFormValues }) {
   const router = useRouter();
-  const [stepIndex, setStepIndex] = React.useState(0);
   const [formError, setFormError] = React.useState<string | null>(null);
-
   const create = useCreateEvent();
   const update = useUpdateEvent(eventId ?? -1);
-
-  const form = useForm<EventFormValues>({
-    resolver: zodResolver(eventFormSchema),
-    defaultValues: defaultValues ?? emptyEventForm,
-    mode: "onTouched",
-  });
-
-  const step = STEPS[stepIndex]!;
-  const StepComponent = STEP_COMPONENTS[step.id]!;
-  const isLast = stepIndex === STEPS.length - 1;
+  const form = useForm<EventFormValues>({ resolver: zodResolver(eventFormSchema), defaultValues: defaultValues ?? emptyEventForm, mode: "onTouched" });
   const isSaving = create.isPending || update.isPending || form.formState.isSubmitting;
+  const { errors, isDirty } = form.formState;
 
-  async function goNext() {
-    // Validate only this step's fields so the organiser is not shown errors
-    // for pages they have not reached yet.
-    const valid = await form.trigger(step.fields as never, { shouldFocus: true });
-    if (!valid) return;
-    setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
-  }
+  // The first section with a problem, so the save button can point at it.
+  const brokenSection = STEPS.find((s) => s.fields.some((f) => f in errors));
 
   async function onSubmit(values: EventFormValues) {
     setFormError(null);
     const parsed = eventFormSchema.parse(values);
     try {
-      const result =
-        mode === "create"
-          ? await create.mutateAsync(parsed)
-          : await update.mutateAsync(parsed);
+      const result = mode === "create" ? await create.mutateAsync(parsed) : await update.mutateAsync(parsed);
       router.push("/events");
       router.refresh();
       return result;
     } catch (error) {
-      // Field-level errors from FastAPI are mapped back onto the form so the
-      // organiser sees them next to the input rather than in a toast.
       if (error instanceof ApiError && error.fieldErrors) {
         for (const [field, messages] of Object.entries(error.fieldErrors)) {
           form.setError(field as never, { message: messages.join(", ") });
         }
       }
-      setFormError(
-        error instanceof ApiError ? error.message : "Could not save the event."
-      );
+      setFormError(error instanceof ApiError ? error.message : "Could not save the event.");
       return undefined;
     }
   }
 
+  const onInvalid = () => {
+    const first = STEPS.find((s) => s.fields.some((f) => f in form.formState.errors));
+    if (first) document.getElementById(`section-${first.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="grid gap-6 lg:grid-cols-[220px_1fr]"
-        noValidate
-      >
-        {/* Step rail. Horizontal and scrollable on small screens. */}
-        <nav aria-label="Form steps" className="lg:sticky lg:top-20 lg:self-start">
-          <ol className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
-            {STEPS.map((s, i) => {
-              const state = i === stepIndex ? "current" : i < stepIndex ? "done" : "todo";
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} noValidate className="flex flex-col gap-3.5">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="page-title m-0 font-semibold tracking-[-0.02em]">{mode === "create" ? "New event" : "Edit event"}</h2>
+            <p className="text-ink-2 mt-1 text-[13px]">{mode === "create" ? "Everything on one page. Publish when it reads right; you can edit all of it afterwards." : "Changes are live as soon as you save."}</p>
+          </div>
+          <SaveButton mode={mode} saving={isSaving} dirty={mode === "create" || isDirty} />
+        </header>
+
+        <div className="grid gap-3.5 lg:grid-cols-[180px_1fr]">
+          <nav aria-label="Sections" className="lg:sticky lg:top-2 lg:self-start">
+            <ol className="flex gap-1.5 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+              {STEPS.map((s) => {
+                const broken = s.fields.some((f) => f in errors);
+                return (
+                  <li key={s.id} className="shrink-0">
+                    <a href={`#section-${s.id}`} className={cn("hover:bg-sunken text-ink-2 hover:text-ink block rounded-[10px] px-3 py-1.5 text-[13px] transition-colors", broken && "text-refuse")}>
+                      {s.title}
+                      {broken ? " · fix" : ""}
+                    </a>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+
+          <div className="flex min-w-0 flex-col gap-3.5">
+            {STEPS.map((s) => {
+              const Section = SECTION_COMPONENTS[s.id]!;
               return (
-                <li key={s.id} className="shrink-0 lg:shrink">
-                  <button
-                    type="button"
-                    onClick={() => setStepIndex(i)}
-                    aria-current={state === "current" ? "step" : undefined}
-                    className={cn(
-                      "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors",
-                      "focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-[3px]",
-                      state === "current"
-                        ? "bg-accent text-accent-foreground font-medium"
-                        : "text-muted-foreground hover:bg-accent/50"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "grid size-5 shrink-0 place-items-center rounded-full border text-[11px] transition-colors",
-                        state === "done" && "bg-primary border-primary text-primary-foreground",
-                        state === "current" && "border-primary text-primary"
-                      )}
-                    >
-                      {state === "done" ? <CheckIcon className="size-3" /> : i + 1}
-                    </span>
-                    <span className="truncate">{s.title}</span>
-                  </button>
-                </li>
+                <section key={s.id} id={`section-${s.id}`} aria-labelledby={`section-${s.id}-title`} className="bg-surface shadow-card border-line-soft scroll-mt-4 rounded-2xl border p-5">
+                  <div className="mb-4">
+                    <h3 id={`section-${s.id}-title`} className="text-ink m-0 text-[15px] font-semibold">
+                      {s.title}
+                    </h3>
+                    <p className="text-ink-3 mt-0.5 text-[12.5px]">{s.description}</p>
+                  </div>
+                  <Section />
+                </section>
               );
             })}
-          </ol>
-        </nav>
 
-        <div className="min-w-0 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{step.title}</CardTitle>
-              <CardDescription>{step.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* key remounts on step change so entry animations replay and
-                  focus starts at the top of the new step. */}
-              <div
-                key={step.id}
-                className="animate-in fade-in-0 slide-in-from-right-2 duration-300 motion-reduce:animate-none"
-              >
-                <StepComponent />
-              </div>
-            </CardContent>
-          </Card>
+            {formError ? (
+              <p role="alert" className="bg-refuse-soft text-refuse rounded-xl px-3 py-2 text-[13px]">
+                {formError}
+              </p>
+            ) : null}
 
-          {formError ? (
-            <p
-              role="alert"
-              className="bg-destructive/10 text-destructive animate-in fade-in-0 rounded-md px-3 py-2 text-sm motion-reduce:animate-none"
-            >
-              {formError}
-            </p>
-          ) : null}
-
-          <div className="bg-background/80 sticky bottom-0 flex items-center gap-3 border-t py-3 backdrop-blur-sm">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setStepIndex((i) => Math.max(i - 1, 0))}
-              disabled={stepIndex === 0 || isSaving}
-              className={pressable}
-            >
-              <ArrowLeftIcon /> Back
-            </Button>
-
-            <span className="text-muted-foreground text-xs tabular-nums">
-              Step {stepIndex + 1} of {STEPS.length}
-            </span>
-
-            <div className="flex-1" />
-
-            {isLast ? (
-              <Button type="submit" disabled={isSaving} className={cn("group", pressable)}>
-                {isSaving ? <Loader2Icon className="animate-spin" /> : <CheckIcon />}
-                {isSaving
-                  ? "Saving…"
-                  : mode === "create"
-                    ? "Publish event"
-                    : "Save changes"}
-              </Button>
-            ) : (
-              <Button type="button" onClick={goNext} className={cn("group", pressable)}>
-                Next
-                <ArrowRightIcon className="transition-transform duration-200 group-hover:translate-x-0.5" />
-              </Button>
-            )}
+            <div className="bg-surface/90 border-line-soft sticky bottom-0 flex items-center gap-3 rounded-2xl border px-4 py-3 backdrop-blur-sm">
+              <span className="text-ink-3 text-[12.5px]">{brokenSection ? `Something to fix under ${brokenSection.title}.` : mode === "create" ? "Publishes to your club page and your followers' feeds." : "Every section saves together."}</span>
+              <div className="flex-1" />
+              <SaveButton mode={mode} saving={isSaving} dirty={mode === "create" || isDirty} />
+            </div>
           </div>
         </div>
       </form>
     </Form>
+  );
+}
+
+function SaveButton({ mode, saving, dirty }: { mode: "create" | "edit"; saving: boolean; dirty: boolean }) {
+  return (
+    <button type="submit" className={cn("btn h-9", dirty ? "btn-primary" : "btn-secondary")} disabled={saving || !dirty}>
+      {saving ? <Loader2Icon className="size-4 animate-spin" /> : <CheckIcon className="size-4" />}
+      {saving ? "Saving…" : mode === "create" ? "Publish event" : dirty ? "Save changes" : "All changes saved"}
+    </button>
   );
 }
