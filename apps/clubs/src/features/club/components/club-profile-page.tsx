@@ -1,17 +1,16 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Image from "next/image";
 import { CheckIcon, GlobeIcon, ImageIcon, InstagramIcon, LinkedinIcon, Loader2Icon, PlusIcon, UploadIcon, XIcon, YoutubeIcon, type LucideIcon } from "lucide-react";
 import { initials, pickImage } from "@moa/app-kit";
 import { CardLabel, EmptyState, FigurePanel, InitialsAvatar, Skeleton, cn, toast } from "@moa/ui";
 import { useObjectUrl } from "@moa/ui/hooks";
 
-import { useCreatePartner, useDeletePartner, useMyClub, useOrganizations, useUpdateClubCover, useUpdateClubLogo, useUpdateMyClub, useUpdatePartner } from "../queries";
+import { useCreatePartner, useDeletePartner, useMyClub, useOrganizations, useUpdateClubCover, useUpdateClubLogo, useUpdateMyClub, useUpdatePartner, useUpdatePartnerLogo } from "../queries";
 import { BRAND_PRESETS, clubProfileFormSchema, partnerFormSchema, type ClubPartner, type ClubProfileForm as Values, type ClubSelf } from "../schemas";
-import { ChangePasswordDialog } from "./change-password-dialog";
 import { InterestPicker } from "./interest-picker";
 
 /**
@@ -134,6 +133,9 @@ const draftOf = (p?: ClubPartner): PartnerDraft => ({ name: p?.name ?? "", role:
 function PartnerRow({ partner }: { partner: ClubPartner }) {
   const update = useUpdatePartner();
   const remove = useDeletePartner();
+  const logoUpload = useUpdatePartnerLogo();
+  const { open: pickLogo, preview, input: logoInput } = usePick((f) => logoUpload.mutate({ id: partner.id, file: f }), "partner logo");
+  const logo = preview ?? pickImage(partner.logo, ["thumbnail", "medium", "original", "large"]);
   const [draft, setDraft] = React.useState(() => draftOf(partner));
   const [confirm, setConfirm] = React.useState(false);
   const set = (k: keyof PartnerDraft) => (e: React.ChangeEvent<HTMLInputElement>) => setDraft((d) => ({ ...d, [k]: e.target.value }));
@@ -148,7 +150,15 @@ function PartnerRow({ partner }: { partner: ClubPartner }) {
 
   return (
     <li className="flex flex-wrap items-center gap-2">
-      <InitialsAvatar name={partner.name} size={40} tone="muted" className="shrink-0 rounded-xl" />
+      <button type="button" aria-label={`${logo ? "Replace" : "Add"} ${partner.name} logo`} title={logo ? "Replace logo" : "Add a logo"} onClick={pickLogo} disabled={logoUpload.isPending} className="border-line relative size-10 shrink-0 overflow-hidden rounded-xl border bg-transparent p-0">
+        {logo ? <Image src={logo} alt="" fill sizes="40px" className="object-cover" unoptimized /> : <InitialsAvatar name={partner.name} size={38} tone="muted" className="rounded-xl" />}
+        {logoUpload.isPending && (
+          <span className="absolute inset-0 grid place-items-center bg-black/40 text-white">
+            <Loader2Icon className="size-4 animate-spin" />
+          </span>
+        )}
+      </button>
+      {logoInput}
       <input aria-label={`${partner.name} name`} className={cn(field, "min-w-[160px] flex-[2]")} value={draft.name} onChange={set("name")} onBlur={save} maxLength={100} />
       <input aria-label={`${partner.name} role`} className={cn(field, "min-w-[150px] flex-[2]")} value={draft.role} onChange={set("role")} onBlur={save} placeholder="Industry partner" maxLength={80} />
       <input aria-label={`${partner.name} since`} className={cn(field, "w-[88px]")} value={draft.since} onChange={set("since")} onBlur={save} placeholder="Year" inputMode="numeric" />
@@ -267,6 +277,7 @@ function ProfileForm({ club }: { club: ClubSelf }) {
   const brandSecondary = useWatch({ control, name: "brand_secondary" }) ?? "";
   const { errors, isDirty } = form.formState;
   const saving = update.isPending || form.formState.isSubmitting;
+  const [orgText, setOrgText] = React.useState(() => club.org?.name ?? "");
   const colour = HEX.test(brandPrimary) ? brandPrimary : "#17a58f";
 
   const onSubmit = async (values: Values) => {
@@ -282,7 +293,6 @@ function ProfileForm({ club }: { club: ClubSelf }) {
           <p className="text-ink-2 mt-1 text-[13px]">Shown on your club page and every event</p>
         </div>
         <div className="flex items-center gap-2">
-          <ChangePasswordDialog />
           <button type="submit" className={cn("btn h-9", isDirty ? "btn-primary" : "btn-secondary")} disabled={saving || !isDirty}>
             {saving ? <Loader2Icon className="size-4 animate-spin" /> : <CheckIcon className="size-4" />} {saving ? "Saving…" : isDirty ? "Save changes" : "All changes saved"}
           </button>
@@ -292,9 +302,11 @@ function ProfileForm({ club }: { club: ClubSelf }) {
       <FigurePanel className="flex flex-col gap-4 p-4">
         <LogoControl club={club} />
         <div>
-          <label htmlFor="club-name" className={label}>Club name</label>
-          <input id="club-name" className={field} maxLength={20} disabled={saving} aria-invalid={errors.name ? true : undefined} {...form.register("name")} />
-          <Err message={errors.name?.message} />
+          <span className={label}>Club name</span>
+          <div className="bg-sunken border-line flex h-10 items-center rounded-[10px] border px-3 text-[14px]">
+            <span className="text-ink font-medium" data-testid="club-name">{club.name}</span>
+          </div>
+          <p className="micro text-ink-3 mt-1.5">The name and the handle stay as they are. To change either, contact support.</p>
         </div>
         <div>
           <label htmlFor="club-about" className={label}>About</label>
@@ -312,14 +324,26 @@ function ProfileForm({ club }: { club: ClubSelf }) {
           </div>
           <div>
             <label htmlFor="club-org" className={label}>Organisation</label>
-            <select id="club-org" className={cn(field, "py-0")} value={orgId == null ? "" : String(orgId)} disabled={saving} onChange={(e) => form.setValue("org_id", e.target.value === "" ? null : Number(e.target.value), { shouldDirty: true })}>
-              <option value="">No organisation</option>
+            <input
+              id="club-org"
+              list="club-org-options"
+              className={field}
+              placeholder={orgs ? "Type to search the list" : "Loading…"}
+              disabled={saving}
+              value={orgText}
+              onChange={(e) => {
+                const text = e.target.value;
+                setOrgText(text);
+                const hit = (orgs ?? []).find((o) => o.name.toLowerCase() === text.trim().toLowerCase());
+                form.setValue("org_id", hit ? hit.id : null, { shouldDirty: true });
+              }}
+            />
+            <datalist id="club-org-options">
               {(orgs ?? []).map((org) => (
-                <option key={org.id} value={String(org.id)}>
-                  {org.name}
-                </option>
+                <option key={org.id} value={org.name} />
               ))}
-            </select>
+            </datalist>
+            <p className="micro text-ink-3 mt-1.5">{orgId == null ? (orgText.trim() ? "Not on the list yet — leave it blank or ask support to add it." : "Leave blank if the club is not part of one.") : "On the list."}</p>
           </div>
         </div>
         <div>

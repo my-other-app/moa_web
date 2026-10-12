@@ -2,6 +2,7 @@ import { api } from "@moa/app-kit";
 
 import {
   announcementHistorySchema,
+  sendAnnouncementResultSchema,
   type SendAnnouncementInput,
 } from "./schemas";
 
@@ -19,9 +20,11 @@ export async function fetchAnnouncementHistory(params: {
  * Pushes a notification to everyone registered for the event. There is no
  * recall, which is why the UI confirms the recipient count first.
  */
-export async function sendAnnouncement(
-  eventId: number,
-  input: SendAnnouncementInput
-): Promise<void> {
-  await api.post<void>(`/api/v1/clubs/notifications/events/${eventId}/send`, input);
+export async function sendAnnouncement(eventId: number, input: SendAnnouncementInput): Promise<number> {
+  const raw = await api.post<unknown>(`/api/v1/clubs/notifications/events/${eventId}/send`, input);
+  const result = sendAnnouncementResultSchema.parse(raw ?? {});
+  // The endpoint says no with a 200: no registrants, or nobody with the app
+  // installed. That reason is the whole answer, so it becomes the error.
+  if (!result.success) throw new Error(result.message || "The announcement could not be sent");
+  return result.notifications_sent ?? 0;
 }

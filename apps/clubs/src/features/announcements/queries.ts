@@ -20,8 +20,8 @@ export function useSendAnnouncement() {
   return useMutation({
     mutationFn: ({ eventId, input }: { eventId: number; input: SendAnnouncementInput }) =>
       sendAnnouncement(eventId, input),
-    onSuccess: async () => {
-      toast.success("Announcement sent");
+    onSuccess: async (sent) => {
+      toast.success(sent > 0 ? `Announcement sent to ${sent.toLocaleString("en-IN")} ${sent === 1 ? "phone" : "phones"}` : "Announcement sent");
       await queryClient.invalidateQueries({ queryKey: qk.notifications.all });
     },
     onError: (error: Error) => toast.error(error.message),

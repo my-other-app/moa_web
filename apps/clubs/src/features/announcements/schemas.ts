@@ -31,9 +31,23 @@ export const announcementHistorySchema = z.object({
   total: z.number().default(0),
 });
 
+export const AUDIENCES = [
+  { value: "all", label: "Everyone registered" },
+  { value: "attendees", label: "Only those who checked in" },
+  { value: "non_attendees", label: "Only those who have not checked in" },
+] as const;
+
+/** What the send endpoint answers; a refusal comes back as 200 with success false. */
+export const sendAnnouncementResultSchema = z.object({
+  success: z.boolean().default(true),
+  message: z.string().nullish(),
+  notifications_sent: z.number().nullish(),
+});
+
 export const sendAnnouncementSchema = z.object({
   title: z.string().trim().min(3, "Give the announcement a title").max(120),
   body: z.string().trim().min(5, "Write a message").max(1000),
+  audience: z.enum(["all", "attendees", "non_attendees"]).default("all"),
 });
 
 export type Announcement = z.infer<typeof announcementSchema>;
