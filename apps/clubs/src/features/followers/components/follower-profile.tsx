@@ -25,7 +25,11 @@ export function FollowerProfileView({ userId }: { userId: number }) {
   const p = q.data;
 
   if (q.isError) {
-    return <EmptyState tone="muted" title="Not a follower of your club" description="They may have unfollowed, or the link is old." />;
+    // The API says why; only "not a follower" means they left. Anything else
+    // (a server not yet carrying this route, a network fault) is said as such.
+    const why = q.error instanceof Error ? q.error.message : "";
+    const left = /not a follower/i.test(why);
+    return <EmptyState tone="muted" title={left ? "Not a follower of your club" : "Could not load this follower"} description={left ? "They may have unfollowed, or the link is old." : why || "Try reloading the page."} />;
   }
   if (!p) {
     return (

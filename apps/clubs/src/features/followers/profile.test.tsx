@@ -22,6 +22,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       get: vi.fn(async (path: string) => {
         if (path.includes("/clubs/info")) return clubInfoFixture;
         if (/\/clubs\/followers\/5\/9$/.test(path)) return profile;
+        if (/\/clubs\/followers\/5\/404$/.test(path)) throw new Error("Not Found");
+        if (/\/clubs\/followers\/5\/77$/.test(path)) throw new Error("Not a follower of this club");
         throw new Error(`unstubbed GET ${path}`);
       }),
     },
@@ -45,5 +47,16 @@ describe("follower profile", () => {
     expect(screen.getByText("Did not")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "ananya@example.com" })).toHaveAttribute("href", "mailto:ananya@example.com");
     expect(screen.getByRole("link", { name: /All followers/ })).toHaveAttribute("href", "/followers");
+  });
+
+  it("tells a server without the route apart from someone who unfollowed", async () => {
+    render(<FollowerProfileView userId={404} />);
+    expect(await screen.findByText("Could not load this follower")).toBeInTheDocument();
+    expect(screen.getByText("Not Found")).toBeInTheDocument();
+  });
+
+  it("says so when they are no longer a follower", async () => {
+    render(<FollowerProfileView userId={77} />);
+    expect(await screen.findByText("Not a follower of your club")).toBeInTheDocument();
   });
 });
