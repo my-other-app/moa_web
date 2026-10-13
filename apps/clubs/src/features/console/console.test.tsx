@@ -72,7 +72,8 @@ describe("event console", () => {
       </EventConsole>
     );
     expect(await screen.findByRole("heading", { name: "SF Sea Hackathon" })).toBeInTheDocument();
-    expect(await screen.findByText("Live")).toBeInTheDocument();
+    // The status badge says Live; so does the Live tab in the rail, hence the badge is found by its slot.
+    expect((await screen.findAllByText("Live")).some((el) => el.getAttribute("data-slot") === "badge")).toBe(true);
     const rail = await screen.findByRole("navigation", { name: "Event sections" });
     expect(within(rail).getByRole("link", { name: /Overview/ })).toHaveAttribute("aria-current", "page");
     expect(within(rail).getByRole("link", { name: /Attendees/ })).toHaveTextContent("24");
