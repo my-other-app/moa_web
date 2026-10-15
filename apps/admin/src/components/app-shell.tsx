@@ -2,12 +2,22 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MenuIcon, ShieldIcon } from "lucide-react";
-import { UserMenu } from "@moa/app-kit";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronsUpDownIcon, LogOutIcon, MenuIcon, MonitorIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SunIcon } from "lucide-react";
+import { useTheme } from "next-themes";
+import { initials, useLogout } from "@moa/app-kit";
 import type { SessionUser } from "@moa/auth";
 import { roleOf } from "@moa/auth";
 import {
   Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   Sheet,
   SheetContent,
   SheetHeader,
@@ -16,164 +26,173 @@ import {
   cn,
 } from "@moa/ui";
 
-import { SidebarNav } from "./sidebar-nav";
+import { Breadcrumbs } from "./breadcrumbs";
 import { CommandPalette } from "./command-palette";
-import { SystemStatusCard } from "./system-status-card";
+import { SidebarNav } from "./sidebar-nav";
 
 /**
- * v2 admin shell.
+ * Two sheets on a canvas, the same shell the clubs dashboard has.
  *
- * A 232px sticky rail, then a 1280px main column. The rail carries the brand,
- * the grouped nav, a system-status card and the signed-in identity; the top bar
- * carries search, notifications and the user menu.
- *
- * The rail is not a Sheet-only-on-mobile afterthought: below `lg` it becomes
- * one, and the top bar keeps the trigger, so every destination stays reachable
- * on a phone. The design specifies the rail at a fixed width, so the main
- * column is what flexes.
+ * The shell is exactly one viewport tall; the rail stays where it is and
+ * only the page scrolls. The rail collapses to its tiles on request and is
+ * a drawer on a phone. The top bar carries the trail and the search; the
+ * account and the appearance choice sit with the admin's name at the foot
+ * of the rail.
  */
+const PRODUCT = "MyOtherApp";
+
 const ROLE_NOTE: Record<string, string> = {
-  owner: "Can do everything, including refunds, deletes and snapshots.",
-  support: "Can moderate and restore. Money, deletes and roles are hidden.",
+  owner: "Full access, including refunds, deletes and snapshots.",
+  support: "Moderate and restore. Money, deletes and roles are hidden.",
   viewer: "Read-only. Every action control is hidden.",
 };
 
-function Brand() {
+const THEMES = [
+  { value: "system", label: "Follow the system", Icon: MonitorIcon },
+  { value: "light", label: "Light", Icon: SunIcon },
+  { value: "dark", label: "Dark", Icon: MoonIcon },
+] as const;
+
+function Brand({ collapsed }: { collapsed: boolean }) {
   return (
-    <div className="flex items-center gap-2.5 px-1.5">
-      <span className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--color-accent-900)] text-[var(--color-accent-300)] shadow-[inset_0_0_0_1px_var(--color-accent-700)]">
-        <ShieldIcon className="size-[18px]" />
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <span className="text-sm font-medium">MyOtherApp</span>
-        <span className="text-[11px] text-[var(--color-neutral-500)]">
-          Platform admin
-        </span>
-      </span>
+    <div className={cn("px-5 pt-[22px] pb-[18px]", collapsed && "px-0 text-center")}>
+      <span className="text-ink block truncate text-[15px] font-semibold tracking-[-0.02em]">{collapsed ? PRODUCT.slice(0, 2) : PRODUCT}</span>
+      <span className={cn("eyebrow block", collapsed && "hidden")}>Admin</span>
     </div>
   );
 }
 
-function Identity({ user }: { user: SessionUser }) {
+/** The admin signed in, at the foot of the rail: one button that opens the account menu. */
+function Identity({ user, collapsed }: { user: SessionUser; collapsed: boolean }) {
+  const router = useRouter();
+  const logout = useLogout();
+  const { theme, setTheme } = useTheme();
+  const mode = THEMES.some((t) => t.value === theme) ? (theme as string) : "system";
   const role = roleOf(user) ?? "viewer";
   const name = user.full_name || user.username;
-  const initials = name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
+
+  async function signOut() {
+    await logout.mutateAsync();
+    router.replace("/login");
+    router.refresh();
+  }
 
   return (
-    <div className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-[color-mix(in_srgb,var(--color-surface)_70%,transparent)] p-3 shadow-[var(--shadow-sm)]">
-      <div className="flex items-center gap-2.5">
-        <span className="grid size-[30px] shrink-0 place-items-center rounded-full bg-[var(--color-accent-800)] text-[12px] text-[var(--color-accent-100)]">
-          {initials}
-        </span>
-        <span className="flex min-w-0 flex-col">
-          <span className="truncate text-[13px]">{name}</span>
-          <span className="text-[11px] text-[var(--color-neutral-500)] capitalize">
-            {role}
-          </span>
-        </span>
-      </div>
-      <span className="text-[11px] text-pretty text-[var(--color-neutral-500)]">
-        {ROLE_NOTE[role]}
-      </span>
+    <div className={cn("px-3 pb-3.5", collapsed && "px-2")}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={`${name}: account and appearance`}
+            className={cn(
+              "bg-sunken hover:bg-raised focus-visible:ring-brand/40 flex w-full items-center gap-2.5 rounded-[var(--radius-card)] p-2 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none",
+              collapsed && "justify-center p-1.5"
+            )}
+          >
+            <span className="bg-brand-soft text-brand grid size-8 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">{initials(name)}</span>
+            <span className={cn("min-w-0 flex-1", collapsed && "hidden")}>
+              <span className="text-ink block truncate text-[12.5px] font-semibold">{name}</span>
+              <span className="text-ink-3 block truncate font-mono text-[10px] tracking-[0.04em] capitalize">{role}</span>
+            </span>
+            <ChevronsUpDownIcon className={cn("text-ink-3 size-4 shrink-0", collapsed && "hidden")} aria-hidden="true" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side={collapsed ? "right" : "top"} align={collapsed ? "end" : "start"} sideOffset={8} className="w-64">
+          <DropdownMenuLabel className="font-normal">
+            <span className="block truncate text-sm font-medium">{name}</span>
+            <span className="text-ink-3 block truncate text-xs">{user.email}</span>
+            <span className="text-ink-3 mt-1 block text-[11.5px] text-pretty">{ROLE_NOTE[role]}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="eyebrow">Appearance</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={mode} onValueChange={setTheme}>
+            {THEMES.map(({ value, label, Icon }) => (
+              <DropdownMenuRadioItem key={value} value={value}>
+                <Icon className="size-4" aria-hidden="true" /> {label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={signOut} disabled={logout.isPending}>
+            <LogOutIcon className="size-4" aria-hidden="true" /> {logout.isPending ? "Signing out…" : "Sign out"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
 
-function Rail({
-  user,
-  badges,
-  onNavigate,
-}: {
-  user: SessionUser;
-  badges?: Record<string, string>;
-  onNavigate?: () => void;
-}) {
+function Rail({ user, badges, collapsed, onNavigate }: { user: SessionUser; badges?: Record<string, string>; collapsed: boolean; onNavigate?: () => void }) {
   return (
-    <div className="flex min-h-full flex-col gap-4 px-3.5 py-5">
-      <Brand />
-      <SidebarNav badges={badges} onNavigate={onNavigate} />
-      <div className="mt-auto flex flex-col gap-2">
-        <SystemStatusCard />
-        <Identity user={user} />
-      </div>
+    <div className="flex min-h-full flex-col">
+      <Brand collapsed={collapsed} />
+      <SidebarNav badges={badges} collapsed={collapsed} onNavigate={onNavigate} />
+      <div className="flex-1" />
+      <Identity user={user} collapsed={collapsed} />
     </div>
   );
 }
 
-export function AppShell({
-  user,
-  badges,
-  children,
-}: {
-  user: SessionUser;
-  badges?: Record<string, string>;
-  children: React.ReactNode;
-}) {
-  // Closed by the nav items' own onNavigate rather than an effect watching the
-  // pathname: that costs an extra render and fires on every route change,
-  // including ones the sheet was never open for.
+export function AppShell({ user, badges, children }: { user: SessionUser; badges?: Record<string, string>; children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
-  return (
-    <div className="flex min-h-dvh">
-      <aside className="hidden w-[232px] shrink-0 shadow-[1px_0_0_var(--color-neutral-900)] lg:block">
-        <div className="sticky top-0 min-h-dvh">
-          <Rail user={user} badges={badges} />
-        </div>
-      </aside>
+  // <main> is the scroller, not the window, so a new page is put back at the top here.
+  const mainRef = React.useRef<HTMLElement>(null);
+  React.useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [pathname]);
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <main
+  return (
+    <div className="bg-canvas flex h-dvh flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 gap-3.5 p-3.5 max-sm:p-2">
+        <aside
           className={cn(
-            // overflow-x-clip rather than hidden: it contains a child that
-            // overruns without creating a scroll container, so sticky
-            // positioning inside the page keeps working.
-            "mx-auto flex w-full max-w-[1280px] min-w-0 flex-1 flex-col gap-6 overflow-x-clip",
-            "px-[clamp(16px,3vw,40px)] pt-[22px] pb-[60px]"
+            "scroll-thin bg-surface shadow-card hidden shrink-0 flex-col overflow-x-hidden overflow-y-auto rounded-[var(--radius-sheet)] transition-[width] duration-200 lg:flex",
+            collapsed ? "w-[68px]" : "w-[236px]"
           )}
         >
-          <div className="flex items-center gap-2.5 pb-3.5 shadow-[inset_0_-1px_0_var(--color-neutral-900)]">
+          <Rail user={user} badges={badges} collapsed={collapsed} />
+        </aside>
+
+        <div className="bg-surface shadow-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-sheet)]">
+          <div className="flex h-[62px] shrink-0 items-center gap-2.5 px-4 max-sm:px-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 lg:hidden"
-                  aria-label="Open menu"
-                >
+                <Button variant="ghost" size="icon" className="shrink-0 rounded-full lg:hidden" aria-label="Open menu">
                   <MenuIcon />
                 </Button>
               </SheetTrigger>
-              <SheetContent
-                side="left"
-                className="w-[260px] border-none bg-[var(--color-bg)] p-0"
-              >
+              <SheetContent side="left" className="bg-surface w-[260px] border-none p-0">
                 <SheetHeader className="sr-only">
                   <SheetTitle>Navigation</SheetTitle>
                 </SheetHeader>
-                <Rail
-                  user={user}
-                  badges={badges}
-                  onNavigate={() => setMobileOpen(false)}
-                />
+                <Rail user={user} badges={badges} collapsed={false} onNavigate={() => setMobileOpen(false)} />
               </SheetContent>
             </Sheet>
-
+            <button
+              type="button"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
+              className="border-line bg-surface text-ink-2 hover:bg-sunken hover:text-ink hidden size-9 shrink-0 place-items-center rounded-full border transition-colors lg:grid"
+            >
+              {collapsed ? <PanelLeftOpenIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
+            </button>
+            <div className="bg-sunken flex min-w-0 flex-1 items-center gap-2 rounded-full px-4 py-[10px]">
+              <Breadcrumbs />
+            </div>
             <CommandPalette />
-            <span className="flex-1" />
-            <UserMenu user={user} />
           </div>
-
-          {children}
-        </main>
+          <main ref={mainRef} className="scroll-thin min-h-0 flex-1 overflow-auto">
+            <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-6 pt-5 pb-16 max-sm:px-4">{children}</div>
+          </main>
+        </div>
       </div>
 
-      {/* The brand mark is the only way back to Overview on a phone, since the
-          rail is behind the menu. */}
+      {/* The rail is behind the menu on a phone, so this is the only route
+          back to the overview for a keyboard or screen reader. */}
       <Link href="/" className="sr-only">
         Overview
       </Link>

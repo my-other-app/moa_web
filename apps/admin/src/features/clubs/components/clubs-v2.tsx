@@ -204,7 +204,7 @@ export function ClubsV2() {
       <header className="flex flex-wrap items-end gap-3.5">
         <div className="flex-1 basis-[300px]">
           <h2 className="m-0 text-[32px] leading-[1.12] tracking-[-0.015em]">Clubs</h2>
-          <span className="text-[13px] text-[var(--color-neutral-500)]">
+          <span className="text-[13px] text-ink-3">
             {counts.all === null
               ? "Loading…"
               : `${formatNumber(counts.all)} clubs · ${formatNumber(counts.verified ?? 0)} verified · ${formatNumber(counts.awaiting ?? 0)} awaiting approval`}
@@ -225,7 +225,7 @@ export function ClubsV2() {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative max-w-[300px] flex-1 basis-[220px]">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-[11px] size-4 -translate-y-1/2 text-[var(--color-neutral-500)]" />
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-[11px] size-4 -translate-y-1/2 text-ink-3" />
           <input
             className="input pl-8"
             type="search"
@@ -243,7 +243,7 @@ export function ClubsV2() {
         <div
           role="group"
           aria-label="Verification"
-          className="inline-flex overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-divider)]"
+          className="inline-flex overflow-hidden rounded-[var(--radius-md)] border border-line"
         >
           {segments.map((option, index) => {
             const active = segment === option.key;
@@ -257,14 +257,14 @@ export function ClubsV2() {
                 }
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-[7px] text-[13px] whitespace-nowrap transition-colors",
-                  index > 0 && "border-l border-[var(--color-divider)]",
+                  index > 0 && "border-l border-line",
                   active
-                    ? "bg-[var(--color-accent-900)] text-[var(--color-accent-200)]"
-                    : "text-[var(--color-neutral-300)] hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)]"
+                    ? "bg-brand-soft text-brand"
+                    : "text-ink-2 hover:bg-sunken"
                 )}
               >
                 {option.label}
-                <span className="text-[11px] text-[var(--color-neutral-500)]">
+                <span className="text-[11px] text-ink-3">
                   {option.count === null ? "" : formatNumber(option.count)}
                 </span>
               </button>
@@ -301,7 +301,7 @@ export function ClubsV2() {
       </div>
 
       {effectiveSelection.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] bg-[var(--color-accent-900)] px-3.5 py-2.5 shadow-[inset_0_0_0_1px_var(--color-accent-700)]">
+        <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] bg-brand-soft px-3.5 py-2.5 shadow-[inset_0_0_0_1px_var(--brand-line)]">
           <span className="flex-1 text-[13.5px]">
             {effectiveSelection.length} unverified club
             {effectiveSelection.length > 1 ? "s" : ""} selected · verified clubs cannot be
@@ -350,7 +350,7 @@ export function ClubsV2() {
                 className={cn(
                   GRID,
                   "micro px-1.5 py-2.5",
-                  "bg-[linear-gradient(to_right,transparent,var(--color-divider)_48px,var(--color-divider)_calc(100%-48px),transparent)] bg-[length:100%_1px] bg-bottom bg-no-repeat"
+                  "bg-[linear-gradient(to_right,transparent,var(--line)_48px,var(--line)_calc(100%-48px),transparent)] bg-[length:100%_1px] bg-bottom bg-no-repeat"
                 )}
               >
                 <span />
@@ -384,8 +384,8 @@ export function ClubsV2() {
                             className={cn(
                               "cursor-pointer",
                               checked
-                                ? "text-[var(--color-accent-300)]"
-                                : "text-[var(--color-neutral-500)]"
+                                ? "text-brand"
+                                : "text-ink-3"
                             )}
                           >
                             {checked ? (
@@ -401,12 +401,12 @@ export function ClubsV2() {
                         href={`/clubs/${club.id}`}
                         className="flex min-w-0 items-center gap-2.5 text-left"
                       >
-                        <span className="grid size-8 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--color-accent-900)] text-[11px] text-[var(--color-accent-200)]">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-[var(--radius-md)] bg-brand-soft text-[11px] text-brand">
                           {initials(club.name)}
                         </span>
                         <span className="flex min-w-0 flex-col">
                           <span className="truncate">{club.name}</span>
-                          <span className="truncate text-[11.5px] text-[var(--color-neutral-500)]">
+                          <span className="truncate text-[11.5px] text-ink-3">
                             {club.owner_email || club.contact_email || "—"}
                           </span>
                         </span>
@@ -415,7 +415,7 @@ export function ClubsV2() {
                       <span
                         className={cn(
                           WIDE_ONLY,
-                          "truncate text-[12.5px] text-[var(--color-neutral-300)]"
+                          "truncate text-[12.5px] text-ink-2"
                         )}
                       >
                         {club.org?.name ?? "—"}
@@ -430,7 +430,7 @@ export function ClubsV2() {
                       </span>
 
                       <span
-                        className={cn(WIDE_ONLY, "text-[12.5px] text-[var(--color-neutral-400)]")}
+                        className={cn(WIDE_ONLY, "text-[12.5px] text-ink-2")}
                       >
                         {createdText(club.created_at)}
                       </span>
@@ -448,7 +448,7 @@ export function ClubsV2() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <span className="text-[12.5px] text-[var(--color-neutral-400)]">
+            <span className="text-[12.5px] text-ink-2">
               {isPending
                 ? " "
                 : `Page ${params.page} of ${pages} · ${formatNumber(total)} ${total === 1 ? "club" : "clubs"}`}

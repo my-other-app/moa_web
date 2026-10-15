@@ -218,7 +218,7 @@ export function UsersV2() {
       <header className="flex flex-wrap items-end gap-3.5">
         <div className="flex-1 basis-[300px]">
           <h2 className="m-0 text-[32px] leading-[1.12] tracking-[-0.015em]">Users</h2>
-          <span className="text-[13px] text-[var(--color-neutral-500)]">
+          <span className="text-[13px] text-ink-3">
             {isPending
               ? "Loading…"
               : anyFilter
@@ -254,7 +254,7 @@ export function UsersV2() {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative max-w-[320px] flex-1 basis-[240px]">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-[11px] size-4 -translate-y-1/2 text-[var(--color-neutral-500)]" />
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-[11px] size-4 -translate-y-1/2 text-ink-3" />
           <input
             className="input pl-8"
             type="search"
@@ -346,7 +346,7 @@ export function UsersV2() {
                 className={cn(
                   GRID,
                   "micro px-1.5 py-2.5",
-                  "bg-[linear-gradient(to_right,transparent,var(--color-divider)_48px,var(--color-divider)_calc(100%-48px),transparent)] bg-[length:100%_1px] bg-bottom bg-no-repeat"
+                  "bg-[linear-gradient(to_right,transparent,var(--line)_48px,var(--line)_calc(100%-48px),transparent)] bg-[length:100%_1px] bg-bottom bg-no-repeat"
                 )}
               >
                 <span>User</span>
@@ -371,7 +371,7 @@ export function UsersV2() {
                       className={cn(
                         GRID,
                         "rule-fade cursor-pointer items-center px-1.5 py-2.5 text-left text-[13.5px]",
-                        "hover:bg-[color-mix(in_srgb,var(--color-text)_4%,transparent)]"
+                        "hover:bg-sunken"
                       )}
                     >
                       <span className="flex min-w-0 items-center gap-2.5">
@@ -379,15 +379,15 @@ export function UsersV2() {
                           className={cn(
                             "grid size-[30px] shrink-0 place-items-center rounded-full text-[11px]",
                             user.user_type === "club"
-                              ? "bg-[var(--color-accent-800)] text-[var(--color-accent-100)]"
-                              : "bg-[var(--color-neutral-800)] text-[var(--color-neutral-200)]"
+                              ? "bg-brand-soft text-brand"
+                              : "bg-raised text-ink"
                           )}
                         >
                           {initials(name)}
                         </span>
                         <span className="flex min-w-0 flex-col">
                           <span className="truncate">{name}</span>
-                          <span className="flex items-center gap-1.5 truncate text-[11.5px] text-[var(--color-neutral-500)]">
+                          <span className="flex items-center gap-1.5 truncate text-[11.5px] text-ink-3">
                             <span className="truncate">@{user.username}</span>
                             {/* What the folded columns would have said, on the
                                 line that is still visible. */}
@@ -399,25 +399,25 @@ export function UsersV2() {
                         </span>
                       </span>
 
-                      <span className={cn(WIDE_ONLY, "truncate text-[var(--color-neutral-300)]")}>
+                      <span className={cn(WIDE_ONLY, "truncate text-ink-2")}>
                         {user.email || "—"}
                       </span>
 
-                      <span className={cn(WIDE_ONLY, "text-[12.5px] text-[var(--color-neutral-300)]")}>
+                      <span className={cn(WIDE_ONLY, "text-[12.5px] text-ink-2")}>
                         {TYPE_LABELS[user.user_type] ?? user.user_type}
                       </span>
 
                       <span
                         className={cn(
                           WIDE_ONLY,
-                          "items-center gap-1.5 text-[12.5px] text-[var(--color-neutral-400)] md:flex"
+                          "items-center gap-1.5 text-[12.5px] text-ink-2 md:flex"
                         )}
                       >
                         <ProviderIcon provider={user.provider} />
                         <span className="truncate">{providerLabel(user.provider)}</span>
                       </span>
 
-                      <span className={cn(WIDE_ONLY, "text-[12.5px] text-[var(--color-neutral-400)]")}>
+                      <span className={cn(WIDE_ONLY, "text-[12.5px] text-ink-2")}>
                         {joinedText(user.created_at)}
                       </span>
 
@@ -432,7 +432,7 @@ export function UsersV2() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <span className="text-[12.5px] text-[var(--color-neutral-400)]">
+            <span className="text-[12.5px] text-ink-2">
               {isPending
                 ? " "
                 : `Page ${params.page} of ${pages} · ${formatNumber(firstOnPage)}–${formatNumber(lastOnPage)} of ${formatNumber(total)}`}
@@ -466,7 +466,7 @@ export function UsersV2() {
           <span className="text-[16px]">
             {anyFilter ? "No users match these filters" : "No users yet"}
           </span>
-          <span className="text-[13px] text-[var(--color-neutral-400)]">
+          <span className="text-[13px] text-ink-2">
             {anyFilter
               ? unfiltered.data
                 ? `There are ${formatNumber(unfiltered.data.total ?? 0)} users in total — the filters are hiding them.`

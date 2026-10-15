@@ -159,7 +159,7 @@ export function ViewChips({
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-[12px] text-[var(--color-neutral-500)]">Saved views</span>
+      <span className="mr-1 text-[12px] text-ink-3">Saved views</span>
 
       {chips.map((chip) => {
         const active = matches(searchParams, chip.query);
@@ -173,8 +173,8 @@ export function ViewChips({
               className={cn(
                 "flex items-center gap-1.5 whitespace-nowrap rounded-[999px] border px-3 py-1.5 text-[12.5px] transition-colors",
                 active
-                  ? "border-[var(--color-accent-500)] bg-[var(--color-accent-900)] text-[var(--color-accent-200)]"
-                  : "border-[var(--color-divider)] text-[var(--color-neutral-300)] hover:text-[var(--color-text)]",
+                  ? "border-brand bg-brand-soft text-brand"
+                  : "border-line text-ink-2 hover:text-ink",
                 removable && "rounded-r-none border-r-0 pr-2"
               )}
             >
@@ -186,10 +186,10 @@ export function ViewChips({
                 aria-label={`Delete the view ${chip.label}`}
                 onClick={() => persist(storageKey, saved.filter((v) => v.id !== chip.id))}
                 className={cn(
-                  "rounded-r-[999px] border border-l-0 pr-2.5 pl-1 text-[var(--color-neutral-500)] transition-colors hover:text-[var(--color-text)]",
+                  "rounded-r-[999px] border border-l-0 pr-2.5 pl-1 text-ink-3 transition-colors hover:text-ink",
                   active
-                    ? "border-[var(--color-accent-500)] bg-[var(--color-accent-900)]"
-                    : "border-[var(--color-divider)]"
+                    ? "border-brand bg-brand-soft"
+                    : "border-line"
                 )}
               >
                 <XIcon className="size-3" />

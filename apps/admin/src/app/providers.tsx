@@ -15,12 +15,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/*
-        v2 is a dark-only design -- there is no light variant of any screen,
-        so following the OS would render half a theme that was never drawn.
-        forcedTheme keeps next-themes from writing a class that fights it.
-      */}
-      <ThemeProvider attribute="class" forcedTheme="dark" disableTransitionOnChange>
+      {/* Meridian has both scales, so the theme follows the OS until the
+          choice in the rail's account menu says otherwise; it is remembered. */}
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="moa.theme" disableTransitionOnChange>
         <TooltipProvider>
           {children}
           <Toaster position="bottom-right" richColors closeButton />

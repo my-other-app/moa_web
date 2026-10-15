@@ -72,11 +72,11 @@ function monthLabel(iso: string | null): string {
 function BandStat({ label, value, note }: { label: string; value: string; note: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[12px] text-[var(--color-neutral-200)]">{label}</span>
-      <span className="truncate text-[28px] leading-[1.05] tracking-[-0.03em] text-[var(--color-neutral-100)] sm:text-[34px]">
+      <span className="text-[12px] text-white/75">{label}</span>
+      <span className="truncate font-mono text-[28px] leading-[1.05] font-semibold tracking-[-0.03em] text-white sm:text-[34px]">
         {value}
       </span>
-      <span className="truncate text-[12px] text-[var(--color-accent-200)]">{note}</span>
+      <span className="truncate text-[12px] text-white/70">{note}</span>
     </div>
   );
 }
@@ -97,19 +97,19 @@ function GrowthBars({
           key={point.month ?? i}
           className="flex h-full flex-1 flex-col items-center justify-end gap-1"
         >
-          <span className="text-[10.5px] text-[var(--color-neutral-300)]">
+          <span className="text-[10.5px] text-ink-2">
             {money ? lakh(point.value) : formatNumber(point.value)}
           </span>
           <div
             className={cn(
               "w-full max-w-[34px] rounded-t-[4px] rounded-b-[2px]",
               i === points.length - 1
-                ? "bg-[linear-gradient(var(--color-accent-300),var(--color-accent-600))]"
-                : "bg-[linear-gradient(var(--color-accent-600),var(--color-accent-800))]"
+                ? "bg-brand"
+                : "bg-brand/45"
             )}
             style={{ height: `${Math.max(2, (point.value / max) * 80)}px` }}
           />
-          <span className="text-[10.5px] text-[var(--color-neutral-500)]">
+          <span className="text-[10.5px] text-ink-3">
             {monthLabel(point.month)}
           </span>
         </div>
@@ -121,12 +121,12 @@ function GrowthBars({
 function OverviewSkeleton() {
   return (
     <div aria-busy="true" className="flex flex-col gap-5">
-      <Skeleton className="h-[140px] w-full rounded-[var(--radius-lg)]" />
+      <Skeleton className="h-[140px] w-full rounded-[var(--radius-card)]" />
       <div className="grid gap-3 sm:grid-cols-2">
-        <Skeleton className="h-[220px] w-full rounded-[var(--radius-lg)]" />
-        <Skeleton className="h-[220px] w-full rounded-[var(--radius-lg)]" />
+        <Skeleton className="h-[220px] w-full rounded-[var(--radius-card)]" />
+        <Skeleton className="h-[220px] w-full rounded-[var(--radius-card)]" />
       </div>
-      <Skeleton className="h-[240px] w-full rounded-[var(--radius-lg)]" />
+      <Skeleton className="h-[240px] w-full rounded-[var(--radius-card)]" />
     </div>
   );
 }
@@ -170,7 +170,7 @@ function ChartLines({
 
   if (current.length === 0) {
     return (
-      <span className="py-10 text-center text-[13px] text-[var(--color-neutral-400)]">
+      <span className="py-10 text-center text-[13px] text-ink-2">
         No activity in this window.
       </span>
     );
@@ -178,7 +178,7 @@ function ChartLines({
 
   return (
     <div className="grid grid-cols-[52px_minmax(0,1fr)] gap-2">
-      <div className="flex h-[200px] flex-col justify-between text-right text-[10.5px] text-[var(--color-neutral-500)]">
+      <div className="flex h-[200px] flex-col justify-between text-right text-[10.5px] text-ink-3">
         <span>{fmt(max)}</span>
         <span>{fmt(max / 2)}</span>
         <span>0</span>
@@ -193,23 +193,23 @@ function ChartLines({
         >
           <polygon
             points={`${points(current)} 600,200 0,200`}
-            className="fill-[color-mix(in_srgb,var(--color-accent-500)_16%,transparent)]"
+            className="fill-[var(--brand-soft)]"
           />
           <polyline
             points={points(current.map(() => previousMean))}
-            className="fill-none stroke-[var(--color-neutral-500)]"
+            className="fill-none stroke-[var(--ink-3)]"
             strokeWidth={1.5}
             strokeDasharray="4 4"
             vectorEffect="non-scaling-stroke"
           />
           <polyline
             points={points(current)}
-            className="fill-none stroke-[var(--color-accent-300)]"
+            className="fill-none stroke-[var(--brand)]"
             strokeWidth={2}
             vectorEffect="non-scaling-stroke"
           />
         </svg>
-        <div className="flex justify-between text-[10.5px] text-[var(--color-neutral-500)]">
+        <div className="flex justify-between text-[10.5px] text-ink-3">
           <span>{data.trends.series[0]?.date.slice(5)}</span>
           <span>Today</span>
         </div>
@@ -232,10 +232,10 @@ export function AdminOverviewV2() {
     return (
       <div className="flex max-w-[520px] flex-col items-start gap-2.5 py-14">
         <span className="text-[22px]">Couldn&apos;t load this section</span>
-        <span className="text-[14px] text-pretty text-[var(--color-neutral-400)]">
+        <span className="text-[14px] text-pretty text-ink-2">
           The API returned an error. Nothing was changed.
         </span>
-        <code className="w-full rounded-[var(--radius-md)] bg-[var(--color-surface)] px-3 py-2.5 font-mono text-[12.5px] text-[var(--color-neutral-200)] shadow-[var(--shadow-sm)]">
+        <code className="w-full rounded-[var(--radius-md)] bg-surface px-3 py-2.5 font-mono text-[12.5px] text-ink shadow-card">
           GET /admin/overview → {error?.message ?? "failed"}
         </code>
         <Button className="mt-2" onClick={() => void refetch()}>
@@ -264,7 +264,7 @@ export function AdminOverviewV2() {
       <header className="flex flex-wrap items-end gap-3.5">
         <div className="flex-1 basis-[300px]">
           <h2 className="m-0 text-[26px] leading-tight">Is the platform healthy?</h2>
-          <span className="text-[13px] text-[var(--color-neutral-500)]">
+          <span className="text-[13px] text-ink-3">
             {new Date(data.generated_at).toLocaleDateString("en-IN", {
               weekday: "long",
               day: "numeric",
@@ -333,7 +333,7 @@ export function AdminOverviewV2() {
       <PlatformDoorsPanel />
 
       {/* The one saturated band on the page: saturation as presence. */}
-      <section className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-x-6 gap-y-[18px] overflow-hidden rounded-[var(--radius-lg)] bg-[radial-gradient(90%_140%_at_0%_0%,var(--color-section-glow),var(--color-section)_60%)] px-5 py-6 sm:px-7 sm:py-[26px]">
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-x-6 gap-y-[18px] overflow-hidden rounded-[var(--radius-card)] bg-[radial-gradient(90%_140%_at_0%_0%,var(--hero-from),var(--hero-to)_60%)] px-5 py-6 shadow-[var(--elev-hero)] sm:px-7 sm:py-[26px]">
         <BandStat label="Users" value={formatNumber(totals.users)} note={`${today.new_users} today`} />
         <BandStat label="Clubs" value={formatNumber(totals.clubs)} note={`${totals.verified_clubs} verified`} />
         <BandStat label="Organisations" value={formatNumber(totals.organisations)} note="colleges and communities" />
@@ -350,7 +350,7 @@ export function AdminOverviewV2() {
             <span className="flex items-center gap-2">
               <span
                 aria-hidden="true"
-                className="size-2 rounded-full bg-[var(--color-accent-300)] shadow-[0_0_10px_var(--color-accent-300)]"
+                className="size-2 rounded-full bg-brand shadow-[0_0_10px_var(--brand)]"
               />
               Today
             </span>
@@ -366,17 +366,17 @@ export function AdminOverviewV2() {
             ].map(([value, label]) => (
               <div
                 key={label}
-                className="flex flex-col gap-0.5 rounded-[var(--radius-md)] bg-[var(--color-bg)] px-3 py-2.5"
+                className="flex flex-col gap-0.5 rounded-[var(--radius-md)] bg-sunken px-3 py-2.5"
               >
                 <span className="text-[22px]">{value}</span>
-                <span className="text-[11.5px] text-[var(--color-neutral-400)]">{label}</span>
+                <span className="text-[11.5px] text-ink-2">{label}</span>
               </div>
             ))}
           </div>
 
           <Micro>Running today and next 7 days</Micro>
           {running.length === 0 ? (
-            <span className="text-[13px] text-[var(--color-neutral-400)]">
+            <span className="text-[13px] text-ink-2">
               Nothing scheduled this week.
             </span>
           ) : (
@@ -385,7 +385,7 @@ export function AdminOverviewV2() {
                 key={event.id}
                 className="grid grid-cols-[76px_minmax(0,1fr)_90px] items-center gap-2.5 text-[13px] sm:grid-cols-[76px_minmax(0,1fr)_90px_90px]"
               >
-                <span className={event.is_today ? "text-[var(--color-accent-300)]" : "text-[var(--color-neutral-400)]"}>
+                <span className={event.is_today ? "text-brand" : "text-ink-2"}>
                   {event.is_today
                     ? "Today"
                     : event.event_datetime
@@ -397,15 +397,15 @@ export function AdminOverviewV2() {
                       : "—"}
                 </span>
                 <Link href={`/events/${event.id}`} className="flex min-w-0 flex-col hover:underline">
-                  <span className="truncate text-[var(--color-text)]">{event.name}</span>
-                  <span className="truncate text-[11.5px] text-[var(--color-neutral-500)]">
+                  <span className="truncate text-ink">{event.name}</span>
+                  <span className="truncate text-[11.5px] text-ink-3">
                     {event.club ?? "—"}
                   </span>
                 </Link>
-                <span className="text-right text-[var(--color-neutral-300)]">
+                <span className="text-right text-ink-2">
                   {formatNumber(event.registrations)} regs
                 </span>
-                <span className="hidden text-right text-[var(--color-neutral-400)] sm:block">
+                <span className="hidden text-right text-ink-2 sm:block">
                   {event.has_fee ? formatCurrency(event.reg_fee) : "Free"}
                 </span>
               </RuleRow>
@@ -426,7 +426,7 @@ export function AdminOverviewV2() {
             ["Event rating", `${averages.average_rating} ★`],
           ].map(([label, value]) => (
             <RuleRow key={label} className="flex items-baseline justify-between gap-2.5">
-              <span className="min-w-0 truncate text-[13px] text-[var(--color-neutral-300)]">{label}</span>
+              <span className="min-w-0 truncate text-[13px] text-ink-2">{label}</span>
               <span className="shrink-0 text-[15px]">{value}</span>
             </RuleRow>
           ))}
@@ -443,7 +443,7 @@ export function AdminOverviewV2() {
             ["GMV per month", growth.gmv, true],
           ].map(([label, points, money]) => (
             <div key={label as string} className="flex flex-col gap-2">
-              <span className="text-[13px] text-[var(--color-neutral-300)]">
+              <span className="text-[13px] text-ink-2">
                 {label as string}
               </span>
               <GrowthBars
@@ -467,7 +467,7 @@ export function AdminOverviewV2() {
             <Panel key={title as string} className="min-w-0 p-5">
               <PanelTitle aside={sub as string}>{title as string}</PanelTitle>
               {list.length === 0 ? (
-                <span className="text-[13px] text-[var(--color-neutral-400)]">
+                <span className="text-[13px] text-ink-2">
                   Nothing to show yet.
                 </span>
               ) : (
@@ -475,7 +475,7 @@ export function AdminOverviewV2() {
                   <div key={row.label} className="flex flex-col gap-1">
                     <div className="flex justify-between text-[12.5px]">
                       <span className="truncate capitalize">{row.label}</span>
-                      <span className="text-[var(--color-neutral-400)]">
+                      <span className="text-ink-2">
                         {formatNumber(row.value)}
                       </span>
                     </div>
@@ -498,21 +498,21 @@ export function AdminOverviewV2() {
                 <span>
                   {formatNumber(stage.value)}
                   {stage.of_previous !== null ? (
-                    <span className="ml-2 text-[var(--color-neutral-500)]">
+                    <span className="ml-2 text-ink-3">
                       {stage.of_previous}%
                     </span>
                   ) : null}
                 </span>
               </div>
-              <div className="h-5 overflow-hidden rounded-[4px] bg-[var(--color-neutral-900)]">
+              <div className="h-5 overflow-hidden rounded-[4px] bg-sunken">
                 <div
                   className={cn(
                     "h-full rounded-[4px]",
                     i === 0
-                      ? "bg-[var(--color-neutral-700)]"
+                      ? "bg-ink-3/60"
                       : i === 2
-                        ? "bg-[var(--color-accent-300)]"
-                        : "bg-[var(--color-accent-600)]"
+                        ? "bg-brand"
+                        : "bg-brand/70"
                   )}
                   style={{
                     width: `${Math.max(2, Math.sqrt(stage.value / maxFunnel) * 100)}%`,
@@ -538,7 +538,7 @@ export function AdminOverviewV2() {
             />
           </div>
           {data.top_clubs.length === 0 ? (
-            <span className="text-[13px] text-[var(--color-neutral-400)]">
+            <span className="text-[13px] text-ink-2">
               No clubs yet.
             </span>
           ) : (
@@ -547,20 +547,20 @@ export function AdminOverviewV2() {
                 key={club.id}
                 className="grid grid-cols-[24px_minmax(0,1fr)_90px] items-center gap-2.5 text-[13px] md:grid-cols-[24px_minmax(0,1fr)_90px_90px_100px]"
               >
-                <span className="text-[var(--color-accent-300)]">{i + 1}</span>
+                <span className="text-brand">{i + 1}</span>
                 <Link href={`/clubs/${club.id}`} className="flex min-w-0 flex-col hover:underline">
                   <span className="truncate">{club.name}</span>
-                  <span className="truncate text-[11.5px] text-[var(--color-neutral-500)]">
+                  <span className="truncate text-[11.5px] text-ink-3">
                     {club.organisation ?? "—"}
                   </span>
                 </Link>
-                <span className={cn("text-right", topBy === "followers" ? "text-[var(--color-text)]" : "text-[var(--color-neutral-500)]")}>
+                <span className={cn("text-right", topBy === "followers" ? "text-ink" : "text-ink-3")}>
                   {formatNumber(club.followers)} fol.
                 </span>
-                <span className={cn("hidden text-right md:block", topBy === "registrations" ? "text-[var(--color-text)]" : "text-[var(--color-neutral-500)]")}>
+                <span className={cn("hidden text-right md:block", topBy === "registrations" ? "text-ink" : "text-ink-3")}>
                   {formatNumber(club.registrations)} regs
                 </span>
-                <span className={cn("hidden text-right md:block", topBy === "revenue" ? "text-[var(--color-text)]" : "text-[var(--color-neutral-500)]")}>
+                <span className={cn("hidden text-right md:block", topBy === "revenue" ? "text-ink" : "text-ink-3")}>
                   {club.revenue ? lakh(club.revenue) : "Free"}
                 </span>
               </RuleRow>
@@ -586,18 +586,18 @@ export function AdminOverviewV2() {
               className={cn(
                 "relative flex flex-col gap-1.5 overflow-hidden rounded-[var(--radius-md)] p-4 text-left transition-shadow",
                 active
-                  ? "bg-[radial-gradient(120%_140%_at_0%_0%,var(--color-accent-900),var(--color-surface)_70%)] shadow-[inset_0_0_0_1px_var(--color-accent-600)]"
-                  : "bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)] shadow-[var(--shadow-sm)] hover:shadow-[inset_0_0_0_1px_var(--color-accent-600)]"
+                  ? "bg-brand-soft border-brand-line border"
+                  : "bg-surface border-line-soft shadow-card hover:border-brand-line border"
               )}
             >
               <span
                 aria-hidden="true"
                 className={cn(
                   "absolute top-0 left-4 h-0.5 w-8",
-                  active ? "bg-[var(--color-accent)]" : "bg-transparent"
+                  active ? "bg-brand" : "bg-transparent"
                 )}
               />
-              <span className="flex items-center gap-1.5 text-[12px] text-[var(--color-neutral-400)]">
+              <span className="flex items-center gap-1.5 text-[12px] text-ink-2">
                 {option.icon}
                 {option.label}
               </span>
@@ -610,17 +610,17 @@ export function AdminOverviewV2() {
                     className={cn(
                       "rounded-[999px] px-2 py-0.5 text-[12px] whitespace-nowrap",
                       change.direction === "flat"
-                        ? "bg-[var(--color-neutral-800)] text-[var(--color-neutral-300)]"
+                        ? "bg-raised text-ink-2"
                         : change.direction === "up"
-                          ? "bg-[var(--color-accent-900)] text-[var(--color-accent-200)]"
-                          : "bg-[var(--color-neutral-800)] text-[var(--color-neutral-200)]"
+                          ? "bg-admit-soft text-admit"
+                          : "bg-refuse-soft text-refuse"
                     )}
                   >
                     {change.label}
                   </span>
                 ) : null}
               </div>
-              <span className="text-[12px] text-[var(--color-neutral-500)]">
+              <span className="text-[12px] text-ink-3">
                 vs previous {days} days
               </span>
             </button>
@@ -634,13 +634,13 @@ export function AdminOverviewV2() {
           <span className="text-[15px]">
             {SERIES.find((o) => o.key === series)?.label} per day
           </span>
-          <div className="flex gap-3.5 text-[12px] text-[var(--color-neutral-400)]">
+          <div className="flex gap-3.5 text-[12px] text-ink-2">
             <span className="flex items-center gap-1.5">
-              <span className="h-0.5 w-3.5 bg-[var(--color-accent-300)]" />
+              <span className="h-0.5 w-3.5 bg-brand" />
               This period
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-3.5 border-t-2 border-dashed border-[var(--color-neutral-500)]" />
+              <span className="w-3.5 border-t-2 border-dashed border-ink-3" />
               Previous period
             </span>
           </div>
@@ -652,25 +652,25 @@ export function AdminOverviewV2() {
         <Panel className="min-w-0 flex-[1_1_320px] p-5">
           <PanelTitle aside={`last ${days} days`}>Revenue retained</PanelTitle>
           <div className="flex items-baseline gap-2.5">
-            <span className="text-[40px] tracking-[-0.03em] text-[var(--color-accent-300)]">
+            <span className="text-[40px] tracking-[-0.03em] text-brand">
               {money.retained_share}%
             </span>
-            <span className="text-[13px] text-[var(--color-neutral-400)]">
+            <span className="text-[13px] text-ink-2">
               of captured money kept
             </span>
           </div>
           <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-[5px]">
-            <div className="bg-[var(--color-accent-500)]" style={{ flex: Math.max(1, money.net) }} />
-            <div className="bg-[var(--color-neutral-600)]" style={{ flex: Math.max(0, money.refunded) }} />
+            <div className="bg-brand" style={{ flex: Math.max(1, money.net) }} />
+            <div className="bg-ink-3" style={{ flex: Math.max(0, money.refunded) }} />
           </div>
           {[
-            ["Captured", formatCurrency(money.captured), "var(--color-text)"],
-            ["Refunded", `−${formatCurrency(money.refunded)}`, "var(--color-neutral-300)"],
-            ["Net kept", formatCurrency(money.net), "var(--color-accent-300)"],
-            ["Failed payments", formatNumber(money.failed), "var(--color-neutral-300)"],
+            ["Captured", formatCurrency(money.captured), "var(--ink)"],
+            ["Refunded", `−${formatCurrency(money.refunded)}`, "var(--ink-2)"],
+            ["Net kept", formatCurrency(money.net), "var(--brand)"],
+            ["Failed payments", formatNumber(money.failed), "var(--ink-2)"],
           ].map(([label, value, color]) => (
             <div key={label} className="flex justify-between py-1 text-[13px]">
-              <span className="text-[var(--color-neutral-400)]">{label}</span>
+              <span className="text-ink-2">{label}</span>
               <span style={{ color }}>{value}</span>
             </div>
           ))}
@@ -688,17 +688,17 @@ export function AdminOverviewV2() {
                 <div className="flex justify-between text-[12.5px]">
                   <span>
                     {aLabel as string}{" "}
-                    <span className="text-[var(--color-accent-300)]">
+                    <span className="text-brand">
                       {Math.round(((aValue as number) / total) * 100)}%
                     </span>
                   </span>
-                  <span className="text-[var(--color-neutral-400)]">
+                  <span className="text-ink-2">
                     {bLabel as string} {Math.round(((bValue as number) / total) * 100)}%
                   </span>
                 </div>
                 <div className="flex h-2 gap-0.5 overflow-hidden rounded-[4px]">
-                  <div className="bg-[var(--color-accent-500)]" style={{ flex: Math.max(1, aValue as number) }} />
-                  <div className="bg-[var(--color-neutral-700)]" style={{ flex: Math.max(0, bValue as number) }} />
+                  <div className="bg-brand" style={{ flex: Math.max(1, aValue as number) }} />
+                  <div className="bg-ink-3/60" style={{ flex: Math.max(0, bValue as number) }} />
                 </div>
               </div>
             );
@@ -708,13 +708,13 @@ export function AdminOverviewV2() {
               than showing ₹0, which would read as "nobody is paying". */}
           <Link
             href="/subscriptions"
-            className="mt-1 flex flex-col gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-bg)] p-3.5 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--color-accent-600)]"
+            className="mt-1 flex flex-col gap-1.5 rounded-[var(--radius-md)] bg-sunken p-3.5 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--brand)]"
           >
             <span className="flex items-center justify-between text-[15px]">
               Club subscriptions
-              <ArrowRightIcon className="size-4 text-[var(--color-neutral-500)]" />
+              <ArrowRightIcon className="size-4 text-ink-3" />
             </span>
-            <span className="text-[12.5px] text-[var(--color-neutral-400)]">
+            <span className="text-[12.5px] text-ink-2">
               Not built yet — plans and billing are specified in API_SPEC_V2 §4.1.
             </span>
           </Link>

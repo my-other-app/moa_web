@@ -74,7 +74,7 @@ export function ConfirmDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="flex w-[min(440px,100%)] flex-col gap-2.5 rounded-[var(--radius-lg)] border-0 bg-[var(--color-surface)] p-3.5 shadow-[var(--shadow-lg)] sm:max-w-[440px]"
+        className="flex w-[min(440px,100%)] flex-col gap-2.5 rounded-[var(--radius-card)] border-0 bg-surface p-3.5 shadow-[var(--shadow-lg)] sm:max-w-[440px]"
       >
         <DialogTitle className="text-[20px] font-medium">{title}</DialogTitle>
         <p className="m-0 text-[14px] text-pretty opacity-85">{body}</p>
@@ -100,7 +100,7 @@ export function ConfirmDialog({
           </div>
         ) : null}
 
-        <div className="rounded-[var(--radius-md)] bg-[var(--color-bg)] px-3 py-2.5 text-[12px] text-[var(--color-neutral-400)]">
+        <div className="rounded-[var(--radius-md)] bg-sunken px-3 py-2.5 text-[12px] text-ink-2">
           {note}
         </div>
 

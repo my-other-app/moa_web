@@ -138,7 +138,7 @@ export function PlansTab() {
     return (
       <div className="flex flex-wrap gap-4">
         <Skeleton className="h-64 w-[260px] rounded-[var(--radius-md)]" />
-        <Skeleton className="h-96 flex-1 rounded-[var(--radius-lg)]" />
+        <Skeleton className="h-96 flex-1 rounded-[var(--radius-card)]" />
       </div>
     );
   }
@@ -146,8 +146,8 @@ export function PlansTab() {
   return (
     <div className="flex flex-col gap-3.5">
       {!canEdit ? (
-        <div className="flex items-center gap-2.5 rounded-[var(--radius-md)] bg-[var(--color-surface)] px-3.5 py-2.5 text-[13px] text-[var(--color-neutral-300)] shadow-[var(--shadow-sm)]">
-          <LockIcon className="size-4 text-[var(--color-accent-300)]" />
+        <div className="flex items-center gap-2.5 rounded-[var(--radius-md)] bg-surface px-3.5 py-2.5 text-[13px] text-ink-2 shadow-card">
+          <LockIcon className="size-4 text-brand" />
           Only owners can create or change plans. You are seeing them read-only.
         </div>
       ) : null}
@@ -166,10 +166,10 @@ export function PlansTab() {
                   setDraft(null);
                 }}
                 className={cn(
-                  "flex flex-col gap-1 rounded-[var(--radius-md)] bg-[var(--color-surface)] px-3.5 py-3 text-left",
+                  "flex flex-col gap-1 rounded-[var(--radius-md)] bg-surface px-3.5 py-3 text-left",
                   active
-                    ? "shadow-[inset_0_0_0_1.5px_var(--color-accent-400)]"
-                    : "shadow-[var(--shadow-sm)]",
+                    ? "shadow-[inset_0_0_0_1.5px_var(--brand)]"
+                    : "shadow-card",
                   plan.visibility === "legacy" && "opacity-60"
                 )}
               >
@@ -183,15 +183,15 @@ export function PlansTab() {
                     {VISIBILITY_LABEL[plan.visibility]}
                   </span>
                 </span>
-                <span className="text-[13px] text-[var(--color-neutral-300)]">
+                <span className="text-[13px] text-ink-2">
                   {priceLabel(plan)}
                 </span>
-                <span className="flex items-center gap-2 text-[12px] text-[var(--color-neutral-500)]">
+                <span className="flex items-center gap-2 text-[12px] text-ink-3">
                   {plan.subscriber_count} clubs subscribed
                   {/* A paid plan with no Razorpay plan behind it cannot be
                       charged. Said here, not discovered at checkout. */}
                   {!plan.billable ? (
-                    <span className="text-[var(--color-accent-300)]">· not billable</span>
+                    <span className="text-brand">· not billable</span>
                   ) : null}
                 </span>
               </button>
@@ -215,15 +215,15 @@ export function PlansTab() {
 
         {/* The editor */}
         {form ? (
-          <div className="flex min-w-0 flex-1 basis-[520px] flex-col gap-[18px] rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-sm)]">
+          <div className="flex min-w-0 flex-1 basis-[520px] flex-col gap-[18px] rounded-[var(--radius-card)] bg-surface p-5 shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-2.5">
               <span className="text-[19px]">{form.name || "New plan"}</span>
               <span
                 className={cn(
                   "text-[12px]",
                   dirty
-                    ? "text-[var(--color-accent-300)]"
-                    : "text-[var(--color-neutral-500)]"
+                    ? "text-brand"
+                    : "text-ink-3"
                 )}
               >
                 {dirty ? "Unsaved changes" : "Saved"}
@@ -343,7 +343,7 @@ export function PlansTab() {
                     >
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate text-[13px]">{field.label}</span>
-                        <span className="truncate text-[11px] text-[var(--color-neutral-500)]">
+                        <span className="truncate text-[11px] text-ink-3">
                           {field.scope}
                         </span>
                       </span>
@@ -370,8 +370,8 @@ export function PlansTab() {
                         className={cn(
                           "flex items-center gap-1.5 text-[12px] whitespace-nowrap",
                           unlimited
-                            ? "text-[var(--color-accent-300)]"
-                            : "text-[var(--color-neutral-400)]"
+                            ? "text-brand"
+                            : "text-ink-2"
                         )}
                       >
                         {unlimited ? (
@@ -408,8 +408,8 @@ export function PlansTab() {
                           className={cn(
                             "flex items-center gap-1.5 rounded-[999px] border px-2.5 py-1.5 text-[12.5px] whitespace-nowrap transition-colors",
                             enabled
-                              ? "border-[var(--color-accent-500)] bg-[var(--color-accent-900)] text-[var(--color-accent-200)]"
-                              : "border-[var(--color-divider)] text-[var(--color-neutral-400)]"
+                              ? "border-brand bg-brand-soft text-brand"
+                              : "border-line text-ink-2"
                           )}
                         >
                           {enabled ? (
@@ -427,8 +427,8 @@ export function PlansTab() {
             })}
 
             {canEdit ? (
-              <div className="flex flex-wrap items-center gap-2 pt-3 shadow-[inset_0_1px_0_var(--color-neutral-800)]">
-                <span className="flex-1 basis-[240px] text-[12px] text-[var(--color-neutral-500)]">
+              <div className="flex flex-wrap items-center gap-2 pt-3 shadow-[inset_0_1px_0_var(--line)]">
+                <span className="flex-1 basis-[240px] text-[12px] text-ink-3">
                   {selected && selected.subscriber_count > 0
                     ? `Saving applies to ${selected.subscriber_count} subscribed club${
                         selected.subscriber_count > 1 ? "s" : ""
@@ -501,7 +501,7 @@ export function PlansTab() {
         ) : (
           <div className="flex-1 basis-[520px] py-10">
             <span className="text-[16px]">No plans yet</span>
-            <p className="mt-2 text-[13px] text-[var(--color-neutral-400)]">
+            <p className="mt-2 text-[13px] text-ink-2">
               Until a plan exists every club is unlimited, which is how the platform
               behaved before plans. Create a free plan first — it is the one clubs fall
               back to.
