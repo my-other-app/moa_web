@@ -4,67 +4,67 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@moa/ui";
 
-import { isActive, navItems } from "./nav-items";
+import { isActive, navItems, type NavItem } from "./nav-items";
 
 /**
- * The active item carries three marks at once: a tinted background, lime text
- * and a 3px inset bar on its leading edge. That is the design's signature and
- * all three are load-bearing -- the bar alone is easy to miss at 13.5px, and
- * the tint alone does not read as "here" on a surface this close to the page.
+ * The rail's items, grouped: an icon tile and a label, the current one lit
+ * three ways (a soft brand tint, the brand on its text, the tile filled) plus
+ * a bar on the leading edge. Collapsed, only the tiles remain and the label
+ * becomes the title. A count beside an item is a fact; the pending-clubs
+ * count is a prompt, so it alone takes the brand.
  */
 export function SidebarNav({
   badges,
+  collapsed,
   onNavigate,
 }: {
-  badges?: Partial<Record<NonNullable<(typeof navItems)[number]["badge"]>, string>>;
+  badges?: Partial<Record<NonNullable<NavItem["badge"]>, string>>;
+  collapsed?: boolean;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const sections: { label: string; items: NavItem[] }[] = [];
+  for (const item of navItems) {
+    if (item.group || sections.length === 0) sections.push({ label: item.group ?? "Menu", items: [] });
+    sections[sections.length - 1]!.items.push(item);
+  }
 
   return (
-    <nav className="flex flex-col gap-0.5" aria-label="Main">
-      {navItems.map((item) => {
-        const active = isActive(pathname, item);
-        const badge = item.badge ? badges?.[item.badge] : undefined;
-
-        return (
-          <div key={item.href} className="contents">
-            {item.group ? (
-              <span className="text-[10.5px] tracking-[0.1em] text-[var(--color-neutral-600)] uppercase px-2.5 pt-3 pb-1">
-                {item.group}
-              </span>
-            ) : null}
-            <Link
-              href={item.href}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-[7px] text-[13.5px] transition-colors",
-                active
-                  ? "bg-[var(--color-accent-900)] text-[var(--color-accent-200)] shadow-[inset_3px_0_0_var(--color-accent)]"
-                  : "text-[var(--color-neutral-300)] hover:bg-[color-mix(in_srgb,var(--color-text)_6%,transparent)]"
-              )}
-            >
-              <item.icon className="size-[17px] shrink-0" />
-              <span className="flex-1 truncate">{item.label}</span>
-              {badge ? (
-                <span
-                  className={cn(
-                    "text-[11px] shrink-0",
-                    // The pending-club count is the one badge that is a
-                    // prompt rather than a fact, so it alone takes the accent.
-                    item.badge === "pendingClubs"
-                      ? "text-[var(--color-accent-300)]"
-                      : "text-[var(--color-neutral-500)]"
-                  )}
-                >
-                  {badge}
-                </span>
-              ) : null}
-            </Link>
-          </div>
-        );
-      })}
+    <nav aria-label="Main" className="flex flex-col gap-4 px-3">
+      {sections.map((section, s) => (
+        <div key={section.label}>
+          <div className={cn("eyebrow px-2 pb-2.5 tracking-[0.14em]", collapsed && "hidden")}>{section.label}</div>
+          {collapsed && s > 0 && <div aria-hidden="true" className="bg-line-soft mx-2 mb-2 h-px" />}
+          <ul className="flex flex-col gap-0.5">
+            {section.items.map((item) => {
+              const on = isActive(pathname, item);
+              const badge = item.badge ? badges?.[item.badge] : undefined;
+              return (
+                <li key={item.href} className="relative">
+                  <span aria-hidden="true" className={cn("bg-brand absolute top-1/2 -left-3 w-1 -translate-y-1/2 rounded-r-full transition-[height] duration-200", on ? "h-5" : "h-0")} />
+                  <Link
+                    href={item.href}
+                    onClick={onNavigate}
+                    aria-current={on ? "page" : undefined}
+                    title={item.label}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-[14px] px-2.5 py-[8px] text-left text-[13.5px] transition-colors duration-150",
+                      on ? "bg-brand-soft text-brand font-semibold" : "text-ink-2 hover:bg-sunken hover:text-ink",
+                      collapsed && "justify-center px-0"
+                    )}
+                  >
+                    <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px] transition-colors duration-150", on ? "bg-brand text-brand-foreground" : "bg-raised text-ink-2")}>
+                      <item.icon className="size-[17px]" />
+                    </span>
+                    <span className={cn("flex-1 truncate", collapsed && "hidden")}>{item.label}</span>
+                    {badge && !collapsed ? <span className={cn("shrink-0 font-mono text-[11px] tabular-nums", item.badge === "pendingClubs" ? "text-brand" : "text-ink-3")}>{badge}</span> : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
     </nav>
   );
 }

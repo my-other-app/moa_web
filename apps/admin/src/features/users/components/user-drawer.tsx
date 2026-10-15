@@ -66,8 +66,8 @@ function Fact({
 }) {
   return (
     <div className="rule-fade grid grid-cols-[22px_110px_minmax(0,1fr)] items-center gap-2.5 py-2.5">
-      <span className="text-[var(--color-neutral-500)]">{icon}</span>
-      <span className="text-[12.5px] text-[var(--color-neutral-400)]">{label}</span>
+      <span className="text-ink-3">{icon}</span>
+      <span className="text-[12.5px] text-ink-2">{label}</span>
       <span className="text-[13.5px] break-words">{value}</span>
     </div>
   );
@@ -98,7 +98,7 @@ function LazyList({
     <div className="flex flex-col gap-1.5">
       <span className="micro">
         {title}{" "}
-        <span className="font-mono text-[var(--color-neutral-600)] normal-case tracking-normal">
+        <span className="font-mono text-ink-3 normal-case tracking-normal">
           {endpoint}
         </span>
       </span>
@@ -109,15 +109,15 @@ function LazyList({
           <Skeleton className="h-[34px] rounded-[var(--radius-md)] opacity-60" />
         </>
       ) : items.length === 0 ? (
-        <span className="text-[13px] text-[var(--color-neutral-500)]">{emptyText}</span>
+        <span className="text-[13px] text-ink-3">{emptyText}</span>
       ) : (
         items.map((item) => (
           <div
             key={item.key}
-            className="flex justify-between gap-2.5 rounded-[var(--radius-md)] bg-[var(--color-bg)] px-2.5 py-2 text-[13px]"
+            className="flex justify-between gap-2.5 rounded-[var(--radius-md)] bg-sunken px-2.5 py-2 text-[13px]"
           >
             <span className="min-w-0 truncate">{item.a}</span>
-            <span className="shrink-0 text-[var(--color-neutral-500)]">{item.b}</span>
+            <span className="shrink-0 text-ink-3">{item.b}</span>
           </div>
         ))
       )}
@@ -245,17 +245,17 @@ export function UserDrawer({
         <SheetContent
           showClose={false}
           side="right"
-          className="w-full gap-0 overflow-y-auto border-l-0 bg-[var(--color-surface)] p-0 shadow-[var(--shadow-lg)] sm:max-w-[480px]"
+          className="w-full gap-0 overflow-y-auto border-l-0 bg-surface p-0 shadow-[var(--shadow-lg)] sm:max-w-[480px]"
         >
           {/* The gradient header, with the accent tick bleeding off the top. */}
-          <div className="relative flex flex-col gap-3 bg-[radial-gradient(120%_140%_at_0%_0%,var(--color-accent-900),var(--color-surface)_65%)] px-[22px] py-5">
+          <div className="relative flex flex-col gap-3 bg-brand-soft px-[22px] py-5">
             <span
               aria-hidden
-              className="absolute top-0 left-[22px] h-0.5 w-12 bg-[var(--color-accent)] shadow-[0_0_14px_2px_var(--color-accent)]"
+              className="absolute top-0 left-[22px] h-0.5 w-12 bg-brand shadow-[0_0_14px_2px_var(--brand)]"
             />
 
             <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[12px] text-[var(--color-neutral-400)]">
+              <span className="font-mono text-[12px] text-ink-2">
                 GET /user/admin/{user.id}
               </span>
               <button
@@ -270,12 +270,12 @@ export function UserDrawer({
             </div>
 
             <div className="flex items-center gap-3.5">
-              <span className="grid size-14 shrink-0 place-items-center rounded-full bg-[var(--color-accent-800)] text-[20px] text-[var(--color-accent-100)]">
+              <span className="grid size-14 shrink-0 place-items-center rounded-full bg-brand-soft text-[20px] text-brand">
                 {initials(name)}
               </span>
               <div className="flex min-w-0 flex-col gap-0.5">
                 <SheetTitle className="truncate text-[20px] font-normal">{name}</SheetTitle>
-                <span className="truncate text-[13px] text-[var(--color-neutral-400)]">
+                <span className="truncate text-[13px] text-ink-2">
                   @{user.username} · {typeLabel(user.user_type)}
                 </span>
               </div>
@@ -292,7 +292,7 @@ export function UserDrawer({
             </div>
 
             {isSuspended && detail.data?.suspended_reason ? (
-              <span className="text-[12.5px] text-[var(--color-accent-200)]">
+              <span className="text-[12.5px] text-brand">
                 Suspended: {detail.data.suspended_reason}
               </span>
             ) : null}
@@ -364,7 +364,7 @@ export function UserDrawer({
             </div>
 
             {editing ? (
-              <div className="flex flex-col gap-2.5 rounded-[var(--radius-md)] bg-[var(--color-bg)] p-3.5 shadow-[inset_0_0_0_1px_var(--color-accent-700)]">
+              <div className="flex flex-col gap-2.5 rounded-[var(--radius-md)] bg-sunken p-3.5 shadow-[inset_0_0_0_1px_var(--brand-line)]">
                 <div className="field">
                   <label htmlFor="drawer-name">Name</label>
                   <input
@@ -395,7 +395,7 @@ export function UserDrawer({
                 </div>
                 <div className="field">
                   <label>Username</label>
-                  <div className="input flex items-center text-[var(--color-neutral-500)]">
+                  <div className="input flex items-center text-ink-3">
                     @{user.username} · fixed — it is in links and exports that already exist
                   </div>
                 </div>
@@ -421,12 +421,12 @@ export function UserDrawer({
             ) : null}
 
             {issued ? (
-              <div className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-[var(--color-bg)] p-3.5 shadow-[inset_0_0_0_1px_var(--color-accent-600)]">
+              <div className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-sunken p-3.5 shadow-[inset_0_0_0_1px_var(--brand)]">
                 <span className="text-[13px]">
                   New password — shown once. Copy it now; it cannot be shown again.
                 </span>
                 <div className="flex gap-2">
-                  <code className="flex-1 rounded-[var(--radius-md)] bg-[var(--color-surface)] px-3 py-2.5 font-mono text-[15px] tracking-[0.06em] text-[var(--color-accent-200)] select-all">
+                  <code className="flex-1 rounded-[var(--radius-md)] bg-surface px-3 py-2.5 font-mono text-[15px] tracking-[0.06em] text-brand select-all">
                     {issued}
                   </code>
                   <button
@@ -509,7 +509,7 @@ export function UserDrawer({
 
             {canManageAdmins ? (
               <>
-                <div className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-[var(--color-bg)] p-3.5">
+                <div className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-sunken p-3.5">
                   <span className="text-[13.5px]">Admin role</span>
                   <div className="flex gap-2">
                     <select
@@ -541,7 +541,7 @@ export function UserDrawer({
                   </div>
                   {/* Said plainly rather than offered and then refused: the
                       endpoint sets a role, and there is no "revoke" on it. */}
-                  <span className="text-[12px] text-[var(--color-neutral-500)]">
+                  <span className="text-[12px] text-ink-3">
                     {effectiveRole
                       ? `Currently ${effectiveRole}. Removing admin access entirely needs a backend change.`
                       : "Granting a role makes this an admin account."}
@@ -550,7 +550,7 @@ export function UserDrawer({
 
                 <button
                   type="button"
-                  className="btn btn-ghost self-start text-[13px] text-[var(--color-neutral-400)]"
+                  className="btn btn-ghost self-start text-[13px] text-ink-2"
                   onClick={() => setPending("delete")}
                 >
                   <Trash2Icon className="size-4" />

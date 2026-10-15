@@ -110,9 +110,9 @@ export function CreateClubWizard({
       >
         <DialogContent
           showCloseButton={false}
-          className="flex w-[min(480px,100%)] flex-col gap-2.5 rounded-[var(--radius-lg)] border-0 bg-[var(--color-surface)] p-3.5 shadow-[var(--shadow-lg)] sm:max-w-[480px]"
+          className="flex w-[min(480px,100%)] flex-col gap-2.5 rounded-[var(--radius-card)] border-0 bg-surface p-3.5 shadow-[var(--shadow-lg)] sm:max-w-[480px]"
         >
-          <span className="text-[12px] text-[var(--color-neutral-400)]">
+          <span className="text-[12px] text-ink-2">
             Step {step} of 2
           </span>
           <DialogTitle className="text-[20px] font-medium">
@@ -148,19 +148,19 @@ export function CreateClubWizard({
                   }}
                 />
               </div>
-              <span className="text-[12.5px] text-pretty text-[var(--color-neutral-400)]">
+              <span className="text-[12.5px] text-pretty text-ink-2">
                 The service creates the account with a random password it does not
                 return — so the next step sets one the club can actually use.
               </span>
             </>
           ) : (
             <>
-              <span className="text-[13.5px] text-[var(--color-neutral-300)]">
+              <span className="text-[13.5px] text-ink-2">
                 {name.trim()} is created but cannot sign in yet. Set its password and send
                 it to the committee.
               </span>
               <div className="flex gap-2">
-                <code className="flex-1 rounded-[var(--radius-md)] bg-[var(--color-bg)] px-3 py-2.5 font-mono text-[15px] text-[var(--color-accent-200)] select-all">
+                <code className="flex-1 rounded-[var(--radius-md)] bg-sunken px-3 py-2.5 font-mono text-[15px] text-brand select-all">
                   {password}
                 </code>
                 <button
@@ -189,14 +189,14 @@ export function CreateClubWizard({
                   <RefreshCwIcon className="size-4" />
                 </button>
               </div>
-              <span className="text-[12px] text-[var(--color-neutral-500)]">
+              <span className="text-[12px] text-ink-3">
                 Shown once. After you close this, nobody can see it again.
               </span>
             </>
           )}
 
           {error ? (
-            <span role="alert" className="text-[12.5px] text-[var(--color-accent-300)]">
+            <span role="alert" className="text-[12.5px] text-brand">
               {error}
             </span>
           ) : null}

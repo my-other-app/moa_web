@@ -55,23 +55,23 @@ function Kpi({
     <div
       role="group"
       aria-label={label}
-      className="flex flex-col gap-1 rounded-[var(--radius-lg)] bg-[var(--color-surface)] px-5 py-[18px] shadow-[var(--shadow-sm)]"
+      className="flex flex-col gap-1 rounded-[var(--radius-card)] bg-surface px-5 py-[18px] shadow-card"
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[13.5px] text-[var(--color-neutral-200)]">{label}</span>
-        <span className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-[var(--color-accent-900)] text-[var(--color-accent-300)]">
+        <span className="text-[13.5px] text-ink">{label}</span>
+        <span className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-brand-soft text-brand">
           {icon}
         </span>
       </div>
       <span
         className={cn(
           "text-[24px] tracking-[-0.02em]",
-          accent && "text-[var(--color-accent-300)]"
+          accent && "text-brand"
         )}
       >
         {value}
       </span>
-      <span className="text-[11px] text-[var(--color-neutral-500)]">{note}</span>
+      <span className="text-[11px] text-ink-3">{note}</span>
     </div>
   );
 }
@@ -93,7 +93,7 @@ export function SubscriptionsV2() {
           <h2 className="m-0 text-[32px] leading-[1.12] tracking-[-0.015em]">
             Subscriptions
           </h2>
-          <span className="text-[13px] text-[var(--color-neutral-500)]">
+          <span className="text-[13px] text-ink-3">
             Club plans, what they are billed and what each one unlocks
           </span>
         </div>
@@ -118,7 +118,7 @@ export function SubscriptionsV2() {
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {totals.isPending ? (
           Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-[112px] rounded-[var(--radius-lg)]" />
+            <Skeleton key={i} className="h-[112px] rounded-[var(--radius-card)]" />
           ))
         ) : (
           <>
@@ -155,7 +155,7 @@ export function SubscriptionsV2() {
       <div
         role="tablist"
         aria-label="Subscriptions view"
-        className="inline-flex w-fit overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-divider)]"
+        className="inline-flex w-fit overflow-hidden rounded-[var(--radius-md)] border border-line"
       >
         {TABS.map((option, index) => {
           const active = tab === option.key;
@@ -170,10 +170,10 @@ export function SubscriptionsV2() {
               }
               className={cn(
                 "flex items-center gap-1.5 px-3 py-[7px] text-[13px] whitespace-nowrap transition-colors",
-                index > 0 && "border-l border-[var(--color-divider)]",
+                index > 0 && "border-l border-line",
                 active
-                  ? "bg-[var(--color-accent-900)] text-[var(--color-accent-200)]"
-                  : "text-[var(--color-neutral-300)] hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)]"
+                  ? "bg-brand-soft text-brand"
+                  : "text-ink-2 hover:bg-sunken"
               )}
             >
               {option.icon}

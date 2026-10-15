@@ -19,7 +19,7 @@ export function CompareTab() {
   const plans = usePlans();
 
   if (plans.isPending) {
-    return <Skeleton className="h-96 w-full rounded-[var(--radius-lg)]" />;
+    return <Skeleton className="h-96 w-full rounded-[var(--radius-card)]" />;
   }
 
   // Legacy plans are withdrawn, so they are not part of the ladder being
@@ -44,7 +44,7 @@ export function CompareTab() {
 
   function cellTone(planId: number) {
     return planId === dearest.id && list.length > 1
-      ? "bg-[color-mix(in_srgb,var(--color-accent-900)_50%,transparent)]"
+      ? "bg-brand-soft"
       : "";
   }
 
@@ -129,7 +129,7 @@ function ComparisonRow({
 }) {
   return (
     <>
-      <div className="rule-fade px-3 py-2.5 text-[13px] text-[var(--color-neutral-300)]">
+      <div className="rule-fade px-3 py-2.5 text-[13px] text-ink-2">
         {label}
       </div>
       {cells.map((cell) => (
@@ -138,8 +138,8 @@ function ComparisonRow({
           className={cn(
             "rule-fade px-3 py-2.5 text-center text-[13px]",
             cell.accent
-              ? "text-[var(--color-accent-300)]"
-              : "text-[var(--color-neutral-600)]",
+              ? "text-brand"
+              : "text-ink-3",
             tone(cell.planId)
           )}
         >

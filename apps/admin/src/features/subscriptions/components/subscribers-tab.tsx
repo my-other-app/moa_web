@@ -73,14 +73,14 @@ function PlanMix({ plans, rows }: { plans: Plan[]; rows: Subscription[] }) {
   // free to flagship rather than an arbitrary palette.
   const tone = (index: number) =>
     [
-      "bg-[var(--color-neutral-600)]",
-      "bg-[var(--color-accent-700)]",
-      "bg-[var(--color-accent-500)]",
-      "bg-[var(--color-accent-300)]",
+      "bg-ink-3",
+      "bg-brand/60",
+      "bg-brand",
+      "bg-brand",
     ][Math.min(index, 3)]!;
 
   return (
-    <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-3 rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-[18px] shadow-[var(--shadow-sm)]">
+    <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-3 rounded-[var(--radius-card)] bg-surface p-[18px] shadow-card">
       <span className="text-[17px]">Plan mix</span>
       <div className="flex h-3.5 gap-0.5 overflow-hidden rounded-[7px]">
         {byPlan.map((entry, index) => (
@@ -98,7 +98,7 @@ function PlanMix({ plans, rows }: { plans: Plan[]; rows: Subscription[] }) {
             <span className={cn("size-2.5 shrink-0 rounded-[2px]", tone(index))} />
             <span className="truncate">{entry.plan.name}</span>
           </span>
-          <span className="shrink-0 text-[var(--color-neutral-400)]">
+          <span className="shrink-0 text-ink-2">
             {entry.count} {entry.count === 1 ? "club" : "clubs"} · {inr(entry.mrr)}/mo
           </span>
         </div>
@@ -142,10 +142,10 @@ export function SubscribersTab() {
       <div className="flex flex-wrap gap-3.5">
         <PlanMix plans={plans.data ?? []} rows={rows} />
 
-        <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-2.5 rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-[18px] shadow-[var(--shadow-sm)]">
+        <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-2.5 rounded-[var(--radius-card)] bg-surface p-[18px] shadow-card">
           <span className="text-[17px]">Needs attention</span>
           {rows.filter((row) => row.status === "past_due").length === 0 ? (
-            <span className="text-[13px] text-[var(--color-neutral-500)]">
+            <span className="text-[13px] text-ink-3">
               Every charge has gone through. Nothing to chase.
             </span>
           ) : (
@@ -155,12 +155,12 @@ export function SubscribersTab() {
               .map((row) => (
                 <div key={row.id} className="flex items-center gap-2.5 py-1 text-[13px]">
                   <span className="min-w-0 flex-1 truncate">{row.club?.name ?? "—"}</span>
-                  <span className="shrink-0 truncate text-[12px] text-[var(--color-neutral-500)]">
+                  <span className="shrink-0 truncate text-[12px] text-ink-3">
                     {/* Razorpay's own words. A generic "payment failed" would
                         send the admin to Razorpay to find out why. */}
                     {row.last_failure_reason || "Charge failed"}
                   </span>
-                  <span className="shrink-0 text-[var(--color-accent-300)]">
+                  <span className="shrink-0 text-brand">
                     {inr(row.mrr_paise)}
                   </span>
                 </div>
@@ -184,8 +184,8 @@ export function SubscribersTab() {
               className={cn(
                 "rounded-[999px] border px-3 py-1.5 text-[12.5px] whitespace-nowrap transition-colors",
                 active
-                  ? "border-[var(--color-accent-500)] bg-[var(--color-accent-900)] text-[var(--color-accent-200)]"
-                  : "border-[var(--color-divider)] text-[var(--color-neutral-300)] hover:text-[var(--color-text)]"
+                  ? "border-brand bg-brand-soft text-brand"
+                  : "border-line text-ink-2 hover:text-ink"
               )}
             >
               {option.label}
@@ -194,7 +194,7 @@ export function SubscribersTab() {
         })}
 
         <div className="relative ml-auto max-w-[280px] min-w-[200px] flex-1">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-[11px] size-4 -translate-y-1/2 text-[var(--color-neutral-500)]" />
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-[11px] size-4 -translate-y-1/2 text-ink-3" />
           <input
             className="input pl-8"
             type="search"
@@ -235,7 +235,7 @@ export function SubscribersTab() {
                 className={cn(
                   GRID,
                   "micro px-1.5 py-2.5",
-                  "bg-[linear-gradient(to_right,transparent,var(--color-divider)_48px,var(--color-divider)_calc(100%-48px),transparent)] bg-[length:100%_1px] bg-bottom bg-no-repeat"
+                  "bg-[linear-gradient(to_right,transparent,var(--line)_48px,var(--line)_calc(100%-48px),transparent)] bg-[length:100%_1px] bg-bottom bg-no-repeat"
                 )}
               >
                 <span>Club</span>
@@ -266,7 +266,7 @@ export function SubscribersTab() {
                     >
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate">{row.club?.name ?? "—"}</span>
-                        <span className="flex items-center gap-1.5 truncate text-[11.5px] text-[var(--color-neutral-500)] md:hidden">
+                        <span className="flex items-center gap-1.5 truncate text-[11.5px] text-ink-3 md:hidden">
                           {row.plan?.name ?? "No plan"} · {STATUS_LABEL[row.status]} ·{" "}
                           {inr(row.mrr_paise)}
                         </span>
@@ -299,12 +299,12 @@ export function SubscribersTab() {
                       </span>
 
                       <span
-                        className={cn(WIDE_ONLY, "text-[12.5px] capitalize text-[var(--color-neutral-400)]")}
+                        className={cn(WIDE_ONLY, "text-[12.5px] capitalize text-ink-2")}
                       >
                         {row.cycle}
                       </span>
                       <span
-                        className={cn(WIDE_ONLY, "text-[12.5px] text-[var(--color-neutral-400)]")}
+                        className={cn(WIDE_ONLY, "text-[12.5px] text-ink-2")}
                       >
                         {renewsText(row.current_period_end)}
                       </span>
@@ -340,7 +340,7 @@ export function SubscribersTab() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <span className="text-[12.5px] text-[var(--color-neutral-400)]">
+            <span className="text-[12.5px] text-ink-2">
               {isPending
                 ? " "
                 : `Page ${page + 1} of ${pages} · ${formatNumber(total)} ${total === 1 ? "subscription" : "subscriptions"}`}
@@ -372,7 +372,7 @@ export function SubscribersTab() {
           <span className="text-[16px]">
             {status || committed ? "No subscriptions match" : "No club is on a plan yet"}
           </span>
-          <span className="text-[13px] text-[var(--color-neutral-400)]">
+          <span className="text-[13px] text-ink-2">
             {status || committed
               ? "Clear the filters to see the rest."
               : "Create a plan on the Plans tab, then move a club onto it or let them subscribe."}

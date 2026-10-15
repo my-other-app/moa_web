@@ -89,14 +89,14 @@ export function rowView(event: AdminEvent, now: Date): EventRowView {
     day: valid ? String(when.getDate()) : "",
     state: sameDay ? "Today" : ended ? "Ended" : "Upcoming",
     stateClass: ended
-      ? "text-[var(--color-neutral-500)]"
-      : "text-[var(--color-accent-300)]",
+      ? "text-ink-3"
+      : "text-brand",
     present: !ended
       ? "—"
       : unmarked
         ? "Not marked"
         : formatNumber(event.attended_count),
-    presentClass: unmarked ? "text-[var(--color-accent-300)]" : "text-[var(--color-text)]",
+    presentClass: unmarked ? "text-brand" : "text-ink",
     fee: event.has_fee && event.reg_fee ? `₹${formatNumber(event.reg_fee)}` : "Free",
   };
 }
@@ -173,7 +173,7 @@ export function EventsV2() {
       <header className="flex flex-wrap items-end gap-3.5">
         <div className="flex-1 basis-[300px]">
           <h2 className="m-0 text-[32px] leading-[1.12] tracking-[-0.015em]">Events</h2>
-          <span className="text-[13px] text-[var(--color-neutral-500)]">
+          <span className="text-[13px] text-ink-3">
             {isPending
               ? "Loading…"
               : unmarkedOnPage > 0
@@ -185,7 +185,7 @@ export function EventsV2() {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative max-w-[280px] flex-1 basis-[220px]">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-[11px] size-4 -translate-y-1/2 text-[var(--color-neutral-500)]" />
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-[11px] size-4 -translate-y-1/2 text-ink-3" />
           <input
             className="input pl-8"
             type="search"
@@ -203,7 +203,7 @@ export function EventsV2() {
         <div
           role="group"
           aria-label="Period"
-          className="inline-flex overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-divider)]"
+          className="inline-flex overflow-hidden rounded-[var(--radius-md)] border border-line"
         >
           {(["all", "upcoming", "ended"] as const).map((key, index) => {
             const active = period === key;
@@ -215,10 +215,10 @@ export function EventsV2() {
                 onClick={() => params.setParam("period", key === "all" ? undefined : key)}
                 className={cn(
                   "px-3 py-[7px] text-[13px] whitespace-nowrap capitalize transition-colors",
-                  index > 0 && "border-l border-[var(--color-divider)]",
+                  index > 0 && "border-l border-line",
                   active
-                    ? "bg-[var(--color-accent-900)] text-[var(--color-accent-200)]"
-                    : "text-[var(--color-neutral-300)] hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)]"
+                    ? "bg-brand-soft text-brand"
+                    : "text-ink-2 hover:bg-sunken"
                 )}
               >
                 {key}
@@ -301,7 +301,7 @@ export function EventsV2() {
                 className={cn(
                   GRID,
                   "micro px-1.5 py-2.5",
-                  "bg-[linear-gradient(to_right,transparent,var(--color-divider)_48px,var(--color-divider)_calc(100%-48px),transparent)] bg-[length:100%_1px] bg-bottom bg-no-repeat"
+                  "bg-[linear-gradient(to_right,transparent,var(--line)_48px,var(--line)_calc(100%-48px),transparent)] bg-[length:100%_1px] bg-bottom bg-no-repeat"
                 )}
               >
                 <span>Date</span>
@@ -326,11 +326,11 @@ export function EventsV2() {
                       className={cn(
                         GRID,
                         "rule-fade items-center px-1.5 py-2.5 text-[13.5px]",
-                        "hover:bg-[color-mix(in_srgb,var(--color-text)_4%,transparent)]"
+                        "hover:bg-sunken"
                       )}
                     >
                       <span className="flex flex-col leading-[1.1]">
-                        <span className="text-[10px] tracking-[0.08em] text-[var(--color-neutral-500)]">
+                        <span className="text-[10px] tracking-[0.08em] text-ink-3">
                           {view.month}
                         </span>
                         <span className="text-[17px]">{view.day}</span>
@@ -347,11 +347,11 @@ export function EventsV2() {
                           {view.state}
                           {/* On a phone the club and the attendance warning
                               have nowhere else to go. */}
-                          <span className="text-[var(--color-neutral-500)] md:hidden">
+                          <span className="text-ink-3 md:hidden">
                             · {event.club?.name ?? "—"}
                           </span>
                           {view.present === "Not marked" ? (
-                            <span className="text-[var(--color-accent-300)] md:hidden">
+                            <span className="text-brand md:hidden">
                               · Not marked
                             </span>
                           ) : null}
@@ -361,7 +361,7 @@ export function EventsV2() {
                       <span
                         className={cn(
                           WIDE_ONLY,
-                          "truncate text-[12.5px] text-[var(--color-neutral-300)]"
+                          "truncate text-[12.5px] text-ink-2"
                         )}
                       >
                         {event.club?.name ?? "—"}
@@ -370,14 +370,14 @@ export function EventsV2() {
                       <span
                         className={cn(
                           WIDE_ONLY,
-                          "truncate text-[12.5px] text-[var(--color-neutral-400)]"
+                          "truncate text-[12.5px] text-ink-2"
                         )}
                       >
                         {event.category?.name ?? "—"}
                       </span>
 
                       <span
-                        className={cn(WIDE_ONLY, "text-right text-[var(--color-neutral-300)]")}
+                        className={cn(WIDE_ONLY, "text-right text-ink-2")}
                       >
                         {formatNumber(event.page_views ?? 0)}
                       </span>
@@ -390,7 +390,7 @@ export function EventsV2() {
                         {view.present}
                       </span>
 
-                      <span className="text-right text-[var(--color-neutral-300)]">
+                      <span className="text-right text-ink-2">
                         {view.fee}
                       </span>
                     </Link>
@@ -401,7 +401,7 @@ export function EventsV2() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <span className="text-[12.5px] text-[var(--color-neutral-400)]">
+            <span className="text-[12.5px] text-ink-2">
               {isPending
                 ? " "
                 : `Page ${params.page} of ${pages} · ${formatNumber(total)} ${total === 1 ? "event" : "events"}`}

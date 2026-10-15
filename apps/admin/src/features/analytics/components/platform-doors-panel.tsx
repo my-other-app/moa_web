@@ -19,8 +19,8 @@ export function PlatformDoorsPanel() {
   if (!d) {
     return (
       <div className="grid gap-3 sm:grid-cols-2">
-        <Skeleton className="h-[220px] rounded-[var(--radius-lg)]" />
-        <Skeleton className="h-[220px] rounded-[var(--radius-lg)]" />
+        <Skeleton className="h-[220px] rounded-[var(--radius-card)]" />
+        <Skeleton className="h-[220px] rounded-[var(--radius-card)]" />
       </div>
     );
   }

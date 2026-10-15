@@ -108,8 +108,8 @@ describe("rowView", () => {
     );
     expect(view.state).toBe("Ended");
     expect(view.present).toBe("Not marked");
-    // Accented, because this is the row the admin came for.
-    expect(view.presentClass).toContain("accent");
+    // On the brand, because this is the row the admin came for.
+    expect(view.presentClass).toContain("brand");
   });
 
   it("does not call an ended event nobody registered for 'Not marked'", () => {
