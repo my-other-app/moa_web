@@ -115,6 +115,41 @@ describe("toEventFormData — wire format", () => {
     const fd = toEventFormData(parse({ speakers: [{ id: 42, name: "Existing" }] }));
     expect(JSON.parse(String(fd.get("speakers")))[0].id).toBe(42);
   });
+
+  it("sends a speaker's bio and link inside the speakers JSON, and null when empty so an edit clears them", () => {
+    const fd = toEventFormData(
+      parse({
+        speakers: [
+          { id: 7, name: "With Both", designation: "Prof", bio: "  Builds rovers.  ", link: "https://example.com/ananya" },
+          { name: "Emptied", bio: "", link: "" },
+          { name: "Never Set" },
+        ],
+      })
+    );
+    const speakers = JSON.parse(String(fd.get("speakers")));
+    expect(speakers[0]).toEqual({ id: 7, name: "With Both", designation: "Prof", bio: "Builds rovers.", link: "https://example.com/ananya" });
+    expect(speakers[1]).toMatchObject({ bio: null, link: null });
+    expect(speakers[2]).toMatchObject({ bio: null, link: null });
+  });
+});
+
+describe("speakerSchema — bio and link", () => {
+  const speaker = (extra: Record<string, unknown>) => eventFormSchema.safeParse({ ...base, speakers: [{ name: "A", ...extra }] });
+
+  it("takes a bio of up to 600 characters, and no more", () => {
+    expect(speaker({ bio: "x".repeat(600) }).success).toBe(true);
+    expect(speaker({ bio: "x".repeat(601) }).success).toBe(false);
+  });
+
+  it("takes an http(s) link or nothing, and refuses anything else", () => {
+    expect(speaker({ link: "https://example.com" }).success).toBe(true);
+    expect(speaker({ link: "http://example.com/x" }).success).toBe(true);
+    expect(speaker({ link: "" }).success).toBe(true);
+    expect(speaker({}).success).toBe(true);
+    expect(speaker({ link: "example.com" }).success).toBe(false);
+    expect(speaker({ link: "javascript:alert(1)" }).success).toBe(false);
+    expect(speaker({ link: "mailto:a@example.com" }).success).toBe(false);
+  });
 });
 
 describe("eventFormSchema — cross-field rules", () => {
@@ -172,7 +207,10 @@ describe("eventDetailToFormValues", () => {
       { key: "college", label: "College", field_type: "text", required: true },
       { key: "weird", label: "Weird", field_type: "not_a_real_type", required: false },
     ],
-    speakers: [{ id: 3, name: "A Speaker", designation: "Prof", photo: { medium: "https://cdn/p.png" } }],
+    speakers: [
+      { id: 3, name: "A Speaker", designation: "Prof", bio: "Teaches control systems.", link: "https://example.com/a", photo: { medium: "https://cdn/p.png" } },
+      { id: 4, name: "Older Speaker", designation: null, photo: null },
+    ],
   };
 
   it("maps the API shape onto the form", () => {
@@ -202,10 +240,17 @@ describe("eventDetailToFormValues", () => {
     expect(v.speakers?.[0]?.photo_url).toBe("https://cdn/p.png");
   });
 
+  it("reads a speaker's bio and link, and blanks for a speaker saved before they existed", () => {
+    const v = eventDetailToFormValues(detail);
+    expect(v.speakers?.[0]).toMatchObject({ bio: "Teaches control systems.", link: "https://example.com/a" });
+    expect(v.speakers?.[1]).toMatchObject({ bio: "", link: "" });
+  });
+
   it("round-trips back through the encoder without loss", () => {
     const fd = toEventFormData(eventFormSchema.parse(eventDetailToFormValues(detail)));
     expect(fd.get("name")).toBe("Existing Event");
     expect(fd.get("interest_ids")).toBe("2,5");
     expect(fd.get("reg_fee")).toBe("99.5");
+    expect(JSON.parse(String(fd.get("speakers")))[0]).toMatchObject({ id: 3, bio: "Teaches control systems.", link: "https://example.com/a", photo_url: "https://cdn/p.png" });
   });
 });
