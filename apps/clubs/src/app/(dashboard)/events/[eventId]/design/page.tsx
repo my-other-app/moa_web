@@ -4,7 +4,7 @@ import { Skeleton } from "@moa/ui";
 
 import { DesignerPage } from "@/features/designer";
 
-export const metadata: Metadata = { title: "Ticket & certificate design" };
+export const metadata: Metadata = { title: "Designs" };
 
 export default async function EventDesignPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;

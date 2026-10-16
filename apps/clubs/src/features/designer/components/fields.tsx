@@ -8,9 +8,11 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  NativeSelect,
+  Segmented,
   cn,
 } from "@moa/ui";
-import { Loader2Icon } from "lucide-react";
+import { BracesIcon, ChevronDownIcon, Loader2Icon } from "lucide-react";
 import * as React from "react";
 
 import type { DesignToken } from "../schemas";
@@ -18,6 +20,33 @@ import { ui } from "./kit";
 
 /** The spinner a button shows while its work is in flight. */
 export const Busy = ({ on }: { on: boolean }) => (on ? <Loader2Icon className="animate-spin" /> : null);
+
+/**
+ * A titled group of fields inside a panel. The properties of a layer read as
+ * a few short sections -- where it sits, what it says, how it looks -- rather
+ * than one long column of inputs.
+ */
+export const Section = ({
+  title,
+  right,
+  children,
+  className,
+}: {
+  title?: React.ReactNode;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) => (
+  <section className={cn("border-line-soft flex flex-col gap-3 border-t px-4 py-3.5", className)}>
+    {title || right ? (
+      <div className="flex min-h-6 items-center justify-between gap-2">
+        {title ? <h3 className="text-ink m-0 text-[12.5px] font-semibold">{title}</h3> : <span />}
+        {right}
+      </div>
+    ) : null}
+    {children}
+  </section>
+);
 
 /**
  * A number that commits while typing when it parses, and keeps a half-typed
@@ -75,10 +104,10 @@ export const NumberField = ({
               );
           }}
           onBlur={() => setDraft(shown)}
-          className={cn(ui.control, suffix && "pr-8")}
+          className={cn(ui.control, suffix && "pr-9")}
         />
         {suffix ? (
-          <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 font-mono text-[10.5px] text-muted-foreground">
+          <span className="text-ink-3 pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 font-mono text-[10.5px]">
             {suffix}
           </span>
         ) : null}
@@ -87,6 +116,7 @@ export const NumberField = ({
   );
 };
 
+/** A short, fixed list: the kit's native select, under its label. */
 export const SelectField = <T extends string | number>({
   id,
   label: text,
@@ -106,23 +136,24 @@ export const SelectField = <T extends string | number>({
     <label htmlFor={id} className={ui.label}>
       {text}
     </label>
-    <select
+    <NativeSelect
       id={id}
+      size="sm"
       value={String(value)}
       disabled={disabled}
       onChange={(e) => onChange(options.find((o) => String(o.value) === e.target.value)!.value)}
-      className={ui.control}
     >
       {options.map((o) => (
         <option key={String(o.value)} value={String(o.value)}>
           {o.label}
         </option>
       ))}
-    </select>
+    </NativeSelect>
   </div>
 );
 
-export const Segmented = <T extends string>({
+/** Two to four exclusive choices: the kit's segmented track, under its label. */
+export const SegmentedField = <T extends string>({
   label: text,
   value,
   options,
@@ -135,31 +166,18 @@ export const Segmented = <T extends string>({
 }) => (
   <div className="min-w-0">
     <span className={ui.label}>{text}</span>
-    <div role="radiogroup" aria-label={text} className="flex h-9 overflow-hidden rounded-md border bg-muted/40 p-0.5">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={value === o.value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "flex-1 rounded-[7px] text-[12px] transition-colors",
-            value === o.value ? "bg-card font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <Segmented label={text} value={value} options={options} onChange={onChange} />
   </div>
 );
 
 const HEX = /^#[0-9a-f]{6}$/i;
+type Source = "fixed" | "none" | keyof typeof COLOR_REF_LABEL;
 
 /**
  * A colour that can be fixed, or follow the club's brand or each guest's
- * ticket type -- one design, every type in its own colour.
+ * ticket type -- one design, every type in its own colour. The swatch is the
+ * picker; the select says where the colour comes from; a fixed colour shows
+ * its hex to type into.
  */
 export const ColorRefField = ({
   id,
@@ -178,7 +196,8 @@ export const ColorRefField = ({
   allowNone?: boolean;
   refs?: boolean;
 }) => {
-  const fixed = value && HEX.test(value) ? value : null;
+  const isRef = !!value && value in COLOR_REF_LABEL;
+  const fixed = value && !isRef ? value : null;
   const shown = value ? resolve(value) : null;
   const [draft, setDraft] = React.useState(fixed ?? "");
   const [seen, setSeen] = React.useState(fixed);
@@ -186,6 +205,20 @@ export const ColorRefField = ({
     setSeen(fixed);
     setDraft(fixed ?? "");
   }
+  const sources: { value: Source; label: string }[] = [
+    { value: "fixed", label: "Fixed colour" },
+    ...(refs
+      ? (Object.keys(COLOR_REF_LABEL) as (keyof typeof COLOR_REF_LABEL)[]).map((r) => ({ value: r as Source, label: COLOR_REF_LABEL[r] ?? r }))
+      : []),
+    ...(allowNone ? [{ value: "none" as Source, label: "None" }] : []),
+  ];
+  const source: Source = value === null ? "none" : isRef ? (value as Source) : "fixed";
+  const choosing = sources.length > 1;
+  const pick = (next: Source) => {
+    if (next === "none") onChange(null);
+    else if (next === "fixed") onChange(shown && HEX.test(shown) ? shown.toUpperCase() : "#000000");
+    else onChange(next);
+  };
   return (
     <div className="min-w-0">
       <label htmlFor={id} className={ui.label}>
@@ -193,8 +226,9 @@ export const ColorRefField = ({
       </label>
       <div className="flex items-center gap-1.5">
         <span
-          className="relative size-9 shrink-0 overflow-hidden rounded-md border"
-          style={{ background: shown ?? "repeating-linear-gradient(45deg,#ddd 0 4px,#fff 4px 8px)" }}
+          className="border-line relative size-8 shrink-0 overflow-hidden rounded-[var(--radius-md)] border"
+          // The swatch shows the design's own colour; "none" is drawn as a hatch in the chrome's colours.
+          style={{ background: shown ?? "repeating-linear-gradient(45deg,var(--line) 0 4px,var(--surface) 4px 8px)" }}
         >
           <input
             type="color"
@@ -204,58 +238,37 @@ export const ColorRefField = ({
             className="absolute inset-0 size-full cursor-pointer opacity-0"
           />
         </span>
-        <input
-          id={id}
-          value={fixed ? draft : value ? (COLOR_REF_LABEL as Record<string, string>)[value] : "None"}
-          readOnly={!fixed}
-          onFocus={() => !fixed && shown && (onChange(shown.toUpperCase()), setDraft(shown.toUpperCase()))}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            const v = e.target.value.startsWith("#") ? e.target.value : `#${e.target.value}`;
-            if (HEX.test(v)) onChange(v.toUpperCase());
-          }}
-          className={cn(ui.control, "font-mono uppercase", !fixed && "text-muted-foreground")}
-        />
+        {choosing ? (
+          <NativeSelect id={id} size="sm" value={source} onChange={(e) => pick(e.target.value as Source)} className="min-w-0 flex-1">
+            {sources.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </NativeSelect>
+        ) : null}
+        {source === "fixed" ? (
+          <input
+            id={choosing ? undefined : id}
+            aria-label={choosing ? `${text} hex` : undefined}
+            value={draft}
+            spellCheck={false}
+            maxLength={7}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              const v = e.target.value.startsWith("#") ? e.target.value : `#${e.target.value}`;
+              if (HEX.test(v)) onChange(v.toUpperCase());
+            }}
+            onBlur={() => setDraft(fixed ?? "")}
+            className={cn(ui.control, "font-mono uppercase", choosing ? "w-[96px] shrink-0" : "min-w-0 flex-1")}
+          />
+        ) : null}
       </div>
-      {refs || allowNone ? (
-        <div className="mt-1.5 flex flex-wrap gap-1">
-          {refs
-            ? (Object.keys(COLOR_REF_LABEL) as (keyof typeof COLOR_REF_LABEL)[]).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  aria-pressed={value === r}
-                  onClick={() => onChange(r)}
-                  className={cn(
-                    "flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10.5px]",
-                    value === r ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <span className="size-2 rounded-full" style={{ background: resolve(r) }} />
-                  {COLOR_REF_LABEL[r]}
-                </button>
-              ))
-            : null}
-          {allowNone ? (
-            <button
-              type="button"
-              aria-pressed={value === null}
-              onClick={() => onChange(null)}
-              className={cn(
-                "rounded border px-1.5 py-0.5 text-[10.5px]",
-                value === null ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              None
-            </button>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 };
 
-const groupHeading = "px-2.5 pt-2 pb-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground";
+const groupHeading = "eyebrow px-2 pt-2 pb-1";
 
 /** Insert a token or a conditional block where the cursor is. */
 export const TokenMenu = ({
@@ -274,8 +287,8 @@ export const TokenMenu = ({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="xs">
-          Insert token ▾
+        <Button type="button" variant="secondary" size="xs">
+          <BracesIcon /> Insert token <ChevronDownIcon />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-[420px] w-[300px] overflow-y-auto">
@@ -288,8 +301,8 @@ export const TokenMenu = ({
               .map((t) => (
                 <DropdownMenuItem key={t.key} onSelect={() => onInsert(`{{${t.key}}}`)}>
                   <span className="flex w-full items-baseline justify-between gap-2">
-                    <span className="text-[12.5px]">{t.label}</span>
-                    <span className="truncate font-mono text-[10px] text-muted-foreground">{samples[t.key] || t.sample}</span>
+                    <span className="text-ink text-[12.5px]">{t.label}</span>
+                    <span className="text-ink-3 truncate font-mono text-[10.5px]">{samples[t.key] || t.sample}</span>
                   </span>
                 </DropdownMenuItem>
               ))}
@@ -302,8 +315,8 @@ export const TokenMenu = ({
             {fields.map((f) => (
               <DropdownMenuItem key={f.key} onSelect={() => onInsert(`{{${f.key}}}`)}>
                 <span className="flex w-full items-baseline justify-between gap-2">
-                  <span className="text-[12.5px]">{f.label}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">{f.key}</span>
+                  <span className="text-ink text-[12.5px]">{f.label}</span>
+                  <span className="text-ink-3 font-mono text-[10.5px]">{f.key}</span>
                 </span>
               </DropdownMenuItem>
             ))}

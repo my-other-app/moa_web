@@ -16,16 +16,68 @@ import {
   type TicketLayer,
   ticketArea,
 } from "@moa/layout";
-import { Button, IconButton, IconToggle, InlineAlert, Switch, cn } from "@moa/ui";
-import { ArrowDownIcon, ArrowUpIcon, CopyIcon, EyeIcon, EyeOffIcon, LockIcon, LockOpenIcon, Trash2Icon } from "lucide-react";
+import { Button, CardLabel, DefinitionRows, EmptyState, FigurePanel, IconButton, IconToggle, Notice, Switch, cn } from "@moa/ui";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CopyIcon,
+  EyeIcon,
+  EyeOffIcon,
+  ImageIcon,
+  ImagePlusIcon,
+  LayersIcon,
+  ListIcon,
+  LockIcon,
+  LockOpenIcon,
+  QrCodeIcon,
+  ScanIcon,
+  SquareIcon,
+  Trash2Icon,
+  TypeIcon,
+  UploadIcon,
+  XIcon,
+} from "lucide-react";
 import * as React from "react";
 
 import type { DesignerConfig } from "../config";
 import type { DesignToken } from "../schemas";
-import { Busy, ColorRefField, NumberField, Segmented, SelectField, TokenMenu } from "./fields";
-import { KIND_GLYPH, KIND_LABEL, type Layout, ui } from "./kit";
+import { Busy, ColorRefField, NumberField, Section, SegmentedField, SelectField, TokenMenu } from "./fields";
+import { KIND_LABEL, type Layout, ui } from "./kit";
+
+// ─── Kind marks ─────────────────────────────────────────────────────────
+
+/** Each kind's icon, as elements: picked from a table, never a component made in render. */
+const KIND_ICON: Record<TicketLayer["kind"], React.ReactNode> = {
+  text: <TypeIcon />,
+  qr: <QrCodeIcon />,
+  image: <ImageIcon />,
+  shape: <SquareIcon />,
+  agenda: <ListIcon />,
+};
+
+/** A layer's kind as a small mark -- the same in the list and at the head of its properties. Refuse when it needs fixing. */
+export const KindMark = ({ kind, bad, size = "sm" }: { kind: TicketLayer["kind"]; bad?: boolean; size?: "sm" | "md" }) => (
+  <span
+    aria-hidden="true"
+    className={cn(
+      "grid shrink-0 place-items-center rounded-[var(--radius-sm)]",
+      size === "sm" ? "size-7 [&_svg]:size-3.5" : "size-9 [&_svg]:size-4",
+      bad ? "bg-refuse-soft text-refuse" : "bg-sunken text-ink-2"
+    )}
+  >
+    {KIND_ICON[kind]}
+  </span>
+);
 
 // ─── Layers ─────────────────────────────────────────────────────────────
+
+const ADDABLE: { kind: TicketLayer["kind"]; label: string }[] = [
+  { kind: "text", label: "Text" },
+  { kind: "qr", label: "QR code" },
+  { kind: "image", label: "Image" },
+  { kind: "shape", label: "Shape" },
+  { kind: "agenda", label: "Agenda" },
+];
 
 export const LayersPanel = ({
   layers,
@@ -61,149 +113,144 @@ export const LayersPanel = ({
   const hasAgenda = layers.some((l) => l.kind === "agenda");
   // Front first, as in every design tool.
   const ordered = [...layers].reverse();
+  const hiddenCount = layers.filter((l) => l.hidden).length;
   return (
-    <section className={ui.panel} aria-label="Layers">
-      <div className="border-b px-3.5 py-2.5">
-        <h2 className={ui.heading}>Layers · {layers.length}</h2>
-        <div className="mt-2 grid grid-cols-4 gap-1.5">
-          <Button size="sm" variant="outline" disabled={disabled} onClick={() => onAdd("text")}>
-            + Text
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={disabled || hasQr}
-            title={hasQr ? "A design has exactly one QR code" : undefined}
-            onClick={() => onAdd("qr")}
-          >
-            + QR
-          </Button>
-          <Button size="sm" variant="outline" disabled={disabled} onClick={() => onAdd("image")}>
-            + Image
-          </Button>
-          <Button size="sm" variant="outline" disabled={disabled} onClick={() => onAdd("shape")}>
-            + Shape
-          </Button>
-          {agendaAllowed ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={disabled || hasAgenda}
-              title={hasAgenda ? "A design lists the run of show once" : undefined}
-              onClick={() => onAdd("agenda")}
-            >
-              + Agenda
-            </Button>
-          ) : null}
+    <FigurePanel role="region" aria-label="Layers" className="p-0">
+      <div className="border-line-soft border-b px-4 pt-4 pb-3.5">
+        <CardLabel
+          right={
+            <span className="text-ink-3 font-mono text-[11px] tabular-nums">
+              {layers.length}
+              {hiddenCount ? ` · ${hiddenCount} hidden` : ""}
+            </span>
+          }
+        >
+          Layers
+        </CardLabel>
+        <div role="group" aria-label="Add a layer" className="mt-3 flex flex-wrap gap-1.5">
+          {ADDABLE.filter((a) => a.kind !== "agenda" || agendaAllowed).map((a) => {
+            const one = (a.kind === "qr" && hasQr) || (a.kind === "agenda" && hasAgenda);
+            return (
+              <Button
+                key={a.kind}
+                size="xs"
+                variant="secondary"
+                disabled={disabled || one}
+                title={one ? (a.kind === "qr" ? "A design has exactly one QR code" : "A design lists the run of show once") : `Add a ${a.label.toLowerCase()} layer`}
+                onClick={() => onAdd(a.kind)}
+              >
+                {KIND_ICON[a.kind]}
+                {a.label}
+              </Button>
+            );
+          })}
         </div>
       </div>
-      <ul className="max-h-[360px] overflow-y-auto p-1.5">
-        {ordered.map((l, i) => {
-          const on = l.id === selected;
-          const bad = problems.has(l.id);
-          const pinned = l.kind === "qr" && qrRequired;
-          return (
-            <li key={l.id}>
-              <div
-                role="button"
-                tabIndex={0}
-                aria-pressed={on}
-                onClick={() => onSelect(l.id)}
-                onKeyDown={(e) =>
-                  (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), onSelect(l.id))
-                }
-                className={cn(
-                  "group flex items-center gap-2 rounded-md border px-2 py-1.5 transition-colors",
-                  on ? "border-primary bg-primary/10" : "border-transparent hover:bg-muted",
-                  l.hidden && "opacity-55"
-                )}
-              >
-                <span
-                  aria-hidden
+      {ordered.length ? (
+        <ul className="scroll-thin max-h-[360px] overflow-y-auto p-1.5" aria-label="Layers, front to back">
+          {ordered.map((l, i) => {
+            const on = l.id === selected;
+            const bad = problems.has(l.id);
+            const pinned = l.kind === "qr" && qrRequired;
+            return (
+              <li key={l.id}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={on}
+                  onClick={() => onSelect(l.id)}
+                  onKeyDown={(e) =>
+                    (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), onSelect(l.id))
+                  }
                   className={cn(
-                    "grid size-7 shrink-0 place-items-center rounded font-mono text-[12px]",
-                    bad ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
+                    "group flex items-center gap-2 rounded-[var(--radius-md)] border px-2 py-1.5 transition-colors",
+                    on ? "border-brand-line bg-brand-soft" : "border-transparent hover:bg-sunken"
                   )}
                 >
-                  {KIND_GLYPH[l.kind]}
-                </span>
-                <span className="min-w-0 flex-1">
-                  {renaming === l.id ? (
-                    <input
-                      autoFocus
-                      aria-label="Layer name"
-                      defaultValue={l.name}
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
-                        if (e.key === "Escape") setRenaming(null);
-                      }}
-                      onBlur={(e) => {
-                        const v = e.currentTarget.value.trim();
-                        if (v && v !== l.name) onPatch(l.id, { name: v.slice(0, 60) });
-                        setRenaming(null);
-                      }}
-                      className="h-7 w-full rounded border border-primary bg-card px-1.5 text-[12.5px]"
-                    />
-                  ) : (
-                    <span
-                      className="block truncate text-[12.5px] font-medium"
-                      onDoubleClick={() => !disabled && setRenaming(l.id)}
-                      title="Double-click to rename"
-                    >
-                      {l.name}
+                  {/* A hidden layer fades; its controls do not, so the eye that brings it back stays easy to find. */}
+                  <span className={cn("flex min-w-0 flex-1 items-center gap-2", l.hidden && "opacity-55")}>
+                    <KindMark kind={l.kind} bad={bad} />
+                    <span className="min-w-0 flex-1">
+                      {renaming === l.id ? (
+                        <input
+                          autoFocus
+                          aria-label="Layer name"
+                          defaultValue={l.name}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
+                            if (e.key === "Escape") setRenaming(null);
+                          }}
+                          onBlur={(e) => {
+                            const v = e.currentTarget.value.trim();
+                            if (v && v !== l.name) onPatch(l.id, { name: v.slice(0, 60) });
+                            setRenaming(null);
+                          }}
+                          className="input input-sm"
+                        />
+                      ) : (
+                        <span
+                          className="text-ink block truncate text-[12.5px] font-medium"
+                          onDoubleClick={() => !disabled && setRenaming(l.id)}
+                          title="Double-click to rename"
+                        >
+                          {l.name}
+                        </span>
+                      )}
+                      <span className="text-ink-3 block truncate font-mono text-[10.5px]">
+                        {bad ? <span className="text-refuse">needs attention · </span> : null}
+                        {l.kind === "text" ? l.text || "empty" : KIND_LABEL[l.kind]}
+                      </span>
                     </span>
-                  )}
-                  <span className="block truncate font-mono text-[10px] text-muted-foreground">
-                    {bad ? <span className="text-destructive">needs attention · </span> : null}
-                    {l.kind === "text" ? l.text || "empty" : KIND_LABEL[l.kind]}
                   </span>
-                </span>
-                <span className="flex items-center gap-0.5 opacity-70 group-hover:opacity-100 has-[[aria-pressed=true]]:opacity-100">
-                  <IconToggle
-                    on={!l.hidden}
-                    labelOn={`Hide ${l.name}`}
-                    labelOff={`Show ${l.name}`}
-                    iconOn={<EyeIcon />}
-                    iconOff={<EyeOffIcon />}
-                    disabled={disabled || pinned}
-                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
-                    onToggle={() => onPatch(l.id, { hidden: !l.hidden })}
-                  />
-                  <IconToggle
-                    on={!!l.locked}
-                    labelOn={`Unlock ${l.name}`}
-                    labelOff={`Lock ${l.name} in place`}
-                    iconOn={<LockIcon />}
-                    iconOff={<LockOpenIcon />}
-                    tone="caution"
-                    disabled={disabled}
-                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
-                    onToggle={() => onPatch(l.id, { locked: !l.locked })}
-                  />
-                  <IconButton label={`Bring ${l.name} forward`} variant="quiet" size="xs" disabled={disabled || i === 0} onClick={(e) => (e.stopPropagation(), onMove(l.id, 1))}>
-                    <ArrowUpIcon />
-                  </IconButton>
-                  <IconButton label={`Send ${l.name} backward`} variant="quiet" size="xs" disabled={disabled || i === ordered.length - 1} onClick={(e) => (e.stopPropagation(), onMove(l.id, -1))}>
-                    <ArrowDownIcon />
-                  </IconButton>
-                  <IconButton label={`Duplicate ${l.name}`} variant="quiet" size="xs" disabled={disabled || l.kind === "qr"} onClick={(e) => (e.stopPropagation(), onDuplicate(l.id))}>
-                    <CopyIcon />
-                  </IconButton>
-                  <IconButton label={pinned ? "Every ticket needs its QR code" : `Delete ${l.name}`} variant="quiet" size="xs" danger disabled={disabled || pinned} onClick={(e) => (e.stopPropagation(), onRemove(l.id))}>
-                    <Trash2Icon />
-                  </IconButton>
-                </span>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+                  <span className="flex items-center gap-0.5 opacity-70 group-hover:opacity-100 has-[[aria-pressed=true]]:opacity-100">
+                    <IconToggle
+                      on={!l.hidden}
+                      labelOn={`Hide ${l.name}`}
+                      labelOff={`Show ${l.name}`}
+                      iconOn={<EyeIcon />}
+                      iconOff={<EyeOffIcon />}
+                      disabled={disabled || pinned}
+                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
+                      onToggle={() => onPatch(l.id, { hidden: !l.hidden })}
+                    />
+                    <IconToggle
+                      on={!!l.locked}
+                      labelOn={`Unlock ${l.name}`}
+                      labelOff={`Lock ${l.name} in place`}
+                      iconOn={<LockIcon />}
+                      iconOff={<LockOpenIcon />}
+                      tone="caution"
+                      disabled={disabled}
+                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
+                      onToggle={() => onPatch(l.id, { locked: !l.locked })}
+                    />
+                    <IconButton label={`Bring ${l.name} forward`} variant="quiet" size="xs" disabled={disabled || i === 0} onClick={(e) => (e.stopPropagation(), onMove(l.id, 1))}>
+                      <ArrowUpIcon />
+                    </IconButton>
+                    <IconButton label={`Send ${l.name} backward`} variant="quiet" size="xs" disabled={disabled || i === ordered.length - 1} onClick={(e) => (e.stopPropagation(), onMove(l.id, -1))}>
+                      <ArrowDownIcon />
+                    </IconButton>
+                    <IconButton label={`Duplicate ${l.name}`} variant="quiet" size="xs" disabled={disabled || l.kind === "qr"} onClick={(e) => (e.stopPropagation(), onDuplicate(l.id))}>
+                      <CopyIcon />
+                    </IconButton>
+                    <IconButton label={pinned ? "Every ticket needs its QR code" : `Delete ${l.name}`} variant="quiet" size="xs" danger disabled={disabled || pinned} onClick={(e) => (e.stopPropagation(), onRemove(l.id))}>
+                      <Trash2Icon />
+                    </IconButton>
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <EmptyState size="sm" icon={<LayersIcon />} title="No layers yet" description="Add text, a QR code, an image or a shape above, or start from a layout." />
+      )}
+    </FigurePanel>
   );
 };
 
-// ─── Inspector ──────────────────────────────────────────────────────────
+// ─── Properties ─────────────────────────────────────────────────────────
 
 export interface InspectorContext {
   resolve: (c: ColorRef) => string;
@@ -219,14 +266,55 @@ export interface InspectorContext {
   disabled: boolean;
 }
 
+const ALIGN = [
+  { value: "left", label: "Left" },
+  { value: "center", label: "Centre" },
+  { value: "right", label: "Right" },
+] as const;
+
+/** A layer's name, committed on Enter or when the field is left -- never emptied. */
+const NameField = ({ id, value, disabled, onCommit }: { id: string; value: string; disabled: boolean; onCommit: (v: string) => void }) => {
+  const [draft, setDraft] = React.useState(value);
+  const [seen, setSeen] = React.useState(value);
+  if (value !== seen) {
+    setSeen(value);
+    setDraft(value);
+  }
+  const commit = () => {
+    const v = draft.trim();
+    if (v && v !== value) onCommit(v.slice(0, 60));
+    else setDraft(value);
+  };
+  return (
+    <div className="min-w-0">
+      <label htmlFor={id} className={ui.label}>
+        Name
+      </label>
+      <input
+        id={id}
+        value={draft}
+        maxLength={60}
+        disabled={disabled}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
+        className={ui.control}
+      />
+    </div>
+  );
+};
+
 export const Inspector = ({
   layer,
   onPatch,
+  onClose,
   problems,
   ctx,
 }: {
   layer: TicketLayer;
   onPatch: (patch: Partial<TicketLayer>, group?: string) => void;
+  /** Deselect the layer, back to the canvas's own settings. */
+  onClose?: () => void;
   problems: string[];
   ctx: InspectorContext;
 }) => {
@@ -237,71 +325,121 @@ export const Inspector = ({
     <K extends string>(field: K) =>
     (v: unknown) =>
       onPatch({ [field]: v } as Partial<TicketLayer>, `${layer.id}-${field}`);
+  const opacity = (l: { opacity: number }) => (
+    <NumberField
+      id={id("opacity")}
+      label="Opacity"
+      value={Math.round(l.opacity * 100)}
+      onChange={(v) => onPatch({ opacity: v / 100 } as Partial<TicketLayer>, `${layer.id}-opacity`)}
+      min={0}
+      max={100}
+      suffix="%"
+      disabled={d}
+    />
+  );
+  const name = <NameField id={id("name")} value={layer.name} disabled={d} onCommit={(v) => onPatch({ name: v })} />;
+  const state = [KIND_LABEL[layer.kind], layer.locked ? "locked" : null, layer.hidden ? "hidden" : null].filter(Boolean).join(" · ");
 
   return (
-    <section className={ui.panel} aria-label="Inspector">
-      <div className="flex items-center gap-2 border-b px-3.5 py-2.5">
-        <h2 className={ui.heading}>Inspector</h2>
-        <span className="truncate text-[12px] text-muted-foreground">
-          {layer.name} · {KIND_LABEL[layer.kind].toLowerCase()}
-        </span>
-      </div>
-      <div className="flex flex-col gap-3 p-3.5">
+    <FigurePanel role="region" aria-label="Properties" className="p-0">
+      <div className="px-4 pt-4 pb-3.5">
+        <CardLabel
+          right={
+            onClose ? (
+              <IconButton label="Deselect" variant="quiet" size="xs" onClick={onClose}>
+                <XIcon />
+              </IconButton>
+            ) : null
+          }
+        >
+          Properties
+        </CardLabel>
+        <div className="mt-2 flex items-center gap-2.5">
+          <KindMark kind={layer.kind} bad={problems.length > 0} size="md" />
+          <div className="min-w-0">
+            <p className="text-ink m-0 truncate text-[14px] font-semibold">{layer.name}</p>
+            <p className="text-ink-3 m-0 text-[12px]">{state}</p>
+          </div>
+        </div>
         {problems.length ? (
-          <InlineAlert tone="destructive" title="Fix">
-            <ul className="list-disc pl-4">
+          <Notice tone="refuse" tag="Fix" className="mt-3">
+            <ul className="m-0 list-disc pl-4">
               {problems.map((m) => (
                 <li key={m}>{m.replace(`${layer.name}: `, "")}</li>
               ))}
             </ul>
-          </InlineAlert>
+          </Notice>
         ) : null}
         {layer.locked ? (
-          <p className={cn("text-[12px]", ui.caution)}>Locked in place — unlock it in the layer list to move it on the canvas.</p>
+          <Notice
+            tone="caution"
+            tag="Locked"
+            className="mt-3"
+            action={
+              <Button size="xs" variant="secondary" disabled={d} onClick={() => onPatch({ locked: false })}>
+                <LockOpenIcon /> Unlock
+              </Button>
+            }
+          >
+            Held in place on the stage. The fields below still move it.
+          </Notice>
         ) : null}
+      </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
-          <NumberField id={id("x")} label="X" value={layer.x} onChange={p("x")} suffix="px" disabled={d} />
-          <NumberField id={id("y")} label="Y" value={layer.y} onChange={p("y")} suffix="px" disabled={d} />
-        </div>
-
-        {layer.kind === "text" ? (
-          <>
-            <div>
-              <div className="mb-1 flex items-end justify-between gap-2">
-                <label htmlFor={id("text")} className={cn(ui.label, "mb-0")}>
-                  Text / token
-                </label>
-                {!d ? (
-                  <TokenMenu
-                    tokens={ctx.tokens}
-                    samples={ctx.samples}
-                    groups={ctx.config.tokenGroups}
-                    onInsert={(snippet) => {
-                      const el = textRef.current;
-                      const at = el?.selectionStart ?? layer.text.length;
-                      const end = el?.selectionEnd ?? at;
-                      onPatch({ text: layer.text.slice(0, at) + snippet + layer.text.slice(end) });
-                      requestAnimationFrame(() => {
-                        el?.focus();
-                        el?.setSelectionRange(at + snippet.length, at + snippet.length);
-                      });
-                    }}
-                  />
-                ) : null}
-              </div>
-              <textarea
-                ref={textRef}
-                id={id("text")}
-                value={layer.text}
-                rows={Math.min(5, Math.max(2, Math.ceil(layer.text.length / 34)))}
+      {layer.kind === "text" ? (
+        <>
+          <Section title="Layer">
+            {name}
+            <div className="grid grid-cols-2 gap-2.5">
+              <NumberField id={id("x")} label="X" value={layer.x} onChange={p("x")} suffix="px" disabled={d} />
+              <NumberField id={id("y")} label="Y" value={layer.y} onChange={p("y")} suffix="px" disabled={d} />
+              <NumberField id={id("width")} label="Box width" value={layer.width} onChange={p("width")} min={10} suffix="px" disabled={d} />
+              <NumberField
+                id={id("maxLines")}
+                label="Max lines"
+                value={layer.maxLines}
+                onChange={(v) => onPatch({ maxLines: Math.round(v) } as Partial<TicketLayer>, `${layer.id}-maxLines`)}
+                min={1}
+                max={12}
                 disabled={d}
-                spellCheck={false}
-                onChange={(e) => onPatch({ text: e.target.value.slice(0, 600) }, `${layer.id}-text`)}
-                className="w-full resize-y rounded-md border bg-muted/40 px-2.5 py-2 font-mono text-[12.5px] leading-[1.5] text-foreground focus-visible:outline-2 focus-visible:outline-primary"
               />
-              <SampleLine text={ctx.rendered(layer)} />
             </div>
+          </Section>
+          <Section
+            title={<label htmlFor={id("text")}>Text and tokens</label>}
+            right={
+              !d ? (
+                <TokenMenu
+                  tokens={ctx.tokens}
+                  samples={ctx.samples}
+                  groups={ctx.config.tokenGroups}
+                  onInsert={(snippet) => {
+                    const el = textRef.current;
+                    const at = el?.selectionStart ?? layer.text.length;
+                    const end = el?.selectionEnd ?? at;
+                    onPatch({ text: layer.text.slice(0, at) + snippet + layer.text.slice(end) });
+                    requestAnimationFrame(() => {
+                      el?.focus();
+                      el?.setSelectionRange(at + snippet.length, at + snippet.length);
+                    });
+                  }}
+                />
+              ) : null
+            }
+          >
+            <textarea
+              ref={textRef}
+              id={id("text")}
+              value={layer.text}
+              rows={Math.min(5, Math.max(2, Math.ceil(layer.text.length / 34)))}
+              disabled={d}
+              spellCheck={false}
+              onChange={(e) => onPatch({ text: e.target.value.slice(0, 600) }, `${layer.id}-text`)}
+              className="input min-h-0 font-mono text-[12.5px] leading-[1.5]"
+            />
+            <SampleLine text={ctx.rendered(layer)} />
+          </Section>
+          <Section title="Type">
             <div className="grid grid-cols-2 gap-2.5">
               <SelectField
                 id={id("font")}
@@ -327,40 +465,16 @@ export const Inspector = ({
                 onChange={p("weight")}
               />
               <NumberField id={id("size")} label="Font size" value={layer.size} onChange={p("size")} min={4} max={800} suffix="px" disabled={d} />
-              <NumberField id={id("width")} label="Box width" value={layer.width} onChange={p("width")} min={10} suffix="px" disabled={d} />
-              <NumberField
-                id={id("maxLines")}
-                label="Max lines"
-                value={layer.maxLines}
-                onChange={(v) => onPatch({ maxLines: Math.round(v) } as Partial<TicketLayer>, `${layer.id}-maxLines`)}
-                min={1}
-                max={12}
-                disabled={d}
-              />
               <NumberField id={id("lineSpacing")} label="Line spacing" value={layer.lineSpacing} onChange={p("lineSpacing")} suffix="px" disabled={d} />
               <NumberField id={id("letterSpacing")} label="Letter spacing" value={layer.letterSpacing} onChange={p("letterSpacing")} step={0.5} suffix="px" disabled={d} />
-              <NumberField
-                id={id("opacity")}
-                label="Opacity"
-                value={Math.round(layer.opacity * 100)}
-                onChange={(v) => onPatch({ opacity: v / 100 } as Partial<TicketLayer>, `${layer.id}-opacity`)}
-                min={0}
-                max={100}
-                suffix="%"
-                disabled={d}
-              />
             </div>
-            <Segmented
-              label="Align"
-              value={layer.align}
-              onChange={(align) => onPatch({ align } as Partial<TicketLayer>)}
-              options={[
-                { value: "left", label: "Left" },
-                { value: "center", label: "Centre" },
-                { value: "right", label: "Right" },
-              ]}
-            />
-            <Segmented
+            {layer.font === "dm_serif" || layer.font === "bebas" ? (
+              <p className={ui.note}>
+                {TICKET_FONTS[layer.font].label} covers Latin letters only. A name in another script prints in Inter so it is never lost.
+              </p>
+            ) : null}
+            <SegmentedField label="Align" value={layer.align} onChange={(align) => onPatch({ align } as Partial<TicketLayer>)} options={[...ALIGN]} />
+            <SegmentedField
               label="When it does not fit"
               value={layer.fit}
               onChange={(fit) => onPatch({ fit } as Partial<TicketLayer>)}
@@ -369,6 +483,8 @@ export const Inspector = ({
                 { value: "truncate", label: "Cut with …" },
               ]}
             />
+          </Section>
+          <Section title="Colour">
             <ColorRefField
               id={id("color")}
               label="Font colour"
@@ -376,17 +492,18 @@ export const Inspector = ({
               onChange={(v) => onPatch({ color: v ?? "#141614" } as Partial<TicketLayer>, `${layer.id}-color`)}
               resolve={ctx.resolve}
             />
-            {layer.font === "dm_serif" || layer.font === "bebas" ? (
-              <p className={ui.note}>
-                {TICKET_FONTS[layer.font].label} covers Latin letters only. A name in another script prints in Inter so it is never lost.
-              </p>
-            ) : null}
-          </>
-        ) : null}
+            <div className="grid grid-cols-2 gap-2.5">{opacity(layer)}</div>
+          </Section>
+        </>
+      ) : null}
 
-        {layer.kind === "qr" ? (
-          <>
+      {layer.kind === "qr" ? (
+        <>
+          <Section title="Layer">
+            {name}
             <div className="grid grid-cols-2 gap-2.5">
+              <NumberField id={id("x")} label="X" value={layer.x} onChange={p("x")} suffix="px" disabled={d} />
+              <NumberField id={id("y")} label="Y" value={layer.y} onChange={p("y")} suffix="px" disabled={d} />
               <NumberField id={id("size")} label="Size" value={layer.size} onChange={p("size")} min={20} suffix="px" disabled={d} />
               <NumberField
                 id={id("quiet")}
@@ -403,6 +520,8 @@ export const Inspector = ({
               At least {minQrSize(ctx.canvas, ctx.page)} px on this canvas. The size is the whole square, quiet zone included, so it never
               changes with the length of the code.
             </p>
+          </Section>
+          <Section title="Colour">
             <ColorRefField
               id={id("dark")}
               label="Modules"
@@ -411,27 +530,34 @@ export const Inspector = ({
               onChange={(v) => v && onPatch({ dark: v } as Partial<TicketLayer>, `${layer.id}-dark`)}
               resolve={ctx.resolve}
             />
-            <div>
-              <ColorRefField
-                id={id("light")}
-                label="Background"
-                value={layer.light === "transparent" ? null : layer.light}
-                refs={false}
-                allowNone
-                onChange={(v) => onPatch({ light: v ?? "transparent" } as Partial<TicketLayer>, `${layer.id}-light`)}
-                resolve={ctx.resolve}
-              />
-              {layer.light === "transparent" ? (
-                <p className={cn("mt-1 text-[11.5px] leading-[1.5]", ui.caution)}>
-                  No background: only safe where the template is plain and light behind the code.
-                </p>
-              ) : null}
-            </div>
-          </>
-        ) : null}
+            <ColorRefField
+              id={id("light")}
+              label="Background"
+              value={layer.light === "transparent" ? null : layer.light}
+              refs={false}
+              allowNone
+              onChange={(v) => onPatch({ light: v ?? "transparent" } as Partial<TicketLayer>, `${layer.id}-light`)}
+              resolve={ctx.resolve}
+            />
+            {layer.light === "transparent" ? (
+              <p className="text-caution m-0 text-[11.5px] leading-[1.5]">No background: only safe where the template is plain and light behind the code.</p>
+            ) : null}
+          </Section>
+        </>
+      ) : null}
 
-        {layer.kind === "image" ? (
-          <>
+      {layer.kind === "image" ? (
+        <>
+          <Section title="Layer">
+            {name}
+            <div className="grid grid-cols-2 gap-2.5">
+              <NumberField id={id("x")} label="X" value={layer.x} onChange={p("x")} suffix="px" disabled={d} />
+              <NumberField id={id("y")} label="Y" value={layer.y} onChange={p("y")} suffix="px" disabled={d} />
+              <NumberField id={id("w")} label="Width" value={layer.width} onChange={p("width")} min={1} suffix="px" disabled={d} />
+              <NumberField id={id("h")} label="Height" value={layer.height} onChange={p("height")} min={1} suffix="px" disabled={d} />
+            </div>
+          </Section>
+          <Section title="Image">
             <SelectField
               id={id("source")}
               label="Shows"
@@ -455,57 +581,44 @@ export const Inspector = ({
             {layer.source === "upload" ? (
               <ImagePicker layer={layer} ctx={ctx} onPicked={(key) => onPatch({ imageKey: key } as Partial<TicketLayer>)} />
             ) : null}
-            <div className="grid grid-cols-2 gap-2.5">
-              <NumberField id={id("w")} label="Width" value={layer.width} onChange={p("width")} min={1} suffix="px" disabled={d} />
-              <NumberField id={id("h")} label="Height" value={layer.height} onChange={p("height")} min={1} suffix="px" disabled={d} />
-              <NumberField
-                id={id("opacity")}
-                label="Opacity"
-                value={Math.round(layer.opacity * 100)}
-                onChange={(v) => onPatch({ opacity: v / 100 } as Partial<TicketLayer>, `${layer.id}-opacity`)}
-                min={0}
-                max={100}
-                suffix="%"
-                disabled={d}
-              />
-            </div>
-            <div className="grid grid-cols-[1fr_96px] items-end gap-2.5">
-              <Segmented
-                label="Fit"
-                value={layer.fit}
-                onChange={(fit) => onPatch({ fit } as Partial<TicketLayer>)}
-                options={[
-                  { value: "contain", label: "Whole image" },
-                  { value: "cover", label: "Fill the box" },
-                ]}
-              />
-              <NumberField id={id("radius")} label="Corners" value={layer.radius} onChange={p("radius")} min={0} suffix="px" disabled={d} />
-            </div>
+          </Section>
+          <Section title="Fit">
+            <SegmentedField
+              label="In its box"
+              value={layer.fit}
+              onChange={(fit) => onPatch({ fit } as Partial<TicketLayer>)}
+              options={[
+                { value: "contain", label: "Whole image" },
+                { value: "cover", label: "Fill the box" },
+              ]}
+            />
             {layer.fit === "contain" ? (
-              <Segmented
-                label="Sits in its box"
-                value={layer.align}
-                onChange={(align) => onPatch({ align } as Partial<TicketLayer>)}
-                options={[
-                  { value: "left", label: "Left" },
-                  { value: "center", label: "Centre" },
-                  { value: "right", label: "Right" },
-                ]}
-              />
+              <SegmentedField label="Sits in its box" value={layer.align} onChange={(align) => onPatch({ align } as Partial<TicketLayer>)} options={[...ALIGN]} />
             ) : null}
-          </>
-        ) : null}
+            <div className="grid grid-cols-2 gap-2.5">
+              <NumberField id={id("radius")} label="Corners" value={layer.radius} onChange={p("radius")} min={0} suffix="px" disabled={d} />
+              {opacity(layer)}
+            </div>
+          </Section>
+        </>
+      ) : null}
 
-        {layer.kind === "agenda" ? (
-          <>
+      {layer.kind === "agenda" ? (
+        <>
+          <Section title="Layer">
+            {name}
+            <div className="grid grid-cols-2 gap-2.5">
+              <NumberField id={id("x")} label="X" value={layer.x} onChange={p("x")} suffix="px" disabled={d} />
+              <NumberField id={id("y")} label="Y" value={layer.y} onChange={p("y")} suffix="px" disabled={d} />
+              <NumberField id={id("w")} label="Width" value={layer.width} onChange={p("width")} min={40} suffix="px" disabled={d} />
+              <NumberField id={id("h")} label="Height" value={layer.height} onChange={p("height")} min={20} suffix="px" disabled={d} />
+            </div>
+          </Section>
+          <Section title="Sessions">
             <p className={ui.note}>
               The event&apos;s sessions, laid into this box: time, title, then speaker and room. What does not fit shrinks, then drops with a count.
             </p>
             <div className="grid grid-cols-2 gap-2.5">
-              <NumberField id={id("w")} label="Width" value={layer.width} onChange={p("width")} min={40} suffix="px" disabled={d} />
-              <NumberField id={id("h")} label="Height" value={layer.height} onChange={p("height")} min={20} suffix="px" disabled={d} />
-              <NumberField id={id("size")} label="Title size" value={layer.size} onChange={p("size")} min={6} max={400} suffix="px" disabled={d} />
-              <NumberField id={id("rowGap")} label="Between sessions" value={layer.rowGap} onChange={p("rowGap")} min={0} max={1000} suffix="px" disabled={d} />
               <NumberField
                 id={id("columns")}
                 label="Columns"
@@ -515,39 +628,9 @@ export const Inspector = ({
                 max={3}
                 disabled={d}
               />
-              <NumberField
-                id={id("opacity")}
-                label="Opacity"
-                value={Math.round(layer.opacity * 100)}
-                onChange={(v) => onPatch({ opacity: v / 100 } as Partial<TicketLayer>, `${layer.id}-opacity`)}
-                min={0}
-                max={100}
-                suffix="%"
-                disabled={d}
-              />
+              <NumberField id={id("rowGap")} label="Between sessions" value={layer.rowGap} onChange={p("rowGap")} min={0} max={1000} suffix="px" disabled={d} />
             </div>
-            <SelectField
-              id={id("font")}
-              label="Font"
-              value={layer.font}
-              disabled={d}
-              options={(Object.keys(TICKET_FONTS) as TicketFont[]).map((f) => ({ value: f, label: TICKET_FONTS[f].label }))}
-              onChange={(font) => onPatch({ font } as Partial<TicketLayer>)}
-            />
-            <Segmented
-              label="Align"
-              value={layer.align}
-              onChange={(align) => onPatch({ align } as Partial<TicketLayer>)}
-              options={[
-                { value: "left", label: "Left" },
-                { value: "center", label: "Centre" },
-                { value: "right", label: "Right" },
-              ]}
-            />
-            <ColorRefField id={id("color")} label="Titles" value={layer.color} onChange={(v) => onPatch({ color: v ?? "#141614" } as Partial<TicketLayer>, `${layer.id}-color`)} resolve={ctx.resolve} />
-            <ColorRefField id={id("accent")} label="Times and day headings" value={layer.accent} onChange={(v) => onPatch({ accent: v ?? "brand.primary" } as Partial<TicketLayer>, `${layer.id}-accent`)} resolve={ctx.resolve} />
-            <ColorRefField id={id("muted")} label="Speaker and room" value={layer.muted} onChange={(v) => onPatch({ muted: v ?? "#5A5F5B" } as Partial<TicketLayer>, `${layer.id}-muted`)} resolve={ctx.resolve} />
-            <div className="grid gap-1.5">
+            <ul className="m-0 grid list-none gap-2 p-0">
               {(
                 [
                   ["showSpeaker", "Show the speaker"],
@@ -555,33 +638,50 @@ export const Inspector = ({
                   ["showDayHeadings", "Head each day, when there is more than one"],
                 ] as const
               ).map(([key, label]) => (
-                <label key={key} className="flex items-center gap-2 text-[12.5px]">
-                  <input type="checkbox" checked={layer[key]} disabled={d} onChange={(e) => onPatch({ [key]: e.target.checked } as Partial<TicketLayer>)} className="size-4 accent-primary" />
-                  {label}
-                </label>
+                <li key={key} className="flex items-center justify-between gap-3">
+                  <label htmlFor={id(key)} className="text-ink text-[12.5px]">
+                    {label}
+                  </label>
+                  <Switch id={id(key)} checked={layer[key]} disabled={d} onCheckedChange={(v) => onPatch({ [key]: v } as Partial<TicketLayer>)} />
+                </li>
               ))}
-            </div>
-          </>
-        ) : null}
-
-        {layer.kind === "shape" ? (
-          <>
+            </ul>
+          </Section>
+          <Section title="Type">
             <div className="grid grid-cols-2 gap-2.5">
+              <SelectField
+                id={id("font")}
+                label="Font"
+                value={layer.font}
+                disabled={d}
+                options={(Object.keys(TICKET_FONTS) as TicketFont[]).map((f) => ({ value: f, label: TICKET_FONTS[f].label }))}
+                onChange={(font) => onPatch({ font } as Partial<TicketLayer>)}
+              />
+              <NumberField id={id("size")} label="Title size" value={layer.size} onChange={p("size")} min={6} max={400} suffix="px" disabled={d} />
+            </div>
+            <SegmentedField label="Align" value={layer.align} onChange={(align) => onPatch({ align } as Partial<TicketLayer>)} options={[...ALIGN]} />
+          </Section>
+          <Section title="Colour">
+            <ColorRefField id={id("color")} label="Titles" value={layer.color} onChange={(v) => onPatch({ color: v ?? "#141614" } as Partial<TicketLayer>, `${layer.id}-color`)} resolve={ctx.resolve} />
+            <ColorRefField id={id("accent")} label="Times and day headings" value={layer.accent} onChange={(v) => onPatch({ accent: v ?? "brand.primary" } as Partial<TicketLayer>, `${layer.id}-accent`)} resolve={ctx.resolve} />
+            <ColorRefField id={id("muted")} label="Speaker and room" value={layer.muted} onChange={(v) => onPatch({ muted: v ?? "#5A5F5B" } as Partial<TicketLayer>, `${layer.id}-muted`)} resolve={ctx.resolve} />
+            <div className="grid grid-cols-2 gap-2.5">{opacity(layer)}</div>
+          </Section>
+        </>
+      ) : null}
+
+      {layer.kind === "shape" ? (
+        <>
+          <Section title="Layer">
+            {name}
+            <div className="grid grid-cols-2 gap-2.5">
+              <NumberField id={id("x")} label="X" value={layer.x} onChange={p("x")} suffix="px" disabled={d} />
+              <NumberField id={id("y")} label="Y" value={layer.y} onChange={p("y")} suffix="px" disabled={d} />
               <NumberField id={id("w")} label="Width" value={layer.width} onChange={p("width")} min={0.5} suffix="px" disabled={d} />
               <NumberField id={id("h")} label="Height" value={layer.height} onChange={p("height")} min={0.5} suffix="px" disabled={d} />
               {layer.path ? null : (
                 <NumberField id={id("radius")} label="Corner radius" value={layer.radius} onChange={p("radius")} min={0} suffix="px" disabled={d} />
               )}
-              <NumberField
-                id={id("opacity")}
-                label="Opacity"
-                value={Math.round(layer.opacity * 100)}
-                onChange={(v) => onPatch({ opacity: v / 100 } as Partial<TicketLayer>, `${layer.id}-opacity`)}
-                min={0}
-                max={100}
-                suffix="%"
-                disabled={d}
-              />
             </div>
             {layer.path ? (
               <p className={ui.note}>
@@ -589,6 +689,8 @@ export const Inspector = ({
                 any shape.
               </p>
             ) : null}
+          </Section>
+          <Section title="Fill and outline">
             <ColorRefField
               id={id("fill")}
               label="Fill"
@@ -597,39 +699,39 @@ export const Inspector = ({
               onChange={(v) => onPatch({ fill: v } as Partial<TicketLayer>, `${layer.id}-fill`)}
               resolve={ctx.resolve}
             />
-            <div className="grid grid-cols-[1fr_96px] items-end gap-2.5">
-              <ColorRefField
-                id={id("stroke")}
-                label="Outline"
-                value={layer.stroke}
-                allowNone
-                onChange={(v) =>
-                  onPatch({ stroke: v, strokeWidth: v && !layer.strokeWidth ? 3 : layer.strokeWidth } as Partial<TicketLayer>, `${layer.id}-stroke`)
-                }
-                resolve={ctx.resolve}
-              />
-              <NumberField id={id("strokeWidth")} label="Outline" value={layer.strokeWidth} onChange={p("strokeWidth")} min={0} suffix="px" disabled={d} />
+            <ColorRefField
+              id={id("stroke")}
+              label="Outline"
+              value={layer.stroke}
+              allowNone
+              onChange={(v) =>
+                onPatch({ stroke: v, strokeWidth: v && !layer.strokeWidth ? 3 : layer.strokeWidth } as Partial<TicketLayer>, `${layer.id}-stroke`)
+              }
+              resolve={ctx.resolve}
+            />
+            <div className="grid grid-cols-2 gap-2.5">
+              <NumberField id={id("strokeWidth")} label="Outline width" value={layer.strokeWidth} onChange={p("strokeWidth")} min={0} suffix="px" disabled={d} />
+              {opacity(layer)}
             </div>
-          </>
-        ) : null}
-      </div>
-    </section>
+          </Section>
+        </>
+      ) : null}
+    </FigurePanel>
   );
 };
 
 const WEIGHT_LABEL: Record<number, string> = { 400: "Regular", 500: "Medium", 600: "Semibold", 700: "Bold" };
 
 const SampleLine = ({ text }: { text: { text: string; truncated: boolean } }) => (
-  <div className="mt-1.5 rounded-md border bg-muted px-2.5 py-1.5 text-[12px]">
-    <span className="mr-1.5 font-mono text-[9.5px] uppercase tracking-[0.08em] text-muted-foreground">Sample guest sees</span>
-    <span className={cn("break-words", !text.text && "text-muted-foreground")}>
-      {text.text || "nothing — every token is empty for this guest"}
-    </span>
-    {text.truncated ? (
-      <span className={cn("mt-1 block text-[11px]", ui.caution)}>Cut short even at half size — widen the box or allow more lines.</span>
-    ) : null}
+  <div className="bg-sunken rounded-[var(--radius-md)] px-3 py-2 text-[12px] leading-[1.5]">
+    <span className="eyebrow mb-0.5 block">Sample guest sees</span>
+    <span className={cn("break-words", text.text ? "text-ink" : "text-ink-3")}>{text.text || "Nothing — every token is empty for this guest"}</span>
+    {text.truncated ? <span className="text-caution mt-1 block text-[11.5px]">Cut short even at half size — widen the box or allow more lines.</span> : null}
   </div>
 );
+
+/** A checkerboard in the chrome's colours, behind a picture that may be transparent. */
+const CHECKER = "bg-[repeating-conic-gradient(var(--sunken)_0_25%,var(--surface)_0_50%)] bg-[length:12px_12px]";
 
 const ImagePicker = ({
   layer,
@@ -644,21 +746,21 @@ const ImagePicker = ({
   const [busy, setBusy] = React.useState(false);
   const url = ctx.imageUrl(layer);
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-md border bg-[repeating-conic-gradient(#e6e6e3_0_25%,#fff_0_50%)] bg-[length:12px_12px]">
+    <div className="flex items-center gap-3">
+      <span className={cn("border-line grid size-14 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] border", CHECKER)}>
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt="" className="size-full object-contain" />
         ) : (
-          <span className="font-mono text-[9px] text-muted-foreground">NONE</span>
+          <span className="text-ink-3 text-[11px]">No image</span>
         )}
       </span>
       <div className="min-w-0 flex-1">
-        <Button size="sm" variant="outline" disabled={ctx.disabled || busy} onClick={() => input.current?.click()}>
-          <Busy on={busy} />
+        <Button size="sm" variant="secondary" disabled={ctx.disabled || busy} onClick={() => input.current?.click()}>
+          {busy ? <Busy on /> : <UploadIcon />}
           {layer.imageKey ? "Replace image" : "Choose image"}
         </Button>
-        <p className="mt-1 text-[11px] text-muted-foreground">PNG keeps transparency · max 5 MB</p>
+        <p className={cn("mt-1.5", ui.note)}>PNG keeps transparency · up to 5 MB. Or drop one on the stage.</p>
       </div>
       <input
         ref={input}
@@ -705,7 +807,6 @@ export const CanvasPanel = ({
   photos,
   onUploadBackground,
   onRemoveBackground,
-  onStarter,
   onFindArea,
   finding,
   areaSelected,
@@ -731,7 +832,6 @@ export const CanvasPanel = ({
   photos: { id: string; name: string; url: string | null }[];
   onUploadBackground: (file: File, slotId: string | null) => void;
   onRemoveBackground: (slotId: string | null) => void;
-  onStarter: (s: string) => void;
   onFindArea: () => void;
   finding: boolean;
   areaSelected: boolean;
@@ -756,166 +856,186 @@ export const CanvasPanel = ({
     onCanvas({ area: areaIsWholeCanvas(canvas, next) ? null : next });
   };
   return (
-    <section className={ui.panel} aria-label="Canvas">
-      <div className="flex items-center gap-2 border-b px-3.5 py-2.5">
-        <h2 className={ui.heading}>Canvas</h2>
-        <span className="font-mono text-[11px] text-muted-foreground">
-          {canvas.width} × {canvas.height} px
-        </span>
-      </div>
-      <div className="flex flex-col gap-3.5 p-3.5">
-        {config.pages.length > 1 || fixed ? (
-          <div>
-            <SelectField
-              id="canvas-page"
-              label="Printed size"
-              value={preset ?? "custom"}
-              disabled={disabled}
-              options={[
-                ...config.pages.map((k) => ({ value: k as string, label: PAGE_PRESETS[k].label })),
-                ...(preset ? [] : [{ value: "custom", label: `Custom · ${page.widthMm} × ${page.heightMm ?? "—"} mm` }]),
-              ]}
-              onChange={(v) => {
-                const next = PAGE_PRESETS[v as keyof typeof PAGE_PRESETS]?.page;
-                if (next) onPage(next);
-              }}
-            />
-            {shapeOff ? (
-              <div className={cn("mt-2", ui.refuseBox)}>
-                The {canvas.area ? "ticket area" : "canvas"} is {Math.round(area.width)} × {Math.round(area.height)} — not the shape of a{" "}
-                {page.widthMm} × {page.heightMm} mm page.
-                {!canvas.templateKey ? (
-                  <>
-                    {" "}
-                    <button
-                      type="button"
-                      className="underline"
-                      disabled={disabled}
-                      onClick={() => onCanvas({ width: fitted.width, height: fitted.height, area: null })}
-                    >
-                      Resize the canvas to {fitted.width} × {fitted.height}
-                    </button>
-                    .
-                  </>
-                ) : (
-                  " Export the template at that shape, or draw a frame of that shape."
-                )}
-              </div>
-            ) : fixed ? (
-              <p className={cn("mt-1.5", ui.note)}>
-                Export templates at {fitted.width} × {fitted.height} px ({config.dpi} dpi) for a sharp print.
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-        <div
-          className={cn("-m-1 rounded-md border p-2.5 transition-colors", areaSelected ? "border-primary bg-primary/5" : "border-transparent")}
-          aria-label="Ticket area"
+    <FigurePanel role="region" aria-label="Canvas" className="p-0">
+      <div className="px-4 pt-4 pb-3.5">
+        <CardLabel
+          right={
+            <span className="text-ink-3 font-mono text-[11px] tabular-nums">
+              {canvas.width} × {canvas.height} px
+            </span>
+          }
         >
-          <div className="flex items-center justify-between gap-2">
-            <span className={ui.eyebrow}>Ticket area</span>
-            <span className="font-mono text-[10.5px] text-muted-foreground">
-              {framed ? `${Math.round(area.width)} × ${Math.round(area.height)} at ${Math.round(area.x)}, ${Math.round(area.y)}` : "Whole canvas"}
-            </span>
-          </div>
-          <p className={cn("mt-1", ui.note)}>
-            {framed
-              ? "Only this rectangle is the ticket: the PDF, the preview and every send show it alone. The rest of the canvas is the artboard around it."
-              : "The whole canvas prints. If your export carries a backdrop or mock-up around the ticket, find the ticket inside it, or drag a frame on the canvas."}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {canvas.templateKey ? (
-              <Button size="sm" variant="outline" disabled={disabled || finding} onClick={onFindArea}>
-                <Busy on={finding} />
-                Find the ticket
-              </Button>
-            ) : null}
-            {framed ? (
-              <Button size="sm" variant="ghost" disabled={disabled} onClick={() => onCanvas({ area: null })}>
-                Whole canvas
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={disabled}
-                onClick={() =>
-                  setArea({
-                    x: Math.round(canvas.width * 0.1),
-                    y: Math.round(canvas.height * 0.1),
-                    width: Math.round(canvas.width * 0.8),
-                    height: Math.round(canvas.height * 0.8),
-                    radius: 0,
-                  })
-                }
-              >
-                Draw a frame
-              </Button>
-            )}
-          </div>
-          {framed ? (
-            <div className="mt-2.5 grid grid-cols-2 gap-2">
-              <NumberField id="area-x" label="X" value={area.x} min={0} max={canvas.width - 100} suffix="px" disabled={disabled} onChange={(v) => setArea({ x: Math.round(v) })} />
-              <NumberField id="area-y" label="Y" value={area.y} min={0} max={canvas.height - 50} suffix="px" disabled={disabled} onChange={(v) => setArea({ y: Math.round(v) })} />
-              <NumberField id="area-w" label="Width" value={area.width} min={100} max={canvas.width} suffix="px" disabled={disabled} onChange={(v) => setArea({ width: Math.round(v) })} />
-              <NumberField id="area-h" label="Height" value={area.height} min={50} max={canvas.height} suffix="px" disabled={disabled} onChange={(v) => setArea({ height: Math.round(v) })} />
-              <NumberField id="area-r" label="Corner radius" value={area.radius} min={0} max={Math.floor(Math.min(area.width, area.height) / 2)} suffix="px" disabled={disabled} onChange={(v) => setArea({ radius: Math.round(v) })} />
-            </div>
-          ) : null}
-        </div>
-
-        <div>
-          <span className={cn("mb-1.5 block", ui.eyebrow)}>Figma export</span>
-          <div className="flex items-center gap-2.5">
-            <span
-              className="grid h-16 w-28 shrink-0 place-items-center overflow-hidden rounded-md border bg-muted/40"
-              style={{ aspectRatio: `${canvas.width}/${canvas.height}` }}
-            >
-              {templateUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={templateUrl} alt="Ticket template" className="size-full object-contain" />
-              ) : (
-                <span className="px-2 text-center font-mono text-[9px] uppercase text-muted-foreground">No template</span>
-              )}
-            </span>
-            <div className="flex flex-col gap-1.5">
-              <Button size="sm" disabled={disabled || uploading} onClick={() => input.current?.click()}>
-                <Busy on={uploading} />
-                {canvas.templateKey ? "Replace template" : "Upload template"}
-              </Button>
-              {canvas.templateKey ? (
-                <Button size="sm" variant="ghost" disabled={disabled} onClick={onRemoveTemplate}>
-                  Remove template
+          Canvas
+        </CardLabel>
+        <p className="text-ink-3 m-0 mt-1.5 text-[12px] leading-[1.5]">
+          No layer selected. These settings are the {config.noun}&apos;s own; pick a layer on the stage or in the list to change it.
+        </p>
+        {bare ? (
+          <Notice
+            tone="caution"
+            tag="Bare edge"
+            className="mt-3"
+            action={
+              <span className="flex flex-wrap gap-1.5">
+                <Button size="xs" variant="secondary" disabled={disabled} onClick={onFill}>
+                  Fill the canvas
                 </Button>
-              ) : null}
-            </div>
-          </div>
-          <p className={cn("mt-1.5", ui.note)}>
-            For a whole {config.noun} designed elsewhere: the canvas takes the file&apos;s pixel size, so X and Y match your design file, and
-            the layers are scaled onto it. For a photo behind this layout, use Background → Picture instead — the {config.noun} keeps its
-            size.
-          </p>
-          <input
-            ref={input}
-            type="file"
-            aria-label="Upload a template"
-            accept="image/png,image/jpeg,image/webp"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) onUploadTemplate(f);
+                <Button size="xs" variant="secondary" disabled={disabled} onClick={onCrop}>
+                  Crop to the {config.noun}
+                </Button>
+              </span>
+            }
+          >
+            The layers cover {Math.round(Math.min(coverage.w, coverage.h) * 100)}% of the canvas; the rest prints as the background colour. Fill
+            grows the {config.noun} to the edges; crop shrinks the canvas to it.
+          </Notice>
+        ) : null}
+      </div>
+
+      {config.pages.length > 1 || fixed ? (
+        <Section title="Printed size">
+          <SelectField
+            id="canvas-page"
+            label="Page"
+            value={preset ?? "custom"}
+            disabled={disabled}
+            options={[
+              ...config.pages.map((k) => ({ value: k as string, label: PAGE_PRESETS[k].label })),
+              ...(preset ? [] : [{ value: "custom", label: `Custom · ${page.widthMm} × ${page.heightMm ?? "—"} mm` }]),
+            ]}
+            onChange={(v) => {
+              const next = PAGE_PRESETS[v as keyof typeof PAGE_PRESETS]?.page;
+              if (next) onPage(next);
             }}
           />
-        </div>
+          {shapeOff ? (
+            <Notice
+              tone="refuse"
+              tag="Shape"
+              action={
+                !canvas.templateKey ? (
+                  <Button size="xs" variant="secondary" disabled={disabled} onClick={() => onCanvas({ width: fitted.width, height: fitted.height, area: null })}>
+                    Resize to {fitted.width} × {fitted.height}
+                  </Button>
+                ) : undefined
+              }
+            >
+              The {canvas.area ? "ticket area" : "canvas"} is {Math.round(area.width)} × {Math.round(area.height)} — not the shape of a {page.widthMm} ×{" "}
+              {page.heightMm} mm page.
+              {canvas.templateKey ? " Export the template at that shape, or draw a frame of that shape." : ""}
+            </Notice>
+          ) : fixed ? (
+            <p className={ui.note}>
+              Export templates at {fitted.width} × {fitted.height} px ({config.dpi} dpi) for a sharp print.
+            </p>
+          ) : null}
+        </Section>
+      ) : null}
 
-        {!canvas.templateKey ? (
+      <Section
+        title="Ticket area"
+        className={cn("transition-colors", areaSelected && "bg-brand-soft")}
+        right={
+          <span className="text-ink-3 font-mono text-[11px] tabular-nums">
+            {framed ? `${Math.round(area.width)} × ${Math.round(area.height)} at ${Math.round(area.x)}, ${Math.round(area.y)}` : "Whole canvas"}
+          </span>
+        }
+      >
+        <p className={ui.note}>
+          {framed
+            ? "Only this rectangle is the ticket: the PDF, the preview and every send show it alone. The rest of the canvas is the artboard around it."
+            : "The whole canvas prints. If your export carries a backdrop or mock-up around the ticket, find the ticket inside it, or drag a frame on the canvas."}
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {canvas.templateKey ? (
+            <Button size="sm" variant="secondary" disabled={disabled || finding} onClick={onFindArea}>
+              {finding ? <Busy on /> : <ScanIcon />}
+              Find the ticket
+            </Button>
+          ) : null}
+          {framed ? (
+            <Button size="sm" variant="secondary" disabled={disabled} onClick={() => onCanvas({ area: null })}>
+              Use the whole canvas
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={disabled}
+              onClick={() =>
+                setArea({
+                  x: Math.round(canvas.width * 0.1),
+                  y: Math.round(canvas.height * 0.1),
+                  width: Math.round(canvas.width * 0.8),
+                  height: Math.round(canvas.height * 0.8),
+                  radius: 0,
+                })
+              }
+            >
+              Draw a frame
+            </Button>
+          )}
+        </div>
+        {framed ? (
+          <div className="grid grid-cols-2 gap-2.5">
+            <NumberField id="area-x" label="X" value={area.x} min={0} max={canvas.width - 100} suffix="px" disabled={disabled} onChange={(v) => setArea({ x: Math.round(v) })} />
+            <NumberField id="area-y" label="Y" value={area.y} min={0} max={canvas.height - 50} suffix="px" disabled={disabled} onChange={(v) => setArea({ y: Math.round(v) })} />
+            <NumberField id="area-w" label="Width" value={area.width} min={100} max={canvas.width} suffix="px" disabled={disabled} onChange={(v) => setArea({ width: Math.round(v) })} />
+            <NumberField id="area-h" label="Height" value={area.height} min={50} max={canvas.height} suffix="px" disabled={disabled} onChange={(v) => setArea({ height: Math.round(v) })} />
+            <NumberField id="area-r" label="Corner radius" value={area.radius} min={0} max={Math.floor(Math.min(area.width, area.height) / 2)} suffix="px" disabled={disabled} onChange={(v) => setArea({ radius: Math.round(v) })} />
+          </div>
+        ) : null}
+      </Section>
+
+      <Section title="Template">
+        <div className="flex items-center gap-3">
+          <span className="border-line bg-sunken grid h-16 w-28 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] border">
+            {templateUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={templateUrl} alt="Ticket template" className="size-full object-contain" />
+            ) : (
+              <span className="text-ink-3 px-2 text-center text-[11px]">No template</span>
+            )}
+          </span>
+          <div className="flex flex-col items-start gap-1.5">
+            <Button size="sm" variant="secondary" disabled={disabled || uploading} onClick={() => input.current?.click()}>
+              {uploading ? <Busy on /> : <UploadIcon />}
+              {canvas.templateKey ? "Replace template" : "Upload template"}
+            </Button>
+            {canvas.templateKey ? (
+              <Button size="sm" variant="ghost" danger disabled={disabled} onClick={onRemoveTemplate}>
+                Remove template
+              </Button>
+            ) : null}
+          </div>
+        </div>
+        <p className={ui.note}>
+          For a whole {config.noun} designed elsewhere, such as a Figma export: the canvas takes the file&apos;s pixel size, so X and Y match your
+          design file, and the layers are scaled onto it. For a photo behind this layout, add a background picture instead — the {config.noun}{" "}
+          keeps its size.
+        </p>
+        <input
+          ref={input}
+          type="file"
+          aria-label="Upload a template"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) onUploadTemplate(f);
+          }}
+        />
+      </Section>
+
+      {!canvas.templateKey ? (
+        <Section title="Size">
           <div className="grid grid-cols-2 gap-2.5">
             {!fixed ? (
               <div className="col-span-2">
                 <SelectField
                   id="canvas-size"
-                  label="Size"
+                  label="Preset"
                   value={SIZES.find((s) => s.w === canvas.width && s.h === canvas.height)?.label ?? "Custom"}
                   disabled={disabled}
                   options={[...SIZES.map((s) => ({ value: s.label, label: s.label })), { value: "Custom", label: "Custom" }]}
@@ -929,142 +1049,73 @@ export const CanvasPanel = ({
             <NumberField id="canvas-w" label="Width" value={canvas.width} min={300} max={6000} onChange={(v) => onCanvas({ width: Math.round(v) })} suffix="px" disabled={disabled} />
             <NumberField id="canvas-h" label="Height" value={canvas.height} min={150} max={6000} onChange={(v) => onCanvas({ height: Math.round(v) })} suffix="px" disabled={disabled} />
           </div>
-        ) : null}
+        </Section>
+      ) : null}
 
-        <div>
-          <span className={cn("mb-1.5 block", ui.eyebrow)}>Background</span>
-          <ColorRefField
-            id="canvas-bg"
-            label="Colour"
-            value={canvas.background}
-            refs={false}
-            onChange={(v) => v && onCanvas({ background: v })}
-            resolve={(c) => c}
-          />
-          {(photos.length ? photos : [{ id: null as string | null, name: "Picture", url: null as string | null }]).map((slot) => (
-            <div key={slot.id ?? "all"} className="mt-2.5 flex items-center gap-2.5">
-              <span className="grid h-14 w-24 shrink-0 place-items-center overflow-hidden rounded-md border bg-muted/40">
+      <Section title="Background">
+        <ColorRefField id="canvas-bg" label="Colour" value={canvas.background} refs={false} onChange={(v) => v && onCanvas({ background: v })} resolve={(c) => c} />
+        {(photos.length ? photos : [{ id: null as string | null, name: "Picture", url: null as string | null }]).map((slot) => (
+          <div key={slot.id ?? "all"} className="flex items-center gap-3">
+            <span className="border-line bg-sunken grid h-14 w-24 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] border">
+              {slot.url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={slot.url} alt="" className="size-full object-cover" />
+              ) : (
+                <span className="text-ink-3 px-2 text-center text-[11px]">No picture</span>
+              )}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-ink mb-1.5 text-[12.5px] font-medium">{photos.length ? slot.name : "Picture"}</div>
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={disabled || (uploading && photoTarget === slot.id)}
+                  onClick={() => {
+                    setPhotoTarget(slot.id);
+                    photoInput.current?.click();
+                  }}
+                >
+                  {uploading && photoTarget === slot.id ? <Busy on /> : <ImagePlusIcon />}
+                  {slot.url ? "Replace" : "Add a picture"}
+                </Button>
                 {slot.url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={slot.url} alt="" className="size-full object-cover" />
-                ) : (
-                  <span className="px-2 text-center font-mono text-[9px] uppercase text-muted-foreground">No picture</span>
-                )}
-              </span>
-              <div className="min-w-0 flex-1">
-                {photos.length ? <div className="mb-1 text-[12px] text-foreground/80">{slot.name}</div> : null}
-                <div className="flex flex-wrap gap-1.5">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={disabled || (uploading && photoTarget === slot.id)}
-                    onClick={() => {
-                      setPhotoTarget(slot.id);
-                      photoInput.current?.click();
-                    }}
-                  >
-                    <Busy on={uploading && photoTarget === slot.id} />
-                    {slot.url ? "Replace" : "Add a picture"}
+                  <Button size="sm" variant="ghost" danger disabled={disabled} onClick={() => onRemoveBackground(slot.id)}>
+                    Remove
                   </Button>
-                  {slot.url ? (
-                    <Button size="sm" variant="ghost" disabled={disabled} onClick={() => onRemoveBackground(slot.id)}>
-                      Remove
-                    </Button>
-                  ) : null}
-                </div>
+                ) : null}
               </div>
             </div>
-          ))}
-          <p className={cn("mt-1.5", ui.note)}>
-            {photos.length
-              ? `Each panel takes its own picture, cropped to fill it — the ${config.noun} keeps its size. Drop a picture onto a panel on the canvas to set just that one.`
-              : `A photo behind the ${config.noun}, cropped to fill it — the ${config.noun} keeps its size. You can also drop a picture straight onto the canvas.`}
-          </p>
-          <input
-            ref={photoInput}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) onUploadBackground(f, photoTarget);
-            }}
-          />
-        </div>
-
-        {bare ? (
-          <div className={ui.cautionBox}>
-            The layers cover {Math.round(Math.min(coverage.w, coverage.h) * 100)}% of the canvas; the rest prints as the background colour.{" "}
-            <button type="button" className="underline" disabled={disabled} onClick={onFill}>
-              Fill the canvas
-            </button>{" "}
-            (the {config.noun} grows to the edges) or{" "}
-            <button type="button" className="underline" disabled={disabled} onClick={onCrop}>
-              crop the canvas to the {config.noun}
-            </button>
-            .
           </div>
-        ) : null}
-
-        <div>
-          <span className={cn("mb-1.5 block", ui.eyebrow)}>Start from a layout</span>
-          <div className="grid grid-cols-2 gap-1.5">
-            {Object.keys(config.starters).map((s) => (
-              <button
-                key={s}
-                type="button"
-                disabled={disabled}
-                onClick={() => onStarter(s)}
-                className="rounded-md border bg-card px-2 py-2 text-left hover:border-primary hover:bg-primary/10 disabled:opacity-50"
-              >
-                <span className="block text-[12.5px] font-medium">{config.starters[s]!.label}</span>
-                <span className="block text-[10.5px] leading-[1.35] text-muted-foreground">{config.starters[s]!.note}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <p className="font-mono text-[10.5px] text-muted-foreground">
-          {layout.layers.length} layers · QR {qrSize ?? "—"} px (min {minQrSize(canvas, page)}) ·{framed ? " ticket area" : " canvas"} prints{" "}
-          {fixed ? `${page.widthMm} × ${page.heightMm} mm` : "8 in wide"}
+        ))}
+        <p className={ui.note}>
+          {photos.length
+            ? `Each panel takes its own picture, cropped to fill it — the ${config.noun} keeps its size. Drop a picture onto a panel on the stage to set just that one.`
+            : `A photo behind the ${config.noun}, cropped to fill it — the ${config.noun} keeps its size. You can also drop a picture straight onto the stage.`}
         </p>
-      </div>
-    </section>
-  );
-};
+        <input
+          ref={photoInput}
+          type="file"
+          aria-label="Upload a background picture"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) onUploadBackground(f, photoTarget);
+          }}
+        />
+      </Section>
 
-/** What a template-based design needs, said once, next to the upload. */
-export const FigmaGuide = ({ config, page }: { config: DesignerConfig; page: PageSpec }) => {
-  const px = canvasForPage(page, config.dpi);
-  return (
-    <div className="flex flex-col gap-3 text-[13px] leading-[1.55] text-foreground/80">
-      <ol className="list-decimal space-y-1.5 pl-5">
-        <li>
-          Design the {config.noun} as one frame
-          {page.heightMm ? ` of ${page.widthMm} × ${page.heightMm} mm (${px.width} × ${px.height} px at ${config.dpi} dpi)` : ""}. Leave the
-          spaces for the guest name, codes and the QR code empty — those are layers here.
-        </li>
-        <li>
-          Export the frame as PNG (keeps transparency) or JPG{page.heightMm ? "" : ", at 1× or 2×"}. Anything up to 6000 px wide is accepted;
-          it is stored at 2400 px so files stay light.
-        </li>
-        <li>
-          Upload it as the template. The canvas takes the file&apos;s pixel size, so the X and Y you read in Figma (at the same export scale)
-          are the X and Y here.
-        </li>
-        <li>
-          Add a text layer for each field and type its token, e.g. <code className="font-mono text-foreground">{"{{name}}"}</code> or{" "}
-          <code className="font-mono text-foreground">{"{{ticket_code}}"}</code>. Give it a width and a number of lines so long names wrap
-          or shrink instead of running off.
-        </li>
-        <li>Place the QR code over a plain light area. Keep it at least the size shown under the canvas.</li>
-        <li>Check Sample preview, then Preview — for a sample guest or a real one with a long name.</li>
-      </ol>
-      <p className="text-[12px] text-muted-foreground">
-        Templates built for other ticketing tools usually work as they are: {"{{name}}"}, {"{{ticket_code}}"}, {"{{event_title}}"},{" "}
-        {"{{event_date}}"}, {"{{event_start_time}}"} and {"{% if … %}"} blocks are understood. Anything that is not a known token is flagged
-        before you can save.
-      </p>
-    </div>
+      <Section title="At a glance">
+        <DefinitionRows
+          rows={[
+            { k: "Layers", v: String(layout.layers.length) },
+            { k: "QR code", v: qrSize ? `${qrSize} px · at least ${minQrSize(canvas, page)}` : `None · at least ${minQrSize(canvas, page)} px if added` },
+            { k: "Prints", v: `${framed ? "The ticket area" : "The whole canvas"}, ${fixed ? `${page.widthMm} × ${page.heightMm} mm` : "8 in wide"}` },
+          ]}
+        />
+      </Section>
+    </FigurePanel>
   );
 };
