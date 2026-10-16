@@ -6,35 +6,38 @@ import { Card, CardContent, Skeleton } from "@moa/ui";
 
 import { useEvent } from "../queries";
 import { eventDetailToFormValues } from "../mapper";
-import { EventForm } from "./event-form";
+import { EventForm, type EventFormContext } from "./event-form";
+
+/** What the detail payload says about the event beyond the fields the form edits. */
+function contextOf(raw: unknown): EventFormContext {
+  const d = (raw ?? {}) as Record<string, unknown>;
+  const poster = d.poster as Record<string, unknown> | null | undefined;
+  const posterUrl = poster ? (["medium", "large", "original", "thumbnail"].map((k) => poster[k]).find((v) => typeof v === "string" && v) as string | undefined) : undefined;
+  const status = typeof d.status === "string" ? (d.status as EventFormContext["status"]) : undefined;
+  const registered = typeof d.registration_count === "number" ? d.registration_count : typeof d.registrations_count === "number" ? d.registrations_count : 0;
+  return { posterUrl: posterUrl ?? null, status, registered };
+}
 
 export function EditEventForm({ eventId }: { eventId: number }) {
   const { data, isPending, isError, error } = useEvent(eventId);
 
   if (isPending) {
     return (
-      <div className="grid gap-3.5 lg:grid-cols-[180px_1fr]">
-        <Skeleton className="h-48 w-full rounded-2xl" />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <Skeleton className="h-[40rem] w-full rounded-2xl" />
+        <Skeleton className="h-96 w-full rounded-2xl" />
       </div>
     );
   }
 
   if (isError || !data) {
-    const is500 = error instanceof ApiError && error.isServer;
     return (
       <Card>
         <CardContent className="flex items-start gap-3 py-6">
           <AlertTriangleIcon className="text-destructive mt-0.5 size-5 shrink-0" />
           <div className="space-y-1 text-sm">
             <p className="font-medium">Could not load this event.</p>
-            <p className="text-muted-foreground">
-              {is500
-                ? "The event detail endpoint returned a server error. If this persists, the backend may be running a build that predates the MissingGreenlet fix for GET /events/info."
-                : error instanceof ApiError
-                  ? error.message
-                  : "Please try again."}
-            </p>
+            <p className="text-muted-foreground">{error instanceof ApiError ? error.message : "Please try again."}</p>
           </div>
         </CardContent>
       </Card>
@@ -53,15 +56,12 @@ export function EditEventForm({ eventId }: { eventId: number }) {
           <AlertTriangleIcon className="text-destructive mt-0.5 size-5 shrink-0" />
           <div className="space-y-1 text-sm">
             <p className="font-medium">This event could not be opened for editing.</p>
-            <p className="text-muted-foreground">
-              Its data did not match the expected format, so the form was not
-              pre-filled rather than risk overwriting fields with blanks.
-            </p>
+            <p className="text-muted-foreground">Its data did not match the expected format, so the form was not pre-filled rather than risk overwriting fields with blanks.</p>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  return <EventForm mode="edit" eventId={eventId} defaultValues={defaultValues} />;
+  return <EventForm mode="edit" eventId={eventId} defaultValues={defaultValues} context={contextOf(data)} />;
 }
