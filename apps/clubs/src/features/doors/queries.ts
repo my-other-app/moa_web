@@ -14,7 +14,8 @@ export function useTeam(eventId: number) {
   return useQuery({ queryKey: teamKey(eventId), queryFn: () => fetchTeam(eventId), staleTime: 10_000 });
 }
 
-function useRefreshTeam(eventId: number) {
+/** Refetches the team and the volunteer list together: a change to one is a change to both. */
+export function useRefreshTeam(eventId: number) {
   const qc = useQueryClient();
   return () => {
     void qc.invalidateQueries({ queryKey: teamKey(eventId) });

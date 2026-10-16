@@ -2,22 +2,69 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CalendarClockIcon, PaletteIcon, PencilIcon, PrinterIcon, Trash2Icon } from "lucide-react";
-import { PageHeader } from "@moa/app-kit";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Button, EmptyState, InlineAlert, Skeleton, StatusBadge, cn } from "@moa/ui";
-import { pressable } from "@moa/ui/motion";
+import {
+  CalendarClockIcon,
+  MapPinIcon,
+  MicIcon,
+  PaletteIcon,
+  PencilIcon,
+  PrinterIcon,
+  Trash2Icon,
+} from "lucide-react";
+import { formatNumber, plural } from "@moa/app-kit";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Button,
+  CardLabel,
+  cn,
+  EmptyState,
+  FigurePanel,
+  IconButton,
+  Notice,
+  Skeleton,
+  StatTile,
+  StatusBadge,
+} from "@moa/ui";
 
 import { useEventDetail } from "@/features/events";
 import { openPdf } from "@/features/idcards";
 
 import { programmePdfUrl } from "../api";
-import { useAgenda, useCreateAgendaItem, useDeleteAgendaItem, useUpdateAgendaItem } from "../queries";
-import { agendaDay, agendaTime, dayOf, type Agenda, type AgendaItem, type AgendaItemInput } from "../schemas";
+import {
+  useAgenda,
+  useCreateAgendaItem,
+  useDeleteAgendaItem,
+  useUpdateAgendaItem,
+} from "../queries";
+import {
+  agendaDay,
+  agendaTime,
+  dayOf,
+  type Agenda,
+  type AgendaItem,
+  type AgendaItemInput,
+} from "../schemas";
 
-const panel = "rounded-2xl bg-card ring-1 ring-border/70 shadow-sm";
-const heading = "font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground";
-const note = "text-[12px] leading-[1.5] text-muted-foreground";
-const control = "h-9 w-full rounded-md border bg-muted/40 px-2.5 text-[13px]";
+/**
+ * The agenda: the running order the event page, the app, the kiosk and the
+ * printed programme all read.
+ *
+ * Four figures on the day's shape — how many blocks, how long it runs, the
+ * speakers, the rooms — and a notice for what is on now (or, before the
+ * day, for a programme not designed yet). Then the running order, day by
+ * day, with the free time between blocks shown, beside the form that adds
+ * a block or corrects one.
+ */
+const field = "input";
+const label = "eyebrow mb-1.5 block";
+const MIN = 60_000;
 
 /** A datetime-local value from an instant, in the browser's zone; and back. */
 const toLocalInput = (iso: string) => {
@@ -26,26 +73,70 @@ const toLocalInput = (iso: string) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 const fromLocalInput = (v: string) => new Date(v).toISOString();
+const ms = (iso: string) => new Date(iso).getTime();
 
-type Values = { startsLocal: string; endsLocal: string; title: string; speaker: string; location: string; description: string };
-const blank = (startsLocal: string): Values => ({ startsLocal, endsLocal: "", title: "", speaker: "", location: "", description: "" });
+function span(minutes: number) {
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m ? `${h} h ${m} min` : `${h} h`;
+}
 
-function BlockForm({ eventId, editing, defaultStart, onDone }: { eventId: number; editing: AgendaItem | null; defaultStart: string; onDone: () => void }) {
+type Values = {
+  startsLocal: string;
+  endsLocal: string;
+  title: string;
+  speaker: string;
+  location: string;
+  description: string;
+};
+const blank = (startsLocal: string): Values => ({
+  startsLocal,
+  endsLocal: "",
+  title: "",
+  speaker: "",
+  location: "",
+  description: "",
+});
+
+function BlockForm({
+  eventId,
+  editing,
+  defaultStart,
+  onDone,
+}: {
+  eventId: number;
+  editing: AgendaItem | null;
+  defaultStart: string;
+  onDone: () => void;
+}) {
   const create = useCreateAgendaItem(eventId);
   const update = useUpdateAgendaItem(eventId);
+  const id = React.useId();
   const [v, setV] = React.useState<Values>(() =>
     editing
-      ? { startsLocal: toLocalInput(editing.starts_at), endsLocal: editing.ends_at ? toLocalInput(editing.ends_at) : "", title: editing.title, speaker: editing.speaker ?? "", location: editing.location ?? "", description: editing.description ?? "" }
-      : blank(defaultStart)
+      ? {
+          startsLocal: toLocalInput(editing.starts_at),
+          endsLocal: editing.ends_at ? toLocalInput(editing.ends_at) : "",
+          title: editing.title,
+          speaker: editing.speaker ?? "",
+          location: editing.location ?? "",
+          description: editing.description ?? "",
+        }
+      : blank(defaultStart),
   );
   const [error, setError] = React.useState<string | null>(null);
-  const field = (k: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV((cur) => ({ ...cur, [k]: e.target.value }));
+  const set =
+    (k: keyof Values) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setV((cur) => ({ ...cur, [k]: e.target.value }));
   const busy = create.isPending || update.isPending;
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!v.title.trim()) return setError("Give the block a title.");
     if (!v.startsLocal) return setError("When does it start?");
-    if (v.endsLocal && v.endsLocal <= v.startsLocal) return setError("A block must end after it starts.");
+    if (v.endsLocal && v.endsLocal <= v.startsLocal)
+      return setError("A block must end after it starts.");
     setError(null);
     const body: AgendaItemInput = {
       starts_at: fromLocalInput(v.startsLocal),
@@ -55,123 +146,410 @@ function BlockForm({ eventId, editing, defaultStart, onDone }: { eventId: number
       location: v.location.trim() || null,
       description: v.description.trim() || null,
     };
-    if (editing) update.mutate({ id: editing.id, body }, { onSuccess: onDone });
-    else create.mutate(body, { onSuccess: () => setV((cur) => ({ ...blank(cur.startsLocal), startsLocal: cur.endsLocal || cur.startsLocal })) });
+    if (editing)
+      update.mutate({ id: editing.id, body }, { onSuccess: onDone });
+    else
+      create.mutate(body, {
+        // The next block most often starts where this one ended.
+        onSuccess: () =>
+          setV((cur) => ({
+            ...blank(cur.startsLocal),
+            startsLocal: cur.endsLocal || cur.startsLocal,
+          })),
+      });
   };
   return (
-    <form onSubmit={submit} className={cn(panel, "space-y-3 p-4")}>
-      <p className={heading}>{editing ? `Edit “${editing.title}”` : "Add a block"}</p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <label className="space-y-1 text-[12px]">
-          Starts
-          <input type="datetime-local" value={v.startsLocal} onChange={field("startsLocal")} className={cn(control, "font-mono")} required />
-        </label>
-        <label className="space-y-1 text-[12px]">
-          Ends <span className="text-muted-foreground">(optional)</span>
-          <input type="datetime-local" value={v.endsLocal} onChange={field("endsLocal")} className={cn(control, "font-mono")} />
-        </label>
-      </div>
-      <label className="block space-y-1 text-[12px]">
-        Title
-        <input value={v.title} onChange={field("title")} placeholder="Opening keynote" maxLength={160} className={control} />
-      </label>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <label className="space-y-1 text-[12px]">
-          Speaker <span className="text-muted-foreground">(optional)</span>
-          <input value={v.speaker} onChange={field("speaker")} placeholder="Ananya Iyer" maxLength={120} className={control} />
-        </label>
-        <label className="space-y-1 text-[12px]">
-          Room <span className="text-muted-foreground">(optional)</span>
-          <input value={v.location} onChange={field("location")} placeholder="Main hall" maxLength={120} className={control} />
-        </label>
-      </div>
-      <label className="block space-y-1 text-[12px]">
-        Description <span className="text-muted-foreground">(optional)</span>
-        <textarea value={v.description} onChange={field("description")} rows={2} maxLength={1000} placeholder="Capped at 40. Mentor tickets have priority." className={cn(control, "h-auto py-2")} />
-      </label>
-      {error ? <p className="text-[12.5px] text-destructive">{error}</p> : null}
-      <div className="flex gap-2">
-        <Button type="submit" disabled={busy} className={cn("flex-1", pressable)}>
-          {editing ? "Save block" : "Add to run of show"}
-        </Button>
-        {editing ? (
-          <Button type="button" variant="outline" onClick={onDone}>
-            Cancel
-          </Button>
+    <FigurePanel className={cn("p-4", editing && "ring-brand-line")}>
+      <form onSubmit={submit} noValidate className="grid gap-3">
+        <CardLabel
+          right={
+            editing ? (
+              <span className="text-ink-3 max-w-[60%] truncate text-[11px]">
+                {editing.title}
+              </span>
+            ) : null
+          }
+        >
+          {editing ? "Edit the block" : "Add a block"}
+        </CardLabel>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor={`${id}-start`} className={label}>
+              Starts
+            </label>
+            <input
+              id={`${id}-start`}
+              type="datetime-local"
+              value={v.startsLocal}
+              onChange={set("startsLocal")}
+              className={cn(field, "font-mono")}
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor={`${id}-end`} className={label}>
+              Ends (optional)
+            </label>
+            <input
+              id={`${id}-end`}
+              type="datetime-local"
+              value={v.endsLocal}
+              onChange={set("endsLocal")}
+              className={cn(field, "font-mono")}
+            />
+          </div>
+        </div>
+        <div>
+          <label htmlFor={`${id}-title`} className={label}>
+            Title
+          </label>
+          <input
+            id={`${id}-title`}
+            value={v.title}
+            onChange={set("title")}
+            placeholder="Opening keynote"
+            maxLength={160}
+            className={field}
+          />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor={`${id}-speaker`} className={label}>
+              Speaker (optional)
+            </label>
+            <input
+              id={`${id}-speaker`}
+              value={v.speaker}
+              onChange={set("speaker")}
+              placeholder="Ananya Iyer"
+              maxLength={120}
+              className={field}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${id}-room`} className={label}>
+              Room (optional)
+            </label>
+            <input
+              id={`${id}-room`}
+              value={v.location}
+              onChange={set("location")}
+              placeholder="Main hall"
+              maxLength={120}
+              className={field}
+            />
+          </div>
+        </div>
+        <div>
+          <label htmlFor={`${id}-about`} className={label}>
+            Description (optional)
+          </label>
+          <textarea
+            id={`${id}-about`}
+            value={v.description}
+            onChange={set("description")}
+            rows={2}
+            maxLength={1000}
+            placeholder="Capped at 40. Mentor tickets have priority."
+            className={field}
+          />
+        </div>
+        {error ? (
+          <p role="alert" className="text-refuse text-[12.5px]">
+            {error}
+          </p>
         ) : null}
-      </div>
-    </form>
+        <div className="flex justify-end gap-2">
+          {editing ? (
+            <Button type="button" variant="ghost" onClick={onDone}>
+              Cancel
+            </Button>
+          ) : null}
+          <Button type="submit" disabled={busy}>
+            {editing ? "Save the block" : "Add to the agenda"}
+          </Button>
+        </div>
+      </form>
+    </FigurePanel>
   );
 }
 
-function BlockRow({ item, tz, showDay, onEdit, onDelete }: { item: AgendaItem; tz: string; showDay: boolean; onEdit: () => void; onDelete: () => void }) {
-  const [confirm, setConfirm] = React.useState(false);
+type Entry =
+  | { kind: "item"; item: AgendaItem }
+  | { kind: "gap"; key: string; minutes: number };
+
+/** A day's blocks with the free time between them, when there is five minutes or more of it. */
+function withGaps(items: AgendaItem[]): Entry[] {
+  return items.reduce<{ out: Entry[]; latest: number | null }>(
+    (acc, item) => {
+      const start = ms(item.starts_at);
+      const gap =
+        acc.latest !== null && !item.parallel
+          ? Math.round((start - acc.latest) / MIN)
+          : 0;
+      const end = item.ends_at ? ms(item.ends_at) : null;
+      return {
+        out: [
+          ...acc.out,
+          ...(gap >= 5
+            ? [{ kind: "gap" as const, key: `gap-${item.id}`, minutes: gap }]
+            : []),
+          { kind: "item" as const, item },
+        ],
+        latest:
+          end === null ? acc.latest : Math.max(acc.latest ?? end, end),
+      };
+    },
+    { out: [], latest: null },
+  ).out;
+}
+
+function BlockRow({
+  item,
+  tz,
+  onNow,
+  editing,
+  onEdit,
+  onRemove,
+}: {
+  item: AgendaItem;
+  tz: string;
+  onNow: boolean;
+  editing: boolean;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const minutes = item.ends_at
+    ? Math.round((ms(item.ends_at) - ms(item.starts_at)) / MIN)
+    : null;
   return (
-    <li className="flex gap-3.5 px-4 py-3">
-      <div className="w-[78px] shrink-0 font-mono text-[12px] leading-[1.6] tabular-nums">
-        {agendaTime(item.starts_at, tz)}
-        {item.ends_at ? <span className="block text-muted-foreground">– {agendaTime(item.ends_at, tz)}</span> : null}
-        {showDay ? <span className="block text-[10px] text-muted-foreground">{agendaDay(item.starts_at, tz)}</span> : null}
+    <li
+      className={cn(
+        "border-line-soft grid grid-cols-[56px_minmax(0,1fr)_auto] gap-3 border-t px-4 py-3",
+        editing && "bg-brand-soft",
+      )}
+      aria-current={editing ? "true" : undefined}
+    >
+      <div className="font-mono text-[12.5px] leading-[1.5] tabular-nums">
+        <span className="text-ink block">{agendaTime(item.starts_at, tz)}</span>
+        {item.ends_at ? (
+          <span className="text-ink-3 block">{agendaTime(item.ends_at, tz)}</span>
+        ) : null}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[13.5px] font-medium">{item.title}</span>
-          {item.parallel ? <StatusBadge tone="default" label="Parallel" /> : null}
+          <span className="text-ink text-[13.5px] font-medium">{item.title}</span>
+          {onNow ? <StatusBadge tone="success" label="On now" /> : null}
+          {item.parallel ? <StatusBadge tone="info" label="Parallel" /> : null}
+          {minutes ? (
+            <span className="text-ink-3 font-mono text-[11px]">{span(minutes)}</span>
+          ) : null}
         </div>
-        {item.description ? <p className="mt-1 text-[12.5px] leading-[1.5] text-muted-foreground">{item.description}</p> : null}
+        {item.description ? (
+          <p className="text-ink-2 mt-1 text-[12.5px] leading-[1.5]">
+            {item.description}
+          </p>
+        ) : null}
         {item.speaker || item.location ? (
-          <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
-            {item.speaker ? <span className="text-[12px]">{item.speaker}</span> : null}
-            {item.location ? <span className="font-mono text-[11px] uppercase tracking-[0.04em] text-muted-foreground">{item.location}</span> : null}
+          <div className="text-ink-3 mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
+            {item.speaker ? (
+              <span className="flex items-center gap-1">
+                <MicIcon className="size-3.5" aria-hidden="true" />
+                <span className="text-ink-2">{item.speaker}</span>
+              </span>
+            ) : null}
+            {item.location ? (
+              <span className="flex items-center gap-1">
+                <MapPinIcon className="size-3.5" aria-hidden="true" />
+                {item.location}
+              </span>
+            ) : null}
           </div>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-start gap-0.5">
-        <Button size="icon-xs" variant="ghost" aria-label={`Edit ${item.title}`} onClick={onEdit}>
+      <div className="flex items-start gap-1">
+        <IconButton label={`Edit ${item.title}`} onClick={onEdit}>
           <PencilIcon />
-        </Button>
-        <Button size="icon-xs" variant="ghost" aria-label={`Remove ${item.title}`} onClick={() => setConfirm(true)}>
+        </IconButton>
+        <IconButton label={`Remove ${item.title}`} danger onClick={onRemove}>
           <Trash2Icon />
-        </Button>
+        </IconButton>
       </div>
-      <AlertDialog open={confirm} onOpenChange={setConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove “{item.title}” from the agenda?</AlertDialogTitle>
-            <AlertDialogDescription>The block disappears from the agenda, the event page, the app and the programme. Nothing else changes.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep</AlertDialogCancel>
-            <AlertDialogAction onClick={onDelete}>Remove block</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </li>
   );
 }
 
-function RunOfShow({ eventId, agenda, onEdit }: { eventId: number; agenda: Agenda; onEdit: (i: AgendaItem) => void }) {
+function RunningOrder({
+  eventId,
+  agenda,
+  editingId,
+  current,
+  onEdit,
+}: {
+  eventId: number;
+  agenda: Agenda;
+  editingId: string | null;
+  current: string | null;
+  onEdit: (i: AgendaItem) => void;
+}) {
   const remove = useDeleteAgendaItem(eventId);
+  const [removing, setRemoving] = React.useState<AgendaItem | null>(null);
   const tz = agenda.timezone;
-  const days = new Set(agenda.items.map((i) => dayOf(i.starts_at, tz)));
+  const days = agenda.items.reduce<
+    { day: string; label: string; items: AgendaItem[] }[]
+  >((acc, i) => {
+    const d = dayOf(i.starts_at, tz);
+    const last = acc.at(-1);
+    return last && last.day === d
+      ? [...acc.slice(0, -1), { ...last, items: [...last.items, i] }]
+      : [...acc, { day: d, label: agendaDay(i.starts_at, tz), items: [i] }];
+  }, []);
   return (
-    <section className={panel}>
+    <FigurePanel className="overflow-hidden p-0">
       <div className="px-4 pt-4">
-        <p className={heading}>Run of show</p>
-        <p className={note}>Ordered by start time; two blocks at the same time stay side by side as parallel tracks.</p>
+        <CardLabel
+          right={<span className="text-ink-3 font-mono text-[11px]">{tz}</span>}
+        >
+          Running order
+        </CardLabel>
+        <p className="text-ink-3 mt-1 text-[12px] leading-[1.5]">
+          Ordered by start time. Blocks whose times overlap run side by side as
+          parallel tracks.
+        </p>
       </div>
       {agenda.items.length === 0 ? (
-        <div className="p-4">
-          <EmptyState tone="muted" title="The run of show is empty" description="Add the first block on the right. Blocks order themselves by start time." />
-        </div>
+        <EmptyState
+          size="sm"
+          icon={<CalendarClockIcon />}
+          title="The agenda is empty"
+          description="Add the first block: the doors, the welcome, the first talk. Blocks order themselves by start time."
+        />
       ) : (
-        <ul className="mt-2 divide-y">
-          {agenda.items.map((i) => (
-            <BlockRow key={i.id} item={i} tz={tz} showDay={days.size > 1} onEdit={() => onEdit(i)} onDelete={() => remove.mutate(i.id)} />
+        <div className="mt-2">
+          {days.map((g) => (
+            <section key={g.day} aria-label={g.label}>
+              {days.length > 1 ? (
+                <div className="border-line-soft bg-sunken/60 flex items-center justify-between border-t px-4 py-1.5">
+                  <span className="eyebrow">{g.label}</span>
+                  <span className="text-ink-3 font-mono text-[11px]">
+                    {plural(g.items.length, "block")}
+                  </span>
+                </div>
+              ) : null}
+              <ul>
+                {withGaps(g.items).map((e) =>
+                  e.kind === "gap" ? (
+                    <li
+                      key={e.key}
+                      className="border-line-soft text-ink-3 flex items-center gap-3 border-t border-dashed px-4 py-1.5 text-[11.5px]"
+                    >
+                      <span className="w-[56px]" />
+                      {span(e.minutes)} free
+                    </li>
+                  ) : (
+                    <BlockRow
+                      key={e.item.id}
+                      item={e.item}
+                      tz={tz}
+                      onNow={current === e.item.id}
+                      editing={editingId === e.item.id}
+                      onEdit={() => onEdit(e.item)}
+                      onRemove={() => setRemoving(e.item)}
+                    />
+                  ),
+                )}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
-    </section>
+      <AlertDialog
+        open={removing !== null}
+        onOpenChange={(o) => (o ? undefined : setRemoving(null))}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Remove “{removing?.title}” from the agenda?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The block disappears from the agenda, the event page, the app and
+              the programme. Nothing else changes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="secondary">Keep</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (removing) remove.mutate(removing.id);
+                setRemoving(null);
+              }}
+            >
+              Remove block
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </FigurePanel>
+  );
+}
+
+function Shape({ agenda }: { agenda: Agenda }) {
+  const items = agenda.items;
+  const tz = agenda.timezone;
+  const first = Math.min(...items.map((i) => ms(i.starts_at)));
+  const last = Math.max(
+    ...items.map((i) => ms(i.ends_at ?? i.starts_at)),
+  );
+  const days = new Set(items.map((i) => dayOf(i.starts_at, tz))).size;
+  const speakers = new Set(
+    items.map((i) => i.speaker?.trim()).filter((s): s is string => !!s),
+  );
+  const rooms = [
+    ...new Set(
+      items.map((i) => i.location?.trim()).filter((s): s is string => !!s),
+    ),
+  ];
+  const parallel = items.filter((i) => i.parallel).length;
+  const bare = items.filter((i) => !i.speaker?.trim()).length;
+  const at = (t: number) => {
+    const iso = new Date(t).toISOString();
+    return days > 1
+      ? `${agendaDay(iso, tz)} ${agendaTime(iso, tz)}`
+      : agendaTime(iso, tz);
+  };
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <StatTile
+        label="Blocks"
+        value={formatNumber(items.length)}
+        note={parallel ? `${parallel} run side by side` : "one track"}
+      />
+      <StatTile
+        label="Runs for"
+        value={days > 1 ? `${days} days` : span(Math.round((last - first) / MIN))}
+        note={`${at(first)} to ${at(last)}`}
+      />
+      <StatTile
+        label="Speakers"
+        value={formatNumber(speakers.size)}
+        note={
+          bare
+            ? `${plural(bare, "block")} without one`
+            : "every block has one"
+        }
+      />
+      <StatTile
+        label="Rooms"
+        value={formatNumber(rooms.length)}
+        note={
+          rooms.length
+            ? `${rooms.slice(0, 2).join(", ")}${rooms.length > 2 ? ` and ${rooms.length - 2} more` : ""}`
+            : "no room named yet"
+        }
+      />
+    </div>
   );
 }
 
@@ -181,49 +559,140 @@ export function AgendaPage({ eventId }: { eventId: number }) {
   const agenda = useAgenda(eventId);
   const [editing, setEditing] = React.useState<AgendaItem | null>(null);
   const [printing, setPrinting] = React.useState(false);
+  const [now] = React.useState(() => Date.now());
   const startIso = event.data?.event_datetime;
-  const defaultStart = React.useMemo(() => toLocalInput((startIso ? new Date(startIso) : new Date()).toISOString()), [startIso]);
+  const defaultStart = React.useMemo(
+    () =>
+      toLocalInput((startIso ? new Date(startIso) : new Date()).toISOString()),
+    [startIso],
+  );
   const download = () => {
     setPrinting(true);
     openPdf(programmePdfUrl(eventId));
     setTimeout(() => setPrinting(false), 1500);
   };
+  const a = agenda.data;
+  const items = a?.items ?? [];
+  const current =
+    items.find(
+      (i) => i.ends_at && ms(i.starts_at) <= now && now < ms(i.ends_at),
+    ) ?? null;
+  const next = current
+    ? (items.find((i) => ms(i.starts_at) >= ms(current.ends_at!)) ?? null)
+    : null;
+  const days = a ? new Set(items.map((i) => dayOf(i.starts_at, a.timezone))).size : 0;
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Agenda"
-        description="The run of show. Guests see it on the event page and in the app; the kiosk plays it while a card prints; the programme prints from it."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild className={pressable}>
-              <Link href={`/events/${eventId}/design?kind=agenda`}>
-                <PaletteIcon /> Design the programme
-              </Link>
-            </Button>
-            <Button variant="outline" onClick={download} disabled={printing} className={pressable} title="The programme as designed, fitted onto A4">
-              <PrinterIcon /> Download A4 programme
-            </Button>
-          </div>
-        }
-      />
-      {agenda.isPending ? (
-        <Skeleton className="h-96 w-full" />
-      ) : agenda.isError ? (
-        <EmptyState tone="muted" title="Could not load the agenda" description={agenda.error.message} />
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-          <RunOfShow eventId={eventId} agenda={agenda.data} onEdit={setEditing} />
-          <div className="space-y-3">
-            <BlockForm key={editing?.id ?? "new"} eventId={eventId} editing={editing} defaultStart={defaultStart} onDone={() => setEditing(null)} />
-            <InlineAlert tone="info" title={agenda.data.has_programme ? "The programme is designed" : "No programme design yet"}>
-              {agenda.data.has_programme ? "The kiosk shows it on its attract screen, and the A4 download prints it with these sessions." : "The A4 download uses the kiosk starter until you design one. The kiosk shows the plain banner."}
-            </InlineAlert>
-            <p className={cn(note, "flex items-start gap-1.5")}>
-              <CalendarClockIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-              Times are entered in your browser&apos;s zone and shown to guests in the event&apos;s zone ({agenda.data.timezone}).
-            </p>
-          </div>
+    <div className="grid gap-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-ink m-0 text-[17px] font-semibold tracking-[-0.02em]">
+            Agenda
+          </h2>
+          <p className="text-ink-3 mt-1 text-[12.5px]">
+            {a && items.length
+              ? `${plural(items.length, "block")} · from ${agendaTime(items[0]!.starts_at, a.timezone)}${days > 1 ? ` over ${days} days` : ""} · ${a.has_programme ? "programme designed" : "no programme design yet"}`
+              : "The running order guests see on the event page, in the app, on the kiosk and in the printed programme."}
+          </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/events/${eventId}/design?kind=agenda`}
+            className="btn btn-secondary"
+          >
+            <PaletteIcon />{" "}
+            {a?.has_programme ? "Edit the programme" : "Design the programme"}
+          </Link>
+          <Button
+            variant="secondary"
+            onClick={download}
+            disabled={printing}
+            title="The programme as designed, fitted onto A4"
+          >
+            <PrinterIcon /> Download A4
+          </Button>
+        </div>
+      </div>
+
+      {agenda.isPending ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <Skeleton key={i} className="h-[118px] rounded-2xl" />
+            ))}
+          </div>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+            <Skeleton className="h-[360px] rounded-2xl" />
+            <Skeleton className="h-[360px] rounded-2xl" />
+          </div>
+        </>
+      ) : agenda.isError ? (
+        <EmptyState
+          tone="muted"
+          title="Could not load the agenda"
+          description="Check the connection, then try again."
+          action={
+            <Button variant="secondary" onClick={() => void agenda.refetch()}>
+              Try again
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {items.length ? <Shape agenda={agenda.data} /> : null}
+          {current ? (
+            <Notice tone="accent" tag="On now">
+              {current.title}
+              {current.location ? ` · ${current.location}` : ""} until{" "}
+              {agendaTime(current.ends_at!, agenda.data.timezone)}.
+              {next
+                ? ` Next: ${next.title} at ${agendaTime(next.starts_at, agenda.data.timezone)}.`
+                : " It is the last block."}
+            </Notice>
+          ) : !agenda.data.has_programme ? (
+            <Notice
+              tone="neutral"
+              tag="Programme"
+              action={
+                <Link
+                  href={`/events/${eventId}/design?kind=agenda`}
+                  className="btn btn-secondary btn-sm"
+                >
+                  Design it
+                </Link>
+              }
+            >
+              No programme design yet. The A4 download uses the kiosk starter,
+              and the kiosk shows a plain banner until you design one.
+            </Notice>
+          ) : null}
+          <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+            <RunningOrder
+              eventId={eventId}
+              agenda={agenda.data}
+              editingId={editing?.id ?? null}
+              current={current?.id ?? null}
+              onEdit={setEditing}
+            />
+            <div className="grid gap-2 lg:sticky lg:top-4">
+              <BlockForm
+                key={editing?.id ?? "new"}
+                eventId={eventId}
+                editing={editing}
+                defaultStart={defaultStart}
+                onDone={() => setEditing(null)}
+              />
+              <p className="text-ink-3 flex items-start gap-1.5 px-1 text-[11.5px] leading-[1.5]">
+                <CalendarClockIcon
+                  className="mt-0.5 size-3.5 shrink-0"
+                  aria-hidden="true"
+                />
+                Times are typed in your browser&apos;s zone and shown to guests
+                in the event&apos;s ({agenda.data.timezone}).
+              </p>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
