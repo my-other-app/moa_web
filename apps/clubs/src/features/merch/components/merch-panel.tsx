@@ -1,9 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Button, EmptyState, StatusBadge, cn, toast } from "@moa/ui";
+import { Button, EmptyState, FigurePanel, InitialsAvatar, cn, toast } from "@moa/ui";
+import { CameraOffIcon, CheckIcon, PackageIcon, ScanLineIcon, SearchIcon, ShirtIcon } from "lucide-react";
 
 import {
+  CameraWell,
+  DOOR_LABEL,
+  DoorSpinner,
   cameraProblem,
   startScanner,
   type GateContext,
@@ -143,88 +147,94 @@ export function MerchPanel({
 
   if (!ctx.has_merch)
     return (
-      <EmptyState
-        tone="muted"
-        title="No merchandise set up"
-        description="Nothing to hand out at this event yet. The organiser adds items under Merchandise."
-      />
+      <FigurePanel className="mx-auto w-full max-w-[640px] p-2">
+        <EmptyState
+          icon={<PackageIcon />}
+          title="No merchandise set up"
+          description="Nothing to hand out at this event yet. The organiser adds items under Merchandise."
+        />
+      </FigurePanel>
     );
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
       <div>
-        <label
-          htmlFor="gate-merch-find"
-          className="eyebrow mb-1.5 block"
-        >
+        <label htmlFor="gate-merch-find" className={DOOR_LABEL}>
           Find the person
         </label>
-        <input
-          id="gate-merch-find"
-          value={q}
-          onChange={(e) => (setQ(e.target.value), setSelected(null))}
-          placeholder="Name, email or ticket"
-          autoComplete="off"
-          className="input h-12 text-[15px]"
-        />
-        <p className="text-ink-3 mt-1.5 text-[12.5px]">
+        <div className="search h-11">
+          <SearchIcon aria-hidden="true" />
+          <input
+            id="gate-merch-find"
+            value={q}
+            onChange={(e) => (setQ(e.target.value), setSelected(null))}
+            placeholder="Name, email or ticket"
+            autoComplete="off"
+            className="text-[16px]"
+          />
+        </div>
+        <p className="text-ink-3 mt-1.5 text-[13px] leading-[1.55]">
           Search them, and you&apos;ll be shown exactly what they&apos;re owed.
           Handovers are recorded at {door}.
         </p>
         {cameraOn ? (
-          <div className="relative mt-2.5 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-xl bg-black">
-            <video
-              ref={videoRef}
-              playsInline
-              muted
-              className="absolute inset-0 size-full object-cover"
-            />
-            <div
-              aria-hidden
-              className="absolute left-1/2 top-1/2 aspect-square w-[52%] -translate-x-1/2 -translate-y-1/2 rounded-md border-2 border-white/70"
-            />
+          <CameraWell
+            videoRef={videoRef}
+            on
+            frame={52}
+            className="mt-3 aspect-[4/3]"
+          >
             <Button
               type="button"
               variant="secondary"
-              size="sm"
-              round
-              onClick={stopCamera}
+              size="lg"
               className="absolute top-3 right-3"
+              onClick={stopCamera}
             >
-              Stop the camera
+              <CameraOffIcon /> Stop
             </Button>
-          </div>
+            <span className="bg-canvas/80 text-ink-2 absolute inset-x-0 bottom-4 mx-auto w-fit rounded-full px-3.5 py-1.5 text-[13px] backdrop-blur-sm">
+              Hold their ticket inside the frame
+            </span>
+          </CameraWell>
         ) : (
           <Button
             size="lg"
             type="button"
             variant="secondary"
-            className="mt-2.5 w-full"
+            className="mt-3 w-full"
             onClick={() => void startCamera()}
           >
-            Scan their ticket instead
+            <ScanLineIcon /> Scan their ticket instead
           </Button>
         )}
         {cameraError ? (
-          <p className="text-refuse mt-1.5 text-[12.5px]">{cameraError}</p>
+          <p role="alert" className="text-refuse mt-2 text-[13px] leading-[1.5]">
+            {cameraError}
+          </p>
         ) : null}
       </div>
 
       {!selected && settled.length >= 2 ? (
-        results.data?.length ? (
-          <ul className="border-line divide-line-soft divide-y rounded-xl border">
+        !results.data && results.isFetching ? (
+          <p className="text-ink-2 flex items-center gap-2 text-[13px]">
+            <DoorSpinner className="size-3.5" /> Looking through the list…
+          </p>
+        ) : results.data?.length ? (
+          <ul className="bg-surface border-line-soft divide-line-soft shadow-card divide-y overflow-hidden rounded-[var(--radius-card)] border">
             {results.data.map((r) => (
               <li key={r.id}>
                 <button
                   type="button"
                   onClick={() => setSelected(r.id)}
-                  className="hover:bg-sunken flex min-h-14 w-full items-center gap-3 px-3 text-left"
+                  className="hover:bg-sunken flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors"
                 >
+                  <InitialsAvatar name={r.name} size={32} />
                   <span className="min-w-0 flex-1">
-                    <span className="text-ink block text-[14px] font-medium">
+                    <span className="text-ink block text-[15px] font-medium">
                       {r.name}
                     </span>
-                    <span className="text-ink-3 block truncate font-mono text-[10.5px]">
+                    <span className="text-ink-3 block truncate font-mono text-[11px]">
                       {r.ticket_id} · {ROLE_LABEL[r.role] ?? r.role}
                       {r.email ? ` · ${r.email}` : ""}
                     </span>
@@ -234,28 +244,29 @@ export function MerchPanel({
             ))}
           </ul>
         ) : (
-          <p className="text-ink-3 text-[12.5px]">
+          <p className="text-ink-3 text-[13px]">
             Nobody on the list matches. Try fewer letters, or their email.
           </p>
         )
       ) : null}
 
       {selected ? (
-        <div className="border-line overflow-hidden rounded-xl border">
+        <div className="bg-surface border-line-soft shadow-card overflow-hidden rounded-[var(--radius-card)] border">
           {status.data ? (
             <>
-              <div className="border-line-soft bg-sunken flex items-center gap-3 border-b px-3.5 py-3">
+              <div className="bg-sunken border-line-soft flex items-center gap-3 border-b px-4 py-3">
+                <InitialsAvatar name={status.data.attendee.name} size={36} />
                 <span className="min-w-0 flex-1">
-                  <span className="text-ink block text-[15px] font-medium">
+                  <span className="text-ink block truncate text-[16px] font-semibold">
                     {status.data.attendee.name}
                   </span>
-                  <span className="text-ink-3 block font-mono text-[10.5px]">
+                  <span className="text-ink-3 block font-mono text-[11px]">
                     {status.data.attendee.role_label} ·{" "}
                     {status.data.attendee.ticket_id}
                   </span>
                 </span>
                 <Button
-                  size="sm"
+                  size="lg"
                   variant="secondary"
                   onClick={() => (setSelected(null), setQ(""))}
                 >
@@ -263,23 +274,26 @@ export function MerchPanel({
                 </Button>
               </div>
               {bought.data && bought.data.length > 0 ? (
-                <div className="border-line-soft bg-brand-soft border-b">
-                  <p className="eyebrow px-3.5 pt-3">Bought with the ticket</p>
+                <div className="border-line-soft border-b">
+                  <p className="eyebrow px-4 pt-3">Bought with the ticket</p>
                   {bought.data.map((o) => (
                     <div
                       key={o.id}
-                      className="flex items-center gap-3 px-3.5 py-3"
+                      className="flex items-center gap-3 px-4 py-3"
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="text-ink block text-[14px] font-medium">
+                        <span className="text-ink block text-[15px] font-medium">
                           {o.summary}
                         </span>
                         <span
                           className={cn(
-                            "mt-0.5 block font-mono text-[11.5px]",
+                            "mt-0.5 flex items-center gap-1 text-[12.5px]",
                             o.handed_over_at ? "text-admit" : "text-ink-3",
                           )}
                         >
+                          {o.handed_over_at ? (
+                            <CheckIcon aria-hidden="true" className="size-3.5" />
+                          ) : null}
                           {o.handed_over_at
                             ? "Handed over"
                             : "Paid · still to hand over"}
@@ -287,7 +301,7 @@ export function MerchPanel({
                       </span>
                       {o.handed_over_at ? null : (
                         <Button
-                          size="sm"
+                          size="lg"
                           disabled={handOverOrder.isPending}
                           onClick={() =>
                             handOverOrder.mutate(o.id, {
@@ -309,7 +323,7 @@ export function MerchPanel({
               ) : null}
               {status.data.items.length === 0 &&
               !(bought.data && bought.data.length > 0) ? (
-                <p className="text-ink-3 px-3.5 py-4 text-[13px]">
+                <p className="text-ink-3 px-4 py-4 text-[13.5px]">
                   Nothing is set up for this event.
                 </p>
               ) : null}
@@ -325,37 +339,41 @@ export function MerchPanel({
                 const busy =
                   collect.isPending &&
                   collect.variables?.itemId === item.item_id;
+                const collected = item.status === "ALREADY_COLLECTED";
                 return (
                   <div
                     key={item.item_id}
                     className="border-line-soft border-b last:border-b-0"
                   >
-                    <div className="flex items-center gap-3 px-3.5 py-3">
+                    <div className="flex items-center gap-3 px-4 py-3">
                       {item.photo_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.photo_url}
                           alt=""
-                          className="border-line-soft size-10 shrink-0 rounded-lg border object-cover"
+                          className="border-line-soft size-11 shrink-0 rounded-[var(--radius-md)] border object-cover"
                         />
                       ) : (
                         <span
-                          aria-hidden
-                          className="bg-sunken size-10 shrink-0 rounded-lg"
-                        />
+                          aria-hidden="true"
+                          className="bg-brand-soft text-brand grid size-11 shrink-0 place-items-center rounded-[var(--radius-md)]"
+                        >
+                          <ShirtIcon className="size-5" />
+                        </span>
                       )}
                       <span className="min-w-0 flex-1">
-                        <span className="text-ink block text-[14px] font-medium">
+                        <span className="text-ink block text-[15px] font-medium">
                           {item.name}
                         </span>
                         <span
                           className={cn(
-                            "mt-0.5 block font-mono text-[11.5px]",
-                            item.status === "ALREADY_COLLECTED"
-                              ? "text-admit"
-                              : "text-ink-3",
+                            "mt-0.5 flex items-center gap-1 text-[12.5px]",
+                            collected ? "text-admit" : "text-ink-3",
                           )}
                         >
+                          {collected ? (
+                            <CheckIcon aria-hidden="true" className="size-3.5" />
+                          ) : null}
                           {collectable
                             ? [
                                 item.variant_label,
@@ -370,7 +388,7 @@ export function MerchPanel({
                       </span>
                       {collectable ? (
                         <Button
-                          size="sm"
+                          size="lg"
                           disabled={busy}
                           onClick={() => void handOver(item)}
                         >
@@ -378,7 +396,7 @@ export function MerchPanel({
                         </Button>
                       ) : canPick ? (
                         <Button
-                          size="sm"
+                          size="lg"
                           variant="secondary"
                           aria-expanded={open}
                           onClick={() => setPicking(open ? null : item.item_id)}
@@ -386,13 +404,22 @@ export function MerchPanel({
                           {open ? "Cancel" : "Pick size"}
                         </Button>
                       ) : copy?.chip ? (
-                        <StatusBadge label={copy.chip} />
+                        <span
+                          className={cn(
+                            "tag shrink-0",
+                            collected
+                              ? "bg-admit-soft text-admit"
+                              : "tag-neutral",
+                          )}
+                        >
+                          {copy.chip}
+                        </span>
                       ) : null}
                     </div>
                     {open ? (
-                      <div className="bg-sunken flex flex-wrap gap-2 px-3.5 py-3">
+                      <div className="bg-sunken flex flex-wrap gap-2 px-4 py-3">
                         {item.on_file ? (
-                          <p className="text-ink-3 basis-full text-[12px]">
+                          <p className="text-ink-2 basis-full text-[13px]">
                             On file: {item.on_file}. Picking one writes it to
                             their record, then collects.
                           </p>
@@ -401,13 +428,13 @@ export function MerchPanel({
                           <Button
                             key={c.label}
                             size="lg"
-                            variant={c.remaining > 0 ? "secondary" : "ghost"}
+                            variant="secondary"
                             disabled={busy || c.remaining <= 0}
                             onClick={() => void handOver(item, c.label)}
                           >
                             {c.label}
                             <span className="text-ink-3 font-mono text-[11px]">
-                              {c.remaining} left
+                              {c.remaining}
                             </span>
                           </Button>
                         ))}
@@ -418,12 +445,13 @@ export function MerchPanel({
               })}
             </>
           ) : status.isError ? (
-            <p className="text-refuse px-3.5 py-4 text-[13px]">
+            <p role="alert" className="text-refuse px-4 py-4 text-[13.5px]">
               {status.error.message}
             </p>
           ) : (
-            <p className="text-ink-3 px-3.5 py-4 text-[13px]">
-              Looking up what they are owed…
+            <p className="text-ink-2 flex items-center gap-2 px-4 py-4 text-[13.5px]">
+              <DoorSpinner className="size-3.5" /> Looking up what they are
+              owed…
             </p>
           )}
         </div>

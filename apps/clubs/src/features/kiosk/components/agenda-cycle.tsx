@@ -20,11 +20,9 @@ const time = (iso: string) =>
  */
 export function AgendaCycle({
   items,
-  brand,
   dwellMs = 3200,
 }: {
   items: KioskContext["agenda"];
-  brand: string;
   dwellMs?: number;
 }) {
   const [i, setI] = React.useState(0);
@@ -36,39 +34,35 @@ export function AgendaCycle({
   const a = items[i % items.length];
   if (!a) return null;
   return (
-    <div className="relative mx-auto mt-8 h-[200px] w-full max-w-xl overflow-hidden rounded-3xl border border-white/[0.06] bg-white/[0.035] text-left">
+    <div className="bg-surface border-line-soft relative mx-auto mt-8 h-[208px] w-full max-w-xl overflow-hidden rounded-[var(--radius-sheet)] border text-left">
       <div
         key={`${a.starts_at}-${a.title}`}
-        className="absolute inset-0 flex flex-col justify-center p-7 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2"
+        className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 absolute inset-0 flex flex-col justify-center p-7"
       >
-        <span
-          className="font-mono text-[15px] tracking-[0.08em]"
-          style={{ color: brand }}
-        >
+        <span className="text-brand font-mono text-[15px] tracking-[0.04em] tabular-nums">
           {time(a.starts_at)}
           {a.ends_at ? ` – ${time(a.ends_at)}` : ""}
-          {a.parallel ? " · PARALLEL" : ""}
+          {a.parallel ? " · Parallel" : ""}
         </span>
-        <span className="mt-3 text-[26px] font-medium leading-[1.25] tracking-[-0.015em] text-white">
+        <span className="text-ink mt-3 text-[26px] leading-[1.25] font-medium tracking-[-0.015em]">
           {a.title}
         </span>
-        <span className="mt-2 text-[17px] leading-[1.5] text-[#9AA59C]">
+        <span className="text-ink-2 mt-2 text-[17px] leading-[1.5]">
           {[a.speaker, a.location].filter(Boolean).join(" · ")}
         </span>
       </div>
       {items.length > 1 ? (
         <div
           className="absolute inset-x-0 bottom-5 flex justify-center gap-2"
-          aria-hidden
+          aria-hidden="true"
         >
           {items.map((it, n) => (
             <span
               key={`${it.starts_at}-${it.title}`}
               className={cn(
                 "size-2 rounded-full transition-colors",
-                n === i ? "" : "bg-white/15",
+                n === i ? "bg-brand" : "bg-line",
               )}
-              style={n === i ? { background: brand } : undefined}
             />
           ))}
         </div>

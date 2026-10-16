@@ -1,13 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { Button, cn, toast } from "@moa/ui";
+import { Button, FigurePanel, NativeSelect, cn, toast } from "@moa/ui";
+import { IndianRupeeIcon, UserPlusIcon } from "lucide-react";
 
 import { walkupCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { useGateCatalog, useWalkup } from "../queries";
 import { newRef, ROLE_LABEL, type GateContext, type WalkupBody } from "../schemas";
+import { DOOR_FIELD, DOOR_LABEL, DoorSpinner, TONE_SOFT, TouchChoice } from "./door-kit";
 import { OutcomeCard } from "./outcome-card";
 import { ShelfPicker, picksToStore, type ShelfPicks } from "./shelf-picker";
+
+const optional = <span className="text-ink-3 font-normal">— optional</span>;
 
 /** One form does three things: adds them to the list, checks them in, and sends their ticket if they gave an address. */
 export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx: GateContext; door: string }) {
@@ -59,82 +63,97 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
   };
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
       {card ? (
         <OutcomeCard card={card.model} onDismiss={() => setCard(null)}>
-          <div className="flex flex-col gap-2 border-t border-current/20 px-4 py-3">
+          <div className="border-line-soft flex flex-col gap-2 border-t px-4 py-3">
             {card.sameName ? (
               <Button size="lg" type="button" className="w-full" onClick={() => (setCard(null), void submit(undefined, true))}>
                 A different person — register them
               </Button>
             ) : null}
-            <Button size="lg" type="button" variant="outline" className="w-full" onClick={() => setCard(null)}>
+            <Button size="lg" type="button" variant="secondary" className="w-full" onClick={() => setCard(null)}>
               {card.sameName ? "Back — I’ll check the list" : "Next walk-up"}
             </Button>
           </div>
         </OutcomeCard>
       ) : null}
       {walkup.isPending ? (
-        <div className="rounded-xl border-[1.5px] border-primary bg-primary/10 px-5 py-7 text-center text-primary">
-          <div className="text-[18px] font-semibold tracking-[-0.02em]">Registering them</div>
-          <div className="mt-1.5 text-[13px] leading-[1.55] opacity-85">Making the record, the ticket and the check-in. Give it a second — don’t tap again.</div>
+        <div role="status" className={cn("rounded-[var(--radius-panel)] border px-5 py-8 text-center", TONE_SOFT.info)}>
+          <DoorSpinner className="size-6" />
+          <p className="mt-3 text-[19px] font-semibold tracking-[-0.02em]">Registering them</p>
+          <p className="text-ink-2 mt-1.5 text-[13.5px] leading-[1.55]">Making the record, the ticket and the check-in. Give it a second — don’t tap again.</p>
         </div>
       ) : (
-        <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-3">
-          <div>
-            <h2 className="text-[19px] font-semibold leading-[1.25] tracking-[-0.02em]">Register a walk-up</h2>
-            <p className="mt-1 text-[13px] leading-[1.55] text-muted-foreground">Adds them to the list and checks them in. With an email, their ticket goes out too.{ctx.event.has_fee ? " Take the fee at the desk first — a walk-up is recorded as paid." : ""}</p>
-          </div>
-          <div>
-            <label htmlFor="walk-name" className="mb-1.5 block text-[12px] text-muted-foreground">
-              Name
-            </label>
-            <input id="walk-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Their full name" autoComplete="off" aria-invalid={!!fieldError} className={cn("h-12 w-full rounded-md border bg-muted/40 px-3 text-[15px]", fieldError && "border-destructive")} />
-            {fieldError ? <p className="mt-1 text-[12.5px] text-destructive">{fieldError}</p> : null}
-          </div>
-          <div>
-            <label htmlFor="walk-contact" className="mb-1.5 block text-[12px] text-muted-foreground">
-              Email or mobile <span className="opacity-70">— optional</span>
-            </label>
-            <input id="walk-contact" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Optional" autoComplete="off" inputMode="email" className="h-12 w-full rounded-md border bg-muted/40 px-3 text-[15px]" />
-          </div>
-          {ctx.walkup_roles.length > 1 ? (
+        <FigurePanel className="p-4 sm:p-5">
+          <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-4">
             <div>
-              <div className="mb-1.5 text-[12px] text-muted-foreground">Role</div>
-              <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Role">
-                {ctx.walkup_roles.map((r) => (
-                  <button key={r} type="button" role="radio" aria-checked={role === r} onClick={() => setRole(r)} className={cn("min-h-11 rounded-md border px-3 font-mono text-[12px] font-medium tracking-[0.05em]", role === r ? "border-primary bg-primary/10 text-primary" : "bg-muted/40 text-muted-foreground")}>
-                    {(ROLE_LABEL[r] ?? r).toUpperCase()}
-                  </button>
-                ))}
+              <h2 className="text-ink text-[19px] leading-[1.25] font-semibold tracking-[-0.02em]">Register a walk-up</h2>
+              <p className="text-ink-2 mt-1 text-[13.5px] leading-[1.55]">Adds them to the list and checks them in. With an email, their ticket goes out too.</p>
+            </div>
+            {ctx.event.has_fee ? (
+              <div className={cn("flex items-start gap-2.5 rounded-[var(--radius-md)] border px-3.5 py-2.5 text-[13px] leading-[1.5]", TONE_SOFT.caution)}>
+                <IndianRupeeIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                <p>
+                  <strong className="font-semibold">Take the fee at the desk first.</strong> <span className="text-ink-2">A walk-up is recorded as paid.</span>
+                </p>
               </div>
-            </div>
-          ) : null}
-          {ctx.guest_fields.map((f) => (
-            <div key={f.key}>
-              <label htmlFor={`walk-${f.key}`} className="mb-1.5 block text-[12px] text-muted-foreground">
-                {f.label} <span className="opacity-70">— optional at the door</span>
+            ) : null}
+            <div>
+              <label htmlFor="walk-name" className={DOOR_LABEL}>
+                Name
               </label>
-              {f.options?.length ? (
-                <select id={`walk-${f.key}`} value={custom[f.key] ?? ""} onChange={(e) => setCustom((c) => ({ ...c, [f.key]: e.target.value }))} className="h-12 w-full rounded-md border bg-muted/40 px-3 text-[15px]">
-                  <option value="">—</option>
-                  {f.options.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input id={`walk-${f.key}`} value={custom[f.key] ?? ""} onChange={(e) => setCustom((c) => ({ ...c, [f.key]: e.target.value }))} className="h-12 w-full rounded-md border bg-muted/40 px-3 text-[15px]" />
-              )}
+              <input id="walk-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Their full name" autoComplete="off" aria-invalid={!!fieldError} aria-describedby={fieldError ? "walk-name-error" : undefined} className={cn(DOOR_FIELD, fieldError && "border-refuse")} />
+              {fieldError ? (
+                <p id="walk-name-error" className="text-refuse mt-1.5 text-[13px]">
+                  {fieldError}
+                </p>
+              ) : null}
             </div>
-          ))}
-          {ctx.has_store && catalog.data?.enabled ? <ShelfPicker catalog={catalog.data} picks={picks} onChange={setPicks} /> : null}
-          <Button type="submit" className="mt-1 w-full" size="lg">
-            Register and check in
-          </Button>
-          <p className="text-[11.5px] leading-[1.5] text-muted-foreground">Anyone already on the list is caught and pointed at Find instead of making a second record.</p>
-        </form>
+            <div>
+              <label htmlFor="walk-contact" className={DOOR_LABEL}>
+                Email or mobile {optional}
+              </label>
+              <input id="walk-contact" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Optional" autoComplete="off" inputMode="email" className={DOOR_FIELD} />
+            </div>
+            {ctx.walkup_roles.length > 1 ? (
+              <div>
+                <p className={DOOR_LABEL}>Role</p>
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Role">
+                  {ctx.walkup_roles.map((r) => (
+                    <TouchChoice key={r} checked={role === r} onClick={() => setRole(r)}>
+                      {ROLE_LABEL[r] ?? r}
+                    </TouchChoice>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {ctx.guest_fields.map((f) => (
+              <div key={f.key}>
+                <label htmlFor={`walk-${f.key}`} className={DOOR_LABEL}>
+                  {f.label} <span className="text-ink-3 font-normal">— optional at the door</span>
+                </label>
+                {f.options?.length ? (
+                  <NativeSelect id={`walk-${f.key}`} value={custom[f.key] ?? ""} onChange={(e) => setCustom((c) => ({ ...c, [f.key]: e.target.value }))} className="h-11 text-[16px]">
+                    <option value="">—</option>
+                    {f.options.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                ) : (
+                  <input id={`walk-${f.key}`} value={custom[f.key] ?? ""} onChange={(e) => setCustom((c) => ({ ...c, [f.key]: e.target.value }))} className={DOOR_FIELD} />
+                )}
+              </div>
+            ))}
+            {ctx.has_store && catalog.data?.enabled ? <ShelfPicker catalog={catalog.data} picks={picks} onChange={setPicks} /> : null}
+            <Button type="submit" className="w-full" size="lg">
+              <UserPlusIcon /> Register and check in
+            </Button>
+            <p className="text-ink-3 text-[12.5px] leading-[1.5]">Anyone already on the list is caught and pointed at Find instead of making a second record.</p>
+          </form>
+        </FigurePanel>
       )}
     </div>
   );

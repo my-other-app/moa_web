@@ -5,15 +5,17 @@ import { XIcon } from "lucide-react";
 import { cn } from "@moa/ui";
 
 import { HAPTIC, type OutcomeCardModel, type Tone } from "../lib/outcome-copy";
+import { DoorIconButton, TONE_ICON, TONE_LINE, TONE_SOLID, type DoorTone } from "./door-kit";
 
-const TONE: Record<Tone, string> = {
-  admit: "border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  caution: "border-amber-500/60 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  refuse: "border-destructive/60 bg-destructive/10 text-destructive",
-  accent: "border-primary/60 bg-primary/10 text-primary",
-};
+/** A queued scan is saved, not admitted: it reads in the info tone, never as a welcome. */
+const DOOR_TONE: Record<Tone, DoorTone> = { admit: "admit", caution: "caution", refuse: "refuse", accent: "info" };
 
-/** The verdict, large, with what to do next. One tap on admit, two on refuse. */
+/**
+ * The verdict, large, with what to do next. The band is the tone in a solid
+ * fill with the verdict in a word or two — welcome in, already in, not paid,
+ * wrong event — so it reads from two metres before the name does. One tap on
+ * admit, two on refuse.
+ */
 export function OutcomeCard({ card, onDismiss, children }: { card: OutcomeCardModel; onDismiss: () => void; children?: React.ReactNode }) {
   React.useEffect(() => {
     try {
@@ -22,26 +24,30 @@ export function OutcomeCard({ card, onDismiss, children }: { card: OutcomeCardMo
       /* unsupported */
     }
   }, [card]);
+  const tone = DOOR_TONE[card.tone];
+  const Icon = TONE_ICON[tone];
   return (
-    <div role="status" aria-live="assertive" className={cn("overflow-hidden rounded-xl border-[1.5px]", TONE[card.tone])}>
-      <div className="px-4 py-3.5">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="rounded bg-card px-1.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em]">{card.tag}</span>
-          <span className="flex-1" />
-          <button type="button" onClick={onDismiss} aria-label="Dismiss" className="opacity-60 hover:opacity-100">
-            <XIcon className="size-4" />
-          </button>
-        </div>
-        <div className="text-[20px] font-medium leading-[1.25] tracking-[-0.01em]">{card.title}</div>
-        {card.sub ? <div className="mt-1.5 font-mono text-[12px] leading-[1.5] tracking-[0.03em] opacity-85">{card.sub}</div> : null}
-        {card.attribution ? (
-          <div className="mt-2.5 rounded-md border border-current/30 bg-card/70 px-3 py-2.5">
-            <div className="mb-1 font-mono text-[9px] font-medium tracking-[0.1em] opacity-70">ALREADY SCANNED BY</div>
-            <div className="text-[13px] leading-[1.5]">{card.attribution}</div>
-          </div>
-        ) : null}
-        {card.note ? <div className="mt-2.5 text-[12.5px] leading-[1.55] opacity-85">{card.note}</div> : null}
+    <div role="status" aria-live="assertive" data-tone={tone} className={cn("bg-surface shadow-card overflow-hidden rounded-[var(--radius-panel)] border", TONE_LINE[tone])}>
+      <div className={cn("flex items-center gap-3 px-4 py-3.5", TONE_SOLID[tone])}>
+        <Icon aria-hidden="true" className="size-8 shrink-0" />
+        <span className="min-w-0 flex-1 text-[26px] leading-[1.1] font-semibold tracking-[-0.02em]">{card.tag}</span>
       </div>
+      <div className="flex items-start gap-3 px-4 pt-3.5 pb-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-ink text-[19px] leading-[1.3] font-semibold tracking-[-0.01em]">{card.title}</p>
+          {card.sub ? <p className="text-ink-2 mt-1 font-mono text-[12px] leading-[1.5] tracking-[0.03em]">{card.sub}</p> : null}
+        </div>
+        <DoorIconButton label="Dismiss" variant="quiet" onClick={onDismiss} className="-mt-1.5 -mr-2">
+          <XIcon />
+        </DoorIconButton>
+      </div>
+      {card.attribution ? (
+        <div className="border-line-soft bg-sunken mx-4 mb-3 rounded-[var(--radius-md)] border px-3 py-2.5">
+          <p className="eyebrow">Already scanned by</p>
+          <p className="text-ink mt-1 text-[14px] leading-[1.5]">{card.attribution}</p>
+        </div>
+      ) : null}
+      {card.note ? <p className="text-ink-2 px-4 pb-4 text-[13.5px] leading-[1.55]">{card.note}</p> : null}
       {children}
     </div>
   );

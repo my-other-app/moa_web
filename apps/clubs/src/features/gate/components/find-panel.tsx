@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Button, cn, toast } from "@moa/ui";
-import { PrinterIcon } from "lucide-react";
+import { Button, toast } from "@moa/ui";
+import { CheckIcon, PrinterIcon, SearchIcon, UserPlusIcon } from "lucide-react";
 
 import { PrintFrame, cardPdfUrl } from "@/features/idcards";
 import { formatDateTime } from "@moa/app-kit";
@@ -10,6 +10,7 @@ import { formatDateTime } from "@moa/app-kit";
 import { outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { useCheckInByHand, useGuestSearch } from "../queries";
 import { ROLE_LABEL, type GateContext } from "../schemas";
+import { DOOR_LABEL, DoorSpinner } from "./door-kit";
 import { OutcomeCard } from "./outcome-card";
 
 /** A dead phone, a ticket left at home, a name read off a list: find them, check them in by hand. */
@@ -35,48 +36,63 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
     }
   };
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
       {printing ? <PrintFrame key={printing} url={printing} onDone={() => setTimeout(() => setPrinting(null), 4000)} /> : null}
       {card ? <OutcomeCard card={card} onDismiss={() => setCard(null)} /> : null}
       <div>
-        <label htmlFor="gate-find" className="mb-1.5 block font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+        <label htmlFor="gate-find" className={DOOR_LABEL}>
           Name, email or ticket
         </label>
-        <input id="gate-find" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Start typing a name" autoComplete="off" className="h-12 w-full rounded-md border bg-muted/40 px-3 text-[15px]" />
+        <div className="search h-11">
+          <SearchIcon aria-hidden="true" />
+          <input id="gate-find" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Start typing a name" autoComplete="off" className="text-[16px]" />
+        </div>
       </div>
       {settled.length < 2 ? (
-        <p className="text-[12.5px] text-muted-foreground">Two letters is enough. Checking someone in here is recorded as by hand at {door}.</p>
+        <p className="text-ink-3 text-[13px] leading-[1.55]">Two letters is enough. Checking someone in here is recorded as by hand at {door}.</p>
+      ) : !results.data && results.isFetching ? (
+        <p className="text-ink-2 flex items-center gap-2 text-[13px]">
+          <DoorSpinner className="size-3.5" /> Looking through the list…
+        </p>
       ) : results.data?.length ? (
-        <ul className="divide-y rounded-xl border">
+        <ul className="bg-surface border-line-soft divide-line-soft shadow-card divide-y overflow-hidden rounded-[var(--radius-card)] border">
           {results.data.map((r) => (
-            <li key={r.id} className="flex items-center gap-3 px-3 py-2.5">
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[14px] font-medium">{r.name}</div>
-                <div className="truncate font-mono text-[10.5px] text-muted-foreground">
+            <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+              <div className="min-w-0 flex-1 basis-[180px]">
+                <div className="text-ink truncate text-[15px] font-medium">{r.name}</div>
+                <div className="text-ink-3 truncate font-mono text-[11px]">
                   {r.admission_no ? `${r.admission_no} · ` : ""}
                   {r.ticket_id} · {ROLE_LABEL[r.role] ?? r.role}
                   {r.email ? ` · ${r.email}` : ""}
                 </div>
               </div>
               {r.checked_in_at ? (
-                <>
+                <div className="flex items-center gap-2">
+                  <span className="bg-admit-soft text-admit inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium">
+                    <CheckIcon aria-hidden="true" className="size-3.5" />
+                    In · {formatDateTime(r.checked_in_at)}
+                  </span>
                   {mayPrint(r.badge_printed_at) ? (
-                    <Button type="button" size="sm" variant="outline" aria-label={`Print card for ${r.name}`} onClick={() => setPrinting(cardPdfUrl(ctx.event.id, r.id, { source: "manual", record: true, door, key: gateKey }))}>
-                      <PrinterIcon />
+                    <Button type="button" size="lg" variant="secondary" aria-label={`Print card for ${r.name}`} onClick={() => setPrinting(cardPdfUrl(ctx.event.id, r.id, { source: "manual", record: true, door, key: gateKey }))}>
+                      <PrinterIcon /> Print
                     </Button>
                   ) : null}
-                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] text-emerald-700 dark:text-emerald-300">IN · {formatDateTime(r.checked_in_at)}</span>
-                </>
-              ) : (
-                <Button type="button" disabled={byHand.isPending || !r.is_paid} onClick={() => void admit(r.id)}>
-                  {r.is_paid ? "Check in" : "Not paid"}
+                </div>
+              ) : r.is_paid ? (
+                <Button type="button" size="lg" disabled={byHand.isPending} onClick={() => void admit(r.id)}>
+                  Check in
                 </Button>
+              ) : (
+                <span className="bg-refuse-soft text-refuse rounded-full px-2.5 py-1 text-[12px] font-medium">Not paid</span>
               )}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-[12.5px] text-muted-foreground">Nobody on the list matches. If they are at the door with no record, register them under Walk-up.</p>
+        <div className="border-line text-ink-2 flex items-start gap-3 rounded-[var(--radius-card)] border border-dashed px-4 py-3.5 text-[13px] leading-[1.55]">
+          <UserPlusIcon aria-hidden="true" className="text-ink-3 mt-0.5 size-4 shrink-0" />
+          <p>Nobody on the list matches. If they are at the door with no record, register them under Walk-up.</p>
+        </div>
       )}
     </div>
   );
