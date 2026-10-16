@@ -44,19 +44,40 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
   const store = await cookies();
   if (!store.get(ACCESS_TOKEN_COOKIE)) return null;
 
-  try {
-    const api = createServerApiClient();
-    return await api.get<SessionUser>("/api/v1/auth/me", { cache: "no-store" });
-  } catch (error) {
-    // A 401 here is ordinary: an expired or revoked token (the backend bumps
-    // token_version on password change). Anything else is a real fault and is
-    // surfaced rather than silently rendering a logged-out UI.
-    if (error instanceof ApiError && (error.isUnauthorized || error.isForbidden)) {
-      return null;
+  const api = createServerApiClient();
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await api.get<SessionUser>("/api/v1/auth/me", { cache: "no-store" });
+    } catch (error) {
+      // Next's own control flow (a dynamic-render signal, a redirect) is not a fault.
+      unstable_rethrow(error);
+      // A 401 here is ordinary: an expired or revoked token (the backend bumps
+      // token_version on password change).
+      if (error instanceof ApiError && (error.isUnauthorized || error.isForbidden)) {
+        return null;
+      }
+      // The API restarting (a deploy is about a minute of 502s) or a dropped
+      // connection: asked again, shortly, before the whole page fails. Seen in
+      // production: one 502 at render time turned /finance into an error page
+      // that loaded fine two seconds later.
+      if (isTransient(error) && attempt < MAX_RETRIES) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+        continue;
+      }
+      // Anything else is a real fault and is surfaced rather than silently
+      // rendering a logged-out UI.
+      throw error;
     }
-    throw error;
   }
 });
+
+const MAX_RETRIES = 2;
+
+/** A gateway's "try again" or no answer at all: worth a second ask. */
+export function isTransient(error: unknown): boolean {
+  if (error instanceof ApiError) return error.status === 502 || error.status === 503 || error.status === 504;
+  return error instanceof TypeError; // fetch failed: refused, reset, DNS
+}
 
 /**
  * Returns the session, or null when the user's role is not permitted.
