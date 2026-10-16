@@ -56,6 +56,8 @@ const detailSchema = z
             id: z.coerce.number().nullish(),
             name: z.string(),
             designation: z.string().nullish(),
+            bio: z.string().nullish(),
+            link: z.string().nullish(),
             photo: z.unknown().nullish(),
           })
           .passthrough()
@@ -141,6 +143,8 @@ export function eventDetailToFormValues(raw: unknown): EventFormValues {
       ...(s.id != null ? { id: s.id } : {}),
       name: s.name,
       designation: s.designation ?? "",
+      bio: s.bio ?? "",
+      link: s.link ?? "",
       photo_url: photoUrlOf(s.photo),
     })),
   };

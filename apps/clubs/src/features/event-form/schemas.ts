@@ -41,10 +41,23 @@ export const questionSchema = z
     }
   });
 
+/** The most a speaker's short bio may run to; the server refuses more. */
+export const SPEAKER_BIO_MAX = 600;
+
 export const speakerSchema = z.object({
   id: z.number().optional(),
   name: z.string().trim().min(1, "Speaker name is required").max(100),
   designation: z.string().trim().max(200).optional(),
+  /** A few lines on who they are, under their name on the event page. */
+  bio: z.string().trim().max(SPEAKER_BIO_MAX, `Keep the bio to ${SPEAKER_BIO_MAX} characters`).optional(),
+  /** Where to read more about them: a profile, a site. http(s) only, as the server accepts. */
+  link: z
+    .string()
+    .trim()
+    .url("Paste the full link, starting https://")
+    .refine((v) => /^https?:\/\//i.test(v), "Paste the full link, starting https://")
+    .or(z.literal(""))
+    .optional(),
   /** Existing photo kept on edit; a newly picked File is held separately. */
   photo_url: z.string().nullish(),
   photoFile: z.instanceof(File).optional(),

@@ -16,7 +16,8 @@ import type { EventFormParsed } from "./schemas";
  *   additional_details JSON array string.
  *   speakers           JSON array string. A newly uploaded photo is referenced
  *                      by `photo_index`, an index into the speaker_photos files
- *                      appended in the same order.
+ *                      appended in the same order. `bio` and `link` are null
+ *                      when empty, never omitted.
  *   reg_startdate      ISO string; parsed with datetime.fromisoformat.
  *   booleans           sent as "true"/"false".
  *
@@ -90,6 +91,9 @@ export function toEventFormData(values: EventFormParsed, status?: "draft" | "pub
     const base: Record<string, unknown> = {
       name: speaker.name,
       designation: speaker.designation || null,
+      // Always sent, so emptying either clears the saved one on edit.
+      bio: speaker.bio || null,
+      link: speaker.link || null,
     };
     if (speaker.id !== undefined) base.id = speaker.id;
 
