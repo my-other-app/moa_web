@@ -124,7 +124,8 @@ export function TeamPanel({ club }: { club: ClubSelf }) {
   };
 
   return (
-    <FigurePanel className="p-4">
+    // `#team` is where an event's "On the event page" panel sends a club with nobody on it yet.
+    <FigurePanel id="team" className="scroll-mt-4 p-4">
       <CardLabel
         right={
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAdding(true)}>
