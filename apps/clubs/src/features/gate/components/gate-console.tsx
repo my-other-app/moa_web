@@ -4,17 +4,21 @@ import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ApiError } from "@moa/api";
-import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, EmptyState, Skeleton, cn } from "@moa/ui";
+import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, EmptyState, FigurePanel, InitialsAvatar, Skeleton, cn } from "@moa/ui";
+import { ChevronDownIcon, DoorOpenIcon, LockIcon, PackageIcon, RefreshCwIcon, ScanLineIcon, SearchIcon, ServerCrashIcon, Link2OffIcon, UserPlusIcon, UserXIcon, WifiOffIcon } from "lucide-react";
 
 import { DOOR_STORAGE, KEY_STORAGE } from "../api";
 import { useGateContext, useOfflineQueue } from "../queries";
 import type { GateContext } from "../schemas";
+import { DOOR_FIELD, DoorBanner, DoorCount, DoorProgress, TouchChoice } from "./door-kit";
 import { FindPanel } from "./find-panel";
 import { ScanStage } from "./scan-stage";
 import { WalkupPanel } from "./walkup-panel";
 import { MerchPanel } from "@/features/merch";
 
 type Tab = "checkin" | "find" | "walkup" | "merch";
+
+const TAB_ICON: Record<Tab, React.ComponentType<{ className?: string }>> = { checkin: ScanLineIcon, find: SearchIcon, walkup: UserPlusIcon, merch: PackageIcon };
 
 const read = (k: string) => {
   try {
@@ -51,46 +55,61 @@ export function GateConsole({ eventId }: { eventId: number }) {
   }, [params, eventId]);
 
   const ctxQ = useGateContext(key, eventId);
-  if (ctxQ.isPending) return <Skeleton className="m-4 h-96" />;
+  if (ctxQ.isPending)
+    return (
+      <div className="bg-canvas min-h-dvh" aria-busy="true">
+        <div className="mx-auto flex w-full max-w-[512px] flex-col gap-4 p-4">
+          <Skeleton className="h-20" />
+          <Skeleton className="h-12" />
+          <Skeleton className="aspect-square" />
+        </div>
+      </div>
+    );
   if (ctxQ.isError) {
     const err = ctxQ.error;
     const status = err instanceof ApiError ? err.status : 0;
     const invalidKey = status === 403 && key;
     const serverDown = status >= 500 || status === 0;
+    const Icon = status === 401 ? LockIcon : invalidKey ? Link2OffIcon : status === 403 ? UserXIcon : ServerCrashIcon;
     return (
-      <main className="mx-auto flex min-h-dvh max-w-[512px] items-center px-5">
-        <EmptyState
-          tone="muted"
-          title={status === 401 ? "Sign in to open this gate" : invalidKey ? "This gate link no longer works" : status === 403 ? "You’re not on this event’s team" : "The gate could not open"}
-          description={
-            status === 401
-              ? "Sign in with the account the organiser added as a volunteer, or open the gate link they sent you."
-              : invalidKey
-                ? "The organiser made a new link or switched this one off. Ask them for the current one."
-                : status === 403
-                  ? "Ask the organiser to add you under Team & doors. Nothing is broken — your account simply has no door permissions here yet."
-                  : serverDown
-                    ? "The server did not answer. It may be restarting or your connection dropped — nothing on this phone is lost. Try again in a moment."
-                    : (err instanceof Error ? err.message : "Try again.")
-          }
-        />
-        <div className="absolute inset-x-0 bottom-8 flex justify-center gap-2">
-          {status === 401 ? (
-            <Button asChild>
-              <Link href={`/login?next=${encodeURIComponent(`/gate/${eventId}`)}`}>Sign in</Link>
-            </Button>
-          ) : null}
-          {invalidKey ? (
-            <Button variant="outline" onClick={() => (write(KEY_STORAGE(eventId), null), setKey(null))}>
-              Forget this link
-            </Button>
-          ) : null}
-          {status !== 401 && !invalidKey ? (
-            <Button onClick={() => ctxQ.refetch()} disabled={ctxQ.isFetching}>
-              {ctxQ.isFetching ? "Trying…" : "Try again"}
-            </Button>
-          ) : null}
-        </div>
+      <main className="bg-canvas flex min-h-dvh items-center justify-center px-5 py-10">
+        <FigurePanel className="w-full max-w-[460px] p-2">
+          <EmptyState
+            icon={<Icon />}
+            title={status === 401 ? "Sign in to open this gate" : invalidKey ? "This gate link no longer works" : status === 403 ? "You’re not on this event’s team" : "The gate could not open"}
+            description={
+              status === 401
+                ? "Sign in with the account the organiser added as a volunteer, or open the gate link they sent you."
+                : invalidKey
+                  ? "The organiser made a new link or switched this one off. Ask them for the current one."
+                  : status === 403
+                    ? "Ask the organiser to add you under Team & doors. Nothing is broken — your account simply has no door permissions here yet."
+                    : serverDown
+                      ? "The server did not answer. It may be restarting or your connection dropped — nothing on this phone is lost. Try again in a moment."
+                      : (err instanceof Error ? err.message : "Try again.")
+            }
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                {status === 401 ? (
+                  <Button asChild size="lg">
+                    <Link href={`/login?next=${encodeURIComponent(`/gate/${eventId}`)}`}>Sign in</Link>
+                  </Button>
+                ) : null}
+                {invalidKey ? (
+                  <Button variant="secondary" size="lg" onClick={() => (write(KEY_STORAGE(eventId), null), setKey(null))}>
+                    Forget this link
+                  </Button>
+                ) : null}
+                {status !== 401 && !invalidKey ? (
+                  <Button size="lg" onClick={() => ctxQ.refetch()} disabled={ctxQ.isFetching}>
+                    <RefreshCwIcon className={cn(ctxQ.isFetching && "animate-spin motion-reduce:animate-none")} />
+                    {ctxQ.isFetching ? "Trying…" : "Try again"}
+                  </Button>
+                ) : null}
+              </div>
+            }
+          />
+        </FigurePanel>
       </main>
     );
   }
@@ -119,6 +138,7 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
     setPickDoor(false);
     write(DOOR_STORAGE(eventId), d);
   };
+  const canChangeDoor = ctx.me.kind !== "door";
 
   const { online, queued, enqueue } = useOfflineQueue(gateKey, eventId);
   const p = ctx.permissions;
@@ -129,70 +149,104 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
   ];
   const [tab, setTab] = React.useState<Tab>("checkin");
   const current = allowed.some((a) => a.key === tab) ? tab : allowed[0]?.key;
-  const permLine = p.full ? "FULL GATE ACCESS" : [p.check_in && "CHECK-IN", p.walkup && "WALK-UP", p.merch && "MERCH"].filter(Boolean).join(" · ") || "NO DOOR PERMISSIONS";
+  const permLine = p.full ? "Full gate access" : [p.check_in && "Check-in", p.walkup && "Walk-up", p.merch && "Merch"].filter(Boolean).join(" · ") || "No door permissions";
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[512px] flex-col bg-background">
-      <header className="flex items-center gap-2.5 border-b bg-card px-4 py-3 pt-[max(12px,env(safe-area-inset-top))]">
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[14px] font-medium">{ctx.event.name}</div>
-          <button type="button" onClick={() => ctx.me.kind !== "door" && setPickDoor(true)} className="mt-0.5 font-mono text-[10.5px] font-medium tracking-[0.07em] text-primary">
-            {(door || "PICK A DOOR").toUpperCase()}
-            {ctx.me.kind !== "door" ? " · CHANGE" : ""}
-          </button>
-        </div>
-        <div className="text-right">
-          <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">Checked in</div>
-          <div className="font-mono text-[22px] leading-none text-emerald-600 dark:text-emerald-400">
-            {ctx.counters.checked_in}
-            <span className="text-[12px] text-muted-foreground"> / {ctx.counters.registered}</span>
+    <div className="bg-canvas min-h-dvh">
+      <div className="mx-auto flex min-h-dvh w-full max-w-[512px] flex-col lg:max-w-[1080px]">
+        <header className="bg-surface border-line-soft sticky top-0 z-20 border-b">
+          <div className="flex items-start gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] pb-3">
+            <div className="min-w-0 flex-1">
+              <p className="eyebrow truncate">{ctx.event.org_name || "Gate"}</p>
+              <h1 className="text-ink mt-0.5 truncate text-[16px] leading-[1.3] font-semibold tracking-[-0.01em]">{ctx.event.name}</h1>
+              {canChangeDoor ? (
+                <Button type="button" variant="secondary" size="lg" className="mt-2 max-w-full" onClick={() => setPickDoor(true)} aria-label={door ? `Door: ${door}. Change door` : "Pick a door"}>
+                  <DoorOpenIcon className="text-brand" />
+                  <span className="min-w-0 truncate">{door || "Pick a door"}</span>
+                  <ChevronDownIcon className="text-ink-3" />
+                </Button>
+              ) : (
+                <p className="text-ink-2 mt-1.5 flex min-h-6 items-center gap-1.5 text-[13.5px] font-medium">
+                  <DoorOpenIcon aria-hidden="true" className="text-brand size-4" />
+                  {door}
+                </p>
+              )}
+            </div>
+            <DoorCount checkedIn={ctx.counters.checked_in} registered={ctx.counters.registered} />
           </div>
-        </div>
-      </header>
+          <DoorProgress checkedIn={ctx.counters.checked_in} registered={ctx.counters.registered} />
+          {!online ? (
+            <DoorBanner tone="caution" icon={<WifiOffIcon />} title="No signal" className="border-x-0 border-b-0" action={<span className="bg-surface text-caution rounded-full px-2.5 py-1 font-mono text-[12px] font-semibold tabular-nums">{queued} waiting</span>}>
+              Scans are being saved on this phone and will sync when you’re back.
+            </DoorBanner>
+          ) : queued > 0 ? (
+            <DoorBanner tone="info" icon={<RefreshCwIcon className="animate-spin motion-reduce:animate-none" />} title="Back online" className="border-x-0 border-b-0">
+              Syncing {queued} saved {queued === 1 ? "scan" : "scans"}…
+            </DoorBanner>
+          ) : null}
+        </header>
 
-      {!online ? (
-        <div role="status" className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-[12px] text-amber-700 dark:text-amber-300">
-          No signal. Scans are being saved on this phone and will sync when you’re back. <strong>{queued} waiting.</strong>
-        </div>
-      ) : queued > 0 ? (
-        <div role="status" className="border-b border-primary/40 bg-primary/10 px-4 py-2 text-[12px] text-primary">
-          Back online — syncing {queued} saved {queued === 1 ? "scan" : "scans"}…
-        </div>
-      ) : null}
-
-      {allowed.length === 0 ? (
-        <main className="flex flex-1 items-center justify-center px-5 py-9">
-          <EmptyState tone="muted" title="Nothing switched on for you here" description="Ask the organiser to switch on check-in or walk-up for you under Team & doors." />
-        </main>
-      ) : (
-        <main className="flex flex-1 flex-col">
-          <div role="tablist" aria-label="Gate" className="grid bg-card" style={{ gridTemplateColumns: `repeat(${allowed.length}, minmax(0, 1fr))` }}>
-            {allowed.map((a) => (
-              <button key={a.key} type="button" role="tab" aria-selected={current === a.key} onClick={() => setTab(a.key)} className={cn("h-12 border-b-2 text-[13px] font-medium", current === a.key ? "border-primary text-foreground" : "border-transparent text-muted-foreground")}>
-                {a.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-1 flex-col gap-3.5 p-4">
+        {allowed.length === 0 ? (
+          <main className="flex flex-1 items-center justify-center px-5 py-9">
+            <FigurePanel className="w-full max-w-[460px] p-2">
+              <EmptyState icon={<LockIcon />} title="Nothing switched on for you here" description="Ask the organiser to switch on check-in or walk-up for you under Team & doors." />
+            </FigurePanel>
+          </main>
+        ) : (
+          <main className="flex flex-1 flex-col gap-4 p-4">
+            <div role="tablist" aria-label="Gate" className="bg-sunken grid gap-1 rounded-[var(--radius-field)] p-1" style={{ gridTemplateColumns: `repeat(${allowed.length}, minmax(0, 1fr))` }}>
+              {allowed.map((a) => {
+                const Icon = TAB_ICON[a.key];
+                const on = current === a.key;
+                return (
+                  <button
+                    key={a.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={on}
+                    onClick={() => setTab(a.key)}
+                    className={cn("flex min-h-11 items-center justify-center gap-1.5 rounded-[calc(var(--radius-field)-4px)] px-2 text-[14px] font-medium transition-colors", on ? "bg-surface text-ink shadow-card" : "text-ink-2 hover:text-ink")}
+                  >
+                    <Icon aria-hidden="true" className={cn("size-4 shrink-0 max-[380px]:hidden", on ? "text-brand" : "text-ink-3")} />
+                    {a.label}
+                  </button>
+                );
+              })}
+            </div>
+            {!door ? (
+              <FigurePanel className="p-2">
+                <EmptyState
+                  icon={<DoorOpenIcon />}
+                  title="Pick the door this phone is on"
+                  description="Every scan from here is attributed to it, so the check-in log shows who came through where."
+                  action={
+                    <Button size="lg" onClick={() => setPickDoor(true)}>
+                      Pick a door
+                    </Button>
+                  }
+                />
+              </FigurePanel>
+            ) : null}
             {current === "checkin" && door ? <ScanStage key={door} gateKey={gateKey} ctx={ctx} door={door} online={online} enqueue={enqueue} /> : null}
             {current === "find" && door ? <FindPanel gateKey={gateKey} ctx={ctx} door={door} /> : null}
             {current === "walkup" && door ? <WalkupPanel gateKey={gateKey} ctx={ctx} door={door} /> : null}
             {current === "merch" && door ? <MerchPanel gateKey={gateKey} ctx={ctx} door={door} /> : null}
-          </div>
-        </main>
-      )}
+          </main>
+        )}
 
-      <footer className="flex items-center gap-2.5 border-t bg-card px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-        <span className="min-w-0 flex-1">
-          <span className="block text-[12.5px] font-medium">{ctx.me.name}</span>
-          <span className="block truncate font-mono text-[10px] tracking-[0.05em] text-muted-foreground">{permLine}</span>
-        </span>
-        {p.full ? (
-          <Button asChild size="sm" variant="ghost">
-            <Link href={`/events/${eventId}/team`}>Team &amp; doors</Link>
-          </Button>
-        ) : null}
-      </footer>
+        <footer className="bg-surface border-line-soft flex items-center gap-3 border-t px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+          <InitialsAvatar name={ctx.me.name} size={32} />
+          <span className="min-w-0 flex-1">
+            <span className="text-ink block truncate text-[13.5px] font-medium">{ctx.me.name}</span>
+            <span className="text-ink-3 block truncate text-[12px]">{permLine}</span>
+          </span>
+          {p.full ? (
+            <Button asChild size="lg" variant="ghost">
+              <Link href={`/events/${eventId}/team`}>Team &amp; doors</Link>
+            </Button>
+          ) : null}
+        </footer>
+      </div>
 
       <Dialog open={pickDoor} onOpenChange={setPickDoor}>
         <DialogContent>
@@ -200,26 +254,25 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
             <DialogTitle>Which door is this phone on?</DialogTitle>
             <DialogDescription>Set once per device. Every scan from here is attributed to it, so the check-in log shows who came through where.</DialogDescription>
           </DialogHeader>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Doors">
             {[...new Set([...ctx.doors.map((d) => d.name), ...(door ? [door] : [])])].map((g) => (
-              <button key={g} type="button" onClick={() => chooseDoor(g)} className={cn("min-h-11 rounded-md border px-3.5 font-mono text-[13px] font-medium tracking-[0.05em]", door === g ? "border-primary bg-primary/10 text-primary" : "bg-muted/40 text-muted-foreground")}>
+              <TouchChoice key={g} checked={door === g} onClick={() => chooseDoor(g)} aside={expected === g ? <span className="tag tag-accent">Yours</span> : null}>
                 {g}
-                {expected === g ? <span className="ml-1.5 text-[9px] opacity-70">YOURS</span> : null}
-              </button>
+              </TouchChoice>
             ))}
           </div>
           {p.full ? (
-            <div className="mt-3 flex gap-1.5">
-              <input placeholder="Add a door, e.g. Loading bay" value={customDoor} onChange={(e) => setCustomDoor(e.target.value)} aria-label="New door name" className="h-11 min-w-0 flex-1 rounded-md border bg-muted/40 px-3 text-[14px]" />
-              <Button size="lg" type="button" variant="outline" disabled={!customDoor.trim()} onClick={() => (chooseDoor(customDoor.trim()), setCustomDoor(""))}>
+            <div className="mt-1 flex gap-2">
+              <input placeholder="Add a door, e.g. Loading bay" value={customDoor} onChange={(e) => setCustomDoor(e.target.value)} aria-label="New door name" className={cn(DOOR_FIELD, "min-w-0 flex-1")} />
+              <Button size="lg" type="button" variant="secondary" disabled={!customDoor.trim()} onClick={() => (chooseDoor(customDoor.trim()), setCustomDoor(""))}>
                 Add
               </Button>
             </div>
           ) : (
-            <p className="mt-3 text-[12px] text-muted-foreground">Missing a door? The organiser adds it under Team &amp; doors.</p>
+            <p className="text-ink-3 mt-1 text-[12.5px]">Missing a door? The organiser adds it under Team &amp; doors.</p>
           )}
           {door ? (
-            <Button className="mt-3 w-full" onClick={() => setPickDoor(false)}>
+            <Button size="lg" className="mt-1 w-full" onClick={() => setPickDoor(false)}>
               Done
             </Button>
           ) : null}

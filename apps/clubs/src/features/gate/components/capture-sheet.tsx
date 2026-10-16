@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import { Button, cn, toast } from "@moa/ui";
+import { PhoneIcon } from "lucide-react";
 
 import { useCaptureContact } from "../queries";
 import type { ScanResult } from "../schemas";
+import { DOOR_FIELD, DOOR_LABEL } from "./door-kit";
 
 /**
  * Door capture. The scan is already recorded — this can never block, slow
@@ -30,22 +32,40 @@ export function CaptureSheet({ gateKey, eventId, response, required, onSaved, on
     }
   };
   return (
-    <div className="border-t border-current/30 bg-card px-4 py-3.5 text-foreground">
-      <div className="mb-2.5 font-mono text-[9px] font-medium tracking-[0.1em] text-muted-foreground">{required ? "A NUMBER IS REQUIRED AT THIS DOOR" : "THEY’RE ALREADY IN — ASK IF YOU CAN"}</div>
-      <label htmlFor="capture-phone" className="mb-1.5 block text-[12px] text-muted-foreground">
+    <div className="border-line-soft bg-sunken text-ink border-t px-4 py-4">
+      <p className={cn("mb-3 flex items-center gap-2 text-[13.5px] font-semibold", required ? "text-caution" : "text-ink")}>
+        <PhoneIcon aria-hidden="true" className="size-4" />
+        {required ? "A number is required at this door" : "They’re already in — ask if you can"}
+      </p>
+      <label htmlFor="capture-phone" className={DOOR_LABEL}>
         Mobile number
       </label>
-      <input id="capture-phone" type="tel" inputMode="tel" autoComplete="off" placeholder="+91 98765 43210" value={phone} onChange={(e) => (setPhone(e.target.value), setError(null))} aria-invalid={!!error} className={cn("h-12 w-full rounded-md border bg-muted/40 px-3 font-mono text-[15px]", error && "border-destructive")} />
-      {error ? <p className="mt-1.5 text-[12.5px] text-destructive">{error}</p> : null}
+      <input
+        id="capture-phone"
+        type="tel"
+        inputMode="tel"
+        autoComplete="off"
+        placeholder="+91 98765 43210"
+        value={phone}
+        onChange={(e) => (setPhone(e.target.value), setError(null))}
+        aria-invalid={!!error}
+        aria-describedby={error ? "capture-phone-error" : undefined}
+        className={cn(DOOR_FIELD, "font-mono", error && "border-refuse")}
+      />
+      {error ? (
+        <p id="capture-phone-error" className="text-refuse mt-1.5 text-[13px]">
+          {error}
+        </p>
+      ) : null}
       <div className="mt-3 flex gap-2">
         <Button size="lg" type="button" className="flex-1" disabled={capture.isPending} onClick={() => void save()}>
-          Save
+          {capture.isPending ? "Saving…" : "Save"}
         </Button>
-        <Button type="button" variant="outline" className="basis-[110px]" onClick={onSkip} size="lg">
+        <Button type="button" variant="secondary" className="basis-[110px]" onClick={onSkip} size="lg">
           Skip
         </Button>
       </div>
-      <p className="mt-2 text-[11.5px] leading-[1.5] text-muted-foreground">Skipping is one tap and is never recorded. Nothing about their admission depends on this.</p>
+      <p className="text-ink-3 mt-2.5 text-[12.5px] leading-[1.5]">Skipping is one tap and is never recorded. Nothing about their admission depends on this.</p>
     </div>
   );
 }

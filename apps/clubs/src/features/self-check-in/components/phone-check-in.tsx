@@ -3,26 +3,58 @@
 import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiError } from "@moa/api";
-import { cn } from "@moa/ui";
+import { Button, cn } from "@moa/ui";
+import { CircleCheckIcon, CircleXIcon, MapPinIcon, PrinterIcon, TriangleAlertIcon } from "lucide-react";
+
+import { DOOR_FIELD, DOOR_LABEL, DoorSpinner, TONE_SOFT, TONE_SOLID, type DoorTone } from "@/features/gate";
 
 import { checkInSelf, lookupSelf, printSelf, resendSelf, startSelf, statusSelf, verifySelf, type CheckInResult, type LookupResult, type SelfSession } from "../api";
 
 type Step = "name" | "contact" | "code" | "confirm" | "done" | "already" | "desk";
-const input = "h-14 w-full rounded-xl border border-white/15 bg-white/5 px-4 text-[18px] text-white placeholder:text-[#6F786F]";
+const field = cn(DOOR_FIELD, "h-12 text-[17px]");
 
-/** The one big button a thumb cannot miss, in the event's colour. */
-function Big({ brand, children, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { brand: string }) {
+/** A short notice above the form: a name not found, the doors not open yet. */
+function Note({ children }: { children: React.ReactNode }) {
   return (
-    <button type="button" {...props} className={cn("h-14 w-full rounded-xl text-[17px] font-medium text-[#06190E] disabled:opacity-50", className)} style={{ background: brand }}>
-      {children}
-    </button>
+    <p role="alert" className={cn("mb-4 flex items-start gap-2.5 rounded-[var(--radius-card)] border px-4 py-3 text-[14.5px] leading-[1.5]", TONE_SOFT.caution)}>
+      <TriangleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+      <span className="text-ink">{children}</span>
+    </p>
+  );
+}
+
+/** Where the guest has got to, in the event's own order: their name, then a code if it asks for one, then in. */
+function Steps({ labels, at }: { labels: string[]; at: number }) {
+  return (
+    <ol className="mb-6 flex gap-1.5" aria-label="Steps">
+      {labels.map((l, i) => (
+        <li key={l} className="min-w-0 flex-1" aria-current={i === at ? "step" : undefined}>
+          <span className={cn("block h-1 rounded-full", i <= at ? "bg-brand" : "bg-line")} />
+          <span className={cn("mt-1.5 block truncate text-[12px]", i === at ? "text-ink font-medium" : "text-ink-3")}>{l}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** A finished state: the guest is in, already in, or has to see the desk. */
+function Outcome({ tone, icon, title, children }: { tone: DoorTone; icon: React.ReactNode; title: React.ReactNode; children?: React.ReactNode }) {
+  return (
+    <div role="status" className={cn("rounded-[var(--radius-sheet)] border px-5 py-6 text-center", TONE_SOFT[tone])}>
+      <span aria-hidden="true" className={cn("mx-auto grid size-14 place-items-center rounded-full [&>svg]:size-7", TONE_SOLID[tone])}>
+        {icon}
+      </span>
+      <div className="text-ink mt-3 text-[24px] leading-tight font-semibold tracking-[-0.02em]">{title}</div>
+      {children ? <div className="text-ink-2 mt-1.5 text-[14.5px] leading-[1.55]">{children}</div> : null}
+    </div>
   );
 }
 
 /**
  * Check-in from the guest's own phone, opened from the QR on a kiosk. Name →
  * proof as the event asks → checked in at the kiosk's door → one tap to print,
- * standing at the kiosk. Big controls, few words, nothing to install.
+ * standing at the kiosk. Big controls, few words, nothing to install. It
+ * renders on Meridian's dark scale, like the kiosk it was opened from.
  */
 export function PhoneCheckIn({ token }: { token: string }) {
   const [session, setSession] = React.useState<SelfSession | null>(null);
@@ -47,7 +79,6 @@ export function PhoneCheckIn({ token }: { token: string }) {
   }, [token]);
 
   const sid = session?.session ?? "";
-  const brand = session?.event.brand_primary ?? "#1db9a0";
   const fail = (err: unknown) => setNote(err instanceof ApiError || err instanceof Error ? err.message : "Something went wrong. Please see the desk.");
   const doLookup = useMutation({ mutationFn: (body: { name: string; contact?: string }) => lookupSelf(sid, body.name, body.contact) });
   const doVerify = useMutation({ mutationFn: (c: string) => verifySelf(sid, c) });
@@ -121,109 +152,120 @@ export function PhoneCheckIn({ token }: { token: string }) {
     });
   const print = () => doPrint.mutate(undefined, { onSuccess: (r) => setPrinted(r.outcome === "QUEUED" || r.outcome === "ALREADY_PRINTED" ? "queued" : "none"), onError: fail });
 
+  const stepLabels = ["Your name", ...(session?.verify !== "name" ? ["Code"] : []), "Check in"];
+  const stepAt = step === "name" || step === "contact" ? 0 : step === "code" ? 1 : step === "confirm" ? stepLabels.length - 1 : -1;
+  const cardOut = status.data?.print?.status === "DONE";
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col bg-[#0B140F] px-5 pb-10 pt-[max(20px,env(safe-area-inset-top))] text-[#E6F1EA]">
-      {startError ? (
-        <div className="my-auto space-y-3 text-center">
-          <h1 className="text-[24px] font-semibold">This link has expired</h1>
-          <p className="text-[15px] text-[#C6D2C8]">{startError}</p>
-        </div>
-      ) : !session ? (
-        <p className="my-auto text-center text-[#8C948B]">Opening…</p>
-      ) : (
-        <>
-          <header className="mb-6">
-            <div className="font-mono text-[10px] uppercase tracking-[0.12em]" style={{ color: brand }}>
-              {session.event.org_name}
-            </div>
-            <h1 className="text-[22px] font-semibold leading-tight">{session.event.name}</h1>
-            <p className="text-[13px] text-[#8C948B]">Checking in at {session.event.kiosk.name}</p>
-          </header>
-          {note ? <p className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-[14px] text-amber-200">{note}</p> : null}
-          {!session.door_open ? <p className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-[14px] text-amber-200">The doors are not open yet.</p> : null}
+    <div className="dark bg-canvas text-ink min-h-dvh">
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 pt-[max(20px,env(safe-area-inset-top))] pb-10">
+        {startError ? (
+          <div className="my-auto">
+            <Outcome tone="refuse" icon={<CircleXIcon />} title="This link has expired">
+              {startError}
+            </Outcome>
+          </div>
+        ) : !session ? (
+          <p className="text-ink-2 my-auto flex items-center justify-center gap-2.5 text-[15px]">
+            <DoorSpinner /> Opening…
+          </p>
+        ) : (
+          <>
+            <header className="mb-6">
+              {session.event.org_name ? <p className="eyebrow">{session.event.org_name}</p> : null}
+              <h1 className="text-ink mt-1 text-[24px] leading-tight font-semibold tracking-[-0.02em]">{session.event.name}</h1>
+              <p className="text-ink-2 mt-1.5 flex items-center gap-1.5 text-[14px]">
+                <MapPinIcon aria-hidden="true" className="text-brand size-4" />
+                Checking in at {session.event.kiosk.name}
+              </p>
+            </header>
+            {stepAt >= 0 ? <Steps labels={stepLabels} at={stepAt} /> : null}
+            {note ? <Note>{note}</Note> : null}
+            {!session.door_open ? <Note>The doors are not open yet.</Note> : null}
 
-          {step === "name" || step === "contact" ? (
-            <form onSubmit={submitName} className="space-y-3">
-              <label className="block text-[15px]">Your name, as it is on your ticket</label>
-              <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="First and last name" autoComplete="name" className={input} />
-              {step === "contact" ? (
-                <>
-                  <label className="block text-[15px]">The email or mobile on your ticket</label>
-                  <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="you@example.com or mobile" autoComplete="email" className={input} />
-                </>
-              ) : null}
-              <Big brand={brand} type="submit" disabled={busy || name.trim().length < 2}>
-                {doLookup.isPending ? "Looking…" : "Continue"}
-              </Big>
-              <p className="text-[13px] text-[#8C948B]">{session.verify === "email" ? "We will email a six-digit code to the address on your ticket." : "The name alone checks you in at this event."}</p>
-            </form>
-          ) : step === "code" ? (
-            <form onSubmit={submitCode} className="space-y-3">
-              <p className="text-[15px] text-[#C6D2C8]">
-                We sent a six-digit code to <span className="text-white">{lookup?.masked}</span>. It works for ten minutes.
-              </p>
-              <input autoFocus inputMode="numeric" pattern="\d{6}" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="000000" className={cn(input, "text-center font-mono text-[28px] tracking-[0.4em]")} />
-              <Big brand={brand} type="submit" disabled={busy || code.length !== 6}>
-                {doVerify.isPending ? "Checking…" : "Verify"}
-              </Big>
-              <button type="button" disabled={busy} onClick={() => doResend.mutate(undefined, { onSuccess: (r) => (r.outcome === "CODE_SENT" ? afterLookup(r) : setStep("desk")), onError: fail })} className="w-full text-[14px] text-[#8C948B] underline">
-                Didn&apos;t get it? Send it again
-              </button>
-            </form>
-          ) : step === "confirm" ? (
-            <div className="space-y-3">
-              <p className="text-[18px]">
-                Hello, <span className="font-semibold">{name.trim()}</span>. Ready to check in?
-              </p>
-              <Big brand={brand} onClick={confirm} disabled={busy || !session.door_open}>
-                {doCheckIn.isPending ? "Checking you in…" : "Check me in"}
-              </Big>
-              <button type="button" onClick={() => setStep("name")} className="w-full text-[14px] text-[#8C948B] underline">
-                Not you? Start again
-              </button>
-            </div>
-          ) : step === "done" && checked?.guest ? (
-            <div className="space-y-4">
-              <div className="rounded-2xl border px-5 py-6 text-center" style={{ borderColor: brand }}>
-                <div className="font-mono text-[10px] uppercase tracking-[0.12em]" style={{ color: brand }}>
-                  You&apos;re in
+            {step === "name" || step === "contact" ? (
+              <form onSubmit={submitName} className="space-y-4">
+                <div>
+                  <label htmlFor="self-name" className={cn(DOOR_LABEL, "text-[15px]")}>
+                    Your name, as it is on your ticket
+                  </label>
+                  <input id="self-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="First and last name" autoComplete="name" className={field} />
                 </div>
-                <div className="mt-1 text-[28px] font-semibold leading-tight">Welcome, {checked.guest.first_name}.</div>
-                <div className="mt-1 text-[14px] text-[#C6D2C8]">
-                  {checked.guest.role_label} · {checked.guest.ticket_id}
-                </div>
+                {step === "contact" ? (
+                  <div>
+                    <label htmlFor="self-contact" className={cn(DOOR_LABEL, "text-[15px]")}>
+                      The email or mobile on your ticket
+                    </label>
+                    <input id="self-contact" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="you@example.com or mobile" autoComplete="email" className={field} />
+                  </div>
+                ) : null}
+                <Button type="submit" size="lg" className="w-full" disabled={busy || name.trim().length < 2}>
+                  {doLookup.isPending ? "Looking…" : "Continue"}
+                </Button>
+                <p className="text-ink-3 text-[13.5px] leading-[1.5]">{session.verify === "email" ? "We will email a six-digit code to the address on your ticket." : "The name alone checks you in at this event."}</p>
+              </form>
+            ) : step === "code" ? (
+              <form onSubmit={submitCode} className="space-y-4">
+                <p className="text-ink-2 text-[15px] leading-[1.55]">
+                  We sent a six-digit code to <span className="text-ink font-medium">{lookup?.masked}</span>. It works for ten minutes.
+                </p>
+                <input autoFocus inputMode="numeric" pattern="\d{6}" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="000000" aria-label="Six-digit code" className={cn(DOOR_FIELD, "h-14 text-center font-mono text-[28px] tracking-[0.4em]")} />
+                <Button type="submit" size="lg" className="w-full" disabled={busy || code.length !== 6}>
+                  {doVerify.isPending ? "Checking…" : "Verify"}
+                </Button>
+                <Button type="button" variant="ghost" size="lg" className="w-full" disabled={busy} onClick={() => doResend.mutate(undefined, { onSuccess: (r) => (r.outcome === "CODE_SENT" ? afterLookup(r) : setStep("desk")), onError: fail })}>
+                  Didn&apos;t get it? Send it again
+                </Button>
+              </form>
+            ) : step === "confirm" ? (
+              <div className="space-y-4">
+                <p className="text-ink text-[19px] leading-[1.4]">
+                  Hello, <span className="font-semibold">{name.trim()}</span>. Ready to check in?
+                </p>
+                <Button size="lg" className="w-full" onClick={confirm} disabled={busy || !session.door_open}>
+                  {doCheckIn.isPending ? "Checking you in…" : "Check me in"}
+                </Button>
+                <Button type="button" variant="ghost" size="lg" className="w-full" onClick={() => setStep("name")}>
+                  Not you? Start again
+                </Button>
               </div>
-              {session.print && checked.can_print ? (
-                printed === "idle" ? (
-                  <>
-                    <Big brand={brand} onClick={print} disabled={busy}>
-                      {doPrint.isPending ? "Asking the kiosk…" : "Print my card"}
-                    </Big>
-                    <p className="text-center text-[13px] text-[#8C948B]">Tap this standing at {session.event.kiosk.name}: your card prints there.</p>
-                  </>
-                ) : printed === "queued" ? (
-                  <p className="rounded-xl border border-white/10 px-4 py-3 text-center text-[15px] text-[#C6D2C8]">{status.data?.print?.status === "DONE" ? `Your card is out. Collect it at ${session.event.kiosk.name}.` : "Printing your card at the kiosk…"}</p>
+            ) : step === "done" && checked?.guest ? (
+              <div className="space-y-4">
+                <Outcome tone="admit" icon={<CircleCheckIcon />} title={`Welcome, ${checked.guest.first_name}.`}>
+                  <span className="text-admit font-semibold">You&apos;re in</span> · {checked.guest.role_label} · {checked.guest.ticket_id}
+                </Outcome>
+                {session.print && checked.can_print ? (
+                  printed === "idle" ? (
+                    <>
+                      <Button size="lg" className="w-full" onClick={print} disabled={busy}>
+                        <PrinterIcon /> {doPrint.isPending ? "Asking the kiosk…" : "Print my card"}
+                      </Button>
+                      <p className="text-ink-3 text-center text-[13.5px]">Tap this standing at {session.event.kiosk.name}: your card prints there.</p>
+                    </>
+                  ) : printed === "queued" ? (
+                    <p role="status" className={cn("flex items-center justify-center gap-2.5 rounded-[var(--radius-card)] border px-4 py-3 text-center text-[15px] font-medium", cardOut ? TONE_SOFT.admit : TONE_SOFT.info)}>
+                      {cardOut ? <CircleCheckIcon aria-hidden="true" className="size-5 shrink-0" /> : <DoorSpinner className="shrink-0" />}
+                      {cardOut ? `Your card is out. Collect it at ${session.event.kiosk.name}.` : "Printing your card at the kiosk…"}
+                    </p>
+                  ) : (
+                    <p className="text-ink-2 text-center text-[14px]">You are checked in. The desk can print your card.</p>
+                  )
                 ) : (
-                  <p className="text-center text-[14px] text-[#8C948B]">You are checked in. The desk can print your card.</p>
-                )
-              ) : (
-                <p className="text-center text-[14px] text-[#8C948B]">You are all set.</p>
-              )}
-            </div>
-          ) : step === "already" ? (
-            <div className="space-y-3 rounded-2xl border border-white/10 px-5 py-6 text-center">
-              <h2 className="text-[22px] font-semibold">You&apos;re already checked in</h2>
-              <p className="text-[14px] text-[#C6D2C8]">{lookup?.checked_in_at ? `Recorded at ${new Date(lookup.checked_in_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}${lookup.door ? ` at ${lookup.door}` : ""}.` : "Your check-in is already recorded."} Need a card? A volunteer at the desk can print one.</p>
-            </div>
-          ) : (
-            <div className="space-y-3 rounded-2xl border border-white/10 px-5 py-6 text-center">
-              <h2 className="text-[22px] font-semibold">Please see the desk</h2>
-              <p className="text-[14px] text-[#C6D2C8]">{checked?.outcome === "REFUSED" ? "The door could not admit this ticket — it may have been cancelled or replaced. A volunteer can sort it out in seconds." : "We could not verify you from here — there is no usable email on your ticket, or the code was tried too often. A volunteer can check you in in seconds."}</p>
-            </div>
-          )}
-        </>
-      )}
-    </main>
+                  <p className="text-ink-2 text-center text-[14px]">You are all set.</p>
+                )}
+              </div>
+            ) : step === "already" ? (
+              <Outcome tone="caution" icon={<TriangleAlertIcon />} title="You’re already checked in">
+                {lookup?.checked_in_at ? `Recorded at ${new Date(lookup.checked_in_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}${lookup.door ? ` at ${lookup.door}` : ""}.` : "Your check-in is already recorded."} Need a card? A volunteer at the desk can print one.
+              </Outcome>
+            ) : (
+              <Outcome tone="refuse" icon={<CircleXIcon />} title="Please see the desk">
+                {checked?.outcome === "REFUSED" ? "The door could not admit this ticket — it may have been cancelled or replaced. A volunteer can sort it out in seconds." : "We could not verify you from here — there is no usable email on your ticket, or the code was tried too often. A volunteer can check you in in seconds."}
+              </Outcome>
+            )}
+          </>
+        )}
+      </main>
+    </div>
   );
 }

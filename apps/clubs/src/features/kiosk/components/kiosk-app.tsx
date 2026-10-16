@@ -5,9 +5,10 @@ import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import { ApiError } from "@moa/api";
 import { Button, cn, toast } from "@moa/ui";
+import { CameraIcon, CameraOffIcon, DoorClosedIcon, LockIcon, MonitorSmartphoneIcon, PrinterIcon, RefreshCwIcon, ServerCrashIcon, UnplugIcon } from "lucide-react";
 
 import { PrintFrame } from "@/features/idcards";
-import { cameraProblem, startScanner, type Scanner } from "@/features/gate";
+import { CameraWell, DOOR_FIELD, DoorBanner, DoorCount, DoorProgress, DoorSpinner, TONE_ICON, TONE_SOFT, TONE_SOLID, cameraProblem, startScanner, type DoorTone, type Scanner } from "@/features/gate";
 
 import {
   KIOSK_TOKEN_STORAGE,
@@ -51,6 +52,9 @@ const write = (k: string, v: string | null) => {
  * The kiosk: one long-lived screen a guest walks up to. Scan a ticket (or
  * type the code), see your name, take your card, done. Opened with a device
  * token from the pairing link; the token stays on the tablet.
+ *
+ * It is a lit screen in a lobby, so it always renders on Meridian's dark
+ * scale, whatever the tablet's own setting.
  */
 export function KioskApp() {
   const params = useSearchParams();
@@ -71,39 +75,50 @@ export function KioskApp() {
   ) {
     return (
       <Shell>
-        <div className="mx-auto max-w-md space-y-3 px-6 py-16 text-center">
-          <h1 className="text-2xl font-semibold">This kiosk is not paired</h1>
-          <p className="text-[15px] leading-[1.55] text-muted-foreground">
-            Pair it from the event&apos;s Team &amp; doors page: a link opens
-            here with the device token. A token lasts one shift; the organiser
-            can make a new one.
-          </p>
-          {token ? (
-            <Button
-              variant="outline"
-              onClick={() => (write(KIOSK_TOKEN_STORAGE, null), setToken(null))}
-            >
-              Forget this pairing
-            </Button>
-          ) : null}
-        </div>
+        <KioskNotice
+          icon={<MonitorSmartphoneIcon />}
+          title="This kiosk is not paired"
+          action={
+            token ? (
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => (write(KIOSK_TOKEN_STORAGE, null), setToken(null))}
+              >
+                Forget this pairing
+              </Button>
+            ) : null
+          }
+        >
+          Pair it from the event&apos;s Team &amp; doors page: a link opens
+          here with the device token. A token lasts one shift; the organiser
+          can make a new one.
+        </KioskNotice>
       </Shell>
     );
   }
   if (ctx.isPending)
     return (
       <Shell>
-        <p className="px-6 py-16 text-center text-muted-foreground">
-          Opening the kiosk…
-        </p>
+        <KioskNotice icon={<DoorSpinner className="size-6" />} title="Opening the kiosk…" />
       </Shell>
     );
   if (ctx.isError)
     return (
       <Shell>
-        <p className="px-6 py-16 text-center text-destructive">
+        <KioskNotice
+          tone="refuse"
+          icon={<ServerCrashIcon />}
+          title="The kiosk could not open"
+          action={
+            <Button size="lg" onClick={() => void ctx.refetch()} disabled={ctx.isFetching}>
+              <RefreshCwIcon className={cn(ctx.isFetching && "animate-spin motion-reduce:animate-none")} />
+              {ctx.isFetching ? "Trying…" : "Try again"}
+            </Button>
+          }
+        >
           {ctx.error.message}
-        </p>
+        </KioskNotice>
       </Shell>
     );
   return (
@@ -115,9 +130,75 @@ export function KioskApp() {
   );
 }
 
+/** The dark scale for everything inside, from Meridian's own `.dark` tokens. */
 const Shell = ({ children }: { children: React.ReactNode }) => (
-  <div className="min-h-dvh bg-[#0B140F] text-[#E6F1EA]">{children}</div>
+  <div className="dark bg-canvas text-ink min-h-dvh">{children}</div>
 );
+
+/** A whole-screen state: not paired, opening, could not open. */
+function KioskNotice({
+  icon,
+  title,
+  tone,
+  action,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  tone?: DoorTone;
+  action?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  return (
+    <main className="flex min-h-dvh items-center justify-center px-6 py-16">
+      <div className="bg-surface border-line-soft shadow-floating w-full max-w-md rounded-[var(--radius-sheet)] border p-8 text-center">
+        <span
+          aria-hidden="true"
+          className={cn(
+            "mx-auto grid size-14 place-items-center rounded-full border [&>svg]:size-6",
+            tone ? TONE_SOFT[tone] : "bg-sunken border-line-soft text-ink-2",
+          )}
+        >
+          {icon}
+        </span>
+        <h1 className="text-ink mt-4 text-[26px] leading-tight font-semibold tracking-[-0.02em]">
+          {title}
+        </h1>
+        {children ? (
+          <p className="text-ink-2 mt-2 text-[15px] leading-[1.55]">{children}</p>
+        ) : null}
+        {action ? <div className="mt-6">{action}</div> : null}
+      </div>
+    </main>
+  );
+}
+
+/** What the result screen says, by outcome: a tone, a verdict, a line, what to do. */
+function verdictOf(result: RedeemResult | null): {
+  tone: DoorTone;
+  verdict: string;
+  title: string;
+  detail: string;
+} {
+  const g = result?.guest;
+  if (result?.outcome === "MATCHED" && g)
+    return g.already_checked_in
+      ? { tone: "caution", verdict: "Already checked in", title: `Welcome back, ${g.first_name}.`, detail: `${g.display_name} · ${g.role_label} · ${g.ticket_id}` }
+      : { tone: "admit", verdict: "Welcome", title: `Welcome in, ${g.first_name}.`, detail: `${g.display_name} · ${g.role_label} · ${g.ticket_id}` };
+  const desk = "A volunteer at the desk can sort it out in a moment.";
+  switch (result?.outcome) {
+    case "WRONG_EVENT":
+      return { tone: "refuse", verdict: "Wrong event", title: "That ticket is for another event.", detail: result.other_event ? `It is a valid ticket for ${result.other_event.name}.` : desk };
+    case "REVOKED":
+      return { tone: "refuse", verdict: "Cancelled", title: "This ticket was cancelled.", detail: desk };
+    case "UNPAID":
+      return { tone: "refuse", verdict: "Not paid", title: "This ticket has not been paid for.", detail: desk };
+    case "EVENT_NOT_OPEN":
+      return { tone: "caution", verdict: "Doors not open", title: "The doors are not open yet.", detail: desk };
+    default:
+      return { tone: "refuse", verdict: "Not recognised", title: "That code was not recognised.", detail: desk };
+  }
+}
 
 function Kiosk({
   token,
@@ -128,7 +209,6 @@ function Kiosk({
   ctx: KioskContext;
   onUnpair: () => void;
 }) {
-  const brand = ctx.event.brand_primary;
   const [step, setStep] = React.useState<Step>("attract");
   const [result, setResult] = React.useState<RedeemResult | null>(null);
   const [printing, setPrinting] = React.useState<string | null>(null);
@@ -150,16 +230,12 @@ function Kiosk({
   const [selfPng, setSelfPng] = React.useState<string | null>(null);
   const printedSessions = React.useRef(new Set<string>());
 
-  // The self check-in QR, redrawn when the server rotates it.
+  // The self check-in QR, redrawn when the server rotates it. Black on white: the code must scan.
   React.useEffect(() => {
     const url = selfQr.data?.url;
     if (!url) return;
     let alive = true;
-    QRCode.toDataURL(url, {
-      margin: 1,
-      width: 360,
-      color: { dark: "#0B140F", light: "#FFFFFF" },
-    })
+    QRCode.toDataURL(url, { margin: 1, width: 360 })
       .then((d) => alive && setSelfPng(d))
       .catch(() => undefined);
     return () => {
@@ -269,6 +345,9 @@ function Kiosk({
     }
   };
   const g = result?.guest;
+  const v = verdictOf(result);
+  const VerdictIcon = TONE_ICON[v.tone];
+  const place = [ctx.event.org_name, ctx.device.door].filter(Boolean).join(" · ");
 
   return (
     <Shell>
@@ -287,48 +366,44 @@ function Kiosk({
           }}
         />
       ) : null}
-      <header className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
-        <span
-          aria-hidden
-          className="size-3 rounded-full"
-          style={{ background: brand }}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-medium">
-            {ctx.event.name}
+      <header className="bg-surface border-line-soft border-b">
+        <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-ink truncate text-[18px] leading-[1.3] font-semibold tracking-[-0.01em]">
+              {ctx.event.name}
+            </p>
+            <p className="text-ink-3 truncate text-[13.5px]">{place}</p>
           </div>
-          <div className="truncate font-mono text-[10.5px] uppercase tracking-[0.1em] text-[#8C948B]">
-            {ctx.event.org_name} · {ctx.device.door}
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#8C948B]">
-            Checked in
-          </div>
-          <div
-            className="font-mono text-[22px] leading-none"
-            style={{ color: brand }}
+          <DoorCount
+            checkedIn={ctx.counters.checked_in}
+            registered={ctx.counters.registered}
+            size="lg"
+          />
+          <Button
+            type="button"
+            variant="quiet"
+            size="lg"
+            onClick={() => setPinOpen(true)}
           >
-            {ctx.counters.checked_in}
-            <span className="text-[12px] text-[#8C948B]">
-              {" "}
-              / {ctx.counters.registered}
-            </span>
-          </div>
+            <LockIcon /> Staff
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={() => setPinOpen(true)}
-          aria-label="Staff"
-          className="ml-2 size-8 rounded-full border border-white/10 text-[11px] text-[#8C948B]"
-        >
-          ⋯
-        </button>
+        <DoorProgress
+          checkedIn={ctx.counters.checked_in}
+          registered={ctx.counters.registered}
+        />
       </header>
 
       {!ctx.event.door_open ? (
-        <div className="bg-amber-500/15 px-6 py-3 text-center text-[14px] text-amber-200">
-          The doors are not open yet. Please wait, or see the desk.
+        <div className={cn("border-b", TONE_SOFT.caution)}>
+          <DoorBanner
+            tone="caution"
+            icon={<DoorClosedIcon />}
+            title="The doors are not open yet"
+            className="mx-auto max-w-5xl border-0 px-6"
+          >
+            Please wait, or see the desk.
+          </DoorBanner>
         </div>
       ) : null}
 
@@ -341,46 +416,61 @@ function Kiosk({
         >
           <section className="space-y-5">
             <div>
-              <h1 className="text-[36px] font-semibold leading-tight tracking-[-0.02em]">
+              <h1 className="text-ink text-[40px] leading-tight font-semibold tracking-[-0.025em]">
                 Scan your ticket
               </h1>
-              <p className="mt-1 text-[16px] text-[#C6D2C8]">
+              <p className="text-ink-2 mt-1.5 text-[17px] leading-[1.5]">
                 Hold the QR on your ticket up to the camera. Your name comes up,
                 and your card prints here.
               </p>
             </div>
-            <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl bg-black">
-              <video
-                ref={videoRef}
-                playsInline
-                muted
-                className={
-                  cameraOn
-                    ? "absolute inset-0 size-full object-cover"
-                    : "hidden"
-                }
-              />
+            <CameraWell
+              videoRef={videoRef}
+              on={cameraOn}
+              frame={46}
+              className="aspect-[4/3]"
+            >
               {cameraOn ? (
-                <div
-                  aria-hidden
-                  className="absolute left-1/2 top-1/2 aspect-square w-[46%] -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-white/70"
-                />
+                <span className="bg-canvas/80 text-ink absolute inset-x-0 bottom-5 mx-auto w-fit rounded-full px-4 py-2 text-[15px] backdrop-blur-sm">
+                  {busy ? (
+                    <span className="inline-flex items-center gap-2">
+                      <DoorSpinner /> Checking your ticket…
+                    </span>
+                  ) : (
+                    "Hold the QR inside the frame"
+                  )}
+                </span>
               ) : (
                 <div className="px-6 text-center">
-                  <div className="text-[15px] text-[#C7CCC8]">
-                    {cameraError ?? "The camera is off"}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void startCamera()}
-                    className="mt-4 min-h-14 rounded-xl px-6 text-[16px] font-medium text-[#06190E]"
-                    style={{ background: brand }}
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "mx-auto grid size-16 place-items-center rounded-full border",
+                      cameraError
+                        ? "border-refuse-line text-refuse"
+                        : "border-line text-ink-2",
+                    )}
                   >
-                    Start camera
-                  </button>
+                    {cameraError ? (
+                      <CameraOffIcon className="size-7" />
+                    ) : (
+                      <CameraIcon className="size-7" />
+                    )}
+                  </span>
+                  <p className="text-ink-2 mx-auto mt-3 max-w-[360px] text-[15px] leading-[1.5]">
+                    {cameraError ?? "The camera is off"}
+                  </p>
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="mt-4"
+                    onClick={() => void startCamera()}
+                  >
+                    <CameraIcon /> Start camera
+                  </Button>
                 </div>
               )}
-            </div>
+            </CameraWell>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -392,25 +482,26 @@ function Kiosk({
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="Or type the code under the QR"
+                aria-label="Ticket code"
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck={false}
-                className="h-14 min-w-0 flex-1 rounded-xl border border-white/15 bg-white/5 px-4 font-mono text-[18px] uppercase placeholder:font-sans placeholder:normal-case"
+                className={cn(
+                  DOOR_FIELD,
+                  "min-w-0 flex-1 font-mono text-[18px] uppercase placeholder:font-sans placeholder:text-[16px] placeholder:normal-case",
+                )}
               />
-              <button
-                type="submit"
-                disabled={!code.trim() || busy}
-                className="h-14 rounded-xl px-6 text-[16px] font-medium text-[#06190E] disabled:opacity-50"
-                style={{ background: brand }}
-              >
-                Check in
-              </button>
+              <Button type="submit" size="lg" disabled={!code.trim() || busy}>
+                {busy ? "Checking…" : "Check in"}
+              </Button>
             </form>
           </section>
           {selfQr.data?.enabled && selfPng ? (
-            <aside className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 p-6 text-center">
-              <h2 className="text-[20px] font-semibold">No ticket handy?</h2>
-              <p className="text-[14px] text-[#C6D2C8]">
+            <aside className="bg-surface border-line-soft flex flex-col items-center gap-3 self-start rounded-[var(--radius-sheet)] border p-6 text-center">
+              <h2 className="text-ink text-[22px] font-semibold tracking-[-0.015em]">
+                No ticket handy?
+              </h2>
+              <p className="text-ink-2 text-[15px] leading-[1.5]">
                 Scan this with your phone and check in with your name
                 {selfQr.data.verify === "email"
                   ? " and a code we email you"
@@ -424,107 +515,129 @@ function Kiosk({
                 className="size-56 rounded-xl bg-white p-2"
               />
               {selfQr.data.recent.length ? (
-                <ul className="w-full space-y-1 text-left text-[13px] text-[#C6D2C8]">
-                  {selfQr.data.recent.slice(0, 4).map((r) => (
-                    <li key={r.session} className="flex justify-between">
-                      <span>{r.name}</span>
-                      <span className="text-[#8C948B]">
-                        {r.print_requested ? "printing…" : "checked in"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="w-full text-left">
+                  <p className="eyebrow mt-2 mb-1.5">Just checked in</p>
+                  <ul className="divide-line-soft divide-y">
+                    {selfQr.data.recent.slice(0, 4).map((r) => (
+                      <li
+                        key={r.session}
+                        className="flex items-center justify-between gap-3 py-2 text-[14px]"
+                      >
+                        <span className="text-ink truncate">{r.name}</span>
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full px-2.5 py-0.5 text-[12px] font-medium",
+                            r.print_requested
+                              ? "bg-info-soft text-info"
+                              : "bg-admit-soft text-admit",
+                          )}
+                        >
+                          {r.print_requested ? "Printing…" : "Checked in"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : null}
             </aside>
           ) : null}
         </main>
       ) : (
-        <main className="mx-auto max-w-2xl px-6 py-10 text-center">
+        <main
+          className="mx-auto flex max-w-2xl flex-col items-center px-6 py-12 text-center"
+          role="status"
+          aria-live="assertive"
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "grid size-24 place-items-center rounded-full",
+              TONE_SOLID[v.tone],
+            )}
+          >
+            <VerdictIcon className="size-12" />
+          </span>
+          <span
+            className={cn(
+              "mt-6 rounded-full border px-3.5 py-1 text-[15px] font-semibold",
+              TONE_SOFT[v.tone],
+            )}
+          >
+            {v.verdict}
+          </span>
+          <h1 className="text-ink mt-3 text-[44px] leading-tight font-semibold tracking-[-0.025em]">
+            {v.title}
+          </h1>
+          <p className="text-ink-2 mt-2 text-[18px] leading-[1.5]">{v.detail}</p>
           {result?.outcome === "MATCHED" && g ? (
             <>
-              <div
-                className="font-mono text-[11px] uppercase tracking-[0.12em]"
-                style={{ color: brand }}
-              >
-                {g.already_checked_in ? "Already checked in" : "Welcome"}
-              </div>
-              <h1 className="mt-2 text-[44px] font-semibold leading-tight tracking-[-0.02em]">
-                {g.already_checked_in
-                  ? `Welcome back, ${g.first_name}.`
-                  : `Welcome in, ${g.first_name}.`}
-              </h1>
-              <p className="mt-2 text-[18px] text-[#C6D2C8]">
-                {g.display_name} · {g.role_label} · {g.ticket_id}
-              </p>
               {printing ? (
                 <>
-                  <p className="mt-6 text-[16px]" style={{ color: brand }}>
+                  <p className="bg-info-soft text-info border-info-line mt-6 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[16px] font-medium">
+                    <PrinterIcon aria-hidden="true" className="size-5" />
                     Printing your card…
                   </p>
-                  {ctx.agenda.length ? (
-                    <AgendaCycle items={ctx.agenda} brand={brand} />
-                  ) : null}
+                  {ctx.agenda.length ? <AgendaCycle items={ctx.agenda} /> : null}
                 </>
               ) : result.print_url && g.may_print ? (
-                <button
+                <Button
                   type="button"
+                  size="lg"
+                  className="mt-6"
                   onClick={printAgain}
-                  className="mt-6 min-h-14 rounded-xl px-6 text-[16px] font-medium text-[#06190E]"
-                  style={{ background: brand }}
                 >
+                  <PrinterIcon />
                   {g.has_card ? "Print my card again" : "Print my card"}
-                </button>
+                </Button>
               ) : null}
               {notMeLeft > 0 && !g.already_checked_in ? (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="lg"
+                  className="mt-6"
                   onClick={() => void undo()}
-                  className="mt-8 block w-full text-[14px] text-[#8C948B] underline"
                 >
                   This isn&apos;t me ({notMeLeft}s)
-                </button>
+                </Button>
               ) : null}
             </>
-          ) : (
-            <>
-              <h1 className="text-[36px] font-semibold leading-tight tracking-[-0.02em]">
-                {result?.outcome === "WRONG_EVENT"
-                  ? "That ticket is for another event."
-                  : result?.outcome === "REVOKED"
-                    ? "This ticket was cancelled."
-                    : result?.outcome === "UNPAID"
-                      ? "This ticket has not been paid for."
-                      : result?.outcome === "EVENT_NOT_OPEN"
-                        ? "The doors are not open yet."
-                        : "That code was not recognised."}
-              </h1>
-              <p className="mt-3 text-[17px] text-[#C6D2C8]">
-                {result?.outcome === "WRONG_EVENT" && result.other_event
-                  ? `It is a valid ticket for ${result.other_event.name}.`
-                  : "A volunteer at the desk can sort it out in a moment."}
-              </p>
-            </>
-          )}
-          <button
+          ) : null}
+          <Button
             type="button"
+            variant="secondary"
+            size="lg"
+            className="mt-10"
             onClick={reset}
-            className="mt-10 text-[14px] text-[#8C948B] underline"
           >
             Done · back in {left}s
-          </button>
+          </Button>
         </main>
       )}
 
       {pinOpen ? (
-        <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/70 p-6">
+        <div className="bg-canvas/80 fixed inset-0 z-20 flex items-center justify-center p-6 backdrop-blur-sm">
           <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kiosk-pin-title"
             onSubmit={(e) => {
               e.preventDefault();
               void openStaff();
             }}
-            className="w-full max-w-sm space-y-3 rounded-2xl bg-[#13201A] p-6"
+            className="bg-surface border-line shadow-floating w-full max-w-sm space-y-4 rounded-[var(--radius-sheet)] border p-6"
           >
-            <h2 className="text-[18px] font-semibold">Staff mode</h2>
+            <div>
+              <h2
+                id="kiosk-pin-title"
+                className="text-ink text-[20px] font-semibold"
+              >
+                Staff mode
+              </h2>
+              <p className="text-ink-2 mt-1 text-[14px] leading-[1.5]">
+                The event PIN opens the counts, a reload and unpairing.
+              </p>
+            </div>
             <input
               autoFocus
               type="password"
@@ -532,63 +645,81 @@ function Kiosk({
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               placeholder="Event PIN"
-              className="h-12 w-full rounded-xl border border-white/15 bg-white/5 px-4 font-mono text-[18px]"
+              aria-label="Event PIN"
+              className={cn(DOOR_FIELD, "font-mono text-[20px] tracking-[0.3em] placeholder:tracking-normal")}
             />
             <div className="flex gap-2">
-              <button
-                type="submit"
-                className="h-12 flex-1 rounded-xl text-[15px] font-medium text-[#06190E]"
-                style={{ background: brand }}
-              >
+              <Button type="submit" size="lg" className="flex-1">
                 Open
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="secondary"
+                size="lg"
+                className="flex-1"
                 onClick={() => (setPinOpen(false), setPin(""))}
-                className="h-12 flex-1 rounded-xl border border-white/15 text-[15px]"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         </div>
       ) : null}
       {staff ? (
-        <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/70 p-6">
-          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-[#13201A] p-6">
-            <h2 className="text-[18px] font-semibold">{staff.device.name}</h2>
-            <dl className="grid grid-cols-2 gap-2 text-[14px]">
-              <dt className="text-[#8C948B]">Checked in here</dt>
-              <dd className="text-right font-mono">{staff.checked_in_here}</dd>
-              <dt className="text-[#8C948B]">Checked in, all doors</dt>
-              <dd className="text-right font-mono">
-                {staff.counters.checked_in} / {staff.counters.registered}
-              </dd>
-              <dt className="text-[#8C948B]">Cards printed today</dt>
-              <dd className="text-right font-mono">{staff.printed_today}</dd>
+        <div className="bg-canvas/80 fixed inset-0 z-20 flex items-center justify-center p-6 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kiosk-staff-title"
+            className="bg-surface border-line shadow-floating w-full max-w-md space-y-5 rounded-[var(--radius-sheet)] border p-6"
+          >
+            <div>
+              <p className="eyebrow">Staff mode</p>
+              <h2
+                id="kiosk-staff-title"
+                className="text-ink mt-1 text-[20px] font-semibold"
+              >
+                {staff.device.name}
+              </h2>
+            </div>
+            <dl className="grid grid-cols-3 gap-2">
+              {[
+                { k: "Checked in here", v: String(staff.checked_in_here) },
+                { k: "Checked in, all doors", v: `${staff.counters.checked_in} / ${staff.counters.registered}` },
+                { k: "Cards printed today", v: String(staff.printed_today) },
+              ].map((s) => (
+                <div key={s.k} className="bg-sunken rounded-[var(--radius-card)] px-3 py-3">
+                  <dt className="text-ink-3 text-[12px] leading-[1.35]">{s.k}</dt>
+                  <dd className="text-ink mt-1.5 font-mono text-[20px] leading-none tabular-nums">{s.v}</dd>
+                </div>
+              ))}
             </dl>
             <div className="flex flex-col gap-2">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="lg"
                 onClick={() => window.location.reload()}
-                className="h-12 rounded-xl border border-white/15 text-[15px]"
               >
-                Reload the screen
-              </button>
-              <button
+                <RefreshCwIcon /> Reload the screen
+              </Button>
+              <Button
                 type="button"
+                variant="secondary"
+                danger
+                size="lg"
                 onClick={onUnpair}
-                className="h-12 rounded-xl border border-destructive/60 text-[15px] text-red-300"
               >
-                Unpair this kiosk
-              </button>
-              <button
+                <UnplugIcon /> Unpair this kiosk
+              </Button>
+              <Button
                 type="button"
+                variant="ghost"
+                size="lg"
                 onClick={() => setStaff(null)}
-                className="h-12 rounded-xl text-[15px] text-[#8C948B]"
               >
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         </div>
