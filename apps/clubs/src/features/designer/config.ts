@@ -24,10 +24,12 @@ import type { DesignKind } from "./schemas";
  */
 export interface DesignerConfig {
   kind: DesignKind;
-  /** Page and tab title. */
+  /** The kind's name on the tab: "Ticket", "ID card". */
+  label: string;
+  /** The kind's name as a heading: "Ticket design". */
   title: string;
-  /** What this thing is, in one line under the title. */
-  description: (eventName: string) => string;
+  /** What this thing is and how it is made, in a line under the page title. */
+  description: string;
   /** The word for one of them: "ticket", "certificate". */
   noun: string;
   /** Whether a QR is compulsory -- it is what the gate scans on tickets. */
@@ -60,9 +62,9 @@ const TICKET_QR = "MOA-2BCEBA8-PFZG3";
 export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
   ticket: {
     kind: "ticket",
+    label: "Ticket",
     title: "Ticket design",
-    description: (name) =>
-      `${name} · the ticket each attendee receives. Upload a template from Figma, or start from a layout, then place the fields on it.`,
+    description: "The ticket each attendee receives. Upload a template from Figma, or start from a layout, then place the fields on it.",
     noun: "ticket",
     qrRequired: true,
     pages: ["ticket"],
@@ -81,9 +83,9 @@ export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
   },
   badge: {
     kind: "badge",
+    label: "ID card",
     title: "ID card design",
-    description: (name) =>
-      `${name} · the card or label printed at the door. Pick the size, upload a template or start from a layout, and mark what the blank stock already carries.`,
+    description: "The card or label printed at the door. Pick the size, upload a template or start from a layout, and mark what the blank stock already carries.",
     noun: "card",
     qrRequired: true,
     pages: ["cr80_portrait", "cr80_landscape", "badge_87x130", "badge_130x87", "a6_portrait", "label_4x3", "lanyard_4x6", "label_62x90", "label_54x90", "label_50x90", "label_38x90", "label_29x90"],
@@ -99,9 +101,9 @@ export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
   },
   certificate: {
     kind: "certificate",
+    label: "Certificate",
     title: "Certificate design",
-    description: (name) =>
-      `${name} · the certificate each attendee can receive after the event. A4 by default; the QR, if you keep one, verifies the certificate.`,
+    description: "The certificate each attendee can receive after the event. A4 by default; the QR, if you keep one, verifies the certificate.",
     noun: "certificate",
     qrRequired: false,
     pages: ["a4_landscape", "a4_portrait", "letter_landscape"],
@@ -117,9 +119,9 @@ export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
   },
   agenda: {
     kind: "agenda",
+    label: "Programme",
     title: "Programme design",
-    description: (name) =>
-      `${name} · the run of show as a designed screen for the kiosk, and the same design printed on A4. The sessions come from the agenda; the layer lays them out.`,
+    description: "The run of show as a designed screen for the kiosk, and the same design printed on A4. The sessions come from the agenda; the layer lays them out.",
     noun: "programme",
     qrRequired: false,
     pages: ["screen_landscape", "screen_portrait", "a4_portrait", "a4_landscape"],

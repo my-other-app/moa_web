@@ -14,91 +14,139 @@ import {
   TicketLayoutFields,
   ticketArea,
 } from "@moa/layout";
-import { PageHeader } from "@moa/app-kit";
 import {
-  Badge,
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  InlineAlert,
+  EmptyState,
+  FigurePanel,
+  IconButton,
+  NativeSelect,
+  Notice,
+  Segmented,
   Skeleton,
   cn,
   toast,
 } from "@moa/ui";
-import Link from "next/link";
+import { AlertTriangleIcon, CheckCircle2Icon, Loader2Icon, Redo2Icon, RotateCcwIcon, Undo2Icon } from "lucide-react";
 import * as React from "react";
-
-import { useEventDetail } from "@/features/events";
-import { useRegistrations } from "@/features/registrations";
 
 import { previewLayout, uploadLayoutImage } from "../api";
 import { DESIGNERS, type DesignerConfig } from "../config";
 import { useLayout, useResetLayout, useSaveLayout } from "../queries";
 import { AUDIENCES, type Audience, type DesignKind, type DesignScope, type LayerDesign } from "../schemas";
 import { detectTicketArea } from "./detect-area";
-import { Busy } from "./fields";
-import { type Layout, layoutLayer, scaleLayer, ui, useLayoutHistory, useTicketFonts } from "./kit";
-import { CanvasPanel, FigmaGuide, Inspector, type InspectorContext, LayersPanel } from "./panels";
-import { OverrideBanner, ScopePicker } from "./shell";
+import { GuideDialog, LayoutsDialog, LeaveDialog, PreviewDialog, ResetDialog, type StageLook } from "./dialogs";
+import { type Layout, layoutLayer, scaleLayer, useLayoutHistory, useTicketFonts } from "./kit";
+import { CanvasPanel, Inspector, type InspectorContext, LayersPanel } from "./panels";
+import { AudiencePicker, DesignActions, DesignBar, Provenance, SaveBar, type SaveState, Shortcuts } from "./shell";
 import { AREA_ID, TicketStage } from "./stage";
 
 const ZOOMS = [0.25, 0.5, 0.75, 1, 1.5, 2] as const;
 
 const errorCopy = (err: unknown) => (err instanceof Error && err.message ? err.message : "Something went wrong.");
 
+/** The editor's frame while its design loads: the same bar, a stage and two panels in waiting. */
+const EditorSkeleton = ({ bar }: { bar: React.ReactNode }) => (
+  <>
+    {bar}
+    <Skeleton className="h-[50px] rounded-xl" />
+    <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <Skeleton className="h-[min(calc(70vh+53px),813px)] min-h-[413px] rounded-2xl" />
+      <div className="flex flex-col gap-3.5">
+        <Skeleton className="h-[260px] rounded-2xl" />
+        <Skeleton className="h-[360px] rounded-2xl" />
+      </div>
+    </div>
+  </>
+);
+
 /**
  * The layer designer -- tickets and certificates alike. A template uploaded
  * from Figma (or a starter layout) with text, QR, image and shape layers on
  * top, every text layer a template of tokens, on a page of a known physical
  * size. Designs are per event, with an optional copy per audience.
+ *
+ * `dirtyRef` is the page's: it asks before switching kind, and learns about
+ * unsaved work from the editor through it.
  */
-export const LayerDesignerPage = ({ scope, kind }: { scope: DesignScope; kind: DesignKind }) => {
+export const LayerDesignerPage = ({
+  scope,
+  kind,
+  dirtyRef,
+}: {
+  scope: DesignScope;
+  kind: DesignKind;
+  dirtyRef: React.MutableRefObject<boolean>;
+}) => {
   const config = DESIGNERS[kind];
   // The club's designer has no event: the hook stays quiet for 0.
   const eventId = scope.kind === "event" ? scope.eventId : 0;
-  const event = useEventDetail(eventId);
   const [audience, setAudience] = React.useState<Audience>("event_default");
+  const [pending, setPending] = React.useState<Audience | null>(null);
   const [nonce, setNonce] = React.useState(0);
-  const dirtyRef = React.useRef(false);
   const design = useLayout(scope, kind, audience);
 
   const changeScope = (next: Audience) => {
     if (next === audience) return;
-    if (dirtyRef.current && !window.confirm("Leave this design? Changes you have not saved will be lost.")) return;
-    setAudience(next);
+    if (dirtyRef.current) setPending(next);
+    else setAudience(next);
   };
+  const picker = scope.kind === "event" ? <AudiencePicker value={audience} onChange={changeScope} /> : null;
+  const leave = (
+    <LeaveDialog
+      open={pending !== null}
+      what={config.noun}
+      onStay={() => setPending(null)}
+      onLeave={() => {
+        dirtyRef.current = false;
+        if (pending) setAudience(pending);
+        setPending(null);
+      }}
+    />
+  );
 
   if (design.isError) {
     return (
-      <InlineAlert tone="destructive" title="Could not load this design">
-        {errorCopy(design.error)}
-      </InlineAlert>
+      <>
+        <DesignBar left={picker} actions={<DesignActions disabled />} />
+        <EmptyState
+          tone="muted"
+          title="Could not load this design"
+          description={errorCopy(design.error)}
+          action={
+            <Button variant="secondary" onClick={() => void design.refetch()}>
+              <RotateCcwIcon /> Try again
+            </Button>
+          }
+        />
+        {leave}
+      </>
     );
   }
   const d = design.data;
-  const eventName = event.data?.name ?? "";
-  return d ? (
-    <Editor
-      key={`${audience}-${nonce}`}
-      config={config}
-      scope={scope}
-      eventId={eventId}
-      eventName={eventName}
-      design={d}
-      audience={audience}
-      onScope={changeScope}
-      onSaved={() => void design.refetch()}
-      onDiscard={() => setNonce((n) => n + 1)}
-      dirtyRef={dirtyRef}
-    />
-  ) : (
+  return (
     <>
-      <PageHeader title={config.title} description={eventName} />
-      <Skeleton className="h-[520px] w-full rounded-xl" />
+      {d ? (
+        <Editor
+          key={`${audience}-${nonce}`}
+          config={config}
+          scope={scope}
+          eventId={eventId}
+          design={d}
+          audience={audience}
+          picker={picker}
+          onSaved={() => void design.refetch()}
+          onDiscard={() => setNonce((n) => n + 1)}
+          onReset={async () => {
+            // The design reset to is a different one: open it fresh, history and all.
+            await design.refetch();
+            setNonce((n) => n + 1);
+          }}
+          dirtyRef={dirtyRef}
+        />
+      ) : (
+        <EditorSkeleton bar={<DesignBar left={picker} actions={<DesignActions disabled />} />} />
+      )}
+      {leave}
     </>
   );
 };
@@ -107,16 +155,17 @@ interface EditorProps {
   config: DesignerConfig;
   scope: DesignScope;
   eventId: number;
-  eventName: string;
   design: LayerDesign;
   audience: Audience;
-  onScope: (s: Audience) => void;
+  /** Who the design is for -- an event's only; the club's templates are for everyone. */
+  picker: React.ReactNode;
   onSaved: () => void;
   onDiscard: () => void;
+  onReset: () => Promise<void>;
   dirtyRef: React.MutableRefObject<boolean>;
 }
 
-const Editor = ({ config, scope, eventId, eventName, design, audience, onScope, onSaved, onDiscard, dirtyRef }: EditorProps) => {
+const Editor = ({ config, scope, eventId, design, audience, picker, onSaved, onDiscard, onReset, dirtyRef }: EditorProps) => {
   const save = useSaveLayout(scope, config.kind, audience);
   const reset = useResetLayout(scope, config.kind, audience);
   const initial = React.useMemo<Layout>(() => ({ canvas: design.canvas, layers: design.layers, page: design.page }), [design]);
@@ -134,7 +183,7 @@ const Editor = ({ config, scope, eventId, eventName, design, audience, onScope, 
   const [urls, setUrls] = React.useState<Record<string, string>>({});
   const [uploading, setUploading] = React.useState(false);
   const [finding, setFinding] = React.useState(false);
-  const [dialog, setDialog] = React.useState<"guide" | "preview" | "reset" | { starter: string } | null>(null);
+  const [dialog, setDialog] = React.useState<"guide" | "preview" | "reset" | "layouts" | null>(null);
   const [previewImage, setPreviewImage] = React.useState<Blob | null>(null);
   const fontsReady = useTicketFonts();
   const stageBox = React.useRef<HTMLDivElement>(null);
@@ -149,6 +198,9 @@ const Editor = ({ config, scope, eventId, eventName, design, audience, onScope, 
   }, [dirty, dirtyRef]);
   const { canvas, layers, page } = layout;
   const scopeName = AUDIENCES.find((a) => a.value === audience)?.label ?? "Everyone";
+  const Noun = config.noun[0]!.toUpperCase() + config.noun.slice(1);
+  /** What is open, in words: "Ticket for speakers", "Your club's ticket template". */
+  const subject = scope.kind === "club" ? `Your club's ${config.noun} template` : `${Noun} for ${scopeName.toLowerCase()}`;
 
   // Fit the canvas to the space it has.
   React.useLayoutEffect(() => {
@@ -630,7 +682,7 @@ const Editor = ({ config, scope, eventId, eventName, design, audience, onScope, 
     if (!parsed.success) return;
     try {
       const res = await save.mutateAsync(parsed.data);
-      toast.success(`${scopeName} saved`, { description: `Version ${res.version}. ${config.savedNote}` });
+      toast.success(`${subject} saved`, { description: `Version ${res.version}. ${config.savedNote}` });
       const next = { canvas: res.canvas, layers: res.layers, page: res.page };
       setSavedJson(JSON.stringify(next));
       set(next);
@@ -662,13 +714,37 @@ const Editor = ({ config, scope, eventId, eventName, design, audience, onScope, 
     }
   };
 
+  /** What a reset removes, and what the design falls back to, in each place it can happen. */
+  const issued = `${Noun}s already issued keep the design they were made with.`;
+  const resetCopy =
+    scope.kind === "club"
+      ? {
+          title: `Go back to the built-in ${config.noun}?`,
+          body: `Your club's ${config.noun} template is removed and new events start from the built-in layout. Events that saved their own keep theirs. ${issued}`,
+          confirm: "Use the built-in layout",
+          done: "Back to the built-in layout",
+        }
+      : audience === "event_default"
+        ? {
+            title: "Use your club's template again?",
+            body: `This event's own ${config.noun} is removed and it follows your club's template again. ${issued}`,
+            confirm: "Use the club template",
+            done: "Back to your club's template",
+          }
+        : {
+            title: `Reset ${scopeName}?`,
+            body: `Their own copy is removed and they get the event's design again. ${issued}`,
+            confirm: "Reset",
+            done: `${scopeName} follow the event's design again`,
+          };
+
   const doReset = async () => {
     try {
       await reset.mutateAsync();
-      toast.success(audience !== "event_default" ? `${scopeName} follows the event's design again` : "Back to your club's default design");
+      toast.success(resetCopy.done);
       dirtyRef.current = false;
       setDialog(null);
-      onSaved();
+      await onReset();
     } catch (err) {
       toast.error(errorCopy(err));
     }
@@ -745,153 +821,177 @@ const Editor = ({ config, scope, eventId, eventName, design, audience, onScope, 
   const qr = layers.find((l) => l.kind === "qr");
   const saving = save.isPending;
 
+  // Whether the design is saved, said in one place that never scrolls away.
+  const saveState: SaveState = saving
+    ? "saving"
+    : dirty
+      ? save.isError
+        ? "error"
+        : "dirty"
+      : fromStarter
+        ? "starter"
+        : design.isOwn
+          ? "saved"
+          : "clean";
+  const saveDetail = {
+    saving: subject,
+    error: `${errorCopy(save.error)} Your changes are still here; try again.`,
+    dirty: problems.count ? `${subject} · ${problems.count} to fix before it can be saved` : subject,
+    starter: `${subject} is a starter layout until you save it`,
+    saved: `${subject} · version ${version}. ${config.savedNote}`,
+    clean:
+      scope.kind === "club"
+        ? "The built-in layout; nothing of your own to save yet"
+        : audience === "event_default"
+          ? "Following your club's template"
+          : "Following the event's design",
+  }[saveState];
+
+  const look: StageLook = {
+    colors,
+    values: samples,
+    qrValue: config.sampleQr,
+    imageUrl,
+    fontsReady,
+    agenda: design.agenda,
+    timezone: design.timezone,
+  };
+  const firstBad = [...problems.byLayer.keys()][0] ?? null;
+  const dropLabel = (() => {
+    const sel = layers.find((l) => l.id === selected);
+    if (sel?.kind === "image" && sel.source === "upload" && !/-photo$/.test(sel.id)) return "Drop to set this image";
+    const slot = dropSlot ? layers.find((l) => l.id === dropSlot) : null;
+    return slot ? `Drop to set the ${slot.name.toLowerCase()}` : photos.length ? "Drop to set every panel’s picture" : "Drop to use as the background picture";
+  })();
+
   return (
     <>
-      <PageHeader
-        title={config.title}
-        description={scope.kind === "event" ? config.description(eventName || "This event") : `Your club's default ${config.noun}. Every event starts from it; an event with a design of its own keeps it.`}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="ghost">
-              <Link href={scope.kind === "event" ? `/events/${eventId}` : "/templates"}>{scope.kind === "event" ? "Back to event" : "Back to templates"}</Link>
-            </Button>
-            <Button variant="outline" onClick={() => setDialog("guide")}>
-              Designing in Figma?
-            </Button>
-            <Button variant="outline" onClick={() => setDialog("preview")}>
-              Preview
-            </Button>
-            <Button disabled={saving || (!dirty && !fromStarter)} onClick={doSave}>
-              <Busy on={saving} />
-              {version > 0 && !dirty ? "Saved" : "Save design"}
-            </Button>
-          </div>
-        }
+      <DesignBar
+        left={picker}
+        actions={<DesignActions onGuide={() => setDialog("guide")} onLayouts={() => setDialog("layouts")} onPreview={() => setDialog("preview")} />}
+      />
+      <Provenance
+        scope={scope}
+        audience={audience}
+        scopeName={scopeName}
+        config={config}
+        isOwn={design.isOwn}
+        fromStarter={fromStarter}
+        version={version}
+        dirty={dirty}
+        onReset={() => setDialog("reset")}
+        onLayouts={() => setDialog("layouts")}
       />
 
-      <div className="mb-3 flex flex-col gap-2.5">
-        {scope.kind === "event" ? <ScopePicker value={audience} onChange={onScope} /> : null}
-        {audience !== "event_default" ? (
-          <OverrideBanner scopeName={scopeName} isOwn={design.isOwn} dirty={dirty} onReset={() => setDialog("reset")} />
-        ) : fromStarter ? (
-          <InlineAlert tone="info" title="A starter layout">
-            Nothing is designed for this event yet, so this is the {config.starters.classic?.label ?? "classic"} layout. Change it as you like
-            and save; saving makes a copy for this event only.
-          </InlineAlert>
-        ) : null}
-      </div>
-
-      <div className="mb-2.5 flex flex-wrap items-center gap-2 rounded-xl border bg-card px-2.5 py-2">
-        <div role="radiogroup" aria-label="View" className="flex rounded-full bg-muted p-0.5">
-          {(["edit", "preview"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              role="radio"
-              aria-checked={mode === m}
-              onClick={() => setMode(m)}
-              className={cn(
-                "rounded-full px-3.5 py-1.5 text-[12.5px] transition-colors",
-                mode === m ? "bg-card font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {m === "edit" ? "Edit layout" : "Sample preview"}
-            </button>
-          ))}
-        </div>
-        <label className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground" htmlFor="ticket-zoom">
-          Zoom
-          <select
-            id="ticket-zoom"
-            value={String(zoomChoice)}
-            onChange={(e) => setZoomChoice(e.target.value === "fit" ? "fit" : Number(e.target.value))}
-            className="h-8 rounded border bg-muted/40 px-2 font-sans text-[12.5px] tracking-normal text-foreground normal-case"
-          >
-            <option value="fit">Fit ({Math.round(fit * 100)}%)</option>
-            {ZOOMS.map((z) => (
-              <option key={z} value={z}>
-                {z * 100}%
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-        <Button size="sm" variant="ghost" disabled={!history.canUndo} onClick={undo} title="Undo (⌘Z)">
-          ↶ Undo
-        </Button>
-        <Button size="sm" variant="ghost" disabled={!history.canRedo} onClick={redo} title="Redo (⇧⌘Z)">
-          ↷ Redo
-        </Button>
-        <span className="flex-1" />
-        {problems.count ? (
-          <Badge variant="destructive" className="cursor-pointer" onClick={() => setSelected([...problems.byLayer.keys()][0] ?? null)}>
-            {problems.count} to fix
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="text-emerald-600 dark:text-emerald-400">
-            Ready to print
-          </Badge>
-        )}
-        {!fontsReady ? <span className="font-mono text-[10.5px] text-muted-foreground">loading fonts…</span> : null}
-      </div>
-
       <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div
-          ref={stageBox}
-          className={cn(
-            "relative h-[min(70vh,760px)] min-h-[360px] overflow-auto rounded-xl border bg-[repeating-conic-gradient(var(--color-muted)_0_25%,var(--color-card)_0_50%)] bg-[length:22px_22px]",
-            dropping ? "border-primary ring-2 ring-primary/40" : "border-border"
-          )}
-          onPointerDown={(e) => e.target === e.currentTarget && setSelected(null)}
-          onDragOver={(e) => {
-            if (!e.dataTransfer.types.includes("Files")) return;
-            e.preventDefault();
-            setDropping(true);
-            setDropSlot(slotAt(canvasPoint(e)));
-          }}
-          onDragLeave={() => setDropping(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDropping(false);
-            const f = e.dataTransfer.files[0];
-            if (f) void onDropFile(f, slotAt(canvasPoint(e)));
-          }}
-        >
-          {dropping ? (
-            <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-primary/10">
-              <span className="rounded-md border border-primary bg-card px-3 py-2 text-[13px] font-medium">
-                {(() => {
-                  const sel = layers.find((l) => l.id === selected);
-                  if (sel?.kind === "image" && sel.source === "upload" && !/-photo$/.test(sel.id)) return "Drop to set this image";
-                  const slot = dropSlot ? layers.find((l) => l.id === dropSlot) : null;
-                  return slot ? `Drop to set the ${slot.name.toLowerCase()}` : photos.length ? "Drop to set every panel’s picture" : "Drop to use as the background picture";
-                })()}
-              </span>
-            </div>
-          ) : null}
-          <div className="grid min-h-full min-w-full place-items-center p-8" style={{ width: shownWidth * zoom + 64 }}>
-            <TicketStage
-              layout={layout}
-              mode={mode}
-              zoom={zoom}
-              selected={selected}
-              onSelect={setSelected}
-              onChange={(next, group) => set(next, group)}
-              onSettle={seal}
-              colors={colors}
-              values={samples}
-              qrValue={config.sampleQr}
-              templateUrl={templateUrl}
-              imageUrl={imageUrl}
-              fontsReady={fontsReady}
-              problemIds={problemIds}
-              agenda={design.agenda}
-              timezone={design.timezone}
+        <FigurePanel role="region" aria-label="Stage" className="overflow-hidden p-0 lg:sticky lg:top-2">
+          <div className="border-line-soft flex flex-wrap items-center gap-2 border-b px-3 py-2.5">
+            <Segmented
+              label="View"
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: "edit", label: "Edit layout" },
+                { value: "preview", label: "With sample data" },
+              ]}
             />
+            <NativeSelect
+              size="sm"
+              aria-label="Zoom"
+              value={String(zoomChoice)}
+              onChange={(e) => setZoomChoice(e.target.value === "fit" ? "fit" : Number(e.target.value))}
+              className="w-[118px]"
+            >
+              <option value="fit">Fit · {Math.round(fit * 100)}%</option>
+              {ZOOMS.map((z) => (
+                <option key={z} value={z}>
+                  {z * 100}%
+                </option>
+              ))}
+            </NativeSelect>
+            <span className="bg-line mx-0.5 h-5 w-px" aria-hidden="true" />
+            <IconButton label="Undo (⌘Z)" disabled={!history.canUndo} onClick={undo}>
+              <Undo2Icon />
+            </IconButton>
+            <IconButton label="Redo (⇧⌘Z)" disabled={!history.canRedo} onClick={redo}>
+              <Redo2Icon />
+            </IconButton>
+            <span className="flex-1" />
+            {!fontsReady ? (
+              <span className="text-ink-3 inline-flex items-center gap-1.5 text-[12px]">
+                <Loader2Icon className="size-3.5 animate-spin" aria-hidden="true" /> Loading fonts
+              </span>
+            ) : null}
+            {problems.count ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                danger
+                onClick={() => {
+                  setMode("edit");
+                  setSelected(firstBad);
+                }}
+              >
+                <AlertTriangleIcon /> {problems.count} to fix
+              </Button>
+            ) : (
+              <span className="text-admit inline-flex items-center gap-1.5 text-[12.5px] font-medium">
+                <CheckCircle2Icon className="size-4" aria-hidden="true" /> Ready to print
+              </span>
+            )}
           </div>
-        </div>
+          <div
+            ref={stageBox}
+            className={cn(
+              "relative h-[min(70vh,760px)] min-h-[360px] overflow-auto bg-[repeating-conic-gradient(var(--sunken)_0_25%,var(--surface)_0_50%)] bg-[length:22px_22px]",
+              dropping && "ring-brand ring-2 ring-inset"
+            )}
+            onPointerDown={(e) => e.target === e.currentTarget && setSelected(null)}
+            onDragOver={(e) => {
+              if (!e.dataTransfer.types.includes("Files")) return;
+              e.preventDefault();
+              setDropping(true);
+              setDropSlot(slotAt(canvasPoint(e)));
+            }}
+            onDragLeave={() => setDropping(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDropping(false);
+              const f = e.dataTransfer.files[0];
+              if (f) void onDropFile(f, slotAt(canvasPoint(e)));
+            }}
+          >
+            {dropping ? (
+              <div className="bg-brand/10 pointer-events-none absolute inset-0 z-10 grid place-items-center">
+                <span className="border-brand-line bg-surface text-ink shadow-floating rounded-[var(--radius-md)] border px-3 py-2 text-[13px] font-medium">
+                  {dropLabel}
+                </span>
+              </div>
+            ) : null}
+            <div className="grid min-h-full min-w-full place-items-center p-8" style={{ width: shownWidth * zoom + 64 }}>
+              <TicketStage
+                layout={layout}
+                mode={mode}
+                zoom={zoom}
+                selected={selected}
+                onSelect={setSelected}
+                onChange={(next, group) => set(next, group)}
+                onSettle={seal}
+                colors={colors}
+                values={samples}
+                qrValue={config.sampleQr}
+                templateUrl={templateUrl}
+                imageUrl={imageUrl}
+                fontsReady={fontsReady}
+                problemIds={problemIds}
+                agenda={design.agenda}
+                timezone={design.timezone}
+              />
+            </div>
+          </div>
+        </FigurePanel>
 
-        <div className="flex flex-col gap-3.5">
+        <div className="flex min-w-0 flex-col gap-3.5">
           <LayersPanel
             agendaAllowed={config.kind === "agenda"}
             layers={layers}
@@ -911,6 +1011,7 @@ const Editor = ({ config, scope, eventId, eventName, design, audience, onScope, 
               key={selectedLayer.id}
               layer={selectedLayer}
               onPatch={(p, group) => patch(selectedLayer.id, p, group)}
+              onClose={() => setSelected(null)}
               problems={problems.byLayer.get(selectedLayer.id) ?? []}
               ctx={inspectorCtx}
             />
@@ -937,7 +1038,6 @@ const Editor = ({ config, scope, eventId, eventName, design, audience, onScope, 
               photos={photos}
               onUploadBackground={uploadBackground}
               onRemoveBackground={removeBackgroundPhoto}
-              onStarter={(s) => setDialog({ starter: s })}
               onPage={(p) => set((cur) => ({ ...cur, page: p }), "page")}
               onFindArea={findArea}
               finding={finding}
@@ -945,185 +1045,53 @@ const Editor = ({ config, scope, eventId, eventName, design, audience, onScope, 
             />
           )}
           {problems.general.length ? (
-            <InlineAlert tone="destructive" title="Fix">
+            <Notice tone="refuse" tag="Fix">
               {problems.general.join(" ")}
-            </InlineAlert>
+            </Notice>
           ) : null}
-          <p className="px-1 text-[11.5px] leading-[1.6] text-muted-foreground">
-            <Kbd>↑↓←→</Kbd> nudge · <Kbd>⇧</Kbd> ×10 · <Kbd>⌫</Kbd> delete · <Kbd>⌘D</Kbd> duplicate · <Kbd>⌘Z</Kbd> undo · hold <Kbd>⌥</Kbd>{" "}
-            to drag without snapping
-          </p>
+          <Shortcuts />
         </div>
       </div>
 
-      {dirty ? (
-        <div className="sticky bottom-3 z-10 mt-3.5 flex flex-wrap items-center gap-2.5 rounded-xl border border-primary/40 bg-card px-4 py-2.5 shadow-lg">
-          <span className="size-2 rounded-full bg-amber-500" aria-hidden />
-          <span className="text-[13px] font-medium">Unsaved changes to {scopeName}</span>
-          <span className="flex-1" />
-          <Button variant="ghost" onClick={onDiscard}>
-            Discard
-          </Button>
-          <Button disabled={saving} onClick={doSave}>
-            <Busy on={saving} />
-            Save design
-          </Button>
-        </div>
-      ) : null}
+      <SaveBar state={saveState} detail={saveDetail} onDiscard={onDiscard} onSave={doSave} />
 
-      <Dialog open={dialog === "guide"} onOpenChange={(o) => !o && setDialog(null)}>
-        <DialogContent className="sm:max-w-[560px]">
-          <DialogHeader>
-            <DialogTitle>{config.guideTitle}</DialogTitle>
-          </DialogHeader>
-          <FigmaGuide config={config} page={page} />
-          <DialogFooter>
-            <Button onClick={() => setDialog(null)}>Got it</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
+      <GuideDialog open={dialog === "guide"} onClose={() => setDialog(null)} config={config} page={page} />
+      <PreviewDialog
         open={dialog === "preview"}
-        onOpenChange={(o) => {
-          if (o) return;
+        onClose={() => {
           setDialog(null);
           setPreviewImage(null);
         }}
-      >
-        <DialogContent className={previewImage ? "sm:max-w-[min(96vw,1100px)]" : "sm:max-w-[520px]"}>
-          <DialogHeader>
-            <DialogTitle>{previewImage ? `The ${config.noun}, as it is issued` : `Preview the real ${config.noun}`}</DialogTitle>
-            <DialogDescription>{config.previewNote}</DialogDescription>
-          </DialogHeader>
-          {previewImage ? (
-            <PreviewImage blob={previewImage} onBack={() => setPreviewImage(null)} />
-          ) : scope.kind === "event" ? (
-            <PreviewPicker eventId={eventId} busy={previewBusy} onPick={preview} />
-          ) : (
-            <Button disabled={!!previewBusy} onClick={() => void preview()}>
-              <Busy on={previewBusy === "sample"} />
-              Preview with the sample guest
-            </Button>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={dialog === "reset"} onOpenChange={(o) => !o && setDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reset {scopeName}?</DialogTitle>
-            <DialogDescription>
-              Its own design is removed and it follows {audience === "event_default" ? "your club's default" : "the event's design"} again.{" "}
-              {config.noun[0]!.toUpperCase()}
-              {config.noun.slice(1)}s already issued keep the design they were made with.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialog(null)}>
-              Keep it
-            </Button>
-            <Button variant="destructive" disabled={reset.isPending} onClick={doReset}>
-              <Busy on={reset.isPending} />
-              Reset
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={typeof dialog === "object" && dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Start from this layout?</DialogTitle>
-            <DialogDescription>
-              It replaces the canvas and every layer, template included. You can undo it until you leave the page.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialog(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (typeof dialog === "object" && dialog) set(config.starter(dialog.starter, { seats: false, page }));
-                setSelected(null);
-                setDialog(null);
-              }}
-            >
-              Replace the design
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-};
-
-const Kbd = ({ children }: { children: React.ReactNode }) => (
-  <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">{children}</kbd>
-);
-
-/** The rendered PNG, at the size the dialog allows. */
-const PreviewImage = ({ blob, onBack }: { blob: Blob; onBack: () => void }) => {
-  const url = React.useMemo(() => URL.createObjectURL(blob), [blob]);
-  React.useEffect(() => () => URL.revokeObjectURL(url), [url]);
-  return (
-    <div className="flex flex-col gap-3">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt="The rendered design" className="max-h-[70vh] w-full rounded-md border object-contain" />
-      <div className="flex justify-end">
-        <Button variant="outline" onClick={onBack}>
-          Preview another
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-/** Sample guest, or a real one from the list -- long names are the ones worth checking. */
-const PreviewPicker = ({ eventId, busy, onPick }: { eventId: number; busy: string | null; onPick: (ticketId?: string) => Promise<void> }) => {
-  const [q, setQ] = React.useState("");
-  const list = useRegistrations({ eventId, search: q.trim() || undefined, offset: 0, limit: 10 });
-  return (
-    <div className="flex flex-col gap-2.5">
-      <Button disabled={!!busy} onClick={() => void onPick()}>
-        <Busy on={busy === "sample"} />
-        Preview with the sample guest
-      </Button>
-      <div className={cn("mt-1", ui.eyebrow)}>Or a registered attendee</div>
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search a name — try the longest one"
-        aria-label="Search attendees to preview"
-        className="input input-sm"
+        config={config}
+        eventId={scope.kind === "event" ? eventId : null}
+        image={previewImage}
+        busy={previewBusy}
+        onPick={preview}
+        onBack={() => setPreviewImage(null)}
       />
-      <ul className="max-h-[260px] overflow-y-auto rounded-md border">
-        {(list.data?.items ?? []).map((r) => {
-          const name = r.full_name || r.name || r.email || r.id;
-          return (
-            <li key={r.id} className="border-t first:border-t-0">
-              <button
-                type="button"
-                onClick={() => r.ticket_id && void onPick(r.ticket_id)}
-                disabled={!!busy || !r.ticket_id}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted disabled:opacity-50"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium">{name}</span>
-                  <span className="block truncate font-mono text-[10.5px] text-muted-foreground">
-                    {r.role} · {r.ticket_id ?? "no ticket yet"}
-                  </span>
-                </span>
-                <span className="text-[12px] text-primary">{busy === r.ticket_id ? "Rendering…" : "Preview"}</span>
-              </button>
-            </li>
-          );
-        })}
-        {list.data && !list.data.items.length ? (
-          <li className="px-3 py-4 text-center text-[12.5px] text-muted-foreground">Nobody matches.</li>
-        ) : null}
-      </ul>
-    </div>
+      <ResetDialog
+        open={dialog === "reset"}
+        onClose={() => setDialog(null)}
+        title={resetCopy.title}
+        body={resetCopy.body}
+        confirm={resetCopy.confirm}
+        busy={reset.isPending}
+        onConfirm={() => void doReset()}
+      />
+      <LayoutsDialog
+        open={dialog === "layouts"}
+        onClose={() => setDialog(null)}
+        config={config}
+        page={page}
+        look={look}
+        onPick={(name) => {
+          set(config.starter(name, { seats: false, page }));
+          setSelected(null);
+          setMode("edit");
+          setDialog(null);
+          toast.success(`${config.starters[name]?.label ?? "The"} layout is on the stage`, { description: "Not what you wanted? Undo brings the last design back." });
+        }}
+      />
+    </>
   );
 };

@@ -23,19 +23,16 @@ export type Layout = { canvas: TicketCanvas; layers: TicketLayer[]; page: PageSp
 
 // ─── Looks ──────────────────────────────────────────────────────────────
 //
-// The editor's recurring surfaces, named once. Muster's tokens (ink, sunken,
-// line, accent) are spelled here in ours (foreground, muted, border, primary).
+// The editor chrome's few recurring classes, named once and spelled in the
+// Meridian tokens. Panels, notices and buttons come from the kit itself.
 
 export const ui = {
-  panel: "rounded-xl border bg-card",
-  heading: "font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground",
-  eyebrow: "font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground",
-  label: "mb-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground",
+  /** A field's label: the eyebrow, as on every rebuilt form. */
+  label: "eyebrow mb-1.5 block",
+  /** A field inside a panel: the 32px field. */
   control: "input input-sm tabular-nums",
-  note: "text-[11.5px] leading-[1.5] text-muted-foreground",
-  caution: "text-amber-600 dark:text-amber-400",
-  cautionBox: "rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11.5px] leading-[1.5] text-amber-700 dark:text-amber-300",
-  refuseBox: "rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-2 text-[11.5px] leading-[1.5] text-destructive",
+  /** A line of help under a field or a section. */
+  note: "text-ink-3 text-[11.5px] leading-[1.5]",
 } as const;
 
 // ─── Fonts ──────────────────────────────────────────────────────────────
@@ -292,11 +289,4 @@ export const KIND_LABEL: Record<TicketLayer["kind"], string> = {
   image: "Image layer",
   shape: "Shape layer",
   agenda: "Run of show",
-};
-export const KIND_GLYPH: Record<TicketLayer["kind"], string> = {
-  text: "T",
-  qr: "▦",
-  image: "▣",
-  shape: "■",
-  agenda: "☰",
 };
