@@ -16,6 +16,10 @@ export const threadSchema = z.object({
   views: z.number(),
   liked: z.boolean().default(false),
   created_at: z.string(),
+  // What the Threads page adds; absent from a payload cached before it existed.
+  last_comment_at: z.string().nullish(),
+  awaiting_reply: z.boolean().catch(false),
+  engagement: z.number().catch(0),
 });
 
 export const threadPageSchema = z.object({
@@ -50,3 +54,34 @@ export const composeSchema = z
     if (new Set(filled.map((o) => o.toLowerCase())).size !== filled.length) ctx.addIssue({ code: "custom", path: ["poll_options"], message: "Two options say the same thing" });
   });
 export type ComposeInput = z.infer<typeof composeSchema>;
+
+// --- the Threads page ----------------------------------------------------------------------
+
+export const THREAD_SCOPES = ["all", "awaiting", "pinned", "polls", "photos"] as const;
+export type ThreadScope = (typeof THREAD_SCOPES)[number];
+export const SCOPE_LABEL: Record<ThreadScope, string> = { all: "All posts", awaiting: "Awaiting a reply", pinned: "Pinned", polls: "Polls", photos: "With a photo" };
+export const THREAD_SORTS = ["newest", "seen", "engaged"] as const;
+export type ThreadSort = (typeof THREAD_SORTS)[number];
+export const SORT_LABEL: Record<ThreadSort, string> = { newest: "Newest first", seen: "Most seen", engaged: "Most engaged" };
+
+export const threadsPageSchema = z.object({ items: z.array(threadSchema), total: z.number(), limit: z.number(), offset: z.number(), counts: z.record(z.number()).default({}) });
+export type ThreadsPageData = z.infer<typeof threadsPageSchema>;
+
+export const threadInsightsSchema = z.object({
+  posts: z.number(),
+  posts_delta: z.number().nullish(),
+  reach: z.number(),
+  reach_delta: z.number().nullish(),
+  reach_per_follower: z.number().nullish(),
+  engagement_rate: z.number().nullish(),
+  engagement_rate_prev: z.number().nullish(),
+  awaiting: z.number(),
+  best: z.object({ id: z.string(), body: z.string(), views: z.number(), engagement: z.number(), kind: z.string() }).nullish(),
+  weeks: z.array(z.object({ week: z.string(), posts: z.number(), reach: z.number(), reactions: z.number() })),
+  kinds: z.array(z.object({ kind: z.string(), label: z.string(), posts: z.number(), avg_reach: z.number().nullish(), avg_engagement: z.number().nullish() })),
+  notify: z.object({ told: z.object({ posts: z.number(), avg_reach: z.number().nullish() }), quiet: z.object({ posts: z.number(), avg_reach: z.number().nullish() }) }),
+  followers: z.number(),
+  all_time: z.object({ posts: z.number(), reach: z.number(), engagement: z.number() }),
+  generated_at: z.string(),
+});
+export type ThreadInsights = z.infer<typeof threadInsightsSchema>;

@@ -5,6 +5,19 @@ import fixture from "../__fixtures__/threads.json";
 import clubInfoFixture from "../__fixtures__/club-info.json";
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
+const insights = {
+  posts: 3, posts_delta: 1, reach: 4100, reach_delta: 900, reach_per_follower: 1.06, engagement_rate: 4.2, engagement_rate_prev: 3.1, awaiting: 1,
+  best: { id: "t1", body: "Hack Night 04 is tonight! 148 of you registered", views: 1840, engagement: 98, kind: "post" },
+  weeks: Array.from({ length: 12 }, (_, k) => ({ week: `2026-${String(k + 1).padStart(2, "0")}-01`, posts: k > 8 ? 1 : 0, reach: k > 8 ? 1300 : 0, reactions: k > 8 ? 40 : 0 })),
+  kinds: [{ kind: "poll", label: "Polls", posts: 1, avg_reach: 1290, avg_engagement: 348 }, { kind: "photo", label: "With a photo", posts: 0, avg_reach: null, avg_engagement: null }, { kind: "text", label: "Text only", posts: 2, avg_reach: 1400, avg_engagement: 60 }],
+  notify: { told: { posts: 2, avg_reach: 1600 }, quiet: { posts: 1, avg_reach: 1290 } },
+  followers: 1284, all_time: { posts: 3, reach: 4100, engagement: 170 }, generated_at: "2026-10-16T10:00:00+00:00",
+};
+let qs = "";
+vi.mock("next/navigation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/navigation")>();
+  return { ...actual, useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }), usePathname: () => "/threads", useSearchParams: () => new URLSearchParams(qs) };
+});
 
 vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
@@ -13,6 +26,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     api: {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
+        if (path.endsWith("/clubs/threads/insights")) return insights;
+        if (path.endsWith("/clubs/threads/page")) return { ...fixture, items: fixture.items.map((t, k) => ({ ...t, awaiting_reply: k === 0, engagement: t.likes + t.comments })), counts: { all: 3, awaiting: 1, pinned: 1, polls: 1, photos: 0 } };
         if (path.endsWith("/clubs/threads")) return fixture;
         if (path.includes("/clubs/info")) return { ...clubInfoFixture, followers_count: 1284 };
         if (/\/threads\/t1\/comments$/.test(path)) return [{ id: "c1", body: "Can't wait!", author: { id: 9, name: "Ananya Iyer", is_club: false }, created_at: "2026-10-12T11:00:00+00:00" }];
@@ -41,6 +56,7 @@ const { threadPageSchema, composeSchema } = await import("./schemas");
 
 beforeEach(() => {
   calls.length = 0;
+  qs = "";
 });
 
 describe("threads", () => {
@@ -53,20 +69,35 @@ describe("threads", () => {
 
   it("shows the posts with their figures, the pinned one and the poll", async () => {
     render(<ThreadsPage />);
-    expect(await screen.findByText(/Hack Night 04 is tonight/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Hack Night 04 is tonight/))[0]).toBeInTheDocument();
     expect(screen.getByText("Pinned")).toBeInTheDocument();
     expect(screen.getByText("1,840")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "Robotics 44%" })).toHaveAttribute("aria-valuenow", "44");
     expect(screen.getByText("293 votes")).toBeInTheDocument();
     expect(await screen.findByPlaceholderText(/Share an update with your 1,284 followers/)).toBeInTheDocument();
     expect(calls[0]).toMatchObject({ method: "GET" });
+    // The month above the list, and what waits.
+    expect(await screen.findByText("3 posts in 30 days · seen 4,100 times · 3 all time")).toBeInTheDocument();
+    expect(screen.getByText("4.2%")).toBeInTheDocument();
+    expect(screen.getAllByText("Awaiting your reply").length).toBeGreaterThan(0);
+    expect(screen.getByText("What works")).toBeInTheDocument();
+    expect(screen.getByText(/Telling followers: 1,600 seen on average against 1,290/)).toBeInTheDocument();
+    expect(screen.getByText("Best this month")).toBeInTheDocument();
+    expect(screen.getAllByText("Awaiting a reply 1")).toHaveLength(1);
+  });
+
+  it("narrows to the posts awaiting a reply and opens their comments", async () => {
+    qs = "scope=awaiting";
+    render(<ThreadsPage />);
+    expect(await screen.findByText("Can't wait!")).toBeInTheDocument();
+    expect(calls.find((c) => c.path.endsWith("/clubs/threads/page"))).toBeTruthy();
   });
 
   it("posts text with a poll and the notify switch, as one multipart request", async () => {
     render(<ThreadsPage />);
-    await screen.findByText(/Hack Night 04 is tonight/);
+    await screen.findAllByText(/Hack Night 04 is tonight/);
     fireEvent.change(screen.getByLabelText("Share an update"), { target: { value: "Theme for Hack Night 05?" } });
-    fireEvent.click(screen.getByRole("button", { name: /Poll/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Poll$/ }));
     fireEvent.change(screen.getByLabelText("Option 1"), { target: { value: "Robotics" } });
     fireEvent.change(screen.getByLabelText("Option 2"), { target: { value: "Wearables" } });
     fireEvent.click(screen.getByRole("switch", { name: "Notify followers" }));
@@ -81,7 +112,7 @@ describe("threads", () => {
 
   it("pins, removes on a second click, and opens the comments to reply or remove", async () => {
     render(<ThreadsPage />);
-    await screen.findByText(/Hack Night 04 is tonight/);
+    await screen.findAllByText(/Hack Night 04 is tonight/);
     fireEvent.click(screen.getAllByRole("button", { name: "Pin to top" })[0]!);
     await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true));
     expect(calls.find((c) => c.method === "PATCH")).toMatchObject({ path: "/api/v1/clubs/threads/t2", body: { pinned: true } });
