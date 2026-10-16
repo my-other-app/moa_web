@@ -201,7 +201,7 @@ export function ViewChips({
 
       <button
         type="button"
-        className="btn btn-ghost whitespace-nowrap text-[12.5px]"
+        className="btn btn-ghost btn-sm"
         disabled={!label}
         title={label ? `Save as “${label}”` : "Filter the list first"}
         onClick={save}

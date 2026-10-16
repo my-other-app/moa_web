@@ -1,10 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { BarChart3Icon, MessageCircleQuestionIcon, RadioIcon, StarIcon, ZapIcon } from "lucide-react";
-import { cn } from "@moa/ui";
+import {
+  BarChart3Icon,
+  MessageCircleQuestionIcon,
+  RadioIcon,
+  StarIcon,
+  ZapIcon,
+} from "lucide-react";
+import { Chip, cn } from "@moa/ui";
 
-import { useFeedback, usePolls, useQuestions, useQuiz, useUpdates } from "../queries";
+import {
+  useFeedback,
+  usePolls,
+  useQuestions,
+  useQuiz,
+  useUpdates,
+} from "../queries";
 import { FeedbackPanel } from "./feedback-panel";
 import { PollsPanel } from "./polls-panel";
 import { QAPanel } from "./qa-panel";
@@ -25,21 +37,49 @@ const readView = (): View => {
   return (VIEWS as readonly string[]).includes(v ?? "") ? (v as View) : "quiz";
 };
 
-function Pill({ active, onClick, icon, label, badge, tone }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; badge?: string | null; tone?: "live" | "attention" }) {
+function Pill({
+  active,
+  onClick,
+  icon,
+  label,
+  badge,
+  tone,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  badge?: string | null;
+  tone?: "live" | "attention";
+}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] transition-colors",
-        active ? "border-brand-line bg-brand-soft text-ink" : "border-line text-ink-2 hover:bg-sunken"
-      )}
-    >
-      <span className={cn(active ? "text-brand" : "text-ink-3")}>{icon}</span>
+    <Chip active={active} onClick={onClick}>
+      <span
+        className={cn(
+          active ? "text-brand-foreground" : "text-ink-3",
+          "[&>svg]:size-3.5",
+        )}
+      >
+        {icon}
+      </span>
       {label}
-      {badge ? <span className={cn("font-mono text-[10.5px]", tone === "live" ? "text-admit" : tone === "attention" ? "text-caution" : "text-ink-3")}>{badge}</span> : null}
-    </button>
+      {badge ? (
+        <span
+          className={cn(
+            "font-mono text-[10.5px]",
+            active
+              ? "text-brand-foreground/80"
+              : tone === "live"
+                ? "text-admit"
+                : tone === "attention"
+                  ? "text-caution"
+                  : "text-ink-3",
+          )}
+        >
+          {badge}
+        </span>
+      ) : null}
+    </Chip>
   );
 }
 
@@ -64,13 +104,58 @@ export function LivePage({ eventId }: { eventId: number }) {
   return (
     <div className="grid gap-5">
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Live">
-        <Pill active={view === "quiz"} onClick={() => go("quiz")} icon={<ZapIcon className="size-4" />} label="Quiz" badge={quiz.data?.status === "live" ? "live" : nQ ? `${nQ} Qs` : null} tone={quiz.data?.status === "live" ? "live" : undefined} />
-        <Pill active={view === "qa"} onClick={() => go("qa")} icon={<MessageCircleQuestionIcon className="size-4" />} label="Q&A" badge={review ? `${review} to review` : null} tone="attention" />
-        <Pill active={view === "polls"} onClick={() => go("polls")} icon={<BarChart3Icon className="size-4" />} label="Polls" badge={live ? "live" : polls.data?.length ? `${polls.data.length}` : null} tone={live ? "live" : undefined} />
-        <Pill active={view === "feedback"} onClick={() => go("feedback")} icon={<StarIcon className="size-4" />} label="Feedback" badge={replies ? `${replies} replies` : null} />
-        <Pill active={view === "updates"} onClick={() => go("updates")} icon={<RadioIcon className="size-4" />} label="Live updates" badge={sent ? `${sent} sent` : null} />
+        <Pill
+          active={view === "quiz"}
+          onClick={() => go("quiz")}
+          icon={<ZapIcon className="size-4" />}
+          label="Quiz"
+          badge={quiz.data?.status === "live" ? "live" : nQ ? `${nQ} Qs` : null}
+          tone={quiz.data?.status === "live" ? "live" : undefined}
+        />
+        <Pill
+          active={view === "qa"}
+          onClick={() => go("qa")}
+          icon={<MessageCircleQuestionIcon className="size-4" />}
+          label="Q&A"
+          badge={review ? `${review} to review` : null}
+          tone="attention"
+        />
+        <Pill
+          active={view === "polls"}
+          onClick={() => go("polls")}
+          icon={<BarChart3Icon className="size-4" />}
+          label="Polls"
+          badge={
+            live ? "live" : polls.data?.length ? `${polls.data.length}` : null
+          }
+          tone={live ? "live" : undefined}
+        />
+        <Pill
+          active={view === "feedback"}
+          onClick={() => go("feedback")}
+          icon={<StarIcon className="size-4" />}
+          label="Feedback"
+          badge={replies ? `${replies} replies` : null}
+        />
+        <Pill
+          active={view === "updates"}
+          onClick={() => go("updates")}
+          icon={<RadioIcon className="size-4" />}
+          label="Live updates"
+          badge={sent ? `${sent} sent` : null}
+        />
       </div>
-      {view === "quiz" ? <QuizPanel eventId={eventId} /> : view === "qa" ? <QAPanel eventId={eventId} /> : view === "polls" ? <PollsPanel eventId={eventId} /> : view === "feedback" ? <FeedbackPanel eventId={eventId} /> : <UpdatesPanel eventId={eventId} />}
+      {view === "quiz" ? (
+        <QuizPanel eventId={eventId} />
+      ) : view === "qa" ? (
+        <QAPanel eventId={eventId} />
+      ) : view === "polls" ? (
+        <PollsPanel eventId={eventId} />
+      ) : view === "feedback" ? (
+        <FeedbackPanel eventId={eventId} />
+      ) : (
+        <UpdatesPanel eventId={eventId} />
+      )}
     </div>
   );
 }

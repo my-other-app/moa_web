@@ -165,7 +165,7 @@ export function CreateClubWizard({
                 </code>
                 <button
                   type="button"
-                  className="btn btn-secondary whitespace-nowrap"
+                  className="btn btn-secondary"
                   onClick={() =>
                     navigator.clipboard?.writeText(password).then(
                       () => setCopied(true),
@@ -207,7 +207,7 @@ export function CreateClubWizard({
             </button>
             <button
               type="button"
-              className="btn btn-primary whitespace-nowrap"
+              className="btn btn-primary"
               disabled={busy}
               onClick={() => void next()}
             >

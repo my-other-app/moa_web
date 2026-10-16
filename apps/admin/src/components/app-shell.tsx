@@ -178,7 +178,7 @@ export function AppShell({ user, badges, children }: { user: SessionUser; badges
           <div className="flex h-[62px] shrink-0 items-center gap-2.5 px-4 max-sm:px-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="shrink-0 rounded-full lg:hidden" aria-label="Open menu">
+                <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
                   <MenuIcon />
                 </Button>
               </SheetTrigger>

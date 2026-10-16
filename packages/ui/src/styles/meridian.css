@@ -324,29 +324,94 @@
  * a brand fill here — the one loud control on a page.
  */
 @layer components {
+  /*
+   * One button. Three sizes, four tones. Nothing else sets a button's
+   * height, padding, radius or type: a screen says `btn btn-secondary
+   * btn-sm`, never `h-8 px-2 text-[12px]`.
+   *
+   *   size    height  pad    type
+   *   btn-xs  28px    10px   12px     a row's small action
+   *   btn-sm  32px    12px   12.5px   a panel's action
+   *   btn     36px    14px   13.5px   a page's action (default)
+   *   btn-lg  44px    18px   14.5px   a touch screen: gate, kiosk
+   *
+   *   tone           use
+   *   btn-primary    the one thing the page is for — brand fill
+   *   btn-secondary  everything else — surface with a line
+   *   btn-ghost      a quiet link-like action — brand text, no border
+   *   btn-destructive the one that removes — refuse fill
+   */
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
+    height: 36px;
+    padding: 0 14px;
     cursor: pointer;
     text-decoration: none;
+    white-space: nowrap;
     font-weight: 500;
     font-size: 13.5px;
-    line-height: 1.2;
+    line-height: 1;
     color: var(--ink);
     background: transparent;
     border: 1px solid transparent;
-    padding: 7px 12px;
     border-radius: var(--radius-field);
-    transition: background-color 150ms, border-color 150ms, color 150ms;
+    transition: background-color 150ms, border-color 150ms, color 150ms, filter 150ms;
   }
   .btn svg {
     display: block;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
   }
-  .btn:disabled {
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
     opacity: 0.45;
     cursor: not-allowed;
+    pointer-events: none;
+  }
+  .btn-xs {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+    border-radius: var(--radius-sm);
+  }
+  .btn-xs svg {
+    width: 14px;
+    height: 14px;
+  }
+  .btn-sm {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12.5px;
+    border-radius: var(--radius-md);
+  }
+  .btn-sm svg {
+    width: 14px;
+    height: 14px;
+  }
+  .btn-lg {
+    height: 44px;
+    padding: 0 18px;
+    font-size: 14.5px;
+  }
+  .btn-icon {
+    padding: 0;
+    width: 36px;
+  }
+  .btn-icon.btn-xs {
+    width: 28px;
+  }
+  .btn-icon.btn-sm {
+    width: 32px;
+  }
+  .btn-icon.btn-lg {
+    width: 44px;
+  }
+  .btn-round {
+    border-radius: 999px;
   }
   .btn-primary {
     color: var(--brand-foreground);
@@ -362,18 +427,32 @@
   }
   .btn-secondary:not(:disabled):hover {
     background: var(--sunken);
+    border-color: var(--ink-3);
   }
   .btn-ghost {
     color: var(--brand);
-    padding-inline: 6px;
   }
   .btn-ghost:not(:disabled):hover {
     background: var(--brand-soft);
   }
-  .btn-icon {
-    width: 36px;
-    height: 36px;
-    padding: 0;
+  .btn-destructive {
+    color: #ffffff;
+    background: var(--refuse);
+    border-color: var(--refuse);
+  }
+  .btn-destructive:not(:disabled):hover {
+    filter: brightness(1.06);
+  }
+  .btn-secondary.btn-danger,
+  .btn-ghost.btn-danger {
+    color: var(--refuse);
+  }
+  .btn-secondary.btn-danger:not(:disabled):hover {
+    background: var(--refuse-soft);
+    border-color: var(--refuse-line);
+  }
+  .btn-ghost.btn-danger:not(:disabled):hover {
+    background: var(--refuse-soft);
   }
 
   .field > label {
@@ -383,17 +462,38 @@
     color: var(--ink-2);
   }
 
+  /*
+   * One field. 36px tall, the field radius, a line that turns brand on
+   * focus. A native select gets its own chevron so it reads the same in
+   * every browser; `.input-sm` is the 32px field inside a row.
+   */
   .input {
     width: 100%;
-    min-height: 36px;
-    padding: 6px 10px;
+    height: 36px;
+    padding: 0 12px;
     font: inherit;
     font-size: 13.5px;
+    line-height: 1.2;
     color: var(--ink);
     caret-color: var(--brand);
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius-field);
+  }
+  .input-sm {
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12.5px;
+    border-radius: var(--radius-md);
+  }
+  select.input {
+    appearance: none;
+    padding-right: 30px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%), linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+    background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    cursor: pointer;
   }
   .input:hover {
     border-color: var(--ink-3);
@@ -403,8 +503,50 @@
     outline-offset: 0;
   }
   textarea.input {
+    height: auto;
     min-height: 90px;
+    padding: 8px 12px;
     resize: vertical;
+  }
+  input[type="date"].input,
+  input[type="time"].input,
+  input[type="datetime-local"].input {
+    padding-right: 8px;
+  }
+
+  /* The search field: a pill on the sunken ground, an icon, no border. */
+  .search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 12px;
+    color: var(--ink-2);
+    background: var(--sunken);
+    border-radius: 999px;
+  }
+  .search:focus-within {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+  }
+  .search svg {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+  }
+  .search input {
+    width: 100%;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--ink);
+    background: transparent;
+    outline: none;
+  }
+  .search input::placeholder {
+    color: var(--ink-3);
+  }
+  .search-sm {
+    height: 32px;
   }
   select.input option {
     background: var(--surface);

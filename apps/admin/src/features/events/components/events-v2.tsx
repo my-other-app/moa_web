@@ -409,7 +409,7 @@ export function EventsV2() {
             <div className="flex gap-1.5">
               <button
                 type="button"
-                className="btn btn-secondary whitespace-nowrap"
+                className="btn btn-secondary"
                 disabled={params.page <= 1}
                 onClick={() => params.setPage(params.page - 1)}
               >
@@ -417,7 +417,7 @@ export function EventsV2() {
               </button>
               <button
                 type="button"
-                className="btn btn-secondary whitespace-nowrap"
+                className="btn btn-secondary"
                 disabled={params.page >= pages}
                 onClick={() => params.setPage(params.page + 1)}
               >

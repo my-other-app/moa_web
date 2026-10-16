@@ -31,8 +31,7 @@ export const ui = {
   heading: "font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground",
   eyebrow: "font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground",
   label: "mb-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground",
-  control:
-    "h-9 w-full min-w-0 rounded-md border bg-muted/40 px-2.5 text-[13px] text-foreground tabular-nums focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50",
+  control: "input input-sm tabular-nums",
   note: "text-[11.5px] leading-[1.5] text-muted-foreground",
   caution: "text-amber-600 dark:text-amber-400",
   cautionBox: "rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11.5px] leading-[1.5] text-amber-700 dark:text-amber-300",

@@ -447,7 +447,7 @@ export function UserDrawer({
                 </div>
                 <button
                   type="button"
-                  className="btn btn-ghost self-start text-[13px]"
+                  className="btn btn-ghost self-start"
                   onClick={() => setIssued(null)}
                 >
                   I have saved it
@@ -550,7 +550,7 @@ export function UserDrawer({
 
                 <button
                   type="button"
-                  className="btn btn-ghost self-start text-[13px] text-ink-2"
+                  className="btn btn-ghost self-start text-ink-2"
                   onClick={() => setPending("delete")}
                 >
                   <Trash2Icon className="size-4" />

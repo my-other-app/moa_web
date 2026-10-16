@@ -4,7 +4,15 @@ import * as React from "react";
 import Link from "next/link";
 import { DoorOpenIcon, Undo2Icon, UsersIcon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
-import { Button, EmptyState, Pager, Skeleton, cn } from "@moa/ui";
+import {
+  Button,
+  Chip,
+  cn,
+  EmptyState,
+  Pager,
+  SearchField,
+  Skeleton,
+} from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
 import { useEventDetail } from "@/features/events";
@@ -13,8 +21,11 @@ import { useCheckInLog, useUndoCheckIn } from "../queries";
 import { VIA_LABEL } from "../schemas";
 
 const CELL = "px-4 py-3 text-left align-top";
-const chip = (on: boolean) => cn("rounded-full border px-2.5 py-1 text-[12px] transition-colors", on ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted");
-const ROLE: Record<string, string> = { attendee: "Attendee", speaker: "Speaker", staff: "Staff" };
+const ROLE: Record<string, string> = {
+  attendee: "Attendee",
+  speaker: "Speaker",
+  staff: "Staff",
+};
 
 /** The whole door, row by row: every admission with where, how and by whom. */
 export function CheckInsPage({ eventId }: { eventId: number }) {
@@ -31,7 +42,16 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
   const [order, setOrder] = React.useState<"newest" | "oldest">("newest");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(50);
-  const log = useCheckInLog({ eventId, q: settled || undefined, doorId, via, by, order, page, pageSize });
+  const log = useCheckInLog({
+    eventId,
+    q: settled || undefined,
+    doorId,
+    via,
+    by,
+    order,
+    page,
+    pageSize,
+  });
   const undo = useUndoCheckIn(eventId);
   const f = log.data?.facets;
   const total = log.data?.total ?? 0;
@@ -42,7 +62,11 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
     <div className="space-y-6">
       <PageHeader
         title="Check-ins"
-        description={f ? `${f.total} admitted${f.first_at ? `, from ${formatDateTime(f.first_at)}` : ""}${f.last_at && f.total > 1 ? ` to ${formatDateTime(f.last_at)}` : ""}.` : "Every admission: where, how and by whom."}
+        description={
+          f
+            ? `${f.total} admitted${f.first_at ? `, from ${formatDateTime(f.first_at)}` : ""}${f.last_at && f.total > 1 ? ` to ${formatDateTime(f.last_at)}` : ""}.`
+            : "Every admission: where, how and by whom."
+        }
         action={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild className={pressable}>
@@ -61,35 +85,74 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
 
       {f ? (
         <div className="space-y-2">
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Doors">
-            <button type="button" className={chip(doorId === undefined)} onClick={() => (setDoorId(undefined), reset())}>
+          <div
+            className="flex flex-wrap gap-1.5"
+            role="group"
+            aria-label="Doors"
+          >
+            <Chip
+              active={doorId === undefined}
+              onClick={() => (setDoorId(undefined), reset())}
+            >
               Every door
-            </button>
+            </Chip>
             {f.doors.map((d) => (
-              <button key={d.id ?? "none"} type="button" className={chip(doorId === (d.id ?? "none"))} onClick={() => (setDoorId(d.id ?? "none"), reset())} disabled={d.id === null}>
-                {d.name} <span className="font-mono text-[10px] opacity-70">{d.count}</span>
-              </button>
+              <Chip
+                active={doorId === (d.id ?? "none")}
+                key={d.id ?? "none"}
+                onClick={() => (setDoorId(d.id ?? "none"), reset())}
+                disabled={d.id === null}
+              >
+                {d.name}{" "}
+                <span className="font-mono text-[10px] opacity-70">
+                  {d.count}
+                </span>
+              </Chip>
             ))}
           </div>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="How">
-            <button type="button" className={chip(via === undefined)} onClick={() => (setVia(undefined), reset())}>
+            <Chip
+              active={via === undefined}
+              onClick={() => (setVia(undefined), reset())}
+            >
               Every way in
-            </button>
+            </Chip>
             {f.methods.map((m) => (
-              <button key={m.via} type="button" className={chip(via === m.via)} onClick={() => (setVia(m.via), reset())}>
-                {VIA_LABEL[m.via] ?? m.via} <span className="font-mono text-[10px] opacity-70">{m.count}</span>
-              </button>
+              <Chip
+                active={via === m.via}
+                key={m.via}
+                onClick={() => (setVia(m.via), reset())}
+              >
+                {VIA_LABEL[m.via] ?? m.via}{" "}
+                <span className="font-mono text-[10px] opacity-70">
+                  {m.count}
+                </span>
+              </Chip>
             ))}
           </div>
           {f.staff.length ? (
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="By whom">
-              <button type="button" className={chip(by === undefined)} onClick={() => (setBy(undefined), reset())}>
+            <div
+              className="flex flex-wrap gap-1.5"
+              role="group"
+              aria-label="By whom"
+            >
+              <Chip
+                active={by === undefined}
+                onClick={() => (setBy(undefined), reset())}
+              >
                 Anyone
-              </button>
+              </Chip>
               {f.staff.map((s) => (
-                <button key={s.id} type="button" className={chip(by === s.id)} onClick={() => (setBy(s.id), reset())}>
-                  {s.name ?? "—"} <span className="font-mono text-[10px] opacity-70">{s.count}</span>
-                </button>
+                <Chip
+                  active={by === s.id}
+                  key={s.id}
+                  onClick={() => (setBy(s.id), reset())}
+                >
+                  {s.name ?? "—"}{" "}
+                  <span className="font-mono text-[10px] opacity-70">
+                    {s.count}
+                  </span>
+                </Chip>
               ))}
             </div>
           ) : null}
@@ -97,19 +160,43 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <input value={q} onChange={(e) => (setQ(e.target.value), reset())} placeholder="Search name, email or ticket" aria-label="Search the check-in log" className="h-9 w-64 rounded-md border bg-transparent px-3 text-sm" />
+        <SearchField
+          value={q}
+          onChange={(v) => (setQ(v), reset())}
+          placeholder="Name, email or ticket"
+          label="Search the check-in log"
+          className="w-64"
+        />
         <span className="flex-1" />
-        <button type="button" className={chip(false)} onClick={() => (setOrder((o) => (o === "newest" ? "oldest" : "newest")), reset())}>
+        <Chip
+          active={false}
+          onClick={() => (
+            setOrder((o) => (o === "newest" ? "oldest" : "newest")),
+            reset()
+          )}
+        >
           {order === "newest" ? "Newest first" : "Oldest first"}
-        </button>
+        </Chip>
       </div>
 
       {log.isPending ? (
         <Skeleton className="h-64 w-full" />
       ) : log.isError ? (
-        <EmptyState tone="muted" title="Could not load the log" description={log.error.message} />
+        <EmptyState
+          tone="muted"
+          title="Could not load the log"
+          description={log.error.message}
+        />
       ) : !log.data.items.length ? (
-        <EmptyState tone="muted" title={f?.total ? "Nobody matches" : "Nobody checked in yet"} description={f?.total ? "Try a wider filter." : "Open the gate and scan the first ticket."} />
+        <EmptyState
+          tone="muted"
+          title={f?.total ? "Nobody matches" : "Nobody checked in yet"}
+          description={
+            f?.total
+              ? "Try a wider filter."
+              : "Open the gate and scan the first ticket."
+          }
+        />
       ) : (
         <div className="overflow-hidden rounded-2xl bg-card ring-1 ring-border/70 shadow-sm">
           <table className="w-full text-sm">
@@ -136,11 +223,24 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
                   <td className={CELL}>{VIA_LABEL[r.via] ?? r.via}</td>
                   <td className={cn(CELL, "whitespace-nowrap")}>
                     {formatDateTime(r.checked_in_at)}
-                    {r.via === "offline_sync" ? <div className="text-[10.5px] text-muted-foreground">synced {formatDateTime(r.recorded_at)}</div> : null}
+                    {r.via === "offline_sync" ? (
+                      <div className="text-[10.5px] text-muted-foreground">
+                        synced {formatDateTime(r.recorded_at)}
+                      </div>
+                    ) : null}
                   </td>
-                  <td className={CELL}>{r.by.name ?? (r.by.kind === "KIOSK" ? "Self check-in" : "—")}</td>
+                  <td className={CELL}>
+                    {r.by.name ??
+                      (r.by.kind === "KIOSK" ? "Self check-in" : "—")}
+                  </td>
                   <td className={cn(CELL, "text-right")}>
-                    <Button variant="ghost" size="xs" disabled={undo.isPending} onClick={() => undo.mutate(r.registration_id)} aria-label={`Undo check-in for ${r.name}`}>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      disabled={undo.isPending}
+                      onClick={() => undo.mutate(r.registration_id)}
+                      aria-label={`Undo check-in for ${r.name}`}
+                    >
                       <Undo2Icon /> Undo
                     </Button>
                   </td>
@@ -150,7 +250,16 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
           </table>
           {total > 0 ? (
             <div className="border-t border-border/60 px-4 py-2.5">
-              <Pager page={page} pageCount={pages} total={total} pageSize={pageSize} noun={["admission", "admissions"]} busy={log.isFetching} onPage={setPage} onPageSize={(n) => (setPageSize(n), setPage(1))} />
+              <Pager
+                page={page}
+                pageCount={pages}
+                total={total}
+                pageSize={pageSize}
+                noun={["admission", "admissions"]}
+                busy={log.isFetching}
+                onPage={setPage}
+                onPageSize={(n) => (setPageSize(n), setPage(1))}
+              />
             </div>
           ) : null}
         </div>

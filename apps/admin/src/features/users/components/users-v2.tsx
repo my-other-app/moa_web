@@ -230,7 +230,7 @@ export function UsersV2() {
         {canExport ? (
           <button
             type="button"
-            className="btn btn-secondary whitespace-nowrap"
+            className="btn btn-secondary"
             disabled={exportUsers.isPending || total === 0}
             onClick={() => exportUsers.mutate(filters)}
           >
@@ -440,7 +440,7 @@ export function UsersV2() {
             <div className="flex gap-1.5">
               <button
                 type="button"
-                className="btn btn-secondary whitespace-nowrap"
+                className="btn btn-secondary"
                 disabled={params.page <= 1}
                 onClick={() => params.setPage(params.page - 1)}
               >
@@ -449,7 +449,7 @@ export function UsersV2() {
               </button>
               <button
                 type="button"
-                className="btn btn-secondary whitespace-nowrap"
+                className="btn btn-secondary"
                 disabled={params.page >= pages}
                 onClick={() => params.setPage(params.page + 1)}
               >
@@ -476,7 +476,7 @@ export function UsersV2() {
           {anyFilter ? (
             <button
               type="button"
-              className="btn btn-secondary mt-1.5 whitespace-nowrap"
+              className="btn btn-secondary mt-1.5"
               // One write, including "q": two calls would be two history
               // entries for one click, and Back would then half-restore the
               // filters.

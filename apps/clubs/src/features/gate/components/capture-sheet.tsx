@@ -38,10 +38,10 @@ export function CaptureSheet({ gateKey, eventId, response, required, onSaved, on
       <input id="capture-phone" type="tel" inputMode="tel" autoComplete="off" placeholder="+91 98765 43210" value={phone} onChange={(e) => (setPhone(e.target.value), setError(null))} aria-invalid={!!error} className={cn("h-12 w-full rounded-md border bg-muted/40 px-3 font-mono text-[15px]", error && "border-destructive")} />
       {error ? <p className="mt-1.5 text-[12.5px] text-destructive">{error}</p> : null}
       <div className="mt-3 flex gap-2">
-        <Button type="button" className="h-12 flex-1" disabled={capture.isPending} onClick={() => void save()}>
+        <Button size="lg" type="button" className="flex-1" disabled={capture.isPending} onClick={() => void save()}>
           Save
         </Button>
-        <Button type="button" variant="outline" className="h-12 basis-[110px]" onClick={onSkip}>
+        <Button type="button" variant="outline" className="basis-[110px]" onClick={onSkip} size="lg">
           Skip
         </Button>
       </div>

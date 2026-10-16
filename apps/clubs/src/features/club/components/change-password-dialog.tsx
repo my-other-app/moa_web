@@ -46,7 +46,9 @@ function PasswordField({
   error?: string;
   autoComplete: string;
   disabled: boolean;
-  registration: ReturnType<ReturnType<typeof useForm<ChangePasswordForm>>["register"]>;
+  registration: ReturnType<
+    ReturnType<typeof useForm<ChangePasswordForm>>["register"]
+  >;
 }) {
   const [visible, setVisible] = React.useState(false);
 
@@ -74,7 +76,11 @@ function PasswordField({
           aria-label={visible ? "Hide password" : "Show password"}
           className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted-foreground hover:text-foreground"
         >
-          {visible ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+          {visible ? (
+            <EyeOffIcon className="size-4" />
+          ) : (
+            <EyeIcon className="size-4" />
+          )}
         </button>
       </div>
       {error ? (
@@ -122,10 +128,7 @@ export function ChangePasswordDialog() {
         <Button
           variant="outline"
           size="lg"
-          className={cn(
-            "w-full sm:w-auto",
-            pressable
-          )}
+          className={cn("w-full sm:w-auto", pressable)}
         >
           Change password
         </Button>
@@ -142,7 +145,11 @@ export function ChangePasswordDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-4"
+          noValidate
+        >
           <PasswordField
             id="old-password"
             label="Current password"

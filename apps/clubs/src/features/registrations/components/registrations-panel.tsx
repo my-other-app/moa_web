@@ -1,11 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, IdCardIcon, Loader2Icon, MoreHorizontalIcon } from "lucide-react";
+import {
+  CheckIcon,
+  IdCardIcon,
+  Loader2Icon,
+  MoreHorizontalIcon,
+} from "lucide-react";
 import { useListParams } from "@moa/app-kit";
 import { pageCount } from "@moa/api";
 import {
   Button,
+  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -13,6 +19,7 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   Pager,
+  SearchField,
   Select,
   SelectContent,
   SelectItem,
@@ -23,7 +30,6 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  cn,
 } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
@@ -33,17 +39,42 @@ import { cardPdfUrl, openPdf } from "@/features/idcards";
 import { useEventDetail } from "@/features/events";
 
 import { exportUrl } from "../api";
-import { useMarkAttendance, useRegistrations, useSetRegistrationRole } from "../queries";
-import { REGISTRATION_ROLES, eventFieldSchema, type EventField, type Registration, type RegistrationDetail, type RegistrationRole } from "../schemas";
+import {
+  useMarkAttendance,
+  useRegistrations,
+  useSetRegistrationRole,
+} from "../queries";
+import {
+  REGISTRATION_ROLES,
+  eventFieldSchema,
+  type EventField,
+  type Registration,
+  type RegistrationDetail,
+  type RegistrationRole,
+} from "../schemas";
 import { AttendeeDetailDialog } from "./attendee-detail-dialog";
 import { AttendeeFormDialog } from "./attendee-form-dialog";
 import { ImportPanel } from "./import-panel";
 import { RemoveAttendeeDialog } from "./remove-attendee-dialog";
 
-const ROLE_LABELS: Record<RegistrationRole, string> = { attendee: "Attendee", speaker: "Speaker", staff: "Staff" };
+const ROLE_LABELS: Record<RegistrationRole, string> = {
+  attendee: "Attendee",
+  speaker: "Speaker",
+  staff: "Staff",
+};
 
 /** A filter as a chip: pressed is on, pressed again is off. */
-function Chip({ active, onClick, tone = "default", children }: { active: boolean; onClick: () => void; tone?: "default" | "success" | "destructive"; children: React.ReactNode }) {
+function Chip({
+  active,
+  onClick,
+  tone = "default",
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  tone?: "default" | "success" | "destructive";
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -57,7 +88,7 @@ function Chip({ active, onClick, tone = "default", children }: { active: boolean
             ? "border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
             : tone === "destructive"
               ? "border-destructive/40 text-destructive hover:bg-destructive/10"
-              : "text-muted-foreground hover:bg-muted"
+              : "text-muted-foreground hover:bg-muted",
       )}
     >
       {children}
@@ -65,7 +96,13 @@ function Chip({ active, onClick, tone = "default", children }: { active: boolean
   );
 }
 
-function CheckInButton({ eventId, row }: { eventId: number; row: Registration }) {
+function CheckInButton({
+  eventId,
+  row,
+}: {
+  eventId: number;
+  row: Registration;
+}) {
   const mark = useMarkAttendance(eventId);
   if (row.is_attended) return <StatusBadge tone="success" label="Attended" />;
   return (
@@ -77,9 +114,17 @@ function CheckInButton({ eventId, row }: { eventId: number; row: Registration })
       disabled={mark.isPending || !!row.ticket_revoked_at}
       onClick={() => mark.mutate(row.id)}
       // The API has no un-mark endpoint, so this is one-way.
-      title={row.ticket_revoked_at ? "This ticket was revoked — reinstate it first" : "Marks attendance — this cannot be undone here"}
+      title={
+        row.ticket_revoked_at
+          ? "This ticket was revoked — reinstate it first"
+          : "Marks attendance — this cannot be undone here"
+      }
     >
-      {mark.isPending ? <Loader2Icon className="animate-spin" /> : <CheckIcon />}
+      {mark.isPending ? (
+        <Loader2Icon className="animate-spin" />
+      ) : (
+        <CheckIcon />
+      )}
       Check in
     </Button>
   );
@@ -93,8 +138,21 @@ function CheckInButton({ eventId, row }: { eventId: number; row: Registration })
 function RoleSelect({ eventId, row }: { eventId: number; row: Registration }) {
   const setRole = useSetRegistrationRole(eventId);
   return (
-    <Select value={row.role} disabled={setRole.isPending} onValueChange={(role) => setRole.mutate({ registrationId: row.id, role: role as RegistrationRole })}>
-      <SelectTrigger size="sm" aria-label={`Role for ${row.full_name ?? "this person"}`} className="w-[7.5rem]">
+    <Select
+      value={row.role}
+      disabled={setRole.isPending}
+      onValueChange={(role) =>
+        setRole.mutate({
+          registrationId: row.id,
+          role: role as RegistrationRole,
+        })
+      }
+    >
+      <SelectTrigger
+        size="sm"
+        aria-label={`Role for ${row.full_name ?? "this person"}`}
+        className="w-[7.5rem]"
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -128,20 +186,32 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
   const event = useEventDetail(eventId);
   const role = params.param("role") as RegistrationRole | undefined;
   const checkedIn = params.param("in");
-  const delivery = params.param("delivery") === "not_delivered" ? "not_delivered" : undefined;
+  const delivery =
+    params.param("delivery") === "not_delivered" ? "not_delivered" : undefined;
   const [dialog, setDialog] = React.useState<DialogState>(null);
 
   const fields: EventField[] = React.useMemo(() => {
-    const raw = (event.data as { additional_details?: unknown } | undefined)?.additional_details;
-    return Array.isArray(raw) ? raw.flatMap((f) => (eventFieldSchema.safeParse(f).success ? [eventFieldSchema.parse(f)] : [])) : [];
+    const raw = (event.data as { additional_details?: unknown } | undefined)
+      ?.additional_details;
+    return Array.isArray(raw)
+      ? raw.flatMap((f) =>
+          eventFieldSchema.safeParse(f).success
+            ? [eventFieldSchema.parse(f)]
+            : [],
+        )
+      : [];
   }, [event.data]);
   const slug = event.data?.slug ?? "";
 
   const { data, isPending, isError } = useRegistrations({
     eventId,
     search: params.search || undefined,
-    isAttended: checkedIn === "yes" ? true : checkedIn === "no" ? false : undefined,
-    role: role && (REGISTRATION_ROLES as readonly string[]).includes(role) ? role : undefined,
+    isAttended:
+      checkedIn === "yes" ? true : checkedIn === "no" ? false : undefined,
+    role:
+      role && (REGISTRATION_ROLES as readonly string[]).includes(role)
+        ? role
+        : undefined,
     delivery,
     offset: params.offset,
     limit: params.pageSize,
@@ -152,7 +222,12 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
 
   return (
     <div className="space-y-4">
-      <ImportPanel eventId={eventId} eventSlug={slug} fields={fields} onAddManually={() => setDialog({ kind: "add" })} />
+      <ImportPanel
+        eventId={eventId}
+        eventSlug={slug}
+        fields={fields}
+        onAddManually={() => setDialog({ kind: "add" })}
+      />
       <DeliveryBar eventId={eventId} />
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -160,23 +235,33 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
           Guest list{data?.total != null ? ` · ${data.total}` : ""}
         </p>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="bg-card ring-border flex h-11 w-full items-center gap-2 rounded-xl px-3 ring-1 sm:w-[360px]">
-            <Icon name="search-lg" className="text-muted-foreground" />
-            <input
-              value={params.searchInput}
-              onChange={(e) => params.setSearchInput(e.target.value)}
-              onBlur={() => params.commitSearch(params.searchInput)}
-              onKeyDown={(e) => e.key === "Enter" && params.commitSearch(params.searchInput)}
-              placeholder="Search name, email, phone or ticket"
-              aria-label="Search guests"
-              className="placeholder:text-muted-foreground text-foreground w-full bg-transparent text-sm outline-none"
-            />
-          </div>
-          <Button asChild variant="outline" className={cn("h-11 shrink-0 gap-2 rounded-lg px-4", pressable)}>
+          <SearchField
+            value={params.searchInput}
+            onChange={params.setSearchInput}
+            onCommit={params.commitSearch}
+            placeholder="Name, email, phone or ticket"
+            label="Search guests"
+            className="w-full sm:w-[340px]"
+          />
+          <Button
+            asChild
+            variant="outline"
+            className={cn("h-11 shrink-0 gap-2 rounded-lg px-4", pressable)}
+          >
             {/* A real navigation, not fetch: the browser handles the file and
                 the cookie rides along because the gateway is same-origin. The
                 endpoint returns an xlsx workbook, so the label says so. */}
-            <a href={exportUrl(eventId, checkedIn === "yes" ? { isAttended: true } : checkedIn === "no" ? { isAttended: false } : {})} download>
+            <a
+              href={exportUrl(
+                eventId,
+                checkedIn === "yes"
+                  ? { isAttended: true }
+                  : checkedIn === "no"
+                    ? { isAttended: false }
+                    : {},
+              )}
+              download
+            >
               <Icon name="file-02" />
               Download Excel file
             </a>
@@ -186,42 +271,77 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
 
       <div className="flex flex-wrap items-center gap-1.5">
         <Chip active={!role} onClick={() => params.setParam("role", undefined)}>
-          ALL ROLES
+          All roles
         </Chip>
         {REGISTRATION_ROLES.map((r) => (
-          <Chip key={r} active={role === r} onClick={() => params.setParam("role", role === r ? undefined : r)}>
-            {ROLE_LABELS[r].toUpperCase() + "S"}
+          <Chip
+            key={r}
+            active={role === r}
+            onClick={() => params.setParam("role", role === r ? undefined : r)}
+          >
+            {ROLE_LABELS[r]}s
           </Chip>
         ))}
         <span className="flex-1" />
-        <Chip active={checkedIn === "yes"} tone="success" onClick={() => params.setParam("in", checkedIn === "yes" ? undefined : "yes")}>
-          CHECKED IN
+        <Chip
+          active={checkedIn === "yes"}
+          tone="success"
+          onClick={() =>
+            params.setParam("in", checkedIn === "yes" ? undefined : "yes")
+          }
+        >
+          Checked in
         </Chip>
-        <Chip active={checkedIn === "no"} onClick={() => params.setParam("in", checkedIn === "no" ? undefined : "no")}>
-          NOT YET
+        <Chip
+          active={checkedIn === "no"}
+          onClick={() =>
+            params.setParam("in", checkedIn === "no" ? undefined : "no")
+          }
+        >
+          Not yet
         </Chip>
         <Tooltip>
           <TooltipTrigger asChild>
             <span>
-              <Chip active={!!delivery} tone="destructive" onClick={() => params.setParam("delivery", delivery ? undefined : "not_delivered")}>
-                NOT DELIVERED
+              <Chip
+                active={!!delivery}
+                tone="destructive"
+                onClick={() =>
+                  params.setParam(
+                    "delivery",
+                    delivery ? undefined : "not_delivered",
+                  )
+                }
+              >
+                Not delivered
               </Chip>
             </span>
           </TooltipTrigger>
-          <TooltipContent>Nothing sent, nothing that worked, or something that came back. A guest reached by email is not here.</TooltipContent>
+          <TooltipContent>
+            Nothing sent, nothing that worked, or something that came back. A
+            guest reached by email is not here.
+          </TooltipContent>
         </Tooltip>
       </div>
 
       {isPending ? (
         <Skeleton className="h-[400px] w-full rounded-lg" />
       ) : isError ? (
-        <EmptyState tone="muted" title="Could not load registrations" description="Try reloading the page." />
+        <EmptyState
+          tone="muted"
+          title="Could not load registrations"
+          description="Try reloading the page."
+        />
       ) : rows.length === 0 ? (
         <div className="rounded-2xl bg-card ring-1 ring-border/70 shadow-sm p-10">
           <EmptyState
             tone="muted"
             title={filtered ? "Nobody matches" : "No guests on the list yet"}
-            description={filtered ? "Try a shorter search, or clear the filters." : "Import a file, add someone by hand, or wait for registrations through the event page."}
+            description={
+              filtered
+                ? "Try a shorter search, or clear the filters."
+                : "Import a file, add someone by hand, or wait for registrations through the event page."
+            }
             action={
               filtered ? (
                 <button
@@ -244,12 +364,24 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
             <table className="w-full min-w-[1100px] border-collapse">
               <thead>
                 <tr className="bg-muted/60 text-[13px] font-medium text-muted-foreground">
-                  <th scope="col" className={cn(CELL, "font-light")}>Name</th>
-                  <th scope="col" className={cn(CELL, "font-light")}>Institution</th>
-                  <th scope="col" className={cn(CELL, "font-light")}>Role</th>
-                  <th scope="col" className={cn(CELL, "font-light")}>Ticket</th>
-                  <th scope="col" className={cn(CELL, "font-light")}>Delivery</th>
-                  <th scope="col" className={cn(CELL, "font-light")}>Check-in</th>
+                  <th scope="col" className={cn(CELL, "font-light")}>
+                    Name
+                  </th>
+                  <th scope="col" className={cn(CELL, "font-light")}>
+                    Institution
+                  </th>
+                  <th scope="col" className={cn(CELL, "font-light")}>
+                    Role
+                  </th>
+                  <th scope="col" className={cn(CELL, "font-light")}>
+                    Ticket
+                  </th>
+                  <th scope="col" className={cn(CELL, "font-light")}>
+                    Delivery
+                  </th>
+                  <th scope="col" className={cn(CELL, "font-light")}>
+                    Check-in
+                  </th>
                   <th scope="col" className={cn(CELL, "font-light text-right")}>
                     <span className="sr-only">Actions</span>
                   </th>
@@ -257,24 +389,50 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
               </thead>
               <tbody className="text-sm text-muted-foreground">
                 {rows.map((row) => {
-                  const name = row.full_name || row.name || row.user?.full_name || "Unknown";
+                  const name =
+                    row.full_name ||
+                    row.name ||
+                    row.user?.full_name ||
+                    "Unknown";
                   return (
-                    <tr key={row.id} className="border-t border-border/60 transition-colors hover:bg-muted/40">
+                    <tr
+                      key={row.id}
+                      className="border-t border-border/60 transition-colors hover:bg-muted/40"
+                    >
                       <td className={CELL}>
-                        <button type="button" onClick={() => setDialog({ kind: "detail", id: row.id })} className="min-w-0 max-w-full text-left" aria-label={`Open ${name}`}>
-                          <span className="hover:text-primary block font-medium text-foreground hover:underline">{name}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDialog({ kind: "detail", id: row.id })
+                          }
+                          className="min-w-0 max-w-full text-left"
+                          aria-label={`Open ${name}`}
+                        >
+                          <span className="hover:text-primary block font-medium text-foreground hover:underline">
+                            {name}
+                          </span>
                           <span className="text-muted-foreground block font-mono text-xs break-all">
-                            {[row.email, row.phone].filter(Boolean).join(" · ") || "no contact on file"}
+                            {[row.email, row.phone]
+                              .filter(Boolean)
+                              .join(" · ") || "no contact on file"}
                           </span>
                         </button>
                         {row.email_bounced_at ? (
-                          <span className="mt-1 inline-block rounded-full border border-destructive/50 px-2 py-0.5 font-mono text-[10px] text-destructive" title={row.email_bounce_reason ?? "That address bounced"}>
+                          <span
+                            className="mt-1 inline-block rounded-full border border-destructive/50 px-2 py-0.5 font-mono text-[10px] text-destructive"
+                            title={
+                              row.email_bounce_reason ?? "That address bounced"
+                            }
+                          >
                             EMAIL BOUNCED · correct it to send again
                           </span>
                         ) : null}
                       </td>
                       <td className={CELL}>
-                        <span className="block max-w-[260px] truncate" title={row.institution ?? ""}>
+                        <span
+                          className="block max-w-[260px] truncate"
+                          title={row.institution ?? ""}
+                        >
                           {row.institution || "—"}
                         </span>
                       </td>
@@ -283,7 +441,11 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
                       </td>
                       <td className={cn(CELL, "font-mono text-xs")}>
                         {row.ticket_id || "—"}
-                        {row.admission_no ? <div className="text-muted-foreground text-[10.5px]">{row.admission_no}</div> : null}
+                        {row.admission_no ? (
+                          <div className="text-muted-foreground text-[10.5px]">
+                            {row.admission_no}
+                          </div>
+                        ) : null}
                       </td>
                       <td className={CELL}>
                         <TicketCell eventId={eventId} row={row} />
@@ -294,25 +456,56 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
                       <td className={cn(CELL, "text-right")}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button type="button" size="icon-xs" variant="ghost" aria-label={`Actions for ${name}`}>
+                            <Button
+                              type="button"
+                              size="icon-xs"
+                              variant="ghost"
+                              aria-label={`Actions for ${name}`}
+                            >
                               <MoreHorizontalIcon />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => setDialog({ kind: "detail", id: row.id })}>
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                setDialog({ kind: "detail", id: row.id })
+                              }
+                            >
                               <span className="flex flex-col">
                                 <span>View everything</span>
-                                <span className="text-muted-foreground text-xs">Contact, answers, ticket, deliveries, check-in.</span>
+                                <span className="text-muted-foreground text-xs">
+                                  Contact, answers, ticket, deliveries,
+                                  check-in.
+                                </span>
                               </span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => openPdf(cardPdfUrl(eventId, row.id, { source: "manual", record: true }))}>
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                openPdf(
+                                  cardPdfUrl(eventId, row.id, {
+                                    source: "manual",
+                                    record: true,
+                                  }),
+                                )
+                              }
+                            >
                               <IdCardIcon /> Print ID card
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem variant="destructive" onSelect={() => setDialog({ kind: "remove", row: { id: row.id, name } })}>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onSelect={() =>
+                                setDialog({
+                                  kind: "remove",
+                                  row: { id: row.id, name },
+                                })
+                              }
+                            >
                               <span className="flex flex-col">
                                 <span>Remove from the list</span>
-                                <span className="text-xs opacity-80">Deletes the registration, ticket and check-in.</span>
+                                <span className="text-xs opacity-80">
+                                  Deletes the registration, ticket and check-in.
+                                </span>
                               </span>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -328,7 +521,15 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
       )}
 
       {!isPending && rows.length > 0 ? (
-        <Pager page={params.page} pageCount={pages} total={data?.total ?? rows.length} pageSize={params.pageSize} noun={["guest", "guests"]} onPage={params.setPage} onPageSize={params.setPageSize} />
+        <Pager
+          page={params.page}
+          pageCount={pages}
+          total={data?.total ?? rows.length}
+          pageSize={params.pageSize}
+          noun={["guest", "guests"]}
+          onPage={params.setPage}
+          onPageSize={params.setPageSize}
+        />
       ) : null}
 
       <AttendeeFormDialog
@@ -353,7 +554,12 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
         open={dialog?.kind === "detail"}
         onOpenChange={(o) => !o && setDialog(null)}
         onEdit={(a) => setDialog({ kind: "edit", row: a })}
-        onRemove={(a) => setDialog({ kind: "remove", row: { id: a.id, name: a.full_name ?? a.name ?? "this guest" } })}
+        onRemove={(a) =>
+          setDialog({
+            kind: "remove",
+            row: { id: a.id, name: a.full_name ?? a.name ?? "this guest" },
+          })
+        }
       />
     </div>
   );

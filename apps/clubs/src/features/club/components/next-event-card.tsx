@@ -9,7 +9,14 @@ import {
   UsersIcon,
 } from "lucide-react";
 import { formatDateTime, formatNumber } from "@moa/app-kit";
-import { Button, Card, CardContent, InlineAlert, StatusBadge, cn } from "@moa/ui";
+import {
+  Button,
+  Card,
+  CardContent,
+  InlineAlert,
+  StatusBadge,
+  cn,
+} from "@moa/ui";
 import { hoverLift, pressable } from "@moa/ui/motion";
 
 import type { ClubEvent } from "@/features/events";
@@ -41,7 +48,7 @@ export function NextEventCard({ event }: { event: ClubEvent }) {
     <Card
       className={cn(
         "relative overflow-hidden rounded-2xl border-0 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-14px_rgba(16,24,40,0.18)] ring-1 ring-border/70",
-        hoverLift
+        hoverLift,
       )}
     >
       {/* A band of the brand colour down the leading edge. The next event is
@@ -97,11 +104,15 @@ export function NextEventCard({ event }: { event: ClubEvent }) {
             </p>
           </div>
           <div className="bg-muted/50 rounded-xl p-3.5">
-            <p className="text-muted-foreground text-xs font-medium">Sign-up rate</p>
+            <p className="text-muted-foreground text-xs font-medium">
+              Sign-up rate
+            </p>
             <p className="mt-1.5 text-2xl leading-none font-semibold tabular-nums">
               {/* Of the people who looked, how many signed up. Hidden rather
                   than shown as 0% when nobody has looked yet. */}
-              {views > 0 ? `${Math.round((registrations / views) * 100)}%` : "--"}
+              {views > 0
+                ? `${Math.round((registrations / views) * 100)}%`
+                : "--"}
             </p>
           </div>
         </div>

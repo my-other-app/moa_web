@@ -94,7 +94,7 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
         <OutcomeCard card={card.model} onDismiss={() => setCard(null)}>
           {card.response?.attendee && card.response.badge.may_print && (card.response.outcome === "CHECKED_IN" || card.response.outcome === "ALREADY_CHECKED_IN") ? (
             <div className="border-t border-current/20 px-4 py-2.5">
-              <Button type="button" variant="outline" size="sm" className="h-10" onClick={() => printCard(card.response!.attendee!.id, "manual")}>
+              <Button type="button" variant="outline" size="sm" onClick={() => printCard(card.response!.attendee!.id, "manual")}>
                 <PrinterIcon /> {card.response.badge.printed_at ? "Print the card again" : "Print their card"}
               </Button>
             </div>
@@ -152,7 +152,7 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
         </label>
         <div className="flex gap-1.5">
           <input id="gate-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder={ctx.event.ticket_example} autoCapitalize="characters" autoCorrect="off" spellCheck={false} className="h-12 min-w-0 flex-1 rounded-md border bg-muted/40 px-3 font-mono text-[15px] uppercase" />
-          <Button type="submit" className={cn("h-12 px-5")} disabled={!code.trim() || scan.isPending}>
+          <Button type="submit" size="lg" disabled={!code.trim() || scan.isPending}>
             Check in
           </Button>
         </div>

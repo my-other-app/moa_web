@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CopyIcon, CopyPlusIcon, ExternalLinkIcon, MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import {
+  CopyIcon,
+  CopyPlusIcon,
+  ExternalLinkIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  Trash2Icon,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +42,11 @@ export const publicUrl = (id: number) => `https://events.myotherapp.in/${id}`;
  * button. Delete sits last, after a rule, and asks first — it used to be a
  * single click on the same row as the name.
  */
-export function EventRowMenu({ event }: { event: Pick<ClubEvent, "id" | "name" | "registration_count"> }) {
+export function EventRowMenu({
+  event,
+}: {
+  event: Pick<ClubEvent, "id" | "name" | "registration_count">;
+}) {
   const router = useRouter();
   const remove = useDeleteEvent();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -55,32 +66,47 @@ export function EventRowMenu({ event }: { event: Pick<ClubEvent, "id" | "name" |
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" aria-label={`More for ${event.name}`} className="border-line bg-surface text-ink-2 hover:bg-sunken hover:text-ink grid size-9 shrink-0 place-items-center rounded-full border transition-colors">
+          <button
+            type="button"
+            aria-label={`More for ${event.name}`}
+            className="border-line bg-surface text-ink-2 hover:bg-sunken hover:text-ink grid size-9 shrink-0 place-items-center rounded-full border transition-colors"
+          >
             <MoreHorizontalIcon className="size-4" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
-          <DropdownMenuItem onClick={() => router.push(`/events/${event.id}/edit`)}>
+          <DropdownMenuItem
+            onClick={() => router.push(`/events/${event.id}/edit`)}
+          >
             <PencilIcon className="size-4" /> Edit details
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setDupOpen(true)}>
             <CopyPlusIcon className="size-4" /> Duplicate
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => window.open(publicUrl(event.id), "_blank", "noopener,noreferrer")}>
+          <DropdownMenuItem
+            onClick={() =>
+              window.open(publicUrl(event.id), "_blank", "noopener,noreferrer")
+            }
+          >
             <ExternalLinkIcon className="size-4" /> Open public page
           </DropdownMenuItem>
           <DropdownMenuItem onClick={copyLink}>
             <CopyIcon className="size-4" /> Copy public link
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => setConfirmOpen(true)}
+          >
             <Trash2Icon className="size-4" /> Delete event
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {dupOpen ? <DuplicateDialog event={event} onClose={() => setDupOpen(false)} /> : null}
+      {dupOpen ? (
+        <DuplicateDialog event={event} onClose={() => setDupOpen(false)} />
+      ) : null}
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
@@ -90,9 +116,12 @@ export function EventRowMenu({ event }: { event: Pick<ClubEvent, "id" | "name" |
               {registered > 0 ? (
                 <>
                   <strong>
-                    {registered.toLocaleString("en-IN")} {registered === 1 ? "person has" : "people have"} already registered.
+                    {registered.toLocaleString("en-IN")}{" "}
+                    {registered === 1 ? "person has" : "people have"} already
+                    registered.
                   </strong>{" "}
-                  They lose this event and their tickets. This cannot be undone from here.
+                  They lose this event and their tickets. This cannot be undone
+                  from here.
                 </>
               ) : (
                 "This removes the event from the app. It cannot be undone from here."
@@ -101,7 +130,10 @@ export function EventRowMenu({ event }: { event: Pick<ClubEvent, "id" | "name" |
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
-            <AlertDialogAction className={cn(buttonVariants({ variant: "destructive" }))} onClick={() => void remove.mutateAsync(event.id)}>
+            <AlertDialogAction
+              className={cn(buttonVariants({ variant: "destructive" }))}
+              onClick={() => void remove.mutateAsync(event.id)}
+            >
               Delete event
             </AlertDialogAction>
           </AlertDialogFooter>

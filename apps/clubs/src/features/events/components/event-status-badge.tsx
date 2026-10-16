@@ -19,6 +19,18 @@ const LABEL: Record<EventLifecycle, string> = {
 };
 
 /** Where the event is on its status clock, as one word in the right colour. */
-export function EventStatusBadge({ status, className }: { status: EventLifecycle; className?: string }) {
-  return <StatusBadge tone={TONE[status]} label={LABEL[status]} className={className} />;
+export function EventStatusBadge({
+  status,
+  className,
+}: {
+  status: EventLifecycle;
+  className?: string;
+}) {
+  return (
+    <StatusBadge
+      tone={TONE[status]}
+      label={LABEL[status]}
+      className={className}
+    />
+  );
 }

@@ -14,7 +14,16 @@ import {
   type EmailScope,
   type EmailToken,
 } from "../schemas";
-import { Busy, ColorField, NumberField, Segmented, SelectField, TemplateField, Toggle, ui } from "./kit";
+import {
+  Busy,
+  ColorField,
+  NumberField,
+  Segmented,
+  SelectField,
+  TemplateField,
+  Toggle,
+  ui,
+} from "./kit";
 
 interface TokenProps {
   tokens: EmailToken[];
@@ -39,7 +48,11 @@ const RowsEditor = ({
   tokens,
   samples,
   label,
-}: { rows: DetailsRow[]; onChange: (rows: DetailsRow[]) => void; label: string } & TokenProps) => (
+}: {
+  rows: DetailsRow[];
+  onChange: (rows: DetailsRow[]) => void;
+  label: string;
+} & TokenProps) => (
   <div className="space-y-2">
     <span className={ui.label}>{label}</span>
     {rows.map((r, i) => (
@@ -49,7 +62,13 @@ const RowsEditor = ({
             aria-label={`Row ${i + 1} label`}
             value={r.label}
             placeholder="Label"
-            onChange={(e) => onChange(rows.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+            onChange={(e) =>
+              onChange(
+                rows.map((x, j) =>
+                  j === i ? { ...x, label: e.target.value } : x,
+                ),
+              )
+            }
             className={cn(ui.control, "h-8 text-[12px]")}
           />
           <button
@@ -66,13 +85,20 @@ const RowsEditor = ({
           label="Value"
           value={r.value}
           single
-          onChange={(v) => onChange(rows.map((x, j) => (j === i ? { ...x, value: v } : x)))}
+          onChange={(v) =>
+            onChange(rows.map((x, j) => (j === i ? { ...x, value: v } : x)))
+          }
           tokens={tokens}
           samples={samples}
         />
       </div>
     ))}
-    <Button type="button" variant="outline" size="xs" onClick={() => onChange([...rows, { label: "Label", value: "" }])}>
+    <Button
+      type="button"
+      variant="outline"
+      size="xs"
+      onClick={() => onChange([...rows, { label: "Label", value: "" }])}
+    >
       <PlusIcon /> Add row
     </Button>
   </div>
@@ -95,7 +121,9 @@ const ImageSource = ({
     try {
       const up = await uploadEmailImage(scope, file);
       patch({ imageKey: up.key });
-      toast.success("Image uploaded", { description: `${up.width} × ${up.height}, sized for email.` });
+      toast.success("Image uploaded", {
+        description: `${up.width} × ${up.height}, sized for email.`,
+      });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
     } finally {
@@ -120,7 +148,9 @@ const ImageSource = ({
       {block.source === "upload" ? (
         <div className="rounded-md border border-dashed p-2.5">
           <p className={cn(ui.note, "mb-1.5 truncate")}>
-            {block.imageKey ? block.imageKey.split("/").pop() : "No image yet. PNG, JPEG or WebP, up to 5 MB."}
+            {block.imageKey
+              ? block.imageKey.split("/").pop()
+              : "No image yet. PNG, JPEG or WebP, up to 5 MB."}
           </p>
           <input
             ref={inputRef}
@@ -129,9 +159,16 @@ const ImageSource = ({
             className="hidden"
             onChange={(e) => void onFile(e.target.files?.[0])}
           />
-          <Button type="button" variant="outline" size="xs" disabled={busy} onClick={() => inputRef.current?.click()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
             <Busy on={busy} />
-            {busy ? null : <UploadIcon />} {block.imageKey ? "Replace" : "Upload"}
+            {busy ? null : <UploadIcon />}{" "}
+            {block.imageKey ? "Replace" : "Upload"}
           </Button>
         </div>
       ) : null}
@@ -145,13 +182,26 @@ function Fields({
   tokens,
   samples,
   scope,
-}: { block: EmailBlock; onChange: (b: EmailBlock) => void; scope: EmailScope } & TokenProps) {
-  const patch = (p: Record<string, unknown>) => onChange({ ...block, ...p } as EmailBlock);
+}: {
+  block: EmailBlock;
+  onChange: (b: EmailBlock) => void;
+  scope: EmailScope;
+} & TokenProps) {
+  const patch = (p: Record<string, unknown>) =>
+    onChange({ ...block, ...p } as EmailBlock);
   switch (block.kind) {
     case "heading":
       return (
         <>
-          <TemplateField id="b-text" label="Text" value={block.text} rows={2} onChange={(text) => patch({ text })} tokens={tokens} samples={samples} />
+          <TemplateField
+            id="b-text"
+            label="Text"
+            value={block.text}
+            rows={2}
+            onChange={(text) => patch({ text })}
+            tokens={tokens}
+            samples={samples}
+          />
           <Segmented
             label="Level"
             value={String(block.level) as "1" | "2"}
@@ -166,15 +216,43 @@ function Fields({
     case "paragraph":
       return (
         <>
-          <TemplateField id="b-text" label="Text" value={block.text} rows={6} onChange={(text) => patch({ text })} tokens={tokens} samples={samples} />
-          <p className={ui.note}>**bold**, _italic_ and [a link](https://…) work here. A blank line starts a new paragraph.</p>
+          <TemplateField
+            id="b-text"
+            label="Text"
+            value={block.text}
+            rows={6}
+            onChange={(text) => patch({ text })}
+            tokens={tokens}
+            samples={samples}
+          />
+          <p className={ui.note}>
+            **bold**, _italic_ and [a link](https://…) work here. A blank line
+            starts a new paragraph.
+          </p>
         </>
       );
     case "button":
       return (
         <>
-          <TemplateField id="b-label" label="Label" value={block.label} single onChange={(label) => patch({ label })} tokens={tokens} samples={samples} />
-          <TemplateField id="b-href" label="Link" value={block.href} single placeholder="https://… or {{ticket_url}}" onChange={(href) => patch({ href })} tokens={tokens} samples={samples} />
+          <TemplateField
+            id="b-label"
+            label="Label"
+            value={block.label}
+            single
+            onChange={(label) => patch({ label })}
+            tokens={tokens}
+            samples={samples}
+          />
+          <TemplateField
+            id="b-href"
+            label="Link"
+            value={block.href}
+            single
+            placeholder="https://… or {{ticket_url}}"
+            onChange={(href) => patch({ href })}
+            tokens={tokens}
+            samples={samples}
+          />
           <Segmented
             label="Style"
             value={block.variant}
@@ -194,16 +272,56 @@ function Fields({
             <label htmlFor="b-alt" className={ui.label}>
               Description (for screen readers)
             </label>
-            <input id="b-alt" value={block.alt} onChange={(e) => patch({ alt: e.target.value })} className={cn(ui.control, ui.input)} />
+            <input
+              id="b-alt"
+              value={block.alt}
+              onChange={(e) => patch({ alt: e.target.value })}
+              className={cn(ui.control, ui.input)}
+            />
           </div>
-          <NumberField id="b-width" label="Width" value={block.width} min={10} max={100} suffix="%" onChange={(width) => patch({ width })} />
-          <TemplateField id="b-href" label="Link (optional)" value={block.href ?? ""} single onChange={(href) => patch({ href: href || null })} tokens={tokens} samples={samples} />
+          <NumberField
+            id="b-width"
+            label="Width"
+            value={block.width}
+            min={10}
+            max={100}
+            suffix="%"
+            onChange={(width) => patch({ width })}
+          />
+          <TemplateField
+            id="b-href"
+            label="Link (optional)"
+            value={block.href ?? ""}
+            single
+            onChange={(href) => patch({ href: href || null })}
+            tokens={tokens}
+            samples={samples}
+          />
         </>
       );
     case "divider":
-      return <ColorField id="b-color" label="Colour" value={block.color} fallback="#E1E1DC" clearable onChange={(color) => patch({ color })} />;
+      return (
+        <ColorField
+          id="b-color"
+          label="Colour"
+          value={block.color}
+          fallback="#E1E1DC"
+          clearable
+          onChange={(color) => patch({ color })}
+        />
+      );
     case "spacer":
-      return <NumberField id="b-height" label="Height" value={block.height} min={4} max={160} suffix="px" onChange={(height) => patch({ height })} />;
+      return (
+        <NumberField
+          id="b-height"
+          label="Height"
+          value={block.height}
+          min={4}
+          max={160}
+          suffix="px"
+          onChange={(height) => patch({ height })}
+        />
+      );
     case "list":
       return (
         <>
@@ -212,24 +330,84 @@ function Fields({
             label="Items, one per line"
             value={block.items.join("\n")}
             rows={6}
-            onChange={(v) => patch({ items: v.split("\n").length ? v.split("\n") : [""] })}
+            onChange={(v) =>
+              patch({ items: v.split("\n").length ? v.split("\n") : [""] })
+            }
             tokens={tokens}
             samples={samples}
           />
-          <Toggle id="b-ordered" label="Numbered" checked={block.ordered} onChange={(ordered) => patch({ ordered })} />
+          <Toggle
+            id="b-ordered"
+            label="Numbered"
+            checked={block.ordered}
+            onChange={(ordered) => patch({ ordered })}
+          />
         </>
       );
     case "details":
-      return <RowsEditor label="Rows" rows={block.rows} onChange={(rows) => patch({ rows: rows.length ? rows : [{ label: "Label", value: "" }] })} tokens={tokens} samples={samples} />;
+      return (
+        <RowsEditor
+          label="Rows"
+          rows={block.rows}
+          onChange={(rows) =>
+            patch({
+              rows: rows.length ? rows : [{ label: "Label", value: "" }],
+            })
+          }
+          tokens={tokens}
+          samples={samples}
+        />
+      );
     case "ticket_card":
       return (
         <>
-          <Toggle id="b-qr" label="Show the QR code" checked={block.showQr} onChange={(showQr) => patch({ showQr })} note="The guest's own code, inline in the message." />
-          <Toggle id="b-venue" label="Show the venue" checked={block.showVenue} onChange={(showVenue) => patch({ showVenue })} />
-          <TemplateField id="b-eyebrow" label="Eyebrow" value={block.eyebrow} single onChange={(eyebrow) => patch({ eyebrow })} tokens={tokens} samples={samples} />
-          <TemplateField id="b-title" label="Title" value={block.title} single onChange={(title) => patch({ title })} tokens={tokens} samples={samples} />
-          <TemplateField id="b-note" label="Note under the card" value={block.note} rows={2} onChange={(note) => patch({ note })} tokens={tokens} samples={samples} />
-          <RowsEditor label="Rows (leave empty for event, when, where, admission)" rows={block.rows} onChange={(rows) => patch({ rows })} tokens={tokens} samples={samples} />
+          <Toggle
+            id="b-qr"
+            label="Show the QR code"
+            checked={block.showQr}
+            onChange={(showQr) => patch({ showQr })}
+            note="The guest's own code, inline in the message."
+          />
+          <Toggle
+            id="b-venue"
+            label="Show the venue"
+            checked={block.showVenue}
+            onChange={(showVenue) => patch({ showVenue })}
+          />
+          <TemplateField
+            id="b-eyebrow"
+            label="Eyebrow"
+            value={block.eyebrow}
+            single
+            onChange={(eyebrow) => patch({ eyebrow })}
+            tokens={tokens}
+            samples={samples}
+          />
+          <TemplateField
+            id="b-title"
+            label="Title"
+            value={block.title}
+            single
+            onChange={(title) => patch({ title })}
+            tokens={tokens}
+            samples={samples}
+          />
+          <TemplateField
+            id="b-note"
+            label="Note under the card"
+            value={block.note}
+            rows={2}
+            onChange={(note) => patch({ note })}
+            tokens={tokens}
+            samples={samples}
+          />
+          <RowsEditor
+            label="Rows (leave empty for event, when, where, admission)"
+            rows={block.rows}
+            onChange={(rows) => patch({ rows })}
+            tokens={tokens}
+            samples={samples}
+          />
         </>
       );
   }
@@ -265,7 +443,15 @@ function StyleFields({
       ) : null}
       {textual ? (
         <div className="grid grid-cols-2 gap-2">
-          <NumberField id="s-size" label="Size" value={style.size ?? DEFAULT_SIZE[kind]} min={10} max={72} suffix="px" onChange={(size) => onChange({ size })} />
+          <NumberField
+            id="s-size"
+            label="Size"
+            value={style.size ?? DEFAULT_SIZE[kind]}
+            min={10}
+            max={72}
+            suffix="px"
+            onChange={(size) => onChange({ size })}
+          />
           <SelectField
             id="s-weight"
             label="Weight"
@@ -276,24 +462,69 @@ function StyleFields({
               { value: "600", label: "Semibold" },
               { value: "700", label: "Bold" },
             ]}
-            onChange={(v) => onChange({ weight: v === "auto" ? null : (v as BlockStyle["weight"]) })}
+            onChange={(v) =>
+              onChange({
+                weight: v === "auto" ? null : (v as BlockStyle["weight"]),
+              })
+            }
           />
         </div>
       ) : null}
       {textual || kind === "image" ? (
         <div className="grid grid-cols-2 gap-2">
-          {textual ? <ColorField id="s-color" label="Text colour" value={style.color} fallback={textColor} clearable onChange={(color) => onChange({ color })} /> : null}
-          <ColorField id="s-bg" label="Background" value={style.background} fallback="#ffffff" clearable onChange={(background) => onChange({ background })} />
+          {textual ? (
+            <ColorField
+              id="s-color"
+              label="Text colour"
+              value={style.color}
+              fallback={textColor}
+              clearable
+              onChange={(color) => onChange({ color })}
+            />
+          ) : null}
+          <ColorField
+            id="s-bg"
+            label="Background"
+            value={style.background}
+            fallback="#ffffff"
+            clearable
+            onChange={(background) => onChange({ background })}
+          />
         </div>
       ) : null}
       {spaced ? (
         <div className="grid grid-cols-2 gap-2">
-          <NumberField id="s-pt" label="Space above" value={style.paddingTop} min={0} max={120} suffix="px" onChange={(paddingTop) => onChange({ paddingTop })} />
-          <NumberField id="s-pb" label="Space below" value={style.paddingBottom} min={0} max={120} suffix="px" onChange={(paddingBottom) => onChange({ paddingBottom })} />
+          <NumberField
+            id="s-pt"
+            label="Space above"
+            value={style.paddingTop}
+            min={0}
+            max={120}
+            suffix="px"
+            onChange={(paddingTop) => onChange({ paddingTop })}
+          />
+          <NumberField
+            id="s-pb"
+            label="Space below"
+            value={style.paddingBottom}
+            min={0}
+            max={120}
+            suffix="px"
+            onChange={(paddingBottom) => onChange({ paddingBottom })}
+          />
         </div>
       ) : null}
       {textual ? (
-        <NumberField id="s-ls" label="Letter spacing" value={style.letterSpacing} min={-2} max={12} step={0.5} suffix="px" onChange={(letterSpacing) => onChange({ letterSpacing })} />
+        <NumberField
+          id="s-ls"
+          label="Letter spacing"
+          value={style.letterSpacing}
+          min={-2}
+          max={12}
+          step={0.5}
+          suffix="px"
+          onChange={(letterSpacing) => onChange({ letterSpacing })}
+        />
       ) : null}
     </div>
   );
@@ -319,15 +550,36 @@ export function BlockInspector({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-[13px] font-medium">{BLOCK_META[block.kind].label}</p>
+          <p className="text-[13px] font-medium">
+            {BLOCK_META[block.kind].label}
+          </p>
           <p className={ui.note}>{BLOCK_META[block.kind].note}</p>
         </div>
-        <Button type="button" variant="ghost" size="xs" onClick={onRemove} aria-label="Remove block">
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          onClick={onRemove}
+          aria-label="Remove block"
+        >
           <Trash2Icon /> Remove
         </Button>
       </div>
-      <Fields block={block} onChange={onChange} tokens={tokens} samples={samples} scope={scope} />
-      <StyleFields kind={block.kind} style={block.style} onChange={(p) => onChange({ ...block, style: { ...block.style, ...p } })} textColor={textColor} />
+      <Fields
+        block={block}
+        onChange={onChange}
+        tokens={tokens}
+        samples={samples}
+        scope={scope}
+      />
+      <StyleFields
+        kind={block.kind}
+        style={block.style}
+        onChange={(p) =>
+          onChange({ ...block, style: { ...block.style, ...p } })
+        }
+        textColor={textColor}
+      />
     </div>
   );
 }

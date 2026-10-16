@@ -3,10 +3,11 @@ import { Search } from "lucide-react";
 
 import { cn } from "../lib/cn";
 import { useDebouncedValue } from "../hooks/use-debounced-value";
-import { Input } from "./input";
 
-export interface SearchInputProps
-  extends Omit<React.ComponentProps<"input">, "value" | "onChange"> {
+export interface SearchInputProps extends Omit<
+  React.ComponentProps<"input">,
+  "value" | "onChange"
+> {
   /** Current, immediately-controlled text (drives what's displayed). */
   value: string;
   /** Fires on every keystroke, for updating the controlled `value`. */
@@ -44,17 +45,18 @@ function SearchInput({
     onDebouncedChangeRef.current(debounced);
   }, [debounced]);
 
+  // The same pill as `SearchField`; this one debounces for screens that search as you type.
   return (
-    <div className={cn("relative", containerClassName)}>
-      <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-      <Input
+    <label className={cn("search", containerClassName)}>
+      <Search aria-hidden="true" />
+      <input
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={cn("pl-8 w-full", className)}
+        className={className}
         {...props}
       />
-    </div>
+    </label>
   );
 }
 

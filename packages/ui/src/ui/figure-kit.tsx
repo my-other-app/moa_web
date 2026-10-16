@@ -16,17 +16,30 @@ function FigurePanel({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="figure-panel"
-      className={cn("bg-card ring-border/70 min-w-0 rounded-2xl p-4 shadow-sm ring-1", className)}
+      className={cn(
+        "bg-card ring-border/70 min-w-0 rounded-2xl p-4 shadow-sm ring-1",
+        className,
+      )}
       {...props}
     />
   );
 }
 
 /** Uppercase mono eyebrow used as a panel or section heading. */
-function CardLabel({ className, children, right }: { className?: string; children: React.ReactNode; right?: React.ReactNode }) {
+function CardLabel({
+  className,
+  children,
+  right,
+}: {
+  className?: string;
+  children: React.ReactNode;
+  right?: React.ReactNode;
+}) {
   return (
     <div className={cn("flex items-center justify-between gap-3", className)}>
-      <span className="text-muted-foreground font-mono text-[10px] font-medium tracking-[0.09em] uppercase">{children}</span>
+      <span className="text-muted-foreground font-mono text-[10px] font-medium tracking-[0.09em] uppercase">
+        {children}
+      </span>
       {right}
     </div>
   );
@@ -71,52 +84,93 @@ function ProgressBar({
     >
       <div
         style={{ width: `${pct}%` }}
-        className={cn("h-full origin-left rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none", BAR_FILL[tone])}
+        className={cn(
+          "h-full origin-left rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
+          BAR_FILL[tone],
+        )}
       />
     </div>
   );
 }
 
 /** Key/value rows used on overview cards. */
-function DefinitionRows({ rows }: { rows: { k: string; v: React.ReactNode }[] }) {
+function DefinitionRows({
+  rows,
+}: {
+  rows: { k: string; v: React.ReactNode }[];
+}) {
   return (
     <dl className="m-0">
       {rows.map((r) => (
-        <div key={r.k} className="border-border/60 flex gap-3 border-t py-[7px] first:border-t-0">
-          <dt className="text-muted-foreground w-[92px] shrink-0 font-mono text-[11px] leading-[1.5] tracking-[0.05em] uppercase">{r.k}</dt>
-          <dd className="text-foreground m-0 min-w-0 flex-1 text-[12.5px]">{r.v}</dd>
+        <div
+          key={r.k}
+          className="border-border/60 flex gap-3 border-t py-[7px] first:border-t-0"
+        >
+          <dt className="text-muted-foreground w-[92px] shrink-0 font-mono text-[11px] leading-[1.5] tracking-[0.05em] uppercase">
+            {r.k}
+          </dt>
+          <dd className="text-foreground m-0 min-w-0 flex-1 text-[12.5px]">
+            {r.v}
+          </dd>
         </div>
       ))}
     </dl>
   );
 }
 
-/** A toggle chip for filters: mono, tracked, lit when on. */
+/**
+ * The chip: a filter that is on or off. 32px, the chip radius, sentence
+ * case — "Checked in 12", never "CHECKED IN". Lit brand when on; a tone
+ * colours the line when off so a caution or refuse filter reads as one.
+ */
+const CHIP_OFF: Record<string, string> = {
+  accent: "",
+  admit: "border-admit-line text-admit",
+  success: "border-admit-line text-admit",
+  caution: "border-caution-line text-caution",
+  warning: "border-caution-line text-caution",
+  refuse: "border-refuse-line text-refuse",
+  destructive: "border-refuse-line text-refuse",
+};
+
 function Chip({
   active,
   onClick,
   children,
   tone = "accent",
+  disabled,
   className,
 }: {
   active?: boolean;
   onClick?: () => void;
   children: React.ReactNode;
-  tone?: "accent" | "caution" | "refuse" | "admit";
+  tone?:
+    | "accent"
+    | "caution"
+    | "refuse"
+    | "admit"
+    | "success"
+    | "warning"
+    | "destructive";
+  disabled?: boolean;
   className?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
+      data-slot="chip"
       className={cn(
-        "rounded-lg border px-2.5 py-1.5 font-mono text-[11px] font-medium tracking-[0.05em] transition-colors duration-150",
-        active ? "border-brand bg-brand text-brand-foreground" : "border-border bg-card text-muted-foreground hover:bg-muted",
-        !active && tone === "caution" && "border-amber-500/40 text-amber-600 dark:text-amber-300",
-        !active && tone === "refuse" && "border-red-500/40 text-red-600 dark:text-red-300",
-        !active && tone === "admit" && "border-emerald-500/40 text-emerald-600 dark:text-emerald-300",
-        className
+        "inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-chip)] border px-3 text-[12.5px] font-medium whitespace-nowrap transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50",
+        active
+          ? "border-brand bg-brand text-brand-foreground"
+          : cn(
+              "border-line bg-surface text-ink-2 hover:bg-sunken",
+              CHIP_OFF[tone],
+            ),
+        className,
       )}
     >
       {children}
@@ -127,11 +181,15 @@ function Chip({
 export type NoticeTone = "neutral" | "accent" | "caution" | "refuse" | "admit";
 
 const NOTICE: Record<NoticeTone, string> = {
-  neutral: "bg-muted/50 border-border text-muted-foreground [--tag:var(--muted-foreground)]",
+  neutral:
+    "bg-muted/50 border-border text-muted-foreground [--tag:var(--muted-foreground)]",
   accent: "bg-brand/10 border-brand/30 text-foreground [--tag:var(--brand)]",
-  caution: "bg-[#fdf0d2] border-[#ebdcb4] text-[#6b4e07] dark:bg-[#33280f] dark:border-[#57441f] dark:text-[#f8dfa5] [--tag:currentColor]",
-  refuse: "bg-[#fde3e1] border-[#efd0cb] text-[#8c1c17] dark:bg-[#381917] dark:border-[#5a2a24] dark:text-[#f3aba7] [--tag:currentColor]",
-  admit: "bg-[#e3f5e8] border-[#cbe3d5] text-[#096b5c] dark:bg-[#12302a] dark:border-[#265338] dark:text-[#b4e5bc] [--tag:currentColor]",
+  caution:
+    "bg-[#fdf0d2] border-[#ebdcb4] text-[#6b4e07] dark:bg-[#33280f] dark:border-[#57441f] dark:text-[#f8dfa5] [--tag:currentColor]",
+  refuse:
+    "bg-[#fde3e1] border-[#efd0cb] text-[#8c1c17] dark:bg-[#381917] dark:border-[#5a2a24] dark:text-[#f3aba7] [--tag:currentColor]",
+  admit:
+    "bg-[#e3f5e8] border-[#cbe3d5] text-[#096b5c] dark:bg-[#12302a] dark:border-[#265338] dark:text-[#b4e5bc] [--tag:currentColor]",
 };
 
 /** A tinted notice row with a mono tag on the left. */
@@ -151,9 +209,17 @@ function Notice({
   return (
     <div
       role={tone === "refuse" || tone === "caution" ? "alert" : "note"}
-      className={cn("flex flex-wrap items-start gap-2.5 rounded-xl border px-3.5 py-3 text-[12.5px] leading-[1.55]", NOTICE[tone], className)}
+      className={cn(
+        "flex flex-wrap items-start gap-2.5 rounded-xl border px-3.5 py-3 text-[12.5px] leading-[1.55]",
+        NOTICE[tone],
+        className,
+      )}
     >
-      {tag ? <span className="shrink-0 pt-0.5 font-mono text-[9px] font-semibold tracking-[0.08em] text-[var(--tag)] uppercase">{tag}</span> : null}
+      {tag ? (
+        <span className="shrink-0 pt-0.5 font-mono text-[9px] font-semibold tracking-[0.08em] text-[var(--tag)] uppercase">
+          {tag}
+        </span>
+      ) : null}
       <div className="min-w-0 flex-1">{children}</div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
@@ -161,7 +227,17 @@ function Notice({
 }
 
 /** Two initials in a disc, for a list that names people without their photos. */
-function InitialsAvatar({ name, size = 28, tone = "accent", className }: { name: string; size?: number; tone?: "accent" | "admit" | "muted"; className?: string }) {
+function InitialsAvatar({
+  name,
+  size = 28,
+  tone = "accent",
+  className,
+}: {
+  name: string;
+  size?: number;
+  tone?: "accent" | "admit" | "muted";
+  className?: string;
+}) {
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
@@ -171,11 +247,19 @@ function InitialsAvatar({ name, size = 28, tone = "accent", className }: { name:
   return (
     <span
       aria-hidden="true"
-      style={{ width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.38)) }}
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.max(9, Math.round(size * 0.38)),
+      }}
       className={cn(
         "grid shrink-0 place-items-center rounded-full font-mono font-semibold leading-none",
-        tone === "admit" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : tone === "muted" ? "bg-muted text-muted-foreground" : "bg-brand/10 text-brand",
-        className
+        tone === "admit"
+          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+          : tone === "muted"
+            ? "bg-muted text-muted-foreground"
+            : "bg-brand/10 text-brand",
+        className,
       )}
     >
       {initials || "•"}
@@ -183,4 +267,12 @@ function InitialsAvatar({ name, size = 28, tone = "accent", className }: { name:
   );
 }
 
-export { FigurePanel, CardLabel, ProgressBar, DefinitionRows, Chip, Notice, InitialsAvatar };
+export {
+  FigurePanel,
+  CardLabel,
+  ProgressBar,
+  DefinitionRows,
+  Chip,
+  Notice,
+  InitialsAvatar,
+};

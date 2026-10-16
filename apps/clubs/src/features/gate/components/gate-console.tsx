@@ -211,7 +211,7 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
           {p.full ? (
             <div className="mt-3 flex gap-1.5">
               <input placeholder="Add a door, e.g. Loading bay" value={customDoor} onChange={(e) => setCustomDoor(e.target.value)} aria-label="New door name" className="h-11 min-w-0 flex-1 rounded-md border bg-muted/40 px-3 text-[14px]" />
-              <Button type="button" variant="outline" className="h-11" disabled={!customDoor.trim()} onClick={() => (chooseDoor(customDoor.trim()), setCustomDoor(""))}>
+              <Button size="lg" type="button" variant="outline" disabled={!customDoor.trim()} onClick={() => (chooseDoor(customDoor.trim()), setCustomDoor(""))}>
                 Add
               </Button>
             </div>

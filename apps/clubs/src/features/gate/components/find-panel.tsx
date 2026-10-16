@@ -61,14 +61,14 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
               {r.checked_in_at ? (
                 <>
                   {mayPrint(r.badge_printed_at) ? (
-                    <Button type="button" size="sm" variant="outline" className="h-10" aria-label={`Print card for ${r.name}`} onClick={() => setPrinting(cardPdfUrl(ctx.event.id, r.id, { source: "manual", record: true, door, key: gateKey }))}>
+                    <Button type="button" size="sm" variant="outline" aria-label={`Print card for ${r.name}`} onClick={() => setPrinting(cardPdfUrl(ctx.event.id, r.id, { source: "manual", record: true, door, key: gateKey }))}>
                       <PrinterIcon />
                     </Button>
                   ) : null}
                   <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] text-emerald-700 dark:text-emerald-300">IN · {formatDateTime(r.checked_in_at)}</span>
                 </>
               ) : (
-                <Button type="button" size="sm" className={cn("h-10")} disabled={byHand.isPending || !r.is_paid} onClick={() => void admit(r.id)}>
+                <Button type="button" disabled={byHand.isPending || !r.is_paid} onClick={() => void admit(r.id)}>
                   {r.is_paid ? "Check in" : "Not paid"}
                 </Button>
               )}

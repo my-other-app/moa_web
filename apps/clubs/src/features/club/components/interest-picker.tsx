@@ -42,7 +42,7 @@ function InterestPill({
         selected
           ? "bg-brand text-brand-foreground"
           : "bg-card text-foreground hover:bg-muted",
-        pressable
+        pressable,
       )}
     >
       {emoji ? (

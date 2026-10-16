@@ -13,11 +13,22 @@ import type { ReachSummary } from "../insights";
  * whether a quiet event was unseen or merely unappealing -- which are
  * different problems with different fixes.
  */
-function Figure({ label, value, dotClass }: { label: string; value: string; dotClass: string }) {
+function Figure({
+  label,
+  value,
+  dotClass,
+}: {
+  label: string;
+  value: string;
+  dotClass: string;
+}) {
   return (
     <div className="rounded-xl bg-white/[0.08] px-3 py-2.5">
       <div className="flex items-center gap-1.5">
-        <span className={cn("size-1.5 rounded-full", dotClass)} aria-hidden="true" />
+        <span
+          className={cn("size-1.5 rounded-full", dotClass)}
+          aria-hidden="true"
+        />
         <span className="text-xs opacity-80">{label}</span>
       </div>
       <p className="mt-0.5 text-sm font-semibold tabular-nums">{value}</p>
@@ -38,14 +49,12 @@ export function ReachPanel({ reach }: { reach: ReachSummary }) {
       className={cn(
         "rounded-[var(--radius-lg)] p-5 text-[var(--color-neutral-100)]",
         "bg-[radial-gradient(90%_140%_at_0%_0%,var(--color-section-glow),var(--color-section)_60%)]",
-        hoverLift
+        hoverLift,
       )}
     >
       <div>
         <h3 className="text-sm font-semibold">Reach</h3>
-        <p className="text-xs opacity-70">
-          Across your most recent events.
-        </p>
+        <p className="text-xs opacity-70">Across your most recent events.</p>
       </div>
 
       <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row xl:flex-col">

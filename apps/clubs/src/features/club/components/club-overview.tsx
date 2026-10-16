@@ -89,7 +89,7 @@ export function ClubOverview() {
 
   const upcomingRegistrations = upcomingEvents.reduce(
     (sum, event) => sum + (event.registration_count ?? 0),
-    0
+    0,
   );
 
   const metrics = [

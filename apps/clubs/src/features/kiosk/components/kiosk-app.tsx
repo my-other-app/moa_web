@@ -9,10 +9,23 @@ import { Button, cn, toast } from "@moa/ui";
 import { PrintFrame } from "@/features/idcards";
 import { cameraProblem, startScanner, type Scanner } from "@/features/gate";
 
-import { KIOSK_TOKEN_STORAGE, kioskCardUrl, kioskSelfCardUrl, kioskStaff, markSelfPrinted, notMe, redeemAtKiosk } from "../api";
+import {
+  KIOSK_TOKEN_STORAGE,
+  kioskCardUrl,
+  kioskSelfCardUrl,
+  kioskStaff,
+  markSelfPrinted,
+  notMe,
+  redeemAtKiosk,
+} from "../api";
 import { useKioskContext, useSelfQr } from "../queries";
 import { AgendaCycle } from "./agenda-cycle";
-import { newRef, type KioskContext, type RedeemResult, type StaffInfo } from "../schemas";
+import {
+  newRef,
+  type KioskContext,
+  type RedeemResult,
+  type StaffInfo,
+} from "../schemas";
 
 type Step = "attract" | "result";
 const DONE_RESET_S = 10;
@@ -41,7 +54,9 @@ const write = (k: string, v: string | null) => {
  */
 export function KioskApp() {
   const params = useSearchParams();
-  const [token, setToken] = React.useState<string | null>(() => params.get("token") || read(KIOSK_TOKEN_STORAGE));
+  const [token, setToken] = React.useState<string | null>(
+    () => params.get("token") || read(KIOSK_TOKEN_STORAGE),
+  );
   React.useEffect(() => {
     const fromUrl = params.get("token");
     if (fromUrl) {
@@ -50,14 +65,24 @@ export function KioskApp() {
     }
   }, [params]);
   const ctx = useKioskContext(token);
-  if (!token || (ctx.isError && ctx.error instanceof ApiError && ctx.error.status === 401)) {
+  if (
+    !token ||
+    (ctx.isError && ctx.error instanceof ApiError && ctx.error.status === 401)
+  ) {
     return (
       <Shell>
         <div className="mx-auto max-w-md space-y-3 px-6 py-16 text-center">
           <h1 className="text-2xl font-semibold">This kiosk is not paired</h1>
-          <p className="text-[15px] leading-[1.55] text-muted-foreground">Pair it from the event&apos;s Team &amp; doors page: a link opens here with the device token. A token lasts one shift; the organiser can make a new one.</p>
+          <p className="text-[15px] leading-[1.55] text-muted-foreground">
+            Pair it from the event&apos;s Team &amp; doors page: a link opens
+            here with the device token. A token lasts one shift; the organiser
+            can make a new one.
+          </p>
           {token ? (
-            <Button variant="outline" onClick={() => (write(KIOSK_TOKEN_STORAGE, null), setToken(null))}>
+            <Button
+              variant="outline"
+              onClick={() => (write(KIOSK_TOKEN_STORAGE, null), setToken(null))}
+            >
               Forget this pairing
             </Button>
           ) : null}
@@ -65,19 +90,51 @@ export function KioskApp() {
       </Shell>
     );
   }
-  if (ctx.isPending) return <Shell><p className="px-6 py-16 text-center text-muted-foreground">Opening the kiosk…</p></Shell>;
-  if (ctx.isError) return <Shell><p className="px-6 py-16 text-center text-destructive">{ctx.error.message}</p></Shell>;
-  return <Kiosk token={token} ctx={ctx.data} onUnpair={() => (write(KIOSK_TOKEN_STORAGE, null), setToken(null))} />;
+  if (ctx.isPending)
+    return (
+      <Shell>
+        <p className="px-6 py-16 text-center text-muted-foreground">
+          Opening the kiosk…
+        </p>
+      </Shell>
+    );
+  if (ctx.isError)
+    return (
+      <Shell>
+        <p className="px-6 py-16 text-center text-destructive">
+          {ctx.error.message}
+        </p>
+      </Shell>
+    );
+  return (
+    <Kiosk
+      token={token}
+      ctx={ctx.data}
+      onUnpair={() => (write(KIOSK_TOKEN_STORAGE, null), setToken(null))}
+    />
+  );
 }
 
-const Shell = ({ children }: { children: React.ReactNode }) => <div className="min-h-dvh bg-[#0B140F] text-[#E6F1EA]">{children}</div>;
+const Shell = ({ children }: { children: React.ReactNode }) => (
+  <div className="min-h-dvh bg-[#0B140F] text-[#E6F1EA]">{children}</div>
+);
 
-function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onUnpair: () => void }) {
+function Kiosk({
+  token,
+  ctx,
+  onUnpair,
+}: {
+  token: string;
+  ctx: KioskContext;
+  onUnpair: () => void;
+}) {
   const brand = ctx.event.brand_primary;
   const [step, setStep] = React.useState<Step>("attract");
   const [result, setResult] = React.useState<RedeemResult | null>(null);
   const [printing, setPrinting] = React.useState<string | null>(null);
-  const [printingSession, setPrintingSession] = React.useState<string | null>(null);
+  const [printingSession, setPrintingSession] = React.useState<string | null>(
+    null,
+  );
   const [cameraOn, setCameraOn] = React.useState(false);
   const [cameraError, setCameraError] = React.useState<string | null>(null);
   const [code, setCode] = React.useState("");
@@ -98,7 +155,13 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
     const url = selfQr.data?.url;
     if (!url) return;
     let alive = true;
-    QRCode.toDataURL(url, { margin: 1, width: 360, color: { dark: "#0B140F", light: "#FFFFFF" } }).then((d) => alive && setSelfPng(d)).catch(() => undefined);
+    QRCode.toDataURL(url, {
+      margin: 1,
+      width: 360,
+      color: { dark: "#0B140F", light: "#FFFFFF" },
+    })
+      .then((d) => alive && setSelfPng(d))
+      .catch(() => undefined);
     return () => {
       alive = false;
     };
@@ -106,7 +169,9 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
 
   // A phone that tapped print: the kiosk prints it, once.
   React.useEffect(() => {
-    const pending = selfQr.data?.recent.find((r) => r.print_requested && !printedSessions.current.has(r.session));
+    const pending = selfQr.data?.recent.find(
+      (r) => r.print_requested && !printedSessions.current.has(r.session),
+    );
     if (!pending || printing) return;
     printedSessions.current.add(pending.session);
     setPrintingSession(pending.session);
@@ -124,7 +189,10 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
   // The result screen clears itself so the next guest finds the scanner.
   React.useEffect(() => {
     if (step !== "result") return;
-    const t = setInterval(() => setLeft((n) => (n <= 1 ? (reset(), DONE_RESET_S) : n - 1)), 1000);
+    const t = setInterval(
+      () => setLeft((n) => (n <= 1 ? (reset(), DONE_RESET_S) : n - 1)),
+      1000,
+    );
     return () => clearInterval(t);
   }, [step, reset]);
   React.useEffect(() => {
@@ -143,8 +211,13 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
         setResult(r);
         setStep("result");
         setLeft(r.outcome === "MATCHED" ? 25 : DONE_RESET_S);
-        setNotMeLeft(r.outcome === "MATCHED" && !r.guest?.already_checked_in ? NOT_ME_S : 0);
-        if (r.outcome === "MATCHED" && r.auto_print && r.print_url) setPrinting(kioskCardUrl(token, r.print_url));
+        setNotMeLeft(
+          r.outcome === "MATCHED" && !r.guest?.already_checked_in
+            ? NOT_ME_S
+            : 0,
+        );
+        if (r.outcome === "MATCHED" && r.auto_print && r.print_url)
+          setPrinting(kioskCardUrl(token, r.print_url));
         setCode("");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "The scan failed");
@@ -152,7 +225,7 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
         setBusy(false);
       }
     },
-    [busy, token]
+    [busy, token],
   );
 
   const startCamera = async () => {
@@ -161,7 +234,11 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
       setCameraOn(true);
       await new Promise((r) => setTimeout(r, 30));
       // A kiosk faces the guest, so the camera looking at them is the front one.
-      scannerRef.current = await startScanner(videoRef.current!, (c) => void submit(c), "user");
+      scannerRef.current = await startScanner(
+        videoRef.current!,
+        (c) => void submit(c),
+        "user",
+      );
     } catch (err) {
       setCameraOn(false);
       setCameraError(cameraProblem(err));
@@ -201,49 +278,104 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
           url={printing}
           onDone={() => {
             // The phone is polling: tell it the card is out, then free the frame for the next one.
-            if (printingSession) void markSelfPrinted(token, printingSession).catch(() => undefined);
+            if (printingSession)
+              void markSelfPrinted(token, printingSession).catch(
+                () => undefined,
+              );
             setPrintingSession(null);
             setTimeout(() => setPrinting(null), 6000);
           }}
         />
       ) : null}
       <header className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
-        <span aria-hidden className="size-3 rounded-full" style={{ background: brand }} />
+        <span
+          aria-hidden
+          className="size-3 rounded-full"
+          style={{ background: brand }}
+        />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-medium">{ctx.event.name}</div>
+          <div className="truncate text-[15px] font-medium">
+            {ctx.event.name}
+          </div>
           <div className="truncate font-mono text-[10.5px] uppercase tracking-[0.1em] text-[#8C948B]">
             {ctx.event.org_name} · {ctx.device.door}
           </div>
         </div>
         <div className="text-right">
-          <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#8C948B]">Checked in</div>
-          <div className="font-mono text-[22px] leading-none" style={{ color: brand }}>
+          <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#8C948B]">
+            Checked in
+          </div>
+          <div
+            className="font-mono text-[22px] leading-none"
+            style={{ color: brand }}
+          >
             {ctx.counters.checked_in}
-            <span className="text-[12px] text-[#8C948B]"> / {ctx.counters.registered}</span>
+            <span className="text-[12px] text-[#8C948B]">
+              {" "}
+              / {ctx.counters.registered}
+            </span>
           </div>
         </div>
-        <button type="button" onClick={() => setPinOpen(true)} aria-label="Staff" className="ml-2 size-8 rounded-full border border-white/10 text-[11px] text-[#8C948B]">
+        <button
+          type="button"
+          onClick={() => setPinOpen(true)}
+          aria-label="Staff"
+          className="ml-2 size-8 rounded-full border border-white/10 text-[11px] text-[#8C948B]"
+        >
           ⋯
         </button>
       </header>
 
-      {!ctx.event.door_open ? <div className="bg-amber-500/15 px-6 py-3 text-center text-[14px] text-amber-200">The doors are not open yet. Please wait, or see the desk.</div> : null}
+      {!ctx.event.door_open ? (
+        <div className="bg-amber-500/15 px-6 py-3 text-center text-[14px] text-amber-200">
+          The doors are not open yet. Please wait, or see the desk.
+        </div>
+      ) : null}
 
       {step === "attract" ? (
-        <main className={cn("mx-auto grid max-w-5xl gap-8 px-6 py-8", selfQr.data?.enabled ? "lg:grid-cols-[3fr_2fr]" : "max-w-2xl")}>
+        <main
+          className={cn(
+            "mx-auto grid max-w-5xl gap-8 px-6 py-8",
+            selfQr.data?.enabled ? "lg:grid-cols-[3fr_2fr]" : "max-w-2xl",
+          )}
+        >
           <section className="space-y-5">
             <div>
-              <h1 className="text-[36px] font-semibold leading-tight tracking-[-0.02em]">Scan your ticket</h1>
-              <p className="mt-1 text-[16px] text-[#C6D2C8]">Hold the QR on your ticket up to the camera. Your name comes up, and your card prints here.</p>
+              <h1 className="text-[36px] font-semibold leading-tight tracking-[-0.02em]">
+                Scan your ticket
+              </h1>
+              <p className="mt-1 text-[16px] text-[#C6D2C8]">
+                Hold the QR on your ticket up to the camera. Your name comes up,
+                and your card prints here.
+              </p>
             </div>
             <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl bg-black">
-              <video ref={videoRef} playsInline muted className={cameraOn ? "absolute inset-0 size-full object-cover" : "hidden"} />
+              <video
+                ref={videoRef}
+                playsInline
+                muted
+                className={
+                  cameraOn
+                    ? "absolute inset-0 size-full object-cover"
+                    : "hidden"
+                }
+              />
               {cameraOn ? (
-                <div aria-hidden className="absolute left-1/2 top-1/2 aspect-square w-[46%] -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-white/70" />
+                <div
+                  aria-hidden
+                  className="absolute left-1/2 top-1/2 aspect-square w-[46%] -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-white/70"
+                />
               ) : (
                 <div className="px-6 text-center">
-                  <div className="text-[15px] text-[#C7CCC8]">{cameraError ?? "The camera is off"}</div>
-                  <button type="button" onClick={() => void startCamera()} className="mt-4 min-h-14 rounded-xl px-6 text-[16px] font-medium text-[#06190E]" style={{ background: brand }}>
+                  <div className="text-[15px] text-[#C7CCC8]">
+                    {cameraError ?? "The camera is off"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void startCamera()}
+                    className="mt-4 min-h-14 rounded-xl px-6 text-[16px] font-medium text-[#06190E]"
+                    style={{ background: brand }}
+                  >
                     Start camera
                   </button>
                 </div>
@@ -256,8 +388,21 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
               }}
               className="flex gap-2"
             >
-              <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Or type the code under the QR" autoCapitalize="characters" autoCorrect="off" spellCheck={false} className="h-14 min-w-0 flex-1 rounded-xl border border-white/15 bg-white/5 px-4 font-mono text-[18px] uppercase placeholder:font-sans placeholder:normal-case" />
-              <button type="submit" disabled={!code.trim() || busy} className="h-14 rounded-xl px-6 text-[16px] font-medium text-[#06190E] disabled:opacity-50" style={{ background: brand }}>
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Or type the code under the QR"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                className="h-14 min-w-0 flex-1 rounded-xl border border-white/15 bg-white/5 px-4 font-mono text-[18px] uppercase placeholder:font-sans placeholder:normal-case"
+              />
+              <button
+                type="submit"
+                disabled={!code.trim() || busy}
+                className="h-14 rounded-xl px-6 text-[16px] font-medium text-[#06190E] disabled:opacity-50"
+                style={{ background: brand }}
+              >
                 Check in
               </button>
             </form>
@@ -265,15 +410,27 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
           {selfQr.data?.enabled && selfPng ? (
             <aside className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 p-6 text-center">
               <h2 className="text-[20px] font-semibold">No ticket handy?</h2>
-              <p className="text-[14px] text-[#C6D2C8]">Scan this with your phone and check in with your name{selfQr.data.verify === "email" ? " and a code we email you" : ""}.</p>
+              <p className="text-[14px] text-[#C6D2C8]">
+                Scan this with your phone and check in with your name
+                {selfQr.data.verify === "email"
+                  ? " and a code we email you"
+                  : ""}
+                .
+              </p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={selfPng} alt="QR code for checking in from your phone" className="size-56 rounded-xl bg-white p-2" />
+              <img
+                src={selfPng}
+                alt="QR code for checking in from your phone"
+                className="size-56 rounded-xl bg-white p-2"
+              />
               {selfQr.data.recent.length ? (
                 <ul className="w-full space-y-1 text-left text-[13px] text-[#C6D2C8]">
                   {selfQr.data.recent.slice(0, 4).map((r) => (
                     <li key={r.session} className="flex justify-between">
                       <span>{r.name}</span>
-                      <span className="text-[#8C948B]">{r.print_requested ? "printing…" : "checked in"}</span>
+                      <span className="text-[#8C948B]">
+                        {r.print_requested ? "printing…" : "checked in"}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -285,10 +442,17 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
         <main className="mx-auto max-w-2xl px-6 py-10 text-center">
           {result?.outcome === "MATCHED" && g ? (
             <>
-              <div className="font-mono text-[11px] uppercase tracking-[0.12em]" style={{ color: brand }}>
+              <div
+                className="font-mono text-[11px] uppercase tracking-[0.12em]"
+                style={{ color: brand }}
+              >
                 {g.already_checked_in ? "Already checked in" : "Welcome"}
               </div>
-              <h1 className="mt-2 text-[44px] font-semibold leading-tight tracking-[-0.02em]">{g.already_checked_in ? `Welcome back, ${g.first_name}.` : `Welcome in, ${g.first_name}.`}</h1>
+              <h1 className="mt-2 text-[44px] font-semibold leading-tight tracking-[-0.02em]">
+                {g.already_checked_in
+                  ? `Welcome back, ${g.first_name}.`
+                  : `Welcome in, ${g.first_name}.`}
+              </h1>
               <p className="mt-2 text-[18px] text-[#C6D2C8]">
                 {g.display_name} · {g.role_label} · {g.ticket_id}
               </p>
@@ -297,15 +461,26 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
                   <p className="mt-6 text-[16px]" style={{ color: brand }}>
                     Printing your card…
                   </p>
-                  {ctx.agenda.length ? <AgendaCycle items={ctx.agenda} brand={brand} /> : null}
+                  {ctx.agenda.length ? (
+                    <AgendaCycle items={ctx.agenda} brand={brand} />
+                  ) : null}
                 </>
               ) : result.print_url && g.may_print ? (
-                <button type="button" onClick={printAgain} className="mt-6 min-h-14 rounded-xl px-6 text-[16px] font-medium text-[#06190E]" style={{ background: brand }}>
+                <button
+                  type="button"
+                  onClick={printAgain}
+                  className="mt-6 min-h-14 rounded-xl px-6 text-[16px] font-medium text-[#06190E]"
+                  style={{ background: brand }}
+                >
                   {g.has_card ? "Print my card again" : "Print my card"}
                 </button>
               ) : null}
               {notMeLeft > 0 && !g.already_checked_in ? (
-                <button type="button" onClick={() => void undo()} className="mt-8 block w-full text-[14px] text-[#8C948B] underline">
+                <button
+                  type="button"
+                  onClick={() => void undo()}
+                  className="mt-8 block w-full text-[14px] text-[#8C948B] underline"
+                >
                   This isn&apos;t me ({notMeLeft}s)
                 </button>
               ) : null}
@@ -313,12 +488,28 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
           ) : (
             <>
               <h1 className="text-[36px] font-semibold leading-tight tracking-[-0.02em]">
-                {result?.outcome === "WRONG_EVENT" ? "That ticket is for another event." : result?.outcome === "REVOKED" ? "This ticket was cancelled." : result?.outcome === "UNPAID" ? "This ticket has not been paid for." : result?.outcome === "EVENT_NOT_OPEN" ? "The doors are not open yet." : "That code was not recognised."}
+                {result?.outcome === "WRONG_EVENT"
+                  ? "That ticket is for another event."
+                  : result?.outcome === "REVOKED"
+                    ? "This ticket was cancelled."
+                    : result?.outcome === "UNPAID"
+                      ? "This ticket has not been paid for."
+                      : result?.outcome === "EVENT_NOT_OPEN"
+                        ? "The doors are not open yet."
+                        : "That code was not recognised."}
               </h1>
-              <p className="mt-3 text-[17px] text-[#C6D2C8]">{result?.outcome === "WRONG_EVENT" && result.other_event ? `It is a valid ticket for ${result.other_event.name}.` : "A volunteer at the desk can sort it out in a moment."}</p>
+              <p className="mt-3 text-[17px] text-[#C6D2C8]">
+                {result?.outcome === "WRONG_EVENT" && result.other_event
+                  ? `It is a valid ticket for ${result.other_event.name}.`
+                  : "A volunteer at the desk can sort it out in a moment."}
+              </p>
             </>
           )}
-          <button type="button" onClick={reset} className="mt-10 text-[14px] text-[#8C948B] underline">
+          <button
+            type="button"
+            onClick={reset}
+            className="mt-10 text-[14px] text-[#8C948B] underline"
+          >
             Done · back in {left}s
           </button>
         </main>
@@ -334,12 +525,28 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
             className="w-full max-w-sm space-y-3 rounded-2xl bg-[#13201A] p-6"
           >
             <h2 className="text-[18px] font-semibold">Staff mode</h2>
-            <input autoFocus type="password" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Event PIN" className="h-12 w-full rounded-xl border border-white/15 bg-white/5 px-4 font-mono text-[18px]" />
+            <input
+              autoFocus
+              type="password"
+              inputMode="numeric"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="Event PIN"
+              className="h-12 w-full rounded-xl border border-white/15 bg-white/5 px-4 font-mono text-[18px]"
+            />
             <div className="flex gap-2">
-              <button type="submit" className="h-12 flex-1 rounded-xl text-[15px] font-medium text-[#06190E]" style={{ background: brand }}>
+              <button
+                type="submit"
+                className="h-12 flex-1 rounded-xl text-[15px] font-medium text-[#06190E]"
+                style={{ background: brand }}
+              >
                 Open
               </button>
-              <button type="button" onClick={() => (setPinOpen(false), setPin(""))} className="h-12 flex-1 rounded-xl border border-white/15 text-[15px]">
+              <button
+                type="button"
+                onClick={() => (setPinOpen(false), setPin(""))}
+                className="h-12 flex-1 rounded-xl border border-white/15 text-[15px]"
+              >
                 Cancel
               </button>
             </div>
@@ -354,18 +561,32 @@ function Kiosk({ token, ctx, onUnpair }: { token: string; ctx: KioskContext; onU
               <dt className="text-[#8C948B]">Checked in here</dt>
               <dd className="text-right font-mono">{staff.checked_in_here}</dd>
               <dt className="text-[#8C948B]">Checked in, all doors</dt>
-              <dd className="text-right font-mono">{staff.counters.checked_in} / {staff.counters.registered}</dd>
+              <dd className="text-right font-mono">
+                {staff.counters.checked_in} / {staff.counters.registered}
+              </dd>
               <dt className="text-[#8C948B]">Cards printed today</dt>
               <dd className="text-right font-mono">{staff.printed_today}</dd>
             </dl>
             <div className="flex flex-col gap-2">
-              <button type="button" onClick={() => window.location.reload()} className="h-12 rounded-xl border border-white/15 text-[15px]">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="h-12 rounded-xl border border-white/15 text-[15px]"
+              >
                 Reload the screen
               </button>
-              <button type="button" onClick={onUnpair} className="h-12 rounded-xl border border-destructive/60 text-[15px] text-red-300">
+              <button
+                type="button"
+                onClick={onUnpair}
+                className="h-12 rounded-xl border border-destructive/60 text-[15px] text-red-300"
+              >
                 Unpair this kiosk
               </button>
-              <button type="button" onClick={() => setStaff(null)} className="h-12 rounded-xl text-[15px] text-[#8C948B]">
+              <button
+                type="button"
+                onClick={() => setStaff(null)}
+                className="h-12 rounded-xl text-[15px] text-[#8C948B]"
+              >
                 Close
               </button>
             </div>

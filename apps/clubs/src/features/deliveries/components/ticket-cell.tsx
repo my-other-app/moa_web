@@ -49,7 +49,13 @@ const line = (d: DeliveryBrief | undefined) => {
  * send it again, or take it back. The chip is the state; the menu is the
  * verb, kept quiet until it is needed.
  */
-export function TicketCell({ eventId, row }: { eventId: number; row: TicketRow }) {
+export function TicketCell({
+  eventId,
+  row,
+}: {
+  eventId: number;
+  row: TicketRow;
+}) {
   const sendOne = useSendOneTicket(eventId);
   const revoke = useRevokeTicket(eventId);
   const [confirmRevoke, setConfirmRevoke] = React.useState(false);
@@ -67,13 +73,18 @@ export function TicketCell({ eventId, row }: { eventId: number; row: TicketRow }
               <StatusBadge tone="destructive" label="Revoked" />
             </span>
           </TooltipTrigger>
-          <TooltipContent>Refused at check-in since {formatDateTime(row.ticket_revoked_at)}</TooltipContent>
+          <TooltipContent>
+            Refused at check-in since {formatDateTime(row.ticket_revoked_at)}
+          </TooltipContent>
         </Tooltip>
       ) : (
         <Tooltip>
           <TooltipTrigger asChild>
             <span>
-              <StatusBadge tone={email ? verdictOf(email).tone : "default"} label={email ? verdictOf(email).label : "Not sent"} />
+              <StatusBadge
+                tone={email ? verdictOf(email).tone : "default"}
+                label={email ? verdictOf(email).label : "Not sent"}
+              />
             </span>
           </TooltipTrigger>
           <TooltipContent>{line(email)}</TooltipContent>
@@ -81,32 +92,54 @@ export function TicketCell({ eventId, row }: { eventId: number; row: TicketRow }
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button type="button" size="icon-xs" variant="ghost" disabled={busy} aria-label={`Ticket actions for ${name}`}>
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            disabled={busy}
+            aria-label={`Ticket actions for ${name}`}
+          >
             <MoreHorizontalIcon />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem disabled={revoked} onSelect={() => sendOne.mutate(row.id)}>
+          <DropdownMenuItem
+            disabled={revoked}
+            onSelect={() => sendOne.mutate(row.id)}
+          >
             <span className="flex flex-col">
               <span>Send ticket again</span>
               <span className="text-muted-foreground text-xs">
-                {revoked ? "Reinstate it first." : "By email, even if it was delivered before."}
+                {revoked
+                  ? "Reinstate it first."
+                  : "By email, even if it was delivered before."}
               </span>
             </span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {revoked ? (
-            <DropdownMenuItem onSelect={() => revoke.mutate({ registrationId: row.id, revoke: false })}>
+            <DropdownMenuItem
+              onSelect={() =>
+                revoke.mutate({ registrationId: row.id, revoke: false })
+              }
+            >
               <span className="flex flex-col">
                 <span>Reinstate this ticket</span>
-                <span className="text-muted-foreground text-xs">Check-in accepts it again.</span>
+                <span className="text-muted-foreground text-xs">
+                  Check-in accepts it again.
+                </span>
               </span>
             </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem variant="destructive" onSelect={() => setConfirmRevoke(true)}>
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => setConfirmRevoke(true)}
+            >
               <span className="flex flex-col">
                 <span>Revoke their ticket</span>
-                <span className="text-xs opacity-80">For a lost or transferred ticket.</span>
+                <span className="text-xs opacity-80">
+                  For a lost or transferred ticket.
+                </span>
               </span>
             </DropdownMenuItem>
           )}
@@ -118,12 +151,19 @@ export function TicketCell({ eventId, row }: { eventId: number; row: TicketRow }
           <AlertDialogHeader>
             <AlertDialogTitle>Revoke {name}&apos;s ticket?</AlertDialogTitle>
             <AlertDialogDescription>
-              Check-in refuses it by name from now on, and nothing is sent for it. You can reinstate it here at any time.
+              Check-in refuses it by name from now on, and nothing is sent for
+              it. You can reinstate it here at any time.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
-            <AlertDialogAction onClick={() => revoke.mutate({ registrationId: row.id, revoke: true })}>Revoke ticket</AlertDialogAction>
+            <AlertDialogAction
+              onClick={() =>
+                revoke.mutate({ registrationId: row.id, revoke: true })
+              }
+            >
+              Revoke ticket
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -4,82 +4,126 @@ import { Slot } from "radix-ui";
 
 import { cn } from "../lib/cn";
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-  {
-    variants: {
-      variant: {
-        /*
-         * An accent outline, not a fill.
-         *
-         * The v2 system's loudest control is still quiet: `.btn-primary` in
-         * the Nocturne theme is a bordered accent, and every hand-rolled v2
-         * screen uses it. This variant filling with solid accent left the
-         * product with two different primary buttons depending on whether a
-         * screen had been rebuilt yet -- on a dark ground the fill reads as a
-         * glaring block beside the outlined one.
-         */
-        default:
-          "border border-primary text-primary bg-transparent hover:bg-primary/15 active:bg-primary/25",
-        destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
-        /*
-         * The product's primary call to action (design node 3:817): charcoal
-         * fill, Bebas Neue, wide tracking. Uses the `.bebas` class from the
-         * shared preset rather than a font utility, because that is how the
-         * font variable is already wired in both apps.
-         */
-        display:
-          "bebas bg-primary text-primary-foreground tracking-wide hover:bg-primary/90",
-      },
-      size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-8",
-        "icon-lg": "size-10",
-        /* 60px tall, 50px horizontal padding — the design's CTA proportions. */
-        display: "h-[60px] rounded-lg px-[50px] text-2xl has-[>svg]:px-10",
-      },
+/**
+ * The button. One component, and one stylesheet behind it: every variant
+ * and size here is a `.btn` class from the Meridian sheet, so a `<Button>`
+ * and a `<Link className="btn btn-secondary">` are the same control to
+ * the pixel. Nothing else sets a button's height, padding, radius or type.
+ *
+ *   variant     class             use
+ *   primary     btn-primary       the one thing the page is for
+ *   secondary   btn-secondary     everything else
+ *   ghost       btn-ghost         a quiet, link-like action
+ *   destructive btn-destructive   the one that removes
+ *
+ *   size      class    height
+ *   xs        btn-xs   28px — a row's small action
+ *   sm        btn-sm   32px — a panel's action
+ *   md        (none)   36px — a page's action
+ *   lg        btn-lg   44px — a touch screen
+ *   icon*     btn-icon the same heights, square
+ *
+ * The older names (`default`, `outline`, `link`, `display`) are kept as
+ * aliases so a screen written against them renders the one system.
+ */
+const buttonVariants = cva("btn", {
+  variants: {
+    variant: {
+      primary: "btn-primary",
+      secondary: "btn-secondary",
+      ghost: "btn-ghost",
+      destructive: "btn-destructive",
+      /* Aliases from before the sheet was the only source. */
+      default: "btn-primary",
+      outline: "btn-secondary",
+      link: "btn-ghost",
+      display: "btn-primary btn-lg",
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
+    size: {
+      xs: "btn-xs",
+      sm: "btn-sm",
+      md: "",
+      default: "",
+      lg: "btn-lg",
+      icon: "btn-icon",
+      "icon-xs": "btn-icon btn-xs",
+      "icon-sm": "btn-icon btn-sm",
+      "icon-lg": "btn-icon btn-lg",
+      display: "btn-lg",
     },
-  }
-);
+    /** Round, for an icon button that sits in a row. */
+    round: { true: "btn-round" },
+    /** A secondary or ghost button whose action removes something: refuse text, refuse on hover. */
+    danger: { true: "btn-danger" },
+  },
+  defaultVariants: {
+    variant: "primary",
+    size: "md",
+  },
+});
+
+type ButtonProps = React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & { asChild?: boolean };
 
 function Button({
   className,
-  variant = "default",
-  size = "default",
+  variant = "primary",
+  size = "md",
+  round,
+  danger,
   asChild = false,
   ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
-  }) {
+}: ButtonProps) {
   const Comp = asChild ? Slot.Root : "button";
-
   return (
     <Comp
       data-slot="button"
       data-variant={variant}
       data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(
+        buttonVariants({ variant, size, round, danger }),
+        className,
+      )}
       {...props}
     />
   );
 }
 
-export { Button, buttonVariants };
+type IconButtonProps = Omit<React.ComponentProps<"button">, "children"> & {
+  /** What the button does; what a screen reader says and what the tooltip shows. */
+  label: string;
+  size?: "xs" | "sm" | "md";
+  variant?: "secondary" | "ghost";
+  danger?: boolean;
+  children: React.ReactNode;
+};
+
+/** An icon-only button for a row: round, 32px, a line around it. */
+function IconButton({
+  label,
+  size = "sm",
+  variant = "secondary",
+  danger,
+  className,
+  children,
+  ...props
+}: IconButtonProps) {
+  const sized = size === "md" ? "icon" : size === "xs" ? "icon-xs" : "icon-sm";
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      data-slot="icon-button"
+      className={cn(
+        buttonVariants({ variant, size: sized, round: true, danger }),
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+export { Button, IconButton, buttonVariants };

@@ -66,7 +66,7 @@ function Composer({ clubName, followers }: { clubName: string; followers: number
             {preview && (
               <div className="relative mt-2 h-[160px] w-full overflow-hidden rounded-xl">
                 <Image src={preview} alt="" fill className="object-cover" unoptimized />
-                <button type="button" aria-label="Remove photo" className="btn btn-secondary absolute top-2 right-2 h-7 px-2" onClick={() => setPhoto(null)}>
+                <button type="button" aria-label="Remove photo" className="btn btn-secondary btn-xs absolute top-2 right-2" onClick={() => setPhoto(null)}>
                   <XIcon className="size-3.5" />
                 </button>
               </div>
@@ -75,7 +75,7 @@ function Composer({ clubName, followers }: { clubName: string; followers: number
               <div className="bg-sunken mt-2 flex flex-col gap-2 rounded-xl p-3">
                 <div className="flex items-center justify-between">
                   <span className="eyebrow">Poll · {poll.length} options</span>
-                  <button type="button" className="btn btn-ghost h-7 px-2 text-[12px]" onClick={() => setPoll(null)}>
+                  <button type="button" className="btn btn-ghost btn-xs" onClick={() => setPoll(null)}>
                     <XIcon className="size-3.5" /> Remove poll
                   </button>
                 </div>
@@ -83,7 +83,7 @@ function Composer({ clubName, followers }: { clubName: string; followers: number
                   <input key={i} aria-label={`Option ${i + 1}`} className="input h-9 w-full" placeholder={`Option ${i + 1}`} value={opt} maxLength={60} onChange={(e) => setPoll(poll.map((o, j) => (j === i ? e.target.value : o)))} />
                 ))}
                 {poll.length < MAX_POLL_OPTIONS && (
-                  <button type="button" className="btn btn-ghost text-brand h-7 self-start px-2 text-[12px]" onClick={() => setPoll([...poll, ""])}>
+                  <button type="button" className="btn btn-ghost btn-xs text-brand self-start" onClick={() => setPoll([...poll, ""])}>
                     + Add option
                   </button>
                 )}
@@ -95,11 +95,11 @@ function Composer({ clubName, followers }: { clubName: string; followers: number
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pl-[52px]">
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" className="btn btn-ghost h-8 px-2 text-[12.5px]" onClick={() => fileRef.current?.click()} disabled={create.isPending}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()} disabled={create.isPending}>
               <ImagePlusIcon className="size-4" /> Photo
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={pick} />
-            <button type="button" className={cn("btn btn-ghost h-8 px-2 text-[12.5px]", poll && "text-brand")} onClick={() => setPoll(poll ? null : ["", ""])} disabled={create.isPending}>
+            <button type="button" className={cn("btn btn-ghost btn-sm", poll && "text-brand")} onClick={() => setPoll(poll ? null : ["", ""])} disabled={create.isPending}>
               <BarChart3Icon className="size-4" /> Poll
             </button>
             <label className="ml-1 flex cursor-pointer items-center gap-2 text-[12.5px]">
@@ -111,7 +111,7 @@ function Composer({ clubName, followers }: { clubName: string; followers: number
             <span className={cn("micro tabular-nums", length > MAX_BODY - 40 ? "text-caution" : "text-ink-3")}>
               {length}/{MAX_BODY}
             </span>
-            <button type="submit" className="btn btn-primary h-9" disabled={create.isPending || body.trim().length === 0}>
+            <button type="submit" className="btn btn-primary" disabled={create.isPending || body.trim().length === 0}>
               {create.isPending ? <Loader2Icon className="size-4 animate-spin" /> : <SendIcon className="size-4" />} Post
             </button>
           </div>
@@ -152,7 +152,7 @@ function Comments({ thread }: { thread: Thread }) {
                 </div>
                 <p className="text-ink-2 text-[13px] whitespace-pre-wrap">{c.body}</p>
               </div>
-              <button type="button" aria-label={`Remove comment by ${c.author.name}`} className="btn btn-ghost h-7 px-2" onClick={() => remove.mutate(c.id)} disabled={remove.isPending}>
+              <button type="button" aria-label={`Remove comment by ${c.author.name}`} className="btn btn-ghost btn-xs" onClick={() => remove.mutate(c.id)} disabled={remove.isPending}>
                 <Trash2Icon className="size-3.5" />
               </button>
             </li>
@@ -161,7 +161,7 @@ function Comments({ thread }: { thread: Thread }) {
       )}
       <form onSubmit={send} className="mt-3 flex gap-2">
         <input aria-label="Reply as the club" className="input h-9 flex-1" placeholder="Reply as the club…" value={draft} maxLength={500} onChange={(e) => setDraft(e.target.value)} disabled={reply.isPending} />
-        <button type="submit" className="btn btn-secondary h-9" disabled={reply.isPending || draft.trim().length === 0}>
+        <button type="submit" className="btn btn-secondary" disabled={reply.isPending || draft.trim().length === 0}>
           Reply
         </button>
       </form>
@@ -198,13 +198,13 @@ function ThreadCard({ t, clubName, now, openByDefault }: { t: Thread; clubName: 
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" aria-label={t.pinned ? "Unpin" : "Pin to top"} title={t.pinned ? "Unpin" : "Pin to top"} className="btn btn-ghost h-8 px-2" onClick={() => pin.mutate({ id: t.id, pinned: !t.pinned })} disabled={pin.isPending}>
+          <button type="button" aria-label={t.pinned ? "Unpin" : "Pin to top"} title={t.pinned ? "Unpin" : "Pin to top"} className="btn btn-ghost btn-sm" onClick={() => pin.mutate({ id: t.id, pinned: !t.pinned })} disabled={pin.isPending}>
             {t.pinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
           </button>
           <button
             type="button"
             aria-label={confirm ? "Confirm removing this post" : "Remove this post"}
-            className={cn("btn btn-ghost h-8 px-2", confirm && "text-refuse")}
+            className={cn("btn btn-ghost btn-sm", confirm && "text-refuse")}
             onClick={() => {
               if (confirm) remove.mutate(t.id);
               setConfirm(!confirm);
@@ -351,7 +351,7 @@ export function ThreadsPage() {
       ) : null}
 
       {i?.best ? (
-        <Notice tone="admit" tag="Best this month" action={<button type="button" className="btn btn-secondary text-[12px]" onClick={() => params.setParam("sort", "engaged")}>Sort by engagement</button>}>
+        <Notice tone="admit" tag="Best this month" action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => params.setParam("sort", "engaged")}>Sort by engagement</button>}>
           “{i.best.body}” — seen {formatNumber(i.best.views)} times, {formatNumber(i.best.engagement)} reactions.
         </Notice>
       ) : null}
@@ -374,7 +374,7 @@ export function ThreadsPage() {
             </Chip>
           ))}
         </div>
-        <select className="input ml-auto h-9" aria-label="Sort" value={sort} onChange={(e) => params.setParam("sort", e.target.value === "newest" ? undefined : e.target.value)}>
+        <select className="input ml-auto" aria-label="Sort" value={sort} onChange={(e) => params.setParam("sort", e.target.value === "newest" ? undefined : e.target.value)}>
           {THREAD_SORTS.map((s) => (
             <option key={s} value={s}>
               {SORT_LABEL[s]}

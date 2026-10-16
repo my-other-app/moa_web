@@ -1096,7 +1096,7 @@ const PreviewPicker = ({ eventId, busy, onPick }: { eventId: number; busy: strin
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search a name — try the longest one"
         aria-label="Search attendees to preview"
-        className="h-9 rounded-md border bg-muted/40 px-2.5 text-[13px]"
+        className="input input-sm"
       />
       <ul className="max-h-[260px] overflow-y-auto rounded-md border">
         {(list.data?.items ?? []).map((r) => {

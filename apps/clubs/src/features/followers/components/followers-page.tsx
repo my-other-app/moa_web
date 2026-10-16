@@ -4,9 +4,9 @@ import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { DownloadIcon, MegaphoneIcon, SearchIcon, UsersIcon } from "lucide-react";
+import { DownloadIcon, MegaphoneIcon, UsersIcon } from "lucide-react";
 import { formatDate, formatNumber, pickImage, relativeTime, useListParams } from "@moa/app-kit";
-import { CardLabel, Chip, EmptyState, FigurePanel, InitialsAvatar, Notice, Pager, ProgressBar, Skeleton, StatTile, cn } from "@moa/ui";
+import { CardLabel, Chip, EmptyState, FigurePanel, InitialsAvatar, Notice, Pager, ProgressBar, Skeleton, StatTile, cn, SearchField } from "@moa/ui";
 
 import { followersExportUrl } from "../api";
 import { useFollowersInsights, useFollowersList } from "../queries";
@@ -152,7 +152,7 @@ export function FollowersPage() {
       ) : null}
 
       {i && i.quiet > 0 && i.quiet >= i.total / 3 ? (
-        <Notice tone="caution" tag="Reach" action={<Link href="/announcements" className="btn btn-secondary text-[12px]">Announce something</Link>}>
+        <Notice tone="caution" tag="Reach" action={<Link href="/announcements" className="btn btn-secondary btn-sm">Announce something</Link>}>
           {i.quiet} of {i.total} followers have not done anything with the club in three months. An announcement or the next event is how they hear from you again.
         </Notice>
       ) : null}
@@ -179,11 +179,8 @@ export function FollowersPage() {
             ))}
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <label className="bg-sunken text-ink-2 flex h-9 items-center gap-2 rounded-full px-3 sm:w-56">
-              <SearchIcon className="size-3.5 shrink-0" aria-hidden="true" />
-              <input value={params.searchInput} onChange={(e) => params.setSearchInput(e.target.value)} onBlur={() => params.commitSearch(params.searchInput)} onKeyDown={(e) => (e.key === "Enter" ? params.commitSearch(params.searchInput) : null)} placeholder="Name, handle or college" aria-label="Search followers" className="text-ink placeholder:text-ink-3 w-full bg-transparent text-[12.5px] outline-none" />
-            </label>
-            <select className="input h-9" aria-label="Sort" value={sort} onChange={(e) => params.setParam("sort", e.target.value)}>
+            <SearchField value={params.searchInput} onChange={params.setSearchInput} onCommit={params.commitSearch} placeholder="Name, handle or college" label="Search followers" className="sm:w-56" />
+            <select className="input" aria-label="Sort" value={sort} onChange={(e) => params.setParam("sort", e.target.value)}>
               {SORTS.map((s) => (
                 <option key={s} value={s}>
                   {SORT_LABEL[s]}

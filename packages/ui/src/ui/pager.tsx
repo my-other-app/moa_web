@@ -30,7 +30,7 @@ function Pager({ page, pageCount, total, pageSize, sizes = [10, 20, 50, 100], no
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(total, page * pageSize);
   const word = noun ? ` ${total === 1 ? noun[0] : noun[1]}` : "";
-  const nav = "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground grid size-7 shrink-0 place-items-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-card";
+  const nav = "btn btn-secondary btn-icon btn-xs btn-round shrink-0";
   return (
     <div className={cn("text-muted-foreground flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[12px]", className)}>
       <span className="font-mono tabular-nums">
@@ -46,7 +46,7 @@ function Pager({ page, pageCount, total, pageSize, sizes = [10, 20, 50, 100], no
               value={pageSize}
               onChange={(e) => onPageSize(Number(e.target.value))}
               aria-label="Rows per page"
-              className="border-border bg-card text-foreground h-7 rounded-md border px-1.5 text-[12px] outline-none"
+              className="input input-sm w-auto"
             >
               {(sizes.includes(pageSize) ? sizes : [...sizes, pageSize].sort((a, b) => a - b)).map((n) => (
                 <option key={n} value={n}>
