@@ -159,8 +159,11 @@ export function AppShell({ user, badges, children }: { user: SessionUser; badges
     mainRef.current?.scrollTo({ top: 0 });
   }, [pathname]);
 
+  // overflow-clip, not overflow-hidden: a hidden box can still be scrolled by
+  // a #fragment link or scrollIntoView, which slid the whole shell up and left
+  // the canvas showing beneath it. Clip forbids that; only <main> scrolls.
   return (
-    <div className="bg-canvas flex h-dvh flex-col overflow-hidden">
+    <div className="bg-canvas flex h-dvh flex-col overflow-clip">
       <div className="flex min-h-0 flex-1 gap-3.5 p-3.5 max-sm:p-2">
         <aside
           className={cn(
@@ -171,7 +174,7 @@ export function AppShell({ user, badges, children }: { user: SessionUser; badges
           <Rail user={user} badges={badges} collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
         </aside>
 
-        <div className="bg-surface shadow-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-sheet)]">
+        <div className="bg-surface shadow-card flex min-h-0 min-w-0 flex-1 flex-col overflow-clip rounded-[var(--radius-sheet)]">
           <div className="flex h-[62px] shrink-0 items-center gap-2.5 px-4 max-sm:px-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
