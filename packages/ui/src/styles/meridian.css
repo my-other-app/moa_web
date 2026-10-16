@@ -339,6 +339,7 @@
    *   btn-primary    the one thing the page is for — brand fill
    *   btn-secondary  everything else — surface with a line
    *   btn-ghost      a quiet link-like action — brand text, no border
+   *   btn-quiet      an icon button in a row — ink-2, no line
    *   btn-destructive the one that removes — refuse fill
    */
   .btn {
@@ -434,6 +435,17 @@
   }
   .btn-ghost:not(:disabled):hover {
     background: var(--brand-soft);
+  }
+  /* The quiet tone: ink-2, no line, for an icon button in a row that must not shout. */
+  .btn-quiet {
+    color: var(--ink-2);
+  }
+  .btn-quiet:not(:disabled):hover {
+    color: var(--ink);
+    background: var(--sunken);
+  }
+  .btn-quiet[aria-pressed="true"] {
+    color: var(--brand);
   }
   .btn-destructive {
     color: #ffffff;
