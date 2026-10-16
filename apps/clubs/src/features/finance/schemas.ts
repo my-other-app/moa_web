@@ -29,12 +29,18 @@ export const financeSummarySchema = z.object({
     merch: money.default(0),
     refunds: money,
     refund_count: z.number(),
+    online: money.default(0),
+    online_count: z.number().default(0),
+    cash: money.default(0),
+    cash_count: z.number().default(0),
     expenses: money,
     expense_count: z.number(),
     net: money,
+    margin: z.number().nullish(),
     outstanding: money,
     outstanding_count: z.number(),
     avg_ticket: money.nullable(),
+    cost_per_head: money.nullish(),
   }),
   deltas: z.object({
     gross: z.number().nullable(),
@@ -53,16 +59,35 @@ export const financeSummarySchema = z.object({
       starts_at: z.string(),
       type: z.string(),
       status: z.string(),
+      held: z.boolean().default(false),
+      has_fee: z.boolean().default(false),
+      fee: money.default(0),
       regs: z.number(),
       paying: z.number(),
       tickets: money,
       merch: money.default(0),
+      online: money.default(0),
+      cash: money.default(0),
       refunds: money,
       expenses: money,
+      expense_count: z.number().default(0),
       net: money,
+      margin: z.number().nullish(),
+      outstanding: money.default(0),
+      outstanding_count: z.number().default(0),
     })
   ),
   expenses: z.array(expenseSchema),
+  by_category: z.array(z.object({ category: z.string(), amount: money, count: z.number() })).default([]),
+  channels: z.array(z.object({ key: z.string(), label: z.string(), amount: money, count: z.number() })).default([]),
+  attention: z
+    .object({
+      at_a_loss: z.array(z.object({ id: z.number(), name: z.string(), net: money, tickets: money, expenses: money })).default([]),
+      owed: z.array(z.object({ id: z.number(), name: z.string(), outstanding: money, outstanding_count: z.number() })).default([]),
+      unlogged: z.array(z.object({ id: z.number(), name: z.string(), tickets: money })).default([]),
+    })
+    .default({ at_a_loss: [], owed: [], unlogged: [] }),
+  ahead: z.object({ events: z.number(), paid_events: z.number(), regs: z.number(), tickets: money, outstanding: money, outstanding_count: z.number(), expenses: money }).default({ events: 0, paid_events: 0, regs: 0, tickets: 0, outstanding: 0, outstanding_count: 0, expenses: 0 }),
   categories: z.array(z.string()),
   generated_at: z.string(),
 });
@@ -70,6 +95,10 @@ export const financeSummarySchema = z.object({
 export type Expense = z.infer<typeof expenseSchema>;
 export type FinanceSummary = z.infer<typeof financeSummarySchema>;
 export type EventRow = FinanceSummary["by_event"][number];
+
+export const EVENT_FILTERS = ["all", "held", "ahead"] as const;
+export type EventFilter = (typeof EVENT_FILTERS)[number];
+export const EVENT_FILTER_LABEL: Record<EventFilter, string> = { all: "All", held: "Held", ahead: "Ahead" };
 
 export const expenseFormSchema = z.object({
   title: z.string().trim().min(1, "Say what the money went on").max(120, "Keep the title under 120 characters"),
