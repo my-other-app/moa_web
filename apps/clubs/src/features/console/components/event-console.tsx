@@ -4,7 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDownIcon, PaletteIcon, ScanLineIcon } from "lucide-react";
+import { CalendarDaysIcon, ChevronDownIcon, PaletteIcon, ScanLineIcon } from "lucide-react";
 import { formatWindow, pickImage } from "@moa/app-kit";
 import {
   Button,
@@ -18,18 +18,23 @@ import {
   TabRail,
   cn,
 } from "@moa/ui";
-import { enter, pressable } from "@moa/ui/motion";
+import { enter } from "@moa/ui/motion";
 
-import { EventRowActions, EventStatusBadge, useEventDetail } from "@/features/events";
+import { EventRowMenu, EventStatusBadge, useEventDetail } from "@/features/events";
 import { useEventSummary } from "../queries";
-import { DESIGN_LINKS, EVENT_TABS, STATUS_NOTICE, clockNotices, tabFor } from "../schemas";
+import { DESIGN_LINKS, EVENT_TABS, STATUS_ACTION, STATUS_NOTICE, clockNotices, tabFor } from "../schemas";
 
 /**
  * The operational heart of an event: its name and status, the one-line
- * notices its clock earns, the actions that are always wanted, and a rail
- * of sections in the order of the event's life. Every page under the event
- * renders inside it; the designer is the exception, because it wants the
- * whole width and its own tabs.
+ * notices its clock earns (each with the one place that settles it), the
+ * actions that are always wanted, and a rail of sections in the order of the
+ * event's life. Every page under the event renders inside it; the designer
+ * is the exception, because it wants the whole width and its own tabs.
+ *
+ * One primary action at most: the gate console, and only while the door is
+ * open — the gate refuses check-ins while it is shut. Everything else that
+ * acts on the event as a whole sits behind the one "More" menu the events
+ * list uses, so a row and its page offer the same verbs.
  */
 export function EventConsole({ eventId, children }: { eventId: number; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -50,78 +55,106 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   const poster = pickImage(e?.poster, ["thumbnail", "medium", "original"]);
   const doorOpen = s?.door_open ?? false;
   const status = s?.status ?? e?.status;
+  const where = e ? (e.is_online ? "Online" : e.location_name) : null;
+  const standing = status ? STATUS_NOTICE[status] : undefined;
+  const settle = status ? STATUS_ACTION[status] : undefined;
+  const notices = s ? clockNotices(s, now) : [];
 
   return (
     <div className={cn(enter)}>
-      <div className="flex flex-wrap items-start gap-3.5">
-        <div className="bg-muted relative size-14 shrink-0 overflow-hidden rounded-xl">
-          {poster ? <Image src={poster} alt="" fill sizes="56px" className="object-cover" unoptimized /> : null}
+      <header className="flex flex-wrap items-start gap-x-4 gap-y-3">
+        <div className="bg-sunken border-line-soft relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl border">
+          {poster ? (
+            <Image src={poster} alt="" fill sizes="56px" className="object-cover" unoptimized />
+          ) : (
+            <CalendarDaysIcon aria-hidden="true" className="text-ink-3 size-5" />
+          )}
         </div>
-        <div className="min-w-[200px] flex-1">
+        <div className="min-w-[220px] flex-1">
           {e ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="m-0 text-[26px] leading-[1.12] tracking-[-0.015em] sm:text-[30px]">{e.name}</h1>
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+              <h1 className="page-title">{e.name}</h1>
               {status ? <EventStatusBadge status={status} /> : null}
             </div>
+          ) : event.isError ? (
+            <h1 className="page-title">Event</h1>
           ) : (
-            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-7 w-64" />
           )}
-          <div className="text-muted-foreground mt-1 text-[13px]">
-            {e?.club?.name ? <span className="text-foreground">{e.club.name}</span> : null}
-            {e ? (
-              <span>
-                {e.club?.name ? " · " : ""}
-                {formatWindow(s?.starts_at ?? e.event_datetime, s?.ends_at ?? null)}
-                {e.location_name ? ` · ${e.is_online ? "Online" : e.location_name}` : ""}
-              </span>
-            ) : null}
-          </div>
+          {e ? (
+            <p className="text-ink-2 mt-1 text-[13px]">
+              {e.club?.name ? <span className="text-ink font-medium">{e.club.name}</span> : null}
+              {e.club?.name ? " · " : ""}
+              {formatWindow(s?.starts_at ?? e.event_datetime, s?.ends_at ?? null)}
+              {where ? ` · ${where}` : ""}
+            </p>
+          ) : null}
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className={pressable} aria-label="Designs">
-                <PaletteIcon /> Designs <ChevronDownIcon className="text-muted-foreground" />
+              <Button variant="secondary" aria-label="Designs">
+                <PaletteIcon /> Designs <ChevronDownIcon className="text-ink-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[220px]">
+            <DropdownMenuContent align="end" className="min-w-[230px]">
               {DESIGN_LINKS.map((d) => (
                 <DropdownMenuItem key={d.kind} onSelect={() => router.push(`${base}/design?kind=${d.kind}`)}>
                   <span className="flex flex-col">
-                    <span>{d.label}</span>
-                    <span className="text-muted-foreground text-[11.5px]">{d.hint}</span>
+                    <span className="text-ink text-[13px]">{d.label}</span>
+                    <span className="text-ink-3 text-[11.5px]">{d.hint}</span>
                   </span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          {/* The gate refuses check-ins while the door is shut, so the console is not offered as the primary action then. */}
           {doorOpen ? (
-            <Button asChild className={pressable}>
+            <Button asChild>
               <Link href={`/gate/${eventId}`}>
                 <ScanLineIcon /> Open gate console
               </Link>
             </Button>
           ) : null}
-          {e ? <EventRowActions event={{ id: e.id, name: e.name, registration_count: s?.registered ?? 0 }} onDeleted={() => router.replace("/events")} /> : null}
+          {e ? <EventRowMenu event={{ id: e.id, name: e.name, registration_count: s?.registered ?? 0 }} onDeleted={() => router.replace("/events")} /> : null}
         </div>
-      </div>
+      </header>
 
-      {status && STATUS_NOTICE[status] ? (
-        <Notice tag={status} className="mt-4" tone={status === "draft" ? "caution" : "neutral"}>
-          {STATUS_NOTICE[status]}
-        </Notice>
-      ) : null}
-      {s
-        ? clockNotices(s, now).map((n) => (
-            <Notice key={n.tag} tag={n.tag} tone={n.tone} className="mt-3">
+      {standing || notices.length ? (
+        <div className="mt-4 grid gap-2">
+          {status && standing ? (
+            <Notice
+              tag={status}
+              tone={status === "draft" ? "caution" : "neutral"}
+              action={
+                settle ? (
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href={`${base}${settle.path}`}>{settle.label}</Link>
+                  </Button>
+                ) : undefined
+              }
+            >
+              {standing}
+            </Notice>
+          ) : null}
+          {notices.map((n) => (
+            <Notice
+              key={n.tag}
+              tag={n.tag}
+              tone={n.tone}
+              action={
+                <Button asChild variant="secondary" size="sm">
+                  <Link href={`${base}${n.action.path}`}>{n.action.label}</Link>
+                </Button>
+              }
+            >
               {n.body}
             </Notice>
-          ))
-        : null}
+          ))}
+        </div>
+      ) : null}
 
       <TabRail
-        className="mt-4"
+        className="mt-5"
         label="Event sections"
         value={tab}
         items={EVENT_TABS.filter((t) => !("when" in t) || event.data?.[t.when] !== false).map((t) => ({
@@ -130,11 +163,9 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
           href: `${base}${t.path}`,
           count: t.key === "attendees" ? (s?.registered ?? null) : t.key === "check-ins" ? (s?.checked_in ?? null) : null,
         }))}
-        renderLink={(item, props) => (
-          <Link href={item.href!} {...props} prefetch />
-        )}
+        renderLink={(item, props) => <Link href={item.href!} {...props} prefetch />}
       />
-      <div className="mt-[18px]">
+      <div className="mt-5">
         <TabPanel id={tab} kind="page">
           {children}
         </TabPanel>

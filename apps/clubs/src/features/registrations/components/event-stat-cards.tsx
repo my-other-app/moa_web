@@ -1,124 +1,115 @@
 "use client";
 
-import { BuildingIcon, CircleDotIcon, EyeIcon, UsersIcon } from "lucide-react";
-import { formatNumber } from "@moa/app-kit";
-import {
-  MetricCard,
-  Skeleton,
-  StatusBadge,
-  cn,
-  type StatusTone,
-} from "@moa/ui";
-import { hoverLift, stagger } from "@moa/ui/motion";
+import Link from "next/link";
+import { formatCurrency, formatNumber, formatWindow, pct } from "@moa/app-kit";
+import { Skeleton, StatTile } from "@moa/ui";
 
-import type { EventDetail, EventLifecycle } from "@/features/events";
+import { useEventSummary } from "@/features/console";
+import type { EventDetail } from "@/features/events";
 import { useEventAnalytics } from "../queries";
 
 /**
- * The four figures at the top of an event.
+ * The four figures that open an event's Overview: who signed up, who is in,
+ * who holds a ticket, and what the event brought — money for a paid event,
+ * page views for a free one. Each leads to the page that acts on it.
  *
- * These were solid pastel blocks -- mint, lavender, sky, salmon -- taken from
- * the design file (node 168:1265). Beside the panels below them they read as
- * a different product: four saturated fields of colour above a page of white
- * cards and restrained accents. They now use the same MetricCard as both
- * dashboards, so colour carries meaning (the event's state) rather than
- * decorating every tile equally.
+ * The door figures come from the live summary (the same response the door
+ * panel reads, so the two can never disagree); the money and the view rate
+ * from the sign-up analytics. While the door is open, "Checked in" is the
+ * figure the page is about and takes the hero.
  */
-const STATUS_COPY: Record<
-  EventLifecycle,
-  { label: string; caption: string; tone: StatusTone }
-> = {
-  draft: {
-    label: "Draft",
-    caption: "not published; the gate refuses scans",
-    tone: "warning",
-  },
-  published: {
-    label: "Published",
-    caption: "tickets can go out; the door opens at the start",
-    tone: "info",
-  },
-  live: { label: "Live", caption: "the door is open", tone: "success" },
-  closed: {
-    label: "Closed",
-    caption: "the door is shut and settings are locked",
-    tone: "default",
-  },
-  archived: {
-    label: "Archived",
-    caption: "hidden from the events list",
-    tone: "default",
-  },
-};
+export function EventStatCards({ eventId, event }: { eventId: number; event: EventDetail | undefined }) {
+  const summary = useEventSummary(eventId);
+  const analytics = useEventAnalytics(eventId);
+  const s = summary.data;
+  const a = analytics.data;
+  const base = `/events/${eventId}`;
 
-export function EventStatCards({ event }: { event: EventDetail | undefined }) {
-  const { data, isPending, isError } = useEventAnalytics(event?.id ?? -1);
-
-  if (isPending || !event) {
+  if (!s) {
     return (
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-[8.75rem] w-full rounded-2xl" />
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-[126px] rounded-2xl" />
         ))}
       </div>
     );
   }
 
-  // The status clock, not a guess from the dates: the header badge reads the same field.
-  const status = STATUS_COPY[event.status];
-  // Page views live on the event, not on the analytics response -- the
-  // endpoint only exposes them indirectly, through conversion_rate.
-  const visitors = event.page_views ?? 0;
+  const at = new Date(s.generated_at);
+  const t = s.tickets;
+  const left = s.capacity ? Math.max(0, s.capacity - s.registered) : null;
+  const deleted = s.retention.state === "deleted";
+  const ahead = !s.door_open && !s.from_report && s.checked_in === 0 && new Date(s.starts_at) > at;
+  const paidEvent = !!event?.has_fee;
+  const payment = a?.payment_status;
 
-  const cards = [
-    {
-      label: "Status",
-      value: <StatusBadge label={status.label} tone={status.tone} />,
-      caption: status.caption,
-      icon: <CircleDotIcon />,
-      tone: "brand" as const,
-    },
-    {
-      label: "Registrations",
-      value: isError ? "--" : formatNumber(data?.total_registrations ?? 0),
-      caption: "people signed up",
-      icon: <UsersIcon />,
-      tone: "info" as const,
-    },
-    {
-      label: "Event visitors",
-      value: formatNumber(visitors),
-      caption: "viewed the event page",
-      icon: <EyeIcon />,
-      tone: "default" as const,
-    },
-    {
-      label: "Institutions",
-      value: isError ? "--" : formatNumber(data?.total_institutions ?? 0),
-      caption: "distinct colleges",
-      icon: <BuildingIcon />,
-      tone: "warning" as const,
-    },
-  ];
+  const ticketNote = s.from_report
+    ? "from the closeout report"
+    : s.registered === 0
+      ? "nothing to send until someone signs up"
+      : s.status === "draft"
+        ? "tickets go out once it is published"
+        : t.missing > 0
+          ? `of ${formatNumber(s.registered)} · ${formatNumber(t.missing)} still without one${t.pending ? ` · ${formatNumber(t.pending)} sending` : ""}`
+          : `everyone on the list${t.revoked ? ` · ${formatNumber(t.revoked)} revoked` : ""}`;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card, i) => (
-        <div
-          key={card.label}
-          style={stagger(i)}
-          className="animate-in fade-in-0 slide-in-from-bottom-2 duration-500 motion-reduce:animate-none"
-        >
-          <MetricCard
-            label={card.label}
-            value={card.value}
-            caption={card.caption}
-            icon={card.icon}
-            tone={card.tone}
-            className={cn("h-full", hoverLift)}
-          />
-        </div>
-      ))}
-    </div>
+    <section aria-label="Headline figures" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <StatTile
+        label="Registered"
+        value={formatNumber(s.registered)}
+        note={
+          s.capacity && left !== null
+            ? left === 0
+              ? `full · capacity ${formatNumber(s.capacity)}`
+              : `${formatNumber(left)} of ${formatNumber(s.capacity)} places left`
+            : s.registered
+              ? "no capacity set"
+              : "nobody yet"
+        }
+        action={{ label: "Open the guest list", href: `${base}/attendees` }}
+        linkAs={Link}
+      />
+      <StatTile
+        label="Checked in"
+        value={formatNumber(s.checked_in)}
+        scale={s.door_open ? "hero" : "sm"}
+        note={ahead ? `door opens ${formatWindow(s.starts_at, null, s.timezone)}` : `${pct(s.checked_in, s.registered)}% of the list${s.door_open ? " · door open" : ""}`}
+        action={s.checked_in > 0 && !deleted ? { label: "See every check-in", href: `${base}/check-ins` } : undefined}
+        linkAs={Link}
+      />
+      <StatTile
+        label="Have a ticket"
+        value={formatNumber(t.issued)}
+        note={ticketNote}
+        action={!s.from_report && t.missing > 0 && s.status !== "draft" ? { label: "Send the rest from the guest list", href: `${base}/attendees` } : undefined}
+        linkAs={Link}
+      />
+      {paidEvent ? (
+        <StatTile
+          label="Collected"
+          value={a ? formatCurrency(a.total_revenue) : "—"}
+          note={
+            payment
+              ? payment.unpaid > 0
+                ? `${formatNumber(payment.paid)} paid · ${formatNumber(payment.unpaid)} yet to pay`
+                : `${formatNumber(payment.paid)} paid · nobody owes`
+              : analytics.isError
+                ? "could not load the money"
+                : "ticket money taken"
+          }
+          action={{ label: "Open finance", href: `${base}/finance` }}
+          linkAs={Link}
+        />
+      ) : (
+        <StatTile
+          label="Page views"
+          value={formatNumber(event?.page_views ?? 0)}
+          note={a ? `${Math.round(a.conversion_rate)}% of viewers signed up` : "people who opened the event page"}
+          action={{ label: "See which links bring them", href: `${base}/links` }}
+          linkAs={Link}
+        />
+      )}
+    </section>
   );
 }

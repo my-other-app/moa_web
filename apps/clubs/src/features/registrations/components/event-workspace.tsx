@@ -1,63 +1,79 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
-import { Button, EmptyState, cn } from "@moa/ui";
+import { formatNumber } from "@moa/app-kit";
+import { Button, EmptyState, FigurePanel, cn } from "@moa/ui";
 import { enter } from "@moa/ui/motion";
 
-import { AnnouncementComposer } from "@/features/announcements";
-import { EventOverviewTab } from "@/features/console";
+import { EventOverviewTab, type OverviewAttention } from "@/features/console";
 import { useEventDetail } from "@/features/events";
-import { EventStatCards } from "./event-stat-cards";
 import { EventReviewsPanel } from "@/features/reviews";
-import { EventInsightsPanel } from "./event-insights-panel";
 import { useEventAnalytics } from "../queries";
+import { EventInsightsPanel } from "./event-insights-panel";
+import { EventStatCards } from "./event-stat-cards";
+import { NotifyGuestsPanel } from "./notify-guests-panel";
 
 /**
  * The event's Overview tab.
  *
  * The console around it carries the name, the status, the actions and the
- * rail, so this is only the panel: the four stat cards, then the door's
- * figures (with the artwork and the description among them), then the
- * announcement composer, the sign-up insights and the reviews. The guest
- * list has its own tab; volunteers are added from Doors.
+ * rail; the console's overview owns the layout. This supplies the pieces
+ * that read the sign-up analytics — the headline figures, the sign-ups,
+ * and the unpaid registrations among what needs attention — with the way to
+ * notify guests and what attendees said. The guest list has its own tab;
+ * volunteers are added from Doors.
  */
 export function EventWorkspace({ eventId }: { eventId: number }) {
   const { data: event, isError } = useEventDetail(eventId);
   const { data: analytics } = useEventAnalytics(eventId);
-  const registered = analytics?.total_registrations ?? 0;
 
   if (isError) {
     return (
-      <EmptyState
-        tone="muted"
-        title="Could not load this event"
-        description="It may have been deleted, or it belongs to another club."
-        action={
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/events">Back to events</Link>
-          </Button>
-        }
-      />
+      <FigurePanel>
+        <EmptyState
+          title="Could not load this event"
+          description="It may have been deleted, or it belongs to another club."
+          action={
+            <Button asChild variant="secondary" size="sm">
+              <Link href="/events">Back to events</Link>
+            </Button>
+          }
+        />
+      </FigurePanel>
     );
   }
 
+  const unpaid = event?.has_fee ? (analytics?.payment_status?.unpaid ?? 0) : 0;
+  const attention: OverviewAttention[] =
+    unpaid > 0
+      ? [
+          {
+            kind: "UNPAID",
+            tone: "amber",
+            title: `${formatNumber(unpaid)} ${unpaid === 1 ? "registration has" : "registrations have"} not paid`,
+            body: "Their places are held but the money is not in. The guest list shows who; Finance has the totals.",
+            path: "/attendees?paid=no",
+          },
+        ]
+      : [];
+
   return (
-    <div className={cn(enter, "space-y-8")}>
-      <EventStatCards event={event} />
-      <EventOverviewTab eventId={eventId} event={event} />
-      {event ? (
-        <AnnouncementComposer
-          eventId={eventId}
-          eventName={event.name}
-          recipientCount={registered}
-        />
-      ) : null}
-      <EventInsightsPanel eventId={eventId} />
-      <EventReviewsPanel
+    <div className={cn(enter)}>
+      <EventOverviewTab
         eventId={eventId}
-        rating={event?.rating}
-        totalRatings={event?.total_rating}
+        event={event}
+        attention={attention}
+        figures={<EventStatCards eventId={eventId} event={event} />}
+        signups={<EventInsightsPanel eventId={eventId} pageViews={event?.page_views} />}
+        notify={event ? <NotifyGuestsPanel eventId={eventId} eventName={event.name} recipientCount={analytics?.total_registrations ?? 0} /> : undefined}
+        reviews={
+          <EventReviewsPanel
+            eventId={eventId}
+            rating={event?.rating}
+            totalRatings={event?.total_rating}
+            finished={event?.status === "closed" || event?.status === "archived"}
+          />
+        }
       />
     </div>
   );

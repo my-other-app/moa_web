@@ -19,12 +19,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  NativeSelect,
 } from "@moa/ui";
 
 import { useAddAttendee, useUpdateRegistration } from "../queries";
@@ -49,6 +44,10 @@ const valuesSchema = z.object({
   answers: z.record(z.string()),
 });
 type Values = z.infer<typeof valuesSchema>;
+
+/** The field's label and the field, in the dialog vocabulary the rebuilt screens share. */
+const LABEL = "eyebrow mb-1.5 block";
+const FIELD = "input h-9 w-full";
 
 /**
  * Add by hand (a spot registration) or correct an existing guest. The
@@ -161,29 +160,30 @@ export function AttendeeFormDialog({
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={submit} noValidate className="space-y-3">
+          <form onSubmit={submit} noValidate className="grid gap-3.5">
             <FormField
               control={form.control}
               name="full_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel className={LABEL}>Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ananya Iyer" autoFocus {...field} />
+                    <input className={FIELD} placeholder="Ananya Iyer" autoFocus {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3.5 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel className={LABEL}>Email</FormLabel>
                     <FormControl>
-                      <Input
+                      <input
+                        className={FIELD}
                         type="email"
                         placeholder="ananya@example.com"
                         {...field}
@@ -198,9 +198,9 @@ export function AttendeeFormDialog({
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone</FormLabel>
+                    <FormLabel className={LABEL}>Phone</FormLabel>
                     <FormControl>
-                      <Input type="tel" placeholder="optional" {...field} />
+                      <input className={FIELD} type="tel" placeholder="optional" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -212,27 +212,23 @@ export function AttendeeFormDialog({
               name="role"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Attending as</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
+                  <FormLabel className={LABEL}>Attending as</FormLabel>
+                  <FormControl>
+                    <NativeSelect className="w-full" {...field}>
                       {REGISTRATION_ROLES.map((r) => (
-                        <SelectItem key={r} value={r}>
+                        <option key={r} value={r}>
                           {ROLE_LABELS[r]}
-                        </SelectItem>
+                        </option>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </NativeSelect>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             {fields.length ? (
-              <div className="bg-muted/40 space-y-3 rounded-md border p-3">
+              <div className="bg-sunken grid gap-3 rounded-xl p-3.5">
+                <p className="text-ink-3 -mb-1 text-[12px]">This event&apos;s own questions</p>
                 {fields.map((f) => (
                   <FormField
                     key={f.key}
@@ -240,36 +236,26 @@ export function AttendeeFormDialog({
                     name={`answers.${f.key}` as const}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>
+                        <FormLabel className={LABEL}>
                           {f.label ?? f.key}
-                          {f.required === false ? (
-                            <span className="text-muted-foreground">
-                              {" "}
-                              — optional
-                            </span>
-                          ) : null}
+                          {f.required === false ? " · optional" : ""}
                         </FormLabel>
                         {f.options?.length ? (
-                          <Select
-                            value={field.value || ""}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Choose" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
+                          <FormControl>
+                            <NativeSelect className="w-full" {...field} value={field.value || ""}>
+                              <option value="" disabled>
+                                Choose
+                              </option>
                               {f.options.map((o) => (
-                                <SelectItem key={o} value={o}>
+                                <option key={o} value={o}>
                                   {o}
-                                </SelectItem>
+                                </option>
                               ))}
-                            </SelectContent>
-                          </Select>
+                            </NativeSelect>
+                          </FormControl>
                         ) : (
                           <FormControl>
-                            <Input {...field} value={field.value ?? ""} />
+                            <input className={FIELD} {...field} value={field.value ?? ""} />
                           </FormControl>
                         )}
                         <FormMessage />
