@@ -79,3 +79,81 @@ export const PERIODS = [
 export function sourceLabel(source: string): string {
   return SOURCES.find((s) => s.value === source)?.label ?? source;
 }
+
+// ─── The Tracking links page ──────────────────────────────────────────────
+
+export const linkTargetSchema = z.object({ kind: z.enum(["club", "event"]), id: z.number().nullable(), name: z.string(), starts_at: z.string().nullable() });
+
+export const linkRowSchema = linkSchema.extend({
+  target: linkTargetSchema,
+  conversion_noun: z.string(),
+  second_noun: z.string(),
+  clicks_ever: z.number(),
+  last_click_at: z.string().nullable(),
+});
+
+export const linksOverviewSchema = z.object({
+  scope: z.enum(["event", "club"]),
+  period_days: z.number(),
+  grain: z.enum(["day", "month"]),
+  links: z.array(linkRowSchema).default([]),
+  series: z.array(z.object({ date: z.string(), clicks: z.number(), conversions: z.number() })).default([]),
+  by_source: z.array(z.object({ source: z.string(), links: z.number(), clicks: z.number(), conversions: z.number(), rate: z.number() })).default([]),
+  totals: z.object({
+    links: z.number(),
+    clicks: z.number(),
+    uniques: z.number(),
+    conversions: z.number(),
+    rate: z.number(),
+    follows: z.number(),
+    registrations: z.number(),
+    second: z.number(),
+    share_of_all: z.number(),
+    best_source: z.object({ source: z.string(), conversions: z.number(), rate: z.number() }).nullable(),
+    best_link: z.object({ id: z.string(), name: z.string(), source: z.string(), conversions: z.number(), rate: z.number() }).nullable(),
+    last_click_at: z.string().nullable(),
+  }),
+  deltas: z.object({ clicks: z.number().nullable(), conversions: z.number().nullable(), rate_pts: z.number().nullable() }),
+  untracked: z.object({
+    follows: z.object({ tracked: z.number(), total: z.number() }),
+    registrations: z.object({ tracked: z.number(), total: z.number() }),
+    conversions: z.number(),
+    total: z.number(),
+  }),
+  attention: z.object({ never_opened: z.array(z.object({ id: z.string(), name: z.string(), target: linkTargetSchema })).default([]) }),
+  all_time: z.object({ links: z.number(), clicks: z.number() }),
+  generated_at: z.string(),
+});
+
+export const linkDetailSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  code: z.string(),
+  url: z.string(),
+  destination: z.string(),
+  clicks: z.number(),
+  uniques: z.number(),
+  first_click_at: z.string().nullable(),
+  last_click_at: z.string().nullable(),
+  series: z.array(z.object({ date: z.string(), clicks: z.number() })).default([]),
+  devices: z.array(z.object({ device: z.string(), clicks: z.number() })).default([]),
+  referrers: z.array(z.object({ referrer: z.string(), clicks: z.number() })).default([]),
+  hours: z.array(z.object({ hour: z.number(), clicks: z.number() })).default([]),
+  created_at: z.string(),
+  generated_at: z.string(),
+});
+
+export type LinkRow = z.infer<typeof linkRowSchema>;
+export type LinkTarget = z.infer<typeof linkTargetSchema>;
+export type LinksOverview = z.infer<typeof linksOverviewSchema>;
+export type LinkDetail = z.infer<typeof linkDetailSchema>;
+
+export const TARGETS = ["all", "club", "event"] as const;
+export type TargetFilter = (typeof TARGETS)[number];
+export const TARGET_LABEL: Record<TargetFilter, string> = { all: "All", club: "Club page", event: "Events" };
+
+export const LINK_SORTS = ["clicks", "conversions", "rate", "newest"] as const;
+export type LinkSort = (typeof LINK_SORTS)[number];
+export const LINK_SORT_LABEL: Record<LinkSort, string> = { clicks: "Most opened", conversions: "Brought most", rate: "Best rate", newest: "Newest" };
+
+export const DEVICE_LABEL: Record<string, string> = { phone: "Phone", tablet: "Tablet", desktop: "Desktop", unknown: "Unknown" };

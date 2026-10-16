@@ -1,0 +1,44 @@
+{
+  "scope": "club",
+  "period_days": 30,
+  "grain": "day",
+  "links": [
+    { "id": "aaaaaaaa-0000-0000-0000-000000000001", "name": "Freshers fair QR", "code": "x7k2m9pq", "url": "https://api.myotherapp.in/l/x7k2m9pq", "destination": "https://events.myotherapp.in/37?utm_source=poster_qr&utm_medium=print&utm_campaign=event-37&ref=x7k2m9pq", "utm_source": "poster_qr", "utm_medium": "print", "utm_campaign": "event-37", "utm_content": null, "target": { "kind": "event", "id": 37, "name": "Hack Night 04", "starts_at": "2099-06-20T13:30:00+00:00" }, "conversion_noun": "registration", "second_noun": "checked in", "clicks": 960, "uniques": 900, "conversions": 241, "rate": 25.1, "second": 97, "clicks_ever": 1200, "last_click_at": "2099-06-09T07:00:00+00:00", "created_at": "2099-05-20T08:00:00+00:00" },
+    { "id": "aaaaaaaa-0000-0000-0000-000000000002", "name": "Instagram bio", "code": "b3nq8r2t", "url": "https://api.myotherapp.in/l/b3nq8r2t", "destination": "https://events.myotherapp.in/clubs/yukthi?utm_source=instagram&utm_medium=social&utm_campaign=club-page&ref=b3nq8r2t", "utm_source": "instagram", "utm_medium": "social", "utm_campaign": "club-page", "utm_content": null, "target": { "kind": "club", "id": null, "name": "Club page", "starts_at": null }, "conversion_noun": "follow", "second_noun": "registered later", "clicks": 2140, "uniques": 1900, "conversions": 188, "rate": 8.8, "second": 61, "clicks_ever": 5000, "last_click_at": "2099-06-09T08:30:00+00:00", "created_at": "2099-05-18T08:00:00+00:00" },
+    { "id": "aaaaaaaa-0000-0000-0000-000000000003", "name": "Notice board", "code": "w9pd4ks3", "url": "https://api.myotherapp.in/l/w9pd4ks3", "destination": "https://events.myotherapp.in/37?utm_source=poster_qr&utm_medium=print&utm_campaign=event-37&utm_content=board&ref=w9pd4ks3", "utm_source": "poster_qr", "utm_medium": "print", "utm_campaign": "event-37", "utm_content": "board", "target": { "kind": "event", "id": 37, "name": "Hack Night 04", "starts_at": "2099-06-20T13:30:00+00:00" }, "conversion_noun": "registration", "second_noun": "checked in", "clicks": 0, "uniques": 0, "conversions": 0, "rate": 0, "second": 0, "clicks_ever": 0, "last_click_at": null, "created_at": "2099-05-15T08:00:00+00:00" }
+  ],
+  "series": [
+    { "date": "2099-06-01", "clicks": 120, "conversions": 14 },
+    { "date": "2099-06-02", "clicks": 300, "conversions": 40 },
+    { "date": "2099-06-03", "clicks": 80, "conversions": 9 },
+    { "date": "2099-06-04", "clicks": 0, "conversions": 0 },
+    { "date": "2099-06-05", "clicks": 410, "conversions": 52 },
+    { "date": "2099-06-06", "clicks": 260, "conversions": 30 },
+    { "date": "2099-06-07", "clicks": 900, "conversions": 110 },
+    { "date": "2099-06-08", "clicks": 640, "conversions": 90 },
+    { "date": "2099-06-09", "clicks": 390, "conversions": 84 }
+  ],
+  "by_source": [
+    { "source": "poster_qr", "links": 2, "clicks": 960, "conversions": 241, "rate": 25.1 },
+    { "source": "instagram", "links": 1, "clicks": 2140, "conversions": 188, "rate": 8.8 }
+  ],
+  "totals": {
+    "links": 3,
+    "clicks": 3100,
+    "uniques": 2800,
+    "conversions": 429,
+    "rate": 13.8,
+    "follows": 188,
+    "registrations": 241,
+    "second": 158,
+    "share_of_all": 48.0,
+    "best_source": { "source": "poster_qr", "conversions": 241, "rate": 25.1 },
+    "best_link": { "id": "aaaaaaaa-0000-0000-0000-000000000001", "name": "Freshers fair QR", "source": "poster_qr", "conversions": 241, "rate": 25.1 },
+    "last_click_at": "2099-06-09T08:30:00+00:00"
+  },
+  "deltas": { "clicks": 11.0, "conversions": 16.0, "rate_pts": -4.0 },
+  "untracked": { "follows": { "tracked": 188, "total": 300 }, "registrations": { "tracked": 241, "total": 594 }, "conversions": 465, "total": 894 },
+  "attention": { "never_opened": [{ "id": "aaaaaaaa-0000-0000-0000-000000000003", "name": "Notice board", "target": { "kind": "event", "id": 37, "name": "Hack Night 04", "starts_at": "2099-06-20T13:30:00+00:00" } }] },
+  "all_time": { "links": 3, "clicks": 6200 },
+  "generated_at": "2099-06-09T09:05:00+00:00"
+}
