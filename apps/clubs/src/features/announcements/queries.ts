@@ -4,8 +4,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
-import { fetchAnnouncementHistory, sendAnnouncement } from "./api";
-import type { SendAnnouncementInput } from "./schemas";
+import { fetchAnnouncementHistory, fetchPushAudience, fetchPushHistory, fetchPushInsights, sendAnnouncement } from "./api";
+import type { PushScope, SendAnnouncementInput } from "./schemas";
 
 export function useAnnouncementHistory(params: { offset: number; limit: number }) {
   return useQuery({
@@ -26,4 +26,16 @@ export function useSendAnnouncement() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+}
+
+export function usePushHistory(params: { scope: PushScope; search?: string | undefined; offset: number; limit: number }) {
+  return useQuery({ queryKey: [...qk.notifications.all, "page", params], queryFn: () => fetchPushHistory(params), staleTime: 15_000, placeholderData: keepPreviousData });
+}
+
+export function usePushInsights() {
+  return useQuery({ queryKey: [...qk.notifications.all, "insights"], queryFn: fetchPushInsights, staleTime: 60_000 });
+}
+
+export function usePushAudience(eventId: number | null) {
+  return useQuery({ queryKey: [...qk.notifications.all, "audience", eventId], queryFn: () => fetchPushAudience(eventId as number), enabled: eventId !== null && eventId > 0, staleTime: 30_000 });
 }

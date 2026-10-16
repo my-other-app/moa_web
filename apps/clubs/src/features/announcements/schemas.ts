@@ -52,3 +52,59 @@ export const sendAnnouncementSchema = z.object({
 
 export type Announcement = z.infer<typeof announcementSchema>;
 export type SendAnnouncementInput = z.infer<typeof sendAnnouncementSchema>;
+
+// --- the Announcements page ----------------------------------------------------------------------
+
+export const PUSH_SCOPES = ["all", "announcements", "live_updates"] as const;
+export type PushScope = (typeof PUSH_SCOPES)[number];
+export const PUSH_SCOPE_LABEL: Record<PushScope, string> = { all: "Everything", announcements: "Announcements", live_updates: "Live updates" };
+export const AUDIENCE_LABEL: Record<string, string> = { all: "Everyone registered", attendees: "Checked in", non_attendees: "Not checked in", checked_in: "Checked in", registered: "Everyone registered" };
+
+export const pushSendSchema = z.object({
+  id: z.string(),
+  kind: z.enum(["announcement", "live_update"]).catch("announcement"),
+  title: z.string(),
+  body: z.string(),
+  event_id: z.number().nullish(),
+  event: z.object({ id: z.number(), name: z.string(), starts_at: z.string().nullish() }).nullish(),
+  audience: z.string().nullish(),
+  sent: z.number(),
+  read: z.number(),
+  read_quickly: z.number(),
+  read_pct: z.number(),
+  slot: z.string(),
+  created_at: z.string(),
+});
+export type PushSend = z.infer<typeof pushSendSchema>;
+
+export const pushHistoryPageSchema = z.object({ items: z.array(pushSendSchema), total: z.number(), limit: z.number(), offset: z.number(), counts: z.record(z.number()).default({}) });
+
+export const pushInsightsSchema = z.object({
+  sends: z.number(),
+  sends_delta: z.number().nullish(),
+  reached: z.number(),
+  reached_delta: z.number().nullish(),
+  open_rate: z.number().nullish(),
+  open_rate_prev: z.number().nullish(),
+  quick_rate: z.number().nullish(),
+  last_sent_at: z.string().nullish(),
+  best: z.object({ id: z.string(), title: z.string(), read_pct: z.number(), sent: z.number() }).nullish(),
+  slots: z.array(z.object({ key: z.string(), label: z.string(), sends: z.number(), open_rate: z.number().nullish() })),
+  best_slot: z.string().nullish(),
+  coming: z.array(z.object({ id: z.number(), name: z.string(), starts_at: z.string().nullish(), registered: z.number(), reachable: z.number() })),
+  registered_ahead: z.number(),
+  reachable_ahead: z.number(),
+  all_time: z.object({ sends: z.number(), reached: z.number(), opened: z.number() }),
+  generated_at: z.string(),
+});
+export type PushInsights = z.infer<typeof pushInsightsSchema>;
+
+const reach = z.object({ people: z.number(), reachable: z.number() });
+export const pushAudienceSchema = z.object({
+  event: z.object({ id: z.number(), name: z.string(), starts_at: z.string().nullish() }),
+  registered: z.number(),
+  checked_in: z.number(),
+  reachable: z.number(),
+  by_audience: z.object({ all: reach, attendees: reach, non_attendees: reach }),
+});
+export type PushAudience = z.infer<typeof pushAudienceSchema>;

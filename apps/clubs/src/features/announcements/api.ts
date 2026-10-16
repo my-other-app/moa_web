@@ -2,7 +2,11 @@ import { api } from "@moa/app-kit";
 
 import {
   announcementHistorySchema,
+  pushAudienceSchema,
+  pushHistoryPageSchema,
+  pushInsightsSchema,
   sendAnnouncementResultSchema,
+  type PushScope,
   type SendAnnouncementInput,
 } from "./schemas";
 
@@ -27,4 +31,17 @@ export async function sendAnnouncement(eventId: number, input: SendAnnouncementI
   // installed. That reason is the whole answer, so it becomes the error.
   if (!result.success) throw new Error(result.message || "The announcement could not be sent");
   return result.notifications_sent ?? 0;
+}
+
+export async function fetchPushHistory(params: { scope: PushScope; search?: string | undefined; offset: number; limit: number }) {
+  return pushHistoryPageSchema.parse(await api.get<unknown>("/api/v1/clubs/notifications/page", { query: params }));
+}
+
+export async function fetchPushInsights() {
+  return pushInsightsSchema.parse(await api.get<unknown>("/api/v1/clubs/notifications/insights"));
+}
+
+/** What a send to this event would reach, by audience, before it goes. */
+export async function fetchPushAudience(eventId: number) {
+  return pushAudienceSchema.parse(await api.get<unknown>(`/api/v1/clubs/notifications/events/${eventId}/audience`));
 }

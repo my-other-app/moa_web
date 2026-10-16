@@ -12,6 +12,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
         if (path.includes("/clubs/events/list")) return { items: [{ id: 37, name: "Hack Night 04", event_datetime: "2026-10-04T12:30:00+00:00" }, { id: 41, name: "Intro to KiCad", event_datetime: null }], total: 2, limit: 100, offset: 0 };
+        if (path.endsWith("/notifications/events/37/audience")) return { event: { id: 37, name: "Hack Night 04", starts_at: null }, registered: 148, checked_in: 88, reachable: 120, by_audience: { all: { people: 148, reachable: 120 }, attendees: { people: 88, reachable: 70 }, non_attendees: { people: 60, reachable: 50 } } };
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(async (path: string, body: unknown) => {
@@ -43,10 +44,13 @@ describe("new announcement", () => {
     expect(await screen.findByText("Pick the event")).toBeInTheDocument();
     expect(screen.getByText("Give the announcement a title")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Event"), { target: { value: "37" } });
-    fireEvent.change(screen.getByLabelText("Who gets it"), { target: { value: "attendees" } });
+    // Each audience says what it reaches before it is picked.
+    expect(await screen.findByText("70 of 88 reachable")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: /Only those who checked in/ }));
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Venue change" } });
     fireEvent.change(screen.getByLabelText("Message"), { target: { value: "We've moved to Hall B." } });
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(screen.getByText("Venue change", { selector: "p" })).toBeInTheDocument(); // the phone preview
+    fireEvent.click(screen.getByRole("button", { name: "Send to 70 phones" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
     expect(calls.find((c) => c.method === "POST")).toMatchObject({ path: "/api/v1/clubs/notifications/events/37/send", body: { title: "Venue change", body: "We've moved to Hall B.", audience: "attendees" } });
   });
