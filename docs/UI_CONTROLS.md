@@ -31,6 +31,10 @@ Add `btn-danger` to a secondary or ghost button whose action removes something (
 
 `.input` is the field: 36px, the field radius, a line that turns brand on focus. `.input-sm` is 32px for a field inside a row. A native `<select className="input">` draws its own chevron. `<NativeSelect>` is the same select as a component.
 
+## Choosing from a long list
+
+`<Combobox value options onChange label>` is a searchable select: a field that opens a list you can type into, for colleges, organisations, cities. A native select is for a short, fixed list; a combobox for a long one. Never a `<datalist>`.
+
 ## Search
 
 `<SearchField value onChange label>` is the search pill: 36px, on the sunken ground, with the icon. `onCommit` fires on Enter and blur for screens that search on commit. Width comes from the caller (`className="sm:w-56"`). `<SearchInput>` is the same pill, debounced, for screens that search as you type.
