@@ -36,6 +36,8 @@
 
   --brand: #0f8a73;
   --brand-foreground: #ffffff;
+  /* The focus ring on a field: the brand at a fifth, three pixels wide — seen, not shouted. */
+  --focus-ring: color-mix(in srgb, var(--brand) 22%, transparent);
   --brand-soft: #e3f3ee;
   --brand-line: #c3e4d9;
 
@@ -95,6 +97,7 @@
 
   --brand: #4fcdb0;
   --brand-foreground: #06201c;
+  --focus-ring: color-mix(in srgb, var(--brand) 28%, transparent);
   --brand-soft: #163029;
   --brand-line: #245a4b;
 
@@ -510,9 +513,11 @@
   .input:hover {
     border-color: var(--ink-3);
   }
-  .input:focus-visible {
+  .input:focus-visible,
+  .input:focus {
     border-color: var(--brand);
-    outline-offset: 0;
+    outline: none;
+    box-shadow: 0 0 0 3px var(--focus-ring);
   }
   textarea.input {
     height: auto;
@@ -538,8 +543,8 @@
     border-radius: 999px;
   }
   .search:focus-within {
-    outline: 2px solid var(--brand);
-    outline-offset: 1px;
+    background: var(--surface);
+    box-shadow: 0 0 0 1px var(--brand), 0 0 0 4px var(--focus-ring);
   }
   .search svg {
     flex-shrink: 0;

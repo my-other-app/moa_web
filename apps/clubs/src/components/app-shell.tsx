@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronsUpDownIcon, LogOutIcon, MenuIcon, MonitorIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SunIcon } from "lucide-react";
@@ -44,10 +45,13 @@ const PRODUCT = "MyOtherApp";
 function Brand({ collapsed, onToggle }: { collapsed: boolean; onToggle?: () => void }) {
   return (
     <div className={cn("flex items-start gap-2 px-4 pt-[18px] pb-[14px]", collapsed && "flex-col items-center px-0")}>
-      <div className={cn("min-w-0 flex-1 pl-1", collapsed && "hidden")}>
-        <span className="text-ink block truncate text-[15px] font-semibold tracking-[-0.02em]">{PRODUCT}</span>
-        <span className="eyebrow block">Clubs</span>
-      </div>
+      <Link href="/" className={cn("flex min-w-0 flex-1 items-center gap-2.5 pl-0.5", collapsed && "hidden")} aria-label="MyOtherApp Clubs home">
+        <Image src="/brand/icon.png" alt="" width={32} height={32} className="size-8 shrink-0 rounded-[9px]" priority unoptimized />
+        <span className="min-w-0">
+          <span className="text-ink block truncate text-[15px] leading-[1.15] font-semibold tracking-[-0.02em]">{PRODUCT}</span>
+          <span className="eyebrow block">Clubs</span>
+        </span>
+      </Link>
       {onToggle ? (
         <button
           type="button"
@@ -59,7 +63,7 @@ function Brand({ collapsed, onToggle }: { collapsed: boolean; onToggle?: () => v
           {collapsed ? <PanelLeftOpenIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
         </button>
       ) : (
-        <span className={cn("text-ink hidden truncate text-[15px] font-semibold", collapsed && "block")}>{PRODUCT.slice(0, 2)}</span>
+        <Image src="/brand/icon.png" alt={PRODUCT} width={32} height={32} className={cn("hidden size-8 shrink-0 rounded-[9px]", collapsed && "block")} unoptimized />
       )}
     </div>
   );

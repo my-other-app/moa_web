@@ -31,11 +31,10 @@ const bebasNeue = Bebas_Neue({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Admin · My Other App",
-    template: "%s · Admin",
-  },
-  description: "Platform administration for My Other App.",
+  title: { default: "MyOtherApp Admin", template: "%s · MyOtherApp Admin" },
+  description: "Platform administration for MyOtherApp.",
+  applicationName: "MyOtherApp Admin",
+  appleWebApp: { title: "Admin", capable: true, statusBarStyle: "black-translucent" },
   robots: { index: false, follow: false },
 };
 
