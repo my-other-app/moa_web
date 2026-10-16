@@ -9,6 +9,7 @@ import {
   Loader2Icon,
   SendIcon,
 } from "lucide-react";
+import { formatNumber } from "@moa/app-kit";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,15 +20,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
-  DistributionBar,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  FigurePanel,
+  IconButton,
   Skeleton,
   cn,
 } from "@moa/ui";
-import { pressable } from "@moa/ui/motion";
 
 import { bundleUrl, type DocumentKind } from "../api";
 import { useDeliverySummary, useSendDocuments } from "../queries";
@@ -40,6 +41,14 @@ import { useDeliverySummary, useSendDocuments } from "../queries";
  * things an organiser does about it: send to whoever has none, retry what
  * failed, or send to everyone again.
  */
+const SEGMENTS = [
+  { key: "sent", label: "Sent", fill: "bg-admit" },
+  { key: "pending", label: "Sending", fill: "bg-info" },
+  { key: "failed", label: "Failed", fill: "bg-refuse" },
+  { key: "skipped", label: "No address", fill: "bg-caution" },
+  { key: "unsent", label: "Not sent yet", fill: "bg-line" },
+] as const;
+
 export function DeliveryBar({
   eventId,
   kind = "ticket",
@@ -56,7 +65,7 @@ export function DeliveryBar({
 
   if (summary.isPending)
     return (
-      <Skeleton className={cn("h-[108px] w-full rounded-lg", className)} />
+      <Skeleton className={cn("h-[108px] w-full rounded-2xl", className)} />
     );
   if (summary.isError || !summary.data) return null;
 
@@ -72,21 +81,24 @@ export function DeliveryBar({
   };
   const toSend = email.unsent + email.failed + email.skipped;
   const busy = send.isPending;
+  const values = {
+    sent: email.sent,
+    pending: email.pending,
+    failed: email.failed,
+    skipped: email.skipped,
+    unsent: email.unsent,
+  };
+  const sum = SEGMENTS.reduce((n, s) => n + values[s.key], 0);
 
   return (
-    <div
-      className={cn(
-        "rounded-2xl bg-card ring-1 ring-border/70 shadow-sm p-4",
-        className,
-      )}
-    >
+    <FigurePanel className={cn("p-4", className)}>
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <p className="text-[15px] font-medium text-foreground">
+          <p className="text-ink text-[15px] font-semibold">
             {kind === "ticket" ? "Tickets" : "Certificates"} by email
           </p>
-          <p className="text-muted-foreground font-mono text-xs tabular-nums">
-            {email.sent} of {total}{" "}
+          <p className="text-ink-3 font-mono text-[11.5px] tabular-nums">
+            {formatNumber(email.sent)} of {formatNumber(total)}{" "}
             {kind === "ticket" ? "sent" : "issued, sent"}
             {email.pending ? ` · ${email.pending} sending…` : ""}
             {email.failed ? ` · ${email.failed} failed` : ""}
@@ -94,7 +106,7 @@ export function DeliveryBar({
             {summary.data.revoked ? ` · ${summary.data.revoked} revoked` : ""}
           </p>
           {unconfigured.length ? (
-            <p className="text-muted-foreground mt-1 text-xs">
+            <p className="text-refuse mt-1 text-[12px]">
               {unconfigured.map((p) => `${p.name}: ${p.note}`).join(" ")}
             </p>
           ) : null}
@@ -103,7 +115,6 @@ export function DeliveryBar({
           <Button
             type="button"
             size="sm"
-            className={pressable}
             disabled={busy || toSend === 0}
             onClick={() => send.mutate("unsent")}
             title={
@@ -119,15 +130,9 @@ export function DeliveryBar({
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={busy}
-                aria-label="More sending options"
-              >
+              <IconButton label="More sending options" disabled={busy}>
                 <ChevronDownIcon />
-              </Button>
+              </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
@@ -136,7 +141,7 @@ export function DeliveryBar({
               >
                 <span className="flex flex-col">
                   <span>Retry problems</span>
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-ink-3 text-xs">
                     Only the sends that failed or were skipped.
                   </span>
                 </span>
@@ -147,64 +152,67 @@ export function DeliveryBar({
               >
                 <span className="flex flex-col">
                   <span>Send to everyone again</span>
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-ink-3 text-xs">
                     Delivered or not — after a redesign, say.
                   </span>
                 </span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className={pressable}
-            asChild
+          {/* A real navigation: the browser handles the file. */}
+          <a
+            href={bundleUrl(eventId, kind)}
+            download
+            className="btn btn-secondary btn-sm"
           >
-            {/* A real navigation: the browser handles the file. */}
-            <a href={bundleUrl(eventId, kind)} download>
-              <DownloadIcon /> All PDFs (ZIP)
-            </a>
-          </Button>
-          <Button type="button" size="sm" variant="ghost" asChild>
-            <Link href={`/events/${eventId}/deliveries`}>
-              <ListIcon /> Delivery log
-            </Link>
-          </Button>
+            <DownloadIcon /> All PDFs (ZIP)
+          </a>
+          <Link
+            href={`/events/${eventId}/deliveries?kind=${kind}`}
+            className="btn btn-ghost btn-sm"
+          >
+            <ListIcon /> Deliveries
+          </Link>
         </div>
       </div>
 
-      <DistributionBar
-        className="mt-3"
-        emptyLabel="Nobody has registered yet"
-        segments={[
-          { key: "sent", label: "Sent", value: email.sent, tone: "success" },
-          {
-            key: "pending",
-            label: "Sending",
-            value: email.pending,
-            tone: "info",
-          },
-          {
-            key: "failed",
-            label: "Failed",
-            value: email.failed,
-            tone: "destructive",
-          },
-          {
-            key: "skipped",
-            label: "No address",
-            value: email.skipped,
-            tone: "warning",
-          },
-          {
-            key: "unsent",
-            label: "Not sent yet",
-            value: email.unsent,
-            tone: "neutral",
-          },
-        ]}
-      />
+      {sum === 0 ? (
+        <div className="mt-3">
+          <div className="bg-sunken h-2 w-full rounded-full" />
+          <p className="text-ink-3 mt-2 text-[12px]">
+            Nobody has registered yet
+          </p>
+        </div>
+      ) : (
+        <div className="mt-3">
+          <div
+            role="img"
+            aria-label={SEGMENTS.map(
+              (s) => `${s.label}: ${values[s.key]}`,
+            ).join(", ")}
+            className="bg-sunken flex h-2 w-full gap-0.5 overflow-hidden rounded-full"
+          >
+            {SEGMENTS.filter((s) => values[s.key] > 0).map((s) => (
+              <span
+                key={s.key}
+                style={{ width: `${(100 * values[s.key]) / sum}%` }}
+                className={cn("h-full min-w-[3px] rounded-full", s.fill)}
+              />
+            ))}
+          </div>
+          <ul className="text-ink-3 mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px]">
+            {SEGMENTS.map((s) => (
+              <li key={s.key} className="flex items-center gap-1.5">
+                <i className={cn("inline-block size-2 rounded-full", s.fill)} />
+                <span className="text-ink font-mono tabular-nums">
+                  {formatNumber(values[s.key])}
+                </span>
+                {s.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <AlertDialog open={confirmAll} onOpenChange={setConfirmAll}>
         <AlertDialogContent>
@@ -217,13 +225,18 @@ export function DeliveryBar({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep as is</AlertDialogCancel>
-            <AlertDialogAction onClick={() => send.mutate("all")}>
+            <AlertDialogCancel variant="secondary">
+              Keep as is
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="primary"
+              onClick={() => send.mutate("all")}
+            >
               Send to everyone
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </FigurePanel>
   );
 }

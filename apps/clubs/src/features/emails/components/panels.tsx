@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Chip, cn } from "@moa/ui";
+import { formatNumber } from "@moa/app-kit";
+import { ChoiceCard, Chip } from "@moa/ui";
 
 import { useAudienceCount } from "../queries";
 import {
@@ -236,6 +237,15 @@ function TriggerFields({
   );
 }
 
+/** "240 guests", or "…" while it is counted. */
+const reach = (n: number | undefined) =>
+  n === undefined ? "…" : `${formatNumber(n)} ${n === 1 ? "guest" : "guests"}`;
+
+/**
+ * Who an email goes to: one of three audiences as cards, each saying how
+ * many it reaches with the roles picked, then the roles as chips. Within an
+ * event every count is live; in the library there is nobody to count yet.
+ */
 export function AudienceFields({
   audience,
   onChange,
@@ -243,46 +253,72 @@ export function AudienceFields({
 }: {
   audience: EmailAudience;
   onChange: (a: EmailAudience) => void;
-  /** With an event, the live count of who this reaches. */
+  /** With an event, the live count of who each audience reaches. */
   eventId?: number;
 }) {
-  const count = useAudienceCount(eventId ?? 0, audience, eventId !== undefined);
+  const live = eventId !== undefined;
+  const id = eventId ?? 0;
+  const roles = audience.roles;
+  const counts = {
+    ALL: useAudienceCount(id, { who: "ALL", roles }, live),
+    CHECKED_IN: useAudienceCount(id, { who: "CHECKED_IN", roles }, live),
+    NOT_CHECKED_IN: useAudienceCount(
+      id,
+      { who: "NOT_CHECKED_IN", roles },
+      live,
+    ),
+  };
+  const picked = counts[audience.who].data;
+  const toggle = (r: string) =>
+    onChange({
+      ...audience,
+      roles: roles.includes(r) ? roles.filter((x) => x !== r) : [...roles, r],
+    });
   return (
-    <div className="space-y-2">
-      <Segmented
-        label="Who"
-        value={audience.who}
-        options={AUDIENCE_WHO.map((w) => ({ value: w.value, label: w.label }))}
-        onChange={(who) => onChange({ ...audience, who })}
-      />
+    <div className="space-y-3">
       <div>
-        <span className={ui.label}>Roles (none = all)</span>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Roles">
-          {ROLES.map((r) => {
-            const on = audience.roles.includes(r.value);
-            return (
-              <Chip
-                key={r.value}
-                active={on}
-                onClick={() =>
-                  onChange({
-                    ...audience,
-                    roles: on
-                      ? audience.roles.filter((x) => x !== r.value)
-                      : [...audience.roles, r.value],
-                  })
-                }
-              >
-                {r.label}
-              </Chip>
-            );
-          })}
+        <span className={ui.label}>Who gets it</span>
+        <div
+          className="grid gap-1.5"
+          role="radiogroup"
+          aria-label="Who gets it"
+        >
+          {AUDIENCE_WHO.map((w) => (
+            <ChoiceCard
+              key={w.value}
+              checked={audience.who === w.value}
+              onClick={() => onChange({ ...audience, who: w.value })}
+              title={w.label}
+              hint={w.note}
+              right={live ? reach(counts[w.value].data?.recipients) : undefined}
+            />
+          ))}
         </div>
       </div>
-      {eventId !== undefined ? (
+      <div>
+        <span className={ui.label}>Roles</span>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Roles">
+          <Chip
+            active={roles.length === 0}
+            onClick={() => onChange({ ...audience, roles: [] })}
+          >
+            Every role
+          </Chip>
+          {ROLES.map((r) => (
+            <Chip
+              key={r.value}
+              active={roles.includes(r.value)}
+              onClick={() => toggle(r.value)}
+            >
+              {r.label}
+            </Chip>
+          ))}
+        </div>
+      </div>
+      {live ? (
         <p className={ui.note} aria-live="polite">
-          {count.data
-            ? `Reaches ${count.data.recipients} ${count.data.recipients === 1 ? "guest" : "guests"}${count.data.withoutEmail ? ` · ${count.data.withoutEmail} without an email address` : ""}`
+          {picked
+            ? `Reaches ${reach(picked.recipients)}${picked.withoutEmail ? ` · ${formatNumber(picked.withoutEmail)} without an email address are skipped` : ""}`
             : "Counting…"}
         </p>
       ) : null}
@@ -317,7 +353,7 @@ export function SendingPanel({
           value={fields.name}
           maxLength={80}
           onChange={(e) => patch({ name: e.target.value })}
-          className={cn(ui.control, ui.input)}
+          className={ui.control}
         />
       </div>
       <TemplateField
@@ -329,15 +365,14 @@ export function SendingPanel({
         tokens={tokens}
         samples={samples}
       />
-      <div className="space-y-2 border-t pt-3">
-        <p className={ui.heading}>Audience</p>
+      <div className="border-line-soft space-y-2 border-t pt-3">
         <AudienceFields
           audience={fields.audience}
           onChange={(audience) => patch({ audience })}
           eventId={scope.kind === "event" ? scope.eventId : undefined}
         />
       </div>
-      <div className="space-y-2 border-t pt-3">
+      <div className="border-line-soft space-y-2 border-t pt-3">
         <p className={ui.heading}>Attached files</p>
         <Toggle
           id="f-ticket"
@@ -358,7 +393,7 @@ export function SendingPanel({
           note="Only guests who hold one get it."
         />
       </div>
-      <div className="space-y-2 border-t pt-3">
+      <div className="border-line-soft space-y-2 border-t pt-3">
         <p className={ui.heading}>Timing</p>
         {stage === "INVITE" ? (
           <p className={ui.note}>
@@ -374,7 +409,7 @@ export function SendingPanel({
           />
         )}
       </div>
-      <div className="border-t pt-3">
+      <div className="border-line-soft border-t pt-3">
         <Toggle
           id="f-enabled"
           label="Switched on"

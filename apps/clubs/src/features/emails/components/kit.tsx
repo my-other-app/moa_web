@@ -10,25 +10,24 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  NativeSelect,
   Segmented as KitSegmented,
 } from "@moa/ui";
-import { Loader2Icon } from "lucide-react";
+import { ChevronDownIcon, Loader2Icon } from "lucide-react";
 
 import { EMAIL_TOKEN_KEYS, type EmailToken } from "../schemas";
 
+/**
+ * The few class lists the email screens share, in the Meridian vocabulary:
+ * an eyebrow for a section, a field label, the field itself, a quiet note.
+ * Panels are `FigurePanel`; buttons are the kit's.
+ */
 export const ui = {
-  panel: "rounded-xl border bg-card",
-  heading:
-    "font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground",
-  label:
-    "mb-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground",
+  heading: "eyebrow",
+  label: "eyebrow mb-1.5 block",
   control: "input",
-  input: "",
-  note: "text-[11.5px] leading-[1.5] text-muted-foreground",
-  cautionBox:
-    "rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11.5px] leading-[1.5] text-amber-700 dark:text-amber-300",
-  iconBtn:
-    "grid size-7 shrink-0 place-items-center rounded text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent",
+  small: "input input-sm",
+  note: "text-ink-3 text-[11.5px] leading-[1.5]",
 } as const;
 
 export const Busy = ({ on }: { on: boolean }) =>
@@ -56,8 +55,7 @@ const TOKEN_GROUPS = [
   "Club",
   "Certificate",
 ] as const;
-const groupHeading =
-  "px-2.5 pt-2 pb-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground";
+const groupHeading = "eyebrow px-2 pt-2 pb-1";
 
 /** Insert a token or a conditional block where the cursor is. */
 export const TokenMenu = ({
@@ -75,8 +73,8 @@ export const TokenMenu = ({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size={size}>
-          Insert token ▾
+        <Button type="button" variant="secondary" size={size}>
+          Insert token <ChevronDownIcon />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -97,7 +95,7 @@ export const TokenMenu = ({
                 >
                   <span className="flex w-full items-baseline justify-between gap-2">
                     <span className="text-[12.5px]">{t.label}</span>
-                    <span className="truncate font-mono text-[10px] text-muted-foreground">
+                    <span className="text-ink-3 truncate font-mono text-[10px]">
                       {samples[t.key] || t.sample}
                     </span>
                   </span>
@@ -117,7 +115,7 @@ export const TokenMenu = ({
               >
                 <span className="flex w-full items-baseline justify-between gap-2">
                   <span className="text-[12.5px]">{f.label}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">
+                  <span className="text-ink-3 font-mono text-[10px]">
                     {f.key}
                   </span>
                 </span>
@@ -195,7 +193,7 @@ export const TemplateField = ({
   return (
     <div className="min-w-0">
       <div className="mb-1 flex items-end justify-between gap-2">
-        <label htmlFor={id} className={cn(ui.label, "mb-0")}>
+        <label htmlFor={id} className="eyebrow">
           {label}
         </label>
         <TokenMenu onInsert={insert} tokens={tokens} samples={samples} />
@@ -207,7 +205,7 @@ export const TemplateField = ({
           value={value}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          className={cn(ui.control, ui.input)}
+          className={ui.control}
         />
       ) : (
         <textarea
@@ -217,11 +215,11 @@ export const TemplateField = ({
           rows={rows}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          className={cn(ui.control, "py-2 leading-[1.5]")}
+          className={cn(ui.control, "leading-[1.5]")}
         />
       )}
       {problems.length ? (
-        <p className="mt-1 text-[11px] text-destructive">{problems[0]}</p>
+        <p className="text-refuse mt-1 text-[11.5px]">{problems[0]}</p>
       ) : null}
     </div>
   );
@@ -264,10 +262,10 @@ export const NumberField = ({
           if (e.target.value !== "" && Number.isFinite(n))
             onChange(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n)));
         }}
-        className={cn(ui.control, ui.input, "tabular-nums", suffix && "pr-8")}
+        className={cn(ui.control, "tabular-nums", suffix && "pr-8")}
       />
       {suffix ? (
-        <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 font-mono text-[10.5px] text-muted-foreground">
+        <span className="text-ink-3 pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 font-mono text-[10.5px]">
           {suffix}
         </span>
       ) : null}
@@ -292,18 +290,17 @@ export const SelectField = <T extends string>({
     <label htmlFor={id} className={ui.label}>
       {label}
     </label>
-    <select
+    <NativeSelect
       id={id}
       value={value}
       onChange={(e) => onChange(e.target.value as T)}
-      className={cn(ui.control, ui.input)}
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
         </option>
       ))}
-    </select>
+    </NativeSelect>
   </div>
 );
 
@@ -366,7 +363,7 @@ export const ColorField = ({
           aria-label={`${label} swatch`}
           value={HEX.test(value ?? "") ? value! : fallback}
           onChange={(e) => onChange(e.target.value)}
-          className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5"
+          className="border-line size-9 shrink-0 cursor-pointer rounded-[var(--radius-md)] border bg-transparent p-0.5"
         />
         <input
           id={id}
@@ -377,7 +374,7 @@ export const ColorField = ({
             if (HEX.test(e.target.value)) onChange(e.target.value);
             else if (clearable && e.target.value === "") onChange(null);
           }}
-          className={cn(ui.control, ui.input, "font-mono text-[12px]")}
+          className={cn(ui.control, "font-mono")}
         />
       </div>
     </div>
@@ -399,18 +396,23 @@ export const Toggle = ({
 }) => (
   <label
     htmlFor={id}
-    className="flex cursor-pointer items-start gap-2.5 rounded-md border px-2.5 py-2 hover:bg-muted/40"
+    className={cn(
+      "flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-field)] border px-3 py-2 transition-colors",
+      checked
+        ? "border-brand-line bg-brand-soft"
+        : "border-line hover:bg-sunken",
+    )}
   >
     <input
       id={id}
       type="checkbox"
       checked={checked}
       onChange={(e) => onChange(e.target.checked)}
-      className="mt-0.5 size-4 accent-primary"
+      className="mt-0.5 size-4 shrink-0 accent-[var(--brand)]"
     />
     <span className="min-w-0">
-      <span className="block text-[13px] text-foreground">{label}</span>
-      {note ? <span className={ui.note}>{note}</span> : null}
+      <span className="text-ink block text-[13px]">{label}</span>
+      {note ? <span className={cn(ui.note, "block")}>{note}</span> : null}
     </span>
   </label>
 );

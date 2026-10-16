@@ -8,10 +8,11 @@ import {
   ArrowLeftIcon,
   ArrowUpIcon,
   CheckIcon,
+  ChevronDownIcon,
+  Loader2Icon,
   MoreHorizontalIcon,
   PlusIcon,
   SendIcon,
-  XIcon,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -23,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
+  CardLabel,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -35,13 +37,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
-  InlineAlert,
+  FigurePanel,
+  IconButton,
+  Notice,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  SearchField,
   Skeleton,
   StatusBadge,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
+  TabPanel,
+  TabRail,
   cn,
   toast,
 } from "@moa/ui";
@@ -74,8 +80,9 @@ import {
   type EmailTemplateFields,
 } from "../schemas";
 import { BlockInspector } from "./block-inspector";
-import { Busy, useDebounced, ui } from "./kit";
+import { useDebounced, ui } from "./kit";
 import { SendingPanel, ThemePanel } from "./panels";
+import { isCustomised } from "./parts";
 import { SendTemplateDialog } from "./send-dialog";
 
 /** Loads the template and its context, then hands a fresh editor the lot. */
@@ -89,14 +96,30 @@ export function EmailEditor({
   const tpl = useTemplate(scope, templateId);
   const ctx = useEmailContext(scope);
   if (tpl.isPending || ctx.isPending)
-    return <Skeleton className="h-[40rem] w-full" />;
+    return (
+      <div className="grid gap-4">
+        <Skeleton className="h-14 w-full max-w-md rounded-xl" />
+        <div className="grid gap-4 xl:grid-cols-[250px_minmax(0,1fr)_340px]">
+          <Skeleton className="h-[30rem] rounded-2xl" />
+          <Skeleton className="h-[40rem] rounded-2xl" />
+          <Skeleton className="h-[30rem] rounded-2xl" />
+        </div>
+      </div>
+    );
   if (tpl.isError || ctx.isError || !tpl.data || !ctx.data)
     return (
-      <EmptyState
-        tone="muted"
-        title="This email could not be opened"
-        description={tpl.error?.message ?? ctx.error?.message ?? "Try again."}
-      />
+      <FigurePanel className="p-0">
+        <EmptyState
+          title="This email could not be opened"
+          description={`${tpl.error?.message ?? ctx.error?.message ?? "It may have been deleted."} Go back to the list and open it again.`}
+          action={
+            <Link href={scopeHref(scope)} className="btn btn-secondary">
+              <ArrowLeftIcon />{" "}
+              {scope.kind === "event" ? "Event emails" : "Email library"}
+            </Link>
+          }
+        />
+      </FigurePanel>
     );
   return (
     <Editor
@@ -116,15 +139,32 @@ const move = (blocks: EmailBlock[], from: number, to: number) => {
   return next;
 };
 
+const blockLine = (b: EmailBlock) =>
+  b.kind === "heading" || b.kind === "paragraph"
+    ? b.text
+    : b.kind === "button"
+      ? b.label
+      : b.kind === "list"
+        ? b.items[0]
+        : BLOCK_META[b.kind].label;
+
+type Guest = { id: string; name: string };
+
+/**
+ * Whose values the preview shows: the sample guest, or a real one found by
+ * name, email or ticket. The same field and list as the kit's combobox, but
+ * the list is searched on the server, so a guest in a large event is found.
+ */
 function GuestPicker({
   eventId,
   value,
   onChange,
 }: {
   eventId: number;
-  value: { id: string; name: string } | null;
-  onChange: (v: { id: string; name: string } | null) => void;
+  value: Guest | null;
+  onChange: (v: Guest | null) => void;
 }) {
+  const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const settled = useDebounced(search.trim(), 300);
   const regs = useRegistrations({
@@ -133,58 +173,113 @@ function GuestPicker({
     offset: 0,
     limit: 8,
   });
-  const [open, setOpen] = React.useState(false);
   const items = regs.data?.items ?? [];
+  const pick = (v: Guest | null) => {
+    onChange(v);
+    setOpen(false);
+    setSearch("");
+  };
+  const option = (active: boolean) =>
+    cn(
+      "flex cursor-pointer items-center justify-between gap-2 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-[13px] hover:bg-sunken hover:text-ink",
+      active ? "text-ink" : "text-ink-2",
+    );
   return (
-    <div className="relative min-w-0 flex-1">
-      {value ? (
-        <div className="flex h-8 items-center gap-1.5 rounded-md border bg-muted/40 px-2 text-[12.5px]">
-          <span className="truncate">Previewing as {value.name}</span>
-          <button
-            type="button"
-            aria-label="Back to the sample guest"
-            onClick={() => onChange(null)}
-            className={ui.iconBtn}
-          >
-            <XIcon className="size-3.5" />
-          </button>
-        </div>
-      ) : (
-        <input
-          aria-label="Preview as a guest"
-          placeholder="Preview as a guest… (type a name)"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={
+            value
+              ? `Previewing as ${value.name}; change the guest`
+              : "Preview as a guest"
+          }
+          className="input input-sm flex w-60 max-w-full items-center justify-between gap-2 text-left"
+        >
+          <span className={cn("truncate", !value && "text-ink-3")}>
+            {value ? `As ${value.name}` : "As the sample guest"}
+          </span>
+          <ChevronDownIcon
+            className="text-ink-3 size-4 shrink-0"
+            aria-hidden="true"
+          />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-72 p-1.5"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <SearchField
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          className={cn(ui.control, "h-8 text-[12.5px]")}
+          onChange={setSearch}
+          label="Search guests"
+          placeholder="Name, email or ticket"
+          size="sm"
+          autoFocus
         />
-      )}
-      {open && !value && items.length ? (
-        <ul className="absolute top-9 right-0 left-0 z-20 max-h-64 overflow-y-auto rounded-md border bg-card py-1 shadow-md">
-          {items.map((r) => (
-            <li key={r.id}>
-              <button
-                type="button"
-                className="flex w-full items-baseline justify-between gap-2 px-2.5 py-1.5 text-left text-[12.5px] hover:bg-muted"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  onChange({ id: r.id, name: r.full_name ?? r.email ?? r.id });
-                  setOpen(false);
-                }}
+        <ul
+          role="listbox"
+          aria-label="Guests"
+          className="scroll-thin mt-1.5 max-h-64 overflow-y-auto"
+        >
+          <li
+            role="option"
+            aria-selected={value === null}
+            onClick={() => pick(null)}
+            className={option(value === null)}
+          >
+            <span className="min-w-0">
+              <span className="block truncate">The sample guest</span>
+              <span className="text-ink-3 block truncate text-[11.5px]">
+                Sample values for every token
+              </span>
+            </span>
+            {value === null ? (
+              <CheckIcon className="text-brand size-4 shrink-0" />
+            ) : null}
+          </li>
+          {items.map((r) => {
+            const name = r.full_name ?? r.email ?? r.id;
+            return (
+              <li
+                key={r.id}
+                role="option"
+                aria-selected={value?.id === r.id}
+                onClick={() => pick({ id: r.id, name })}
+                className={option(value?.id === r.id)}
               >
-                <span className="truncate">{r.full_name ?? "—"}</span>
-                <span className="truncate font-mono text-[10.5px] text-muted-foreground">
-                  {r.email ?? r.ticket_id}
+                <span className="min-w-0">
+                  <span className="block truncate">{r.full_name ?? "—"}</span>
+                  <span className="text-ink-3 block truncate font-mono text-[11px]">
+                    {r.email ?? r.ticket_id}
+                  </span>
                 </span>
-              </button>
+                {value?.id === r.id ? (
+                  <CheckIcon className="text-brand size-4 shrink-0" />
+                ) : null}
+              </li>
+            );
+          })}
+          {items.length === 0 ? (
+            <li className="text-ink-3 px-2.5 py-3 text-[12.5px]">
+              {regs.isFetching ? "Searching…" : "No guest matches"}
             </li>
-          ))}
+          ) : null}
         </ul>
-      ) : null}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
+
+type InspectorTab = "block" | "theme" | "sending";
+const TABS: { key: InspectorTab; label: string }[] = [
+  { key: "block", label: "Block" },
+  { key: "theme", label: "Theme" },
+  { key: "sending", label: "Sending" },
+];
 
 function Editor({
   scope,
@@ -207,10 +302,8 @@ function Editor({
   const [selected, setSelected] = React.useState<string | null>(
     template.design.blocks[0]?.id ?? null,
   );
-  const [tab, setTab] = React.useState<"block" | "theme" | "sending">("block");
-  const [guest, setGuest] = React.useState<{ id: string; name: string } | null>(
-    null,
-  );
+  const [tab, setTab] = React.useState<InspectorTab>("block");
+  const [guest, setGuest] = React.useState<Guest | null>(null);
   const [testOpen, setTestOpen] = React.useState(false);
   const [testTo, setTestTo] = React.useState("");
   const [sendOpen, setSendOpen] = React.useState(false);
@@ -278,169 +371,200 @@ function Editor({
 
   const stageMeta = STAGE_META[template.stage];
   const problems = preview.data?.problems ?? [];
+  const event = scope.kind === "event";
+  // Inside an event the console's heading is the page's h1.
+  const Title = event ? "h2" : "h1";
 
   return (
-    <div className="space-y-4">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link href={scopeHref(scope)}>
-          <ArrowLeftIcon />{" "}
-          {scope.kind === "event" ? "Event emails" : "Email library"}
+    <div className="grid gap-4">
+      <div>
+        <Link href={scopeHref(scope)} className="btn btn-ghost btn-sm">
+          <ArrowLeftIcon /> {event ? "Event emails" : "Email library"}
         </Link>
-      </Button>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-0 flex-1">
-          <p className={ui.heading}>
-            {stageMeta.label}
-            {scope.kind === "library" ? " · library" : ""} · v{template.version}
-          </p>
-          <h1 className="truncate text-2xl font-medium">
-            {fields.name || "Untitled email"}
-          </h1>
-        </div>
-        {dirty ? (
-          <StatusBadge tone="warning" label="Unsaved changes" />
-        ) : (
-          <StatusBadge tone="default" label="Saved" />
-        )}
-        {eventId !== undefined ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setTestOpen(true)}
-          >
-            <SendIcon /> Send test
-          </Button>
-        ) : null}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="outline" size="sm" aria-label="More">
-              <MoreHorizontalIcon />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {eventId !== undefined ? (
-              <>
-                {template.stage === "INVITE" ? (
-                  <DropdownMenuItem
-                    onSelect={() =>
-                      router.push(
-                        `/events/${scope.kind === "event" ? scope.eventId : ""}`,
-                      )
-                    }
-                  >
-                    Send tickets (attendees page)
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem
-                    disabled={dirty}
-                    onSelect={() => setSendOpen(true)}
-                  >
-                    Send to the audience now…
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  disabled={dirty || toLibrary.isPending}
-                  onSelect={() => toLibrary.mutate(template.id)}
-                >
-                  Make this the club&apos;s default
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setConfirm("reset")}>
-                  Back to the club&apos;s version…
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            ) : null}
-            <DropdownMenuItem
-              onSelect={() =>
-                duplicate.mutate(template.id, {
-                  onSuccess: (t) =>
-                    router.push(
-                      scope.kind === "event"
-                        ? `/events/${scope.eventId}/emails/${t.id}`
-                        : `/emails/${t.id}`,
-                    ),
-                })
-              }
-            >
-              Duplicate
-            </DropdownMenuItem>
-            {template.stage === "CUSTOM" ? (
-              <DropdownMenuItem
-                className="text-destructive"
-                onSelect={() => setConfirm("delete")}
-              >
-                Delete…
-              </DropdownMenuItem>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Button
-          type="button"
-          size="sm"
-          disabled={!dirty || save.isPending}
-          onClick={doSave}
-        >
-          <Busy on={save.isPending} />
-          {save.isPending ? null : <CheckIcon />} Save
-        </Button>
       </div>
+
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <span className="eyebrow">
+            {stageMeta.label}
+            {event ? "" : " · library"} · v{template.version}
+          </span>
+          <Title
+            className={cn(
+              "m-0 truncate font-semibold tracking-[-0.02em]",
+              event ? "mt-0.5 text-[17px]" : "page-title mt-1",
+            )}
+          >
+            {fields.name || "Untitled email"}
+          </Title>
+          <p className="text-ink-3 mt-1 text-[12.5px]">
+            {event
+              ? isCustomised(template)
+                ? "This event's copy, changed from the club's version."
+                : "This event's copy of the club's version."
+              : "The club's version: every new event starts from it."}{" "}
+            {fields.enabled
+              ? "Switched on."
+              : "Switched off: it does not go out."}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge
+            tone={dirty ? "warning" : "default"}
+            label={dirty ? "Unsaved changes" : "Saved"}
+          />
+          {eventId !== undefined ? (
+            <Button variant="secondary" onClick={() => setTestOpen(true)}>
+              <SendIcon /> Send test
+            </Button>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <IconButton label="More for this email" size="md">
+                <MoreHorizontalIcon />
+              </IconButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              {eventId !== undefined ? (
+                <>
+                  {template.stage === "INVITE" ? (
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        router.push(`/events/${eventId}/attendees`)
+                      }
+                    >
+                      <span className="flex flex-col">
+                        <span>Send tickets</span>
+                        <span className="text-ink-3 text-xs">
+                          From Attendees: the invite rides with each ticket.
+                        </span>
+                      </span>
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      disabled={dirty}
+                      onSelect={() => setSendOpen(true)}
+                    >
+                      <span className="flex flex-col">
+                        <span>Send to the audience now…</span>
+                        <span className="text-ink-3 text-xs">
+                          {dirty
+                            ? "Save first: a send uses the saved version."
+                            : "Its audience, now, whatever its timer says."}
+                        </span>
+                      </span>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    disabled={dirty || toLibrary.isPending}
+                    onSelect={() => toLibrary.mutate(template.id)}
+                  >
+                    <span className="flex flex-col">
+                      <span>Make this the club&apos;s default</span>
+                      <span className="text-ink-3 text-xs">
+                        New events start from this version.
+                      </span>
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setConfirm("reset")}>
+                    <span className="flex flex-col">
+                      <span>Back to the club&apos;s version…</span>
+                      <span className="text-ink-3 text-xs">
+                        Undo every change made for this event.
+                      </span>
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              ) : null}
+              <DropdownMenuItem
+                onSelect={() =>
+                  duplicate.mutate(template.id, {
+                    onSuccess: (t) =>
+                      router.push(
+                        scope.kind === "event"
+                          ? `/events/${scope.eventId}/emails/${t.id}`
+                          : `/emails/${t.id}`,
+                      ),
+                  })
+                }
+              >
+                Duplicate
+              </DropdownMenuItem>
+              {template.stage === "CUSTOM" ? (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => setConfirm("delete")}
+                >
+                  Delete…
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button disabled={!dirty || save.isPending} onClick={doSave}>
+            {save.isPending ? (
+              <Loader2Icon className="animate-spin" />
+            ) : (
+              <CheckIcon />
+            )}
+            Save
+          </Button>
+        </div>
+      </header>
       {dirty && eventId !== undefined ? (
-        <p className={ui.note}>
-          Save before sending: a send goes out with the last saved version.
-        </p>
+        <Notice tone="neutral" tag="Unsaved">
+          A send to the audience and the club&apos;s default use the last saved
+          version. Save to send what you see; a test sends it as it is.
+        </Notice>
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[250px_minmax(0,1fr)_340px]">
         {/* Blocks */}
-        <aside className={cn(ui.panel, "p-3")}>
-          <div className="mb-2 flex items-center justify-between">
-            <p className={ui.heading}>Blocks</p>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="outline" size="xs">
-                  <PlusIcon /> Add
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                {BLOCK_KINDS.map((k) => (
-                  <DropdownMenuItem key={k} onSelect={() => add(k)}>
-                    <span className="mr-2 w-4 text-center font-mono text-[11px] text-muted-foreground">
-                      {BLOCK_META[k].glyph}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[12.5px]">
-                        {BLOCK_META[k].label}
+        <FigurePanel className="h-fit p-3">
+          <CardLabel
+            className="mb-2.5"
+            right={
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="secondary" size="xs">
+                    <PlusIcon /> Add
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  {BLOCK_KINDS.map((k) => (
+                    <DropdownMenuItem key={k} onSelect={() => add(k)}>
+                      <span className="text-ink-3 w-4 shrink-0 text-center font-mono text-[11px]">
+                        {BLOCK_META[k].glyph}
                       </span>
-                      <span className="block truncate text-[10.5px] text-muted-foreground">
-                        {BLOCK_META[k].note}
+                      <span className="min-w-0">
+                        <span className="text-ink block text-[12.5px]">
+                          {BLOCK_META[k].label}
+                        </span>
+                        <span className="text-ink-3 block truncate text-[11px]">
+                          {BLOCK_META[k].note}
+                        </span>
                       </span>
-                    </span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            }
+          >
+            Blocks · {blocks.length}
+          </CardLabel>
           {blocks.length ? (
-            <ol className="space-y-1">
+            <ol className="grid gap-1">
               {blocks.map((b, i) => {
-                const label =
-                  b.kind === "heading" || b.kind === "paragraph"
-                    ? b.text
-                    : b.kind === "button"
-                      ? b.label
-                      : b.kind === "list"
-                        ? b.items[0]
-                        : BLOCK_META[b.kind].label;
+                const on = selected === b.id;
+                const line = blockLine(b) || "…";
                 return (
                   <li
                     key={b.id}
                     className={cn(
-                      "group flex items-center gap-1 rounded-md border px-1.5 py-1",
-                      selected === b.id
-                        ? "border-primary bg-primary/5"
-                        : "border-transparent hover:bg-muted/60",
+                      "flex items-center gap-1 rounded-xl border py-1 pr-1 pl-2 transition-colors",
+                      on
+                        ? "border-brand-line bg-brand-soft"
+                        : "hover:bg-sunken border-transparent",
                     )}
                   >
                     <button
@@ -450,53 +574,87 @@ function Editor({
                         setTab("block");
                       }}
                       className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                      aria-current={selected === b.id ? "true" : undefined}
+                      aria-current={on ? "true" : undefined}
                     >
-                      <span className="w-4 shrink-0 text-center font-mono text-[11px] text-muted-foreground">
+                      <span
+                        className={cn(
+                          "w-4 shrink-0 text-center font-mono text-[11px]",
+                          on ? "text-brand" : "text-ink-3",
+                        )}
+                      >
                         {BLOCK_META[b.kind].glyph}
                       </span>
                       <span className="min-w-0">
-                        <span className="block text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+                        <span className="eyebrow block">
                           {BLOCK_META[b.kind].label}
                         </span>
-                        <span className="block truncate text-[12px]">
-                          {label || "…"}
+                        <span className="text-ink block truncate text-[12px]">
+                          {line}
                         </span>
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      aria-label="Move up"
+                    <IconButton
+                      label={`Move ${BLOCK_META[b.kind].label.toLowerCase()} up`}
+                      size="xs"
+                      variant="quiet"
                       disabled={i === 0}
                       onClick={() => setBlocks(move(blocks, i, i - 1))}
-                      className={ui.iconBtn}
                     >
-                      <ArrowUpIcon className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Move down"
+                      <ArrowUpIcon />
+                    </IconButton>
+                    <IconButton
+                      label={`Move ${BLOCK_META[b.kind].label.toLowerCase()} down`}
+                      size="xs"
+                      variant="quiet"
                       disabled={i === blocks.length - 1}
                       onClick={() => setBlocks(move(blocks, i, i + 1))}
-                      className={ui.iconBtn}
                     >
-                      <ArrowDownIcon className="size-3.5" />
-                    </button>
+                      <ArrowDownIcon />
+                    </IconButton>
                   </li>
                 );
               })}
             </ol>
           ) : (
-            <p className={ui.note}>No blocks yet. Add a heading to begin.</p>
+            <EmptyState
+              size="sm"
+              title="No blocks yet"
+              description="Add a heading to begin, then a paragraph and a button."
+              action={
+                <Button
+                  size="xs"
+                  variant="secondary"
+                  onClick={() => add("heading")}
+                >
+                  <PlusIcon /> Add a heading
+                </Button>
+              }
+            />
           )}
-        </aside>
+        </FigurePanel>
 
         {/* Preview */}
-        <section className={cn(ui.panel, "flex min-h-[40rem] flex-col p-3")}>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
+        <FigurePanel className="flex min-h-[40rem] flex-col p-3">
+          <CardLabel
+            className="mb-2"
+            right={
+              preview.isFetching ? (
+                <span className="text-ink-3 flex items-center gap-1.5 text-[11px]">
+                  <Loader2Icon className="size-3.5 animate-spin" /> Rendering
+                </span>
+              ) : (
+                <span className="text-ink-3 text-[11px]">
+                  as a guest&apos;s inbox shows it
+                </span>
+              )
+            }
+          >
+            Preview
+          </CardLabel>
+          <div className="border-line-soft mb-3 flex flex-wrap items-center gap-2 border-b pb-3">
             <div className="min-w-0 flex-1">
-              <p className={ui.heading}>Subject</p>
-              <p className="truncate text-[13.5px]">
+              <span className="text-ink-3 text-[11px]">Subject</span>
+              <p className="text-ink truncate text-[13.5px] font-medium">
                 {preview.data?.subject ?? fields.subject}
               </p>
             </div>
@@ -507,52 +665,42 @@ function Editor({
                 onChange={setGuest}
               />
             ) : (
-              <p className={ui.note}>Shown with a sample guest.</p>
+              <span className="text-ink-3 text-[11.5px]">
+                Shown with a sample guest.
+              </span>
             )}
-            {preview.isFetching ? <Busy on /> : null}
           </div>
           {problems.length ? (
-            <InlineAlert
-              tone="warning"
-              title="Something to fix"
-              className="mb-2"
-            >
+            <Notice tone="caution" tag="Fix" className="mb-3">
               {problems.join(" · ")}
-            </InlineAlert>
+            </Notice>
           ) : null}
           {preview.isError ? (
-            <InlineAlert
-              tone="destructive"
-              title="Preview failed"
-              className="mb-2"
-            >
+            <Notice tone="refuse" tag="Preview" className="mb-3">
               {preview.error.message}
-            </InlineAlert>
+            </Notice>
           ) : null}
+          {/* The mail's own surface: email clients draw it on white, whatever the dashboard's mode. */}
           <iframe
             title="Email preview"
             sandbox=""
             srcDoc={preview.data?.html ?? ""}
-            className="min-h-[36rem] w-full flex-1 rounded-lg border bg-white"
+            className="border-line-soft min-h-[36rem] w-full flex-1 rounded-xl border bg-white"
           />
-        </section>
+        </FigurePanel>
 
         {/* Inspector */}
-        <aside className={cn(ui.panel, "p-3")}>
-          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-            <TabsList className="w-full">
-              <TabsTrigger value="block" className="flex-1">
-                Block
-              </TabsTrigger>
-              <TabsTrigger value="theme" className="flex-1">
-                Theme
-              </TabsTrigger>
-              <TabsTrigger value="sending" className="flex-1">
-                Sending
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="block" className="pt-3">
-              {current ? (
+        <FigurePanel className="h-fit p-3">
+          <TabRail
+            label="Edit"
+            value={tab}
+            onChange={(k) => setTab(k as InspectorTab)}
+            items={TABS}
+            className="mb-3"
+          />
+          <TabPanel id={tab}>
+            {tab === "block" ? (
+              current ? (
                 <BlockInspector
                   key={current.id}
                   block={current}
@@ -571,10 +719,12 @@ function Editor({
                   }}
                 />
               ) : (
-                <p className={ui.note}>Pick a block on the left, or add one.</p>
-              )}
-            </TabsContent>
-            <TabsContent value="theme" className="pt-3">
+                <p className={ui.note}>
+                  Pick a block on the left to change its words and its look, or
+                  add one.
+                </p>
+              )
+            ) : tab === "theme" ? (
               <ThemePanel
                 theme={fields.design.theme}
                 onChange={(theme) =>
@@ -584,8 +734,7 @@ function Editor({
                 tokens={context.tokens}
                 samples={context.sampleValues}
               />
-            </TabsContent>
-            <TabsContent value="sending" className="pt-3">
+            ) : (
               <SendingPanel
                 fields={fields}
                 onChange={setFields}
@@ -594,9 +743,9 @@ function Editor({
                 tokens={context.tokens}
                 samples={context.sampleValues}
               />
-            </TabsContent>
-          </Tabs>
-        </aside>
+            )}
+          </TabPanel>
+        </FigurePanel>
       </div>
 
       {eventId !== undefined ? (
@@ -606,34 +755,31 @@ function Editor({
               <DialogHeader>
                 <DialogTitle>Send a test</DialogTitle>
                 <DialogDescription>
-                  The email as it stands now,{" "}
+                  The email as it stands now, saved or not,{" "}
                   {guest
                     ? `as ${guest.name} would get it`
                     : "with the sample guest"}
                   , to one address. Attached files come only with a real guest.
                 </DialogDescription>
               </DialogHeader>
-              <label htmlFor="test-to" className={ui.label}>
-                Send to
-              </label>
-              <input
-                id="test-to"
-                type="email"
-                value={testTo}
-                placeholder="you@example.com"
-                onChange={(e) => setTestTo(e.target.value)}
-                className={cn(ui.control, ui.input)}
-              />
+              <div>
+                <label htmlFor="test-to" className={ui.label}>
+                  Send to
+                </label>
+                <input
+                  id="test-to"
+                  type="email"
+                  value={testTo}
+                  placeholder="you@example.com"
+                  onChange={(e) => setTestTo(e.target.value)}
+                  className={ui.control}
+                />
+              </div>
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setTestOpen(false)}
-                >
+                <Button variant="ghost" onClick={() => setTestOpen(false)}>
                   Cancel
                 </Button>
                 <Button
-                  type="button"
                   disabled={!/.+@.+\..+/.test(testTo) || sendTest.isPending}
                   onClick={() =>
                     sendTest.mutate(
@@ -648,7 +794,12 @@ function Editor({
                     )
                   }
                 >
-                  <Busy on={sendTest.isPending} /> Send test
+                  {sendTest.isPending ? (
+                    <Loader2Icon className="animate-spin" />
+                  ) : (
+                    <SendIcon />
+                  )}
+                  Send test
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -680,13 +831,10 @@ function Editor({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogCancel variant="secondary">Keep it</AlertDialogCancel>
             <AlertDialogAction
-              className={
-                confirm === "delete"
-                  ? "bg-destructive text-white hover:bg-destructive/90"
-                  : undefined
-              }
+              variant={confirm === "delete" ? "destructive" : "primary"}
+              disabled={remove.isPending || reset.isPending}
               onClick={(e) => {
                 e.preventDefault();
                 if (confirm === "delete")

@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   FigurePanel,
+  IconButton,
   Notice,
   ProgressBar,
   Skeleton,
@@ -48,7 +49,6 @@ import {
   useDeleteTemplate,
   useDuplicateTemplate,
   useLibraryOverview,
-  usePreview,
 } from "../queries";
 import {
   JOURNEY_STAGES,
@@ -59,6 +59,7 @@ import {
   type LibraryOverview,
   type LibraryTemplate,
 } from "../schemas";
+import { EmailPreview, MiniFigures, PreviewToggle } from "./parts";
 
 /**
  * Emails, rebuilt around what the library is for: every event's emails
@@ -181,38 +182,14 @@ function Recent({ o }: { o: LibraryOverview }) {
 
 /** The email as a guest would see it, with sample values, rendered when asked for. */
 function Preview({ t, open }: { t: LibraryTemplate; open: boolean }) {
-  const preview = usePreview(
-    { kind: "library" },
-    { subject: t.subject, design: t.design },
-    open,
-  );
-  if (!open) return null;
   return (
-    <div className="border-line-soft mt-3 overflow-hidden rounded-xl border">
-      <div className="bg-sunken text-ink-2 flex items-center justify-between px-3 py-1.5 text-[11.5px]">
-        <span className="truncate">
-          <span className="text-ink-3">Subject:</span>{" "}
-          {preview.data?.subject ?? t.subject}
-        </span>
-        <span className="text-ink-3 shrink-0 font-mono text-[10px]">
-          sample values
-        </span>
-      </div>
-      {preview.isPending ? (
-        <Skeleton className="h-72 rounded-none" />
-      ) : preview.isError ? (
-        <p className="text-refuse px-3 py-4 text-[12.5px]">
-          Could not render this email.
-        </p>
-      ) : (
-        <iframe
-          title={`Preview of ${t.name}`}
-          sandbox=""
-          srcDoc={preview.data?.html ?? ""}
-          className="h-[26rem] w-full bg-white"
-        />
-      )}
-    </div>
+    <EmailPreview
+      scope={{ kind: "library" }}
+      subject={t.subject}
+      design={t.design}
+      name={t.name}
+      open={open}
+    />
   );
 }
 
@@ -249,49 +226,41 @@ function StageCard({ t }: { t: LibraryTemplate }) {
         </span>
       </p>
       <p className="text-ink-3 mt-0.5 text-[12px]">{meta.note}</p>
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        {[
+      <MiniFigures
+        items={
           [
-            "events",
-            formatNumber(u.events),
-            u.customised
-              ? `${u.customised} changed it`
-              : u.events
-                ? "as written here"
-                : "none yet",
-          ],
-          [
-            "sent to",
-            formatNumber(u.recipients),
-            u.sends
-              ? `${formatNumber(u.sends)} ${u.sends === 1 ? "send" : "sends"}`
-              : "nobody yet",
-          ],
-          [
-            "opened",
-            u.open_rate === null || u.open_rate === undefined
-              ? u.delivery_rate === null || u.delivery_rate === undefined
-                ? "—"
-                : `${u.delivery_rate}%`
-              : `${u.open_rate}%`,
-            u.open_rate === null || u.open_rate === undefined
-              ? u.delivery_rate === null || u.delivery_rate === undefined
-                ? "no results yet"
-                : "delivered"
-              : `of ${formatNumber(u.recipients)}`,
-          ],
-        ].map(([label, value, sub]) => (
-          <div key={label} className="bg-sunken rounded-xl px-2.5 py-2">
-            <div className="text-ink font-mono text-[15px] font-semibold tabular-nums">
-              {value}
-            </div>
-            <div className="text-ink-3 text-[10.5px] tracking-[0.04em] uppercase">
-              {label}
-            </div>
-            <div className="text-ink-3 truncate text-[11px]">{sub}</div>
-          </div>
-        ))}
-      </div>
+            [
+              "events",
+              formatNumber(u.events),
+              u.customised
+                ? `${u.customised} changed it`
+                : u.events
+                  ? "as written here"
+                  : "none yet",
+            ],
+            [
+              "sent to",
+              formatNumber(u.recipients),
+              u.sends
+                ? `${formatNumber(u.sends)} ${u.sends === 1 ? "send" : "sends"}`
+                : "nobody yet",
+            ],
+            [
+              "opened",
+              u.open_rate === null || u.open_rate === undefined
+                ? u.delivery_rate === null || u.delivery_rate === undefined
+                  ? "—"
+                  : `${u.delivery_rate}%`
+                : `${u.open_rate}%`,
+              u.open_rate === null || u.open_rate === undefined
+                ? u.delivery_rate === null || u.delivery_rate === undefined
+                  ? "no results yet"
+                  : "delivered"
+                : `of ${formatNumber(u.recipients)}`,
+            ],
+          ] as const
+        }
+      />
       {u.bounced ? (
         <p className="text-caution mt-2 text-[12px]">
           {u.bounced} bounced across its sends.
@@ -303,20 +272,11 @@ function StageCard({ t }: { t: LibraryTemplate }) {
           {u.last_sent_at ? ` · last sent ${relativeTime(u.last_sent_at)}` : ""}
         </span>
         <span className="flex gap-2">
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() => setOpen(!open)}
-            aria-expanded={open}
-            aria-label={`${open ? "Hide" : "Preview"} ${t.name}`}
-          >
-            {open ? (
-              <EyeOffIcon className="size-3.5" />
-            ) : (
-              <EyeIcon className="size-3.5" />
-            )}{" "}
-            {open ? "Hide" : "Preview"}
-          </button>
+          <PreviewToggle
+            name={t.name}
+            open={open}
+            onToggle={() => setOpen(!open)}
+          />
           <Link href={`/emails/${t.id}`} className="btn btn-secondary btn-sm">
             <PencilIcon className="size-3.5" /> Edit
           </Link>
@@ -357,28 +317,19 @@ function CustomRow({
           {t.usage.events} {t.usage.events === 1 ? "event" : "events"} · sent to{" "}
           {formatNumber(t.usage.recipients)}
         </span>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() => setOpen(!open)}
+        <IconButton
+          label={`${open ? "Hide" : "Preview"} ${t.name}`}
+          variant="quiet"
           aria-expanded={open}
-          aria-label={`${open ? "Hide" : "Preview"} ${t.name}`}
+          onClick={() => setOpen(!open)}
         >
-          {open ? (
-            <EyeOffIcon className="size-3.5" />
-          ) : (
-            <EyeIcon className="size-3.5" />
-          )}
-        </button>
+          {open ? <EyeOffIcon /> : <EyeIcon />}
+        </IconButton>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="border-line bg-surface text-ink-2 hover:bg-sunken hover:text-ink grid size-8 place-items-center rounded-full border"
-              aria-label={`Actions for ${t.name}`}
-            >
-              <MoreHorizontalIcon className="size-4" />
-            </button>
+            <IconButton label={`Actions for ${t.name}`}>
+              <MoreHorizontalIcon />
+            </IconButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={() => router.push(`/emails/${t.id}`)}>
@@ -596,7 +547,7 @@ export function EmailLibraryPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
               onClick={(e) => {
                 e.preventDefault();
                 if (deleting)
