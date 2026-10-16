@@ -13,6 +13,7 @@ import {
   duplicateTemplate,
   fetchEmailContext,
   fetchLibrary,
+  fetchLibraryOverview,
   fetchMessage,
   fetchMessages,
   fetchTemplate,
@@ -40,6 +41,10 @@ export function useTemplates(eventId: number) {
     queryFn: () => fetchTemplates(eventId),
     staleTime: 10_000,
   });
+}
+
+export function useLibraryOverview() {
+  return useQuery({ queryKey: [...emailsKey({ kind: "library" }), "overview"], queryFn: fetchLibraryOverview, staleTime: 30_000 });
 }
 
 export function useLibrary() {

@@ -358,3 +358,46 @@ export const audienceSummary = (a: EmailAudience): string => {
   const who = AUDIENCE_WHO.find((w) => w.value === a.who)?.label ?? a.who;
   return a.roles.length ? `${who} · ${a.roles.join(", ")}` : who;
 };
+
+// --- the Emails page (the library with its use and results) ----------------------------------------------------------------------
+
+export const libraryFiguresSchema = z.object({
+  messages: z.number(),
+  recipients: z.number(),
+  sent: z.number(),
+  failed: z.number(),
+  delivered: z.number(),
+  bounced: z.number(),
+  read: z.number(),
+  delivery_rate: z.number().nullish(),
+  open_rate: z.number().nullish(),
+});
+export type LibraryFigures = z.infer<typeof libraryFiguresSchema>;
+
+export const templateUsageSchema = z.object({
+  events: z.number(),
+  customised: z.number(),
+  off: z.number(),
+  sends: z.number(),
+  recipients: z.number(),
+  delivery_rate: z.number().nullish(),
+  open_rate: z.number().nullish(),
+  bounced: z.number(),
+  last_sent_at: z.string().nullish(),
+});
+
+export const libraryTemplateSchema = emailTemplateSchema.extend({ label: z.string(), usage: templateUsageSchema });
+export type LibraryTemplate = z.infer<typeof libraryTemplateSchema>;
+
+export const libraryOverviewSchema = z.object({
+  figures: libraryFiguresSchema,
+  previous: libraryFiguresSchema,
+  delta: z.object({ messages: z.number(), recipients: z.number() }).nullish(),
+  templates: z.array(libraryTemplateSchema),
+  queue: z.array(z.object({ template_id: z.string(), stage: z.string(), label: z.string(), name: z.string(), event: z.object({ id: z.number(), name: z.string() }), due_at: z.string(), audience: z.string() })),
+  recent: z.array(z.object({ id: z.string(), subject: z.string(), stage: z.string(), event: z.object({ id: z.number(), name: z.string() }), recipients: z.number(), sent: z.number(), failed: z.number(), scheduled: z.boolean(), created_at: z.string(), delivered: z.number(), read: z.number(), bounced: z.number() })),
+  attention: z.object({ disabled_stages: z.array(z.string()), bounced_30d: z.number(), failed_30d: z.number() }),
+  all_time: z.object({ messages: z.number(), recipients: z.number() }),
+  generated_at: z.string(),
+});
+export type LibraryOverview = z.infer<typeof libraryOverviewSchema>;

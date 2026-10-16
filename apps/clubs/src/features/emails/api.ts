@@ -17,6 +17,7 @@ import {
   type EmailScope,
   type EmailStage,
   type EmailTemplateFields,
+  libraryOverviewSchema,
 } from "./schemas";
 import { z } from "zod";
 
@@ -144,4 +145,9 @@ export async function fetchMessage(eventId: number, messageId: string, q: Messag
     query: { problem: q.problem || undefined, search: q.search, page: q.page, page_size: q.pageSize },
   });
   return messageDetailSchema.parse(raw);
+}
+
+/** The library with how each email is used and what it did, the month, and what goes out next. */
+export async function fetchLibraryOverview() {
+  return libraryOverviewSchema.parse(await api.get<unknown>(`${scopeBase({ kind: "library" })}/overview`));
 }
