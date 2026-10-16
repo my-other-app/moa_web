@@ -55,17 +55,118 @@ export const STATUS_NOTICE: Partial<Record<EventLifecycle, string>> = {
   archived: "Archived and hidden from the events list until somebody asks for archived events.",
 };
 
+/** Where each standing notice is settled: the one button beside it. */
+export const STATUS_ACTION: Partial<Record<EventLifecycle, { label: string; path: string }>> = {
+  draft: { label: "Publish under Close-out", path: "/closeout" },
+  closed: { label: "Closeout report", path: "/closeout" },
+};
+
+export interface ClockNotice {
+  tag: string;
+  tone: "caution" | "refuse";
+  body: string;
+  /** The page that settles it, under the event. */
+  action: { label: string; path: string };
+}
+
 /** The one-line notices the clock's state earns, beyond the standing one. */
-export function clockNotices(s: Pick<EventSummary, "status" | "status_clock" | "starts_at" | "ends_at" | "retention">, now: Date): { tag: string; tone: "caution" | "refuse"; body: string }[] {
-  const out: { tag: string; tone: "caution" | "refuse"; body: string }[] = [];
+export function clockNotices(s: Pick<EventSummary, "status" | "status_clock" | "starts_at" | "ends_at" | "retention">, now: Date): ClockNotice[] {
+  const out: ClockNotice[] = [];
   if (!s.status_clock && s.status === "draft" && new Date(s.starts_at) < now) {
-    out.push({ tag: "Started", tone: "caution", body: "This event's start time has passed and it is still a draft, so the gate refuses every scan and no timed email goes out. Publish it, or switch the status clock on under Close-out." });
+    out.push({
+      tag: "Started",
+      tone: "caution",
+      body: "This event's start time has passed and it is still a draft, so the gate refuses every scan and no timed email goes out. Publish it, or switch the status clock on under Close-out.",
+      action: { label: "Open Close-out", path: "/closeout" },
+    });
   }
   if (!s.status_clock && (s.status === "published" || s.status === "live") && new Date(s.ends_at) < now) {
-    out.push({ tag: "Ended", tone: "caution", body: "This event has ended and its door is still open — anyone with a ticket can be checked in. Close it, or switch the status clock on under Close-out to have it close itself." });
+    out.push({
+      tag: "Ended",
+      tone: "caution",
+      body: "This event has ended and its door is still open — anyone with a ticket can be checked in. Close it, or switch the status clock on under Close-out to have it close itself.",
+      action: { label: "Open Close-out", path: "/closeout" },
+    });
   }
   if (s.retention.state === "deleted") {
-    out.push({ tag: "Retention complete", tone: "refuse", body: "The guest list for this event was scrubbed after the closeout report was kept. The reports remain under Close-out; the figures here are the report's frozen copy." });
+    out.push({
+      tag: "Retention complete",
+      tone: "refuse",
+      body: "The guest list for this event was scrubbed after the closeout report was kept. The reports remain under Close-out; the figures here are the report's frozen copy.",
+      action: { label: "See the reports", path: "/closeout" },
+    });
+  }
+  return out;
+}
+
+/** One thing on the overview that wants a decision, and the page where it is made. */
+export interface OverviewAttention {
+  kind: string;
+  tone: "red" | "amber";
+  title: string;
+  body: string;
+  /** Under the event: "/attendees?delivery=not_delivered". */
+  path: string;
+}
+
+const n = (count: number, one: string, many: string) => `${count.toLocaleString("en-IN")} ${count === 1 ? one : many}`;
+
+/**
+ * What on this event needs somebody now, from the summary alone: sends the
+ * provider refused, guests without a ticket (or holding an old design),
+ * addresses that bounced, ID cards that failed to print. Red before amber.
+ * Once the list has been scrubbed there is nobody left to act on, so it is
+ * empty; a draft sends no tickets by design, so a missing one is not news.
+ */
+export function overviewAttention(s: Pick<EventSummary, "status" | "from_report" | "tickets" | "analytics">): OverviewAttention[] {
+  if (s.from_report) return [];
+  const out: OverviewAttention[] = [];
+  const failed = s.analytics.deliveries.reduce((sum, d) => sum + d.failed, 0);
+  if (failed > 0) {
+    out.push({
+      kind: "SENDS_FAILED",
+      tone: "red",
+      title: `${n(failed, "ticket email", "ticket emails")} failed`,
+      body: "The provider refused them. The delivery log says why; correct the address on the guest list and send again.",
+      path: "/deliveries",
+    });
+  }
+  const t = s.tickets;
+  if (t.older_design > 0) {
+    out.push({
+      kind: "REDESIGNED_AFTER_ISSUE",
+      tone: "amber",
+      title: "Tickets redesigned after they went out",
+      body: `${n(t.older_design, "guest holds", "guests hold")} a ticket made with an older design. Sending again is the only way to update them.`,
+      path: "/attendees",
+    });
+  } else if (t.missing > 0 && s.status !== "draft") {
+    out.push({
+      kind: "TICKETS_MISSING",
+      tone: "amber",
+      title: `${n(t.missing, "guest", "guests")} without a ticket`,
+      body: `${t.missing === 1 ? "No ticket has" : "No tickets have"} reached them yet. Send from the guest list; sending is safe to repeat.`,
+      path: "/attendees",
+    });
+  }
+  const bounced = s.analytics.contacts.bounced;
+  if (bounced > 0) {
+    out.push({
+      kind: "BOUNCED",
+      tone: "amber",
+      title: `${n(bounced, "email address", "email addresses")} bounced`,
+      body: "Nothing more is sent to them until the address is corrected on the guest list.",
+      path: "/attendees?delivery=not_delivered",
+    });
+  }
+  if (s.analytics.cards.failed > 0) {
+    out.push({
+      kind: "CARDS_FAILED",
+      tone: "amber",
+      title: `${n(s.analytics.cards.failed, "ID card", "ID cards")} failed to print`,
+      body: "Print them again from ID cards before the guest reaches the desk.",
+      path: "/idcards",
+    });
   }
   return out;
 }

@@ -1,14 +1,18 @@
 "use client";
 
 import * as React from "react";
+import { CopyIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { formatDateTime } from "@moa/app-kit";
 import {
   Button,
+  CardLabel,
+  DefinitionRows,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  IconButton,
   Skeleton,
   StatusBadge,
   toast,
@@ -19,68 +23,34 @@ import { type DeliveryBrief, verdictOf } from "@/features/deliveries";
 import { useRegistration } from "../queries";
 import type { EventField, RegistrationDetail } from "../schemas";
 
-/** A value shown in full, with a copy button -- names and addresses are cut short in the list, never here. */
-function Copyable({
-  value,
-  mono,
-}: {
-  value: string | null | undefined;
-  mono?: boolean;
-}) {
-  if (!value) return <span className="text-muted-foreground">—</span>;
+const none = (text = "—") => <span className="text-ink-3">{text}</span>;
+
+/** A value shown in full, with a copy button — names and addresses are cut short in the list, never here. */
+function Copyable({ value, mono }: { value: string | null | undefined; mono?: boolean }) {
+  if (!value) return none();
   return (
     <span className="flex items-start gap-2">
-      <span
-        className={
-          mono
-            ? "min-w-0 flex-1 font-mono text-xs break-all"
-            : "min-w-0 flex-1 break-words"
-        }
-      >
-        {value}
-      </span>
-      <button
-        type="button"
+      <span className={mono ? "min-w-0 flex-1 font-mono text-[12px] break-all" : "min-w-0 flex-1 break-words"}>{value}</span>
+      <IconButton
+        label={`Copy ${value}`}
+        variant="quiet"
+        size="xs"
+        className="-my-1"
         onClick={() => {
           void navigator.clipboard?.writeText(value);
           toast("Copied");
         }}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px]"
-        aria-label={`Copy ${value}`}
       >
-        COPY
-      </button>
+        <CopyIcon />
+      </IconButton>
     </span>
   );
 }
 
-function Rows({ rows }: { rows: { k: string; v: React.ReactNode }[] }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <dl className="m-0">
-      {rows.map((r) => (
-        <div key={r.k} className="flex gap-3 border-t py-1.5 first:border-t-0">
-          <dt className="text-muted-foreground w-24 shrink-0 font-mono text-[11px] uppercase tracking-[0.05em] leading-relaxed">
-            {r.k}
-          </dt>
-          <dd className="m-0 min-w-0 flex-1 text-sm">{r.v}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="bg-muted/40 rounded-md border px-3.5 py-3">
-      <h3 className="text-muted-foreground mb-2 font-mono text-[10px] uppercase tracking-[0.08em]">
-        {title}
-      </h3>
+    <section className="border-line-soft rounded-xl border px-3.5 py-3">
+      <CardLabel className="mb-1.5">{title}</CardLabel>
       {children}
     </section>
   );
@@ -90,17 +60,30 @@ const sendLine = (d: DeliveryBrief) => {
   const v = verdictOf(d);
   const when = d.sent_at ? ` · ${formatDateTime(d.sent_at)}` : "";
   const why = d.reason ?? d.error;
-  if (d.status === "sent" && !d.outcome)
-    return `sent${when} — waiting to hear it arrived`;
-  if (d.status === "failed")
-    return `failed after ${d.attempts} ${d.attempts === 1 ? "try" : "tries"}${why ? ` — ${why}` : ""}`;
+  if (d.status === "sent" && !d.outcome) return `sent${when} — waiting to hear it arrived`;
+  if (d.status === "failed") return `failed after ${d.attempts} ${d.attempts === 1 ? "try" : "tries"}${why ? ` — ${why}` : ""}`;
   if (d.status === "skipped") return `skipped — ${why ?? "no address"}`;
   return `${v.label.toLowerCase()}${when}${why && d.outcome && d.outcome !== "delivered" && d.outcome !== "read" ? ` — ${why}` : ""}`;
 };
 
+function Sends({ sends, empty }: { sends: DeliveryBrief[]; empty: string }) {
+  if (!sends.length) return none(empty);
+  return (
+    <span className="flex flex-col gap-1">
+      {sends.map((d) => (
+        <span key={d.channel} className="flex flex-wrap items-center gap-1.5">
+          <StatusBadge tone={verdictOf(d).tone} label={d.channel === "email" ? "Email" : d.channel} />
+          <span className="text-ink-2 text-[12px]">{sendLine(d)}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /**
  * One guest in full. The list shows a row; this shows everything on their
- * record and everything that happened to them, with the actions in one place.
+ * record and everything that happened to them, with the two things to do
+ * about it — correct them, or take them off the list — in one place.
  */
 export function AttendeeDetailDialog({
   eventId,
@@ -122,46 +105,34 @@ export function AttendeeDetailDialog({
   const detail = useRegistration(eventId, open ? registrationId : null);
   const a = detail.data;
   const answers = (a?.additional_details ?? {}) as Record<string, unknown>;
-  const ticketSends = a?.ticket_deliveries ?? [];
-  const certSends = a?.certificate_deliveries ?? [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{a?.full_name ?? a?.name ?? "Guest"}</DialogTitle>
-          <DialogDescription>
-            {a
-              ? `On the list since ${formatDateTime(a.created_at)}`
-              : "Loading…"}
-          </DialogDescription>
+          <DialogDescription>{a ? `On the list since ${formatDateTime(a.created_at)}` : detail.isError ? "This guest could not be loaded." : "Loading…"}</DialogDescription>
         </DialogHeader>
-        {!a ? (
-          <div className="space-y-2">
+        {detail.isError ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-ink-2 text-[12.5px]">They may have been removed from the list a moment ago.</p>
+            <Button variant="secondary" size="sm" onClick={() => void detail.refetch()}>
+              Try again
+            </Button>
+          </div>
+        ) : !a ? (
+          <div className="grid gap-2">
             <Skeleton className="h-6 w-2/3" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-3">
             <div className="flex flex-wrap items-center gap-1.5">
-              <StatusBadge
-                tone="default"
-                label={a.role.charAt(0).toUpperCase() + a.role.slice(1)}
-              />
-              {a.is_attended ? (
-                <StatusBadge tone="success" label="Checked in" />
-              ) : (
-                <StatusBadge tone="default" label="Not yet in" />
-              )}
-              {a.ticket_revoked_at ? (
-                <StatusBadge tone="destructive" label="Ticket revoked" />
-              ) : (
-                <StatusBadge
-                  tone="info"
-                  label={`Ticket ${a.ticket_id ?? ""}`}
-                />
-              )}
+              <StatusBadge tone="default" label={a.role.charAt(0).toUpperCase() + a.role.slice(1)} />
+              {a.is_attended ? <StatusBadge tone="success" label="Checked in" /> : <StatusBadge tone="default" label="Not yet in" />}
+              {a.ticket_revoked_at ? <StatusBadge tone="destructive" label="Ticket revoked" /> : <StatusBadge tone="info" label={`Ticket ${a.ticket_id ?? ""}`} />}
+              {a.email_bounced_at ? <StatusBadge tone="destructive" label="Email bounced" /> : null}
               {a.certificate_revoked_at ? (
                 <StatusBadge tone="destructive" label="Certificate revoked" />
               ) : a.certificate_issued_at ? (
@@ -170,34 +141,31 @@ export function AttendeeDetailDialog({
             </div>
 
             <Section title="Contact">
-              <Rows
+              <DefinitionRows
                 rows={[
                   { k: "Name", v: <Copyable value={a.full_name ?? a.name} /> },
-                  { k: "Email", v: <Copyable value={a.email} mono /> },
-                  { k: "Phone", v: <Copyable value={a.phone} mono /> },
                   {
-                    k: "Institution",
-                    v: a.institution ?? (
-                      <span className="text-muted-foreground">—</span>
+                    k: "Email",
+                    v: (
+                      <>
+                        <Copyable value={a.email} mono />
+                        {a.email_bounced_at ? <span className="text-refuse mt-0.5 block text-[11.5px]">Bounced{a.email_bounce_reason ? ` — ${a.email_bounce_reason}` : ""}. Correct it to send again.</span> : null}
+                      </>
                     ),
                   },
+                  { k: "Phone", v: <Copyable value={a.phone} mono /> },
+                  { k: "Institution", v: a.institution ?? none() },
                 ]}
               />
             </Section>
 
             {fields.length || Object.keys(answers).length ? (
               <Section title="Answers">
-                <Rows
+                <DefinitionRows
                   rows={[
                     ...fields.map((f) => ({
                       k: f.label ?? f.key,
-                      v: answers[f.key] ? (
-                        String(answers[f.key])
-                      ) : (
-                        <span className="text-muted-foreground">
-                          not answered
-                        </span>
-                      ),
+                      v: answers[f.key] ? String(answers[f.key]) : none("not answered"),
                     })),
                     ...Object.entries(answers)
                       .filter(([k]) => !fields.some((f) => f.key === k))
@@ -207,121 +175,56 @@ export function AttendeeDetailDialog({
               </Section>
             ) : null}
 
-            <Section title="Ticket and delivery">
-              <Rows
-                rows={[
-                  { k: "Ticket", v: <Copyable value={a.ticket_id} mono /> },
-                  {
-                    k: "Status",
-                    v: a.ticket_revoked_at
-                      ? `Revoked ${formatDateTime(a.ticket_revoked_at)} — check-in refuses it`
-                      : "Issued",
-                  },
-                  {
-                    k: "Sent",
-                    v: ticketSends.length ? (
-                      <span className="flex flex-col gap-1">
-                        {ticketSends.map((d) => (
-                          <span
-                            key={d.channel}
-                            className="flex flex-wrap items-center gap-1.5"
-                          >
-                            <StatusBadge
-                              tone={verdictOf(d).tone}
-                              label={
-                                d.channel === "email" ? "Email" : d.channel
-                              }
-                            />
-                            <span className="text-muted-foreground text-xs">
-                              {sendLine(d)}
-                            </span>
-                          </span>
-                        ))}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">
-                        not sent yet
-                      </span>
-                    ),
-                  },
-                ]}
-              />
-            </Section>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Section title="Ticket and delivery">
+                <DefinitionRows
+                  rows={[
+                    { k: "Ticket", v: <Copyable value={a.ticket_id} mono /> },
+                    {
+                      k: "Status",
+                      v: a.ticket_revoked_at ? <span className="text-refuse">Revoked {formatDateTime(a.ticket_revoked_at)} — check-in refuses it</span> : "Issued",
+                    },
+                    { k: "Sent", v: <Sends sends={a.ticket_deliveries} empty="not sent yet" /> },
+                  ]}
+                />
+              </Section>
 
-            <Section title="Certificate">
-              <Rows
-                rows={[
-                  {
-                    k: "Status",
-                    v: a.certificate_revoked_at
-                      ? `Revoked ${formatDateTime(a.certificate_revoked_at)}`
-                      : a.certificate_issued_at
-                        ? `Issued ${formatDateTime(a.certificate_issued_at)}`
-                        : a.is_attended
-                          ? "Not issued — downloads as an attended guest"
-                          : "Not issued",
-                  },
-                  {
-                    k: "Sent",
-                    v: certSends.length ? (
-                      <span className="flex flex-col gap-1">
-                        {certSends.map((d) => (
-                          <span
-                            key={d.channel}
-                            className="flex flex-wrap items-center gap-1.5"
-                          >
-                            <StatusBadge
-                              tone={verdictOf(d).tone}
-                              label={
-                                d.channel === "email" ? "Email" : d.channel
-                              }
-                            />
-                            <span className="text-muted-foreground text-xs">
-                              {sendLine(d)}
-                            </span>
-                          </span>
-                        ))}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">not sent</span>
-                    ),
-                  },
-                ]}
-              />
-            </Section>
+              <Section title="Certificate">
+                <DefinitionRows
+                  rows={[
+                    {
+                      k: "Status",
+                      v: a.certificate_revoked_at
+                        ? `Revoked ${formatDateTime(a.certificate_revoked_at)}`
+                        : a.certificate_issued_at
+                          ? `Issued ${formatDateTime(a.certificate_issued_at)}`
+                          : a.is_attended
+                            ? "Not issued — downloads as an attended guest"
+                            : "Not issued",
+                    },
+                    { k: "Sent", v: <Sends sends={a.certificate_deliveries} empty="not sent" /> },
+                  ]}
+                />
+              </Section>
+            </div>
 
             <Section title="At the event">
-              <Rows
+              <DefinitionRows
                 rows={[
-                  {
-                    k: "Check-in",
-                    v: a.is_attended
-                      ? a.attended_on
-                        ? formatDateTime(a.attended_on)
-                        : "Checked in"
-                      : "Not checked in",
-                  },
+                  { k: "Check-in", v: a.is_attended ? (a.attended_on ? formatDateTime(a.attended_on) : "Checked in") : "Not checked in" },
                   { k: "Registered", v: formatDateTime(a.created_at) },
-                  {
-                    k: "Updated",
-                    v: a.updated_at ? formatDateTime(a.updated_at) : "—",
-                  },
+                  { k: "Updated", v: a.updated_at ? formatDateTime(a.updated_at) : none() },
                 ]}
               />
             </Section>
 
-            <div className="flex flex-wrap gap-1.5 border-t pt-3">
+            <div className="border-line-soft flex flex-wrap items-center gap-2 border-t pt-3">
               <Button size="sm" onClick={() => onEdit(a)}>
-                Correct details
+                <PencilIcon /> Correct details
               </Button>
               <span className="flex-1" />
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground hover:text-destructive"
-                onClick={() => onRemove(a)}
-              >
-                Remove from the list
+              <Button size="sm" variant="ghost" danger onClick={() => onRemove(a)}>
+                <Trash2Icon /> Remove from the list
               </Button>
             </div>
           </div>

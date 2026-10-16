@@ -44,8 +44,11 @@ export const publicUrl = (id: number) => `https://events.myotherapp.in/${id}`;
  */
 export function EventRowMenu({
   event,
+  onDeleted,
 }: {
   event: Pick<ClubEvent, "id" | "name" | "registration_count">;
+  /** Called after a successful delete, for a page that cannot stay where it is. */
+  onDeleted?: () => void;
 }) {
   const router = useRouter();
   const remove = useDeleteEvent();
@@ -132,7 +135,13 @@ export function EventRowMenu({
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
               className={cn(buttonVariants({ variant: "destructive" }))}
-              onClick={() => void remove.mutateAsync(event.id)}
+              onClick={() =>
+                // A refusal is toasted by the mutation; only a delete moves the page.
+                void remove.mutateAsync(event.id).then(
+                  () => onDeleted?.(),
+                  () => undefined,
+                )
+              }
             >
               Delete event
             </AlertDialogAction>
