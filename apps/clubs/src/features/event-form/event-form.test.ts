@@ -74,6 +74,23 @@ describe("toEventFormData — wire format", () => {
     expect(fd.get("url")).toBe("https://meet.example.com/x");
   });
 
+  it("sends the venue's map link, and clears it when emptied or online", () => {
+    const withLink = toEventFormData(parse({ location_name: "Lab 3", location_link: "https://maps.app.goo.gl/abc123" }));
+    expect(withLink.get("location_link")).toBe("https://maps.app.goo.gl/abc123");
+    expect(withLink.get("clear_location_link")).toBeNull();
+    const emptied = toEventFormData(parse({ location_name: "Lab 3", location_link: "" }));
+    expect(emptied.get("location_link")).toBeNull();
+    expect(emptied.get("clear_location_link")).toBe("true");
+    const online = toEventFormData(parse({ is_online: true, url: "https://meet.example.com/x", location_link: "https://maps.app.goo.gl/abc123" }));
+    expect(online.get("location_link")).toBeNull();
+    expect(online.get("clear_location_link")).toBe("true");
+  });
+
+  it("refuses a map link that is not a full URL", () => {
+    const r = eventFormSchema.safeParse({ ...base, location_name: "Lab 3", location_link: "maps somewhere" });
+    expect(r.success).toBe(false);
+  });
+
   it("indexes speaker photos against the uploaded files", () => {
     const photo = new File(["x"], "a.png", { type: "image/png" });
     const fd = toEventFormData(
