@@ -117,7 +117,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
               </Link>
             </Button>
           ) : null}
-          {e ? <EventRowMenu event={{ id: e.id, name: e.name, registration_count: s?.registered ?? 0 }} onDeleted={() => router.replace("/events")} /> : null}
+          {e ? <EventRowMenu event={{ id: e.id, name: e.name, slug: e.slug, registration_count: s?.registered ?? 0 }} onDeleted={() => router.replace("/events")} /> : null}
         </div>
       </header>
 

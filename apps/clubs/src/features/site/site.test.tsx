@@ -6,7 +6,7 @@ const analytics: { on: boolean; data: unknown } = {
   on: false,
   data: {
     published: true, days: 30,
-    link: { id: "w1", code: "webs1te9", short_url: "https://api.myotherapp.in/l/webs1te9", destination: "https://events.myotherapp.in/clubs/circuit-society?ref=webs1te9" },
+    link: { id: "w1", code: "webs1te9", short_url: "https://api.myotherapp.in/l/webs1te9", destination: "https://myotherapp.in/clubs/circuit-society?ref=webs1te9" },
     visits: 120, visitors: 96, signups: 9, came: 4, follows: 0, rate: 7.5,
     deltas: { visits: 20, signups: null },
     series: [{ day: "2026-10-15", visits: 70, signups: 4 }, { day: "2026-10-16", visits: 50, signups: 5 }],
@@ -25,7 +25,7 @@ const site = {
   default_headline: "Build things that think.", default_subline: "Hack nights, build weekends and competitions for Pune's makers.",
   sections: { hero: true, upcoming: true, about: true, past: true, team: true, partners: true, follow: true, contact: true },
   available: { hero: true, upcoming: true, about: true, past: true, team: false, partners: true, follow: true, contact: true },
-  published_at: "2026-10-02T09:00:00Z", stale: false, url: "https://events.myotherapp.in/clubs/circuit-society", slug: "circuit-society",
+  published_at: "2026-10-02T09:00:00Z", stale: false, url: "https://myotherapp.in/clubs/circuit-society", slug: "circuit-society",
   templates: [{ key: "launchpad", name: "Launchpad", blurb: "Big centred hero, event cards" }, { key: "chapter", name: "Chapter", blurb: "Editorial, left-aligned list" }, { key: "campus", name: "Campus", blurb: "Cover photo and gallery grid" }, { key: "arena", name: "Arena", blurb: "Countdown hero for competitions" }],
   fonts: [{ key: "dm_sans", name: "DM Sans" }, { key: "inter", name: "Inter" }],
 };
@@ -77,7 +77,7 @@ describe("the website page", () => {
     expect(screen.getByRole("radio", { name: /Arena/ })).toBeInTheDocument();
     expect(screen.getByText("Add people on Club profile")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Build things that think.")).toBeInTheDocument();
-    expect(screen.getByText("events.myotherapp.in/clubs/circuit-society", { selector: "p" })).toBeInTheDocument();
+    expect(screen.getByText("myotherapp.in/clubs/circuit-society", { selector: "p" })).toBeInTheDocument();
     await waitFor(() => expect(calls.some((c) => c.path.endsWith("/clubs/site/preview"))).toBe(true));
     expect(await screen.findByTitle("Site preview")).toHaveAttribute("srcdoc", expect.stringContaining("Build things that think."));
   });
@@ -101,7 +101,7 @@ describe("the website page", () => {
     fireEvent.click(screen.getByRole("button", { name: /Save/ }));
     await waitFor(() => expect(calls.find((c) => c.method === "PATCH")).toMatchObject({ body: { sections: expect.objectContaining({ past: false }) } }));
     fireEvent.click(screen.getByRole("button", { name: /Copy site link/ }));
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith("https://events.myotherapp.in/clubs/circuit-society"));
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith("https://myotherapp.in/clubs/circuit-society"));
   });
 
   it("shows what the published site brought: visits, sources, sign-ups and its own short link", async () => {

@@ -31,12 +31,18 @@ import {
 
 import { useAccess } from "@/features/access";
 import { useDeleteEvent } from "@/features/event-form";
+import { PUBLIC_SITE, eventPublicUrl } from "@/lib/public-site";
 
 import type { ClubEvent } from "../schemas";
 import { DuplicateDialog } from "./duplicate-dialog";
 
-/** The public page an organiser hands out, never the dashboard URL they stand on. */
-export const publicUrl = (id: number) => `https://events.myotherapp.in/${id}`;
+/**
+ * The public page an organiser hands out, never the dashboard URL they stand
+ * on. An event without a slug yet gets the id path, which the site redirects
+ * to the slug page.
+ */
+export const publicUrl = (event: Pick<ClubEvent, "id" | "slug">) =>
+  event.slug ? eventPublicUrl(event.slug) : `${PUBLIC_SITE}/${event.id}`;
 
 /**
  * Everything a row can do that is not its one primary action, behind one
@@ -47,7 +53,7 @@ export function EventRowMenu({
   event,
   onDeleted,
 }: {
-  event: Pick<ClubEvent, "id" | "name" | "registration_count">;
+  event: Pick<ClubEvent, "id" | "name" | "slug" | "registration_count">;
   /** Called after a successful delete, for a page that cannot stay where it is. */
   onDeleted?: () => void;
 }) {
@@ -60,10 +66,10 @@ export function EventRowMenu({
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(publicUrl(event.id));
+      await navigator.clipboard.writeText(publicUrl(event));
       toast.success("Public event link copied");
     } catch {
-      window.open(publicUrl(event.id), "_blank", "noopener,noreferrer");
+      window.open(publicUrl(event), "_blank", "noopener,noreferrer");
     }
   }
 
@@ -91,7 +97,7 @@ export function EventRowMenu({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() =>
-              window.open(publicUrl(event.id), "_blank", "noopener,noreferrer")
+              window.open(publicUrl(event), "_blank", "noopener,noreferrer")
             }
           >
             <ExternalLinkIcon className="size-4" /> Open public page

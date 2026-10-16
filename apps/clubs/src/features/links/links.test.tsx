@@ -14,7 +14,7 @@ const websiteRow = {
 };
 
 const detail = {
-  id: "aaaaaaaa-0000-0000-0000-000000000001", name: "Freshers fair QR", code: "x7k2m9pq", url: "https://api.myotherapp.in/l/x7k2m9pq", destination: "https://events.myotherapp.in/37?utm_source=poster_qr&utm_medium=print&ref=x7k2m9pq",
+  id: "aaaaaaaa-0000-0000-0000-000000000001", name: "Freshers fair QR", code: "x7k2m9pq", url: "https://api.myotherapp.in/l/x7k2m9pq", destination: "https://myotherapp.in/events/hack-night-04?utm_source=poster_qr&utm_medium=print&ref=x7k2m9pq",
   clicks: 960, uniques: 900, first_click_at: "2099-06-01T05:00:00+00:00", last_click_at: "2099-06-09T07:00:00+00:00",
   series: [{ date: "2099-06-07", clicks: 500 }, { date: "2099-06-08", clicks: 300 }, { date: "2099-06-09", clicks: 160 }],
   devices: [{ device: "phone", clicks: 900 }, { device: "desktop", clicks: 60 }],

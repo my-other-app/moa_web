@@ -4,6 +4,8 @@ import { useFormContext } from "react-hook-form";
 import { GlobeIcon, MapPinIcon } from "lucide-react";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, cn } from "@moa/ui";
 
+import { PUBLIC_SITE_HOST } from "@/lib/public-site";
+
 import type { EventFormValues } from "../../schemas";
 
 /** Where: one choice, then the one field it needs. */
@@ -77,7 +79,7 @@ export function WhereStep() {
                 <FormControl>
                   <Input {...field} value={field.value ?? ""} type="url" inputMode="url" placeholder="https://maps.app.goo.gl/…" />
                 </FormControl>
-                <FormDescription>Paste the venue&apos;s Google Maps link. It puts the event on the map, so people nearby find it on events.myotherapp.in.</FormDescription>
+                <FormDescription>Paste the venue&apos;s Google Maps link. It puts the event on the map, so people nearby find it on {PUBLIC_SITE_HOST}.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}

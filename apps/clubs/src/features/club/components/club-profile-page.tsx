@@ -26,6 +26,8 @@ import {
   cn,
   toast, Combobox } from "@moa/ui";
 
+import { PUBLIC_SITE_HOST } from "@/lib/public-site";
+
 import {
   useCreatePartner,
   useDeletePartner,
@@ -59,7 +61,7 @@ import { usePick } from "./use-pick";
  * row; everything else waits for Save changes.
  */
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const CLUB_PAGE = "events.myotherapp.in/clubs";
+const CLUB_PAGE = `${PUBLIC_SITE_HOST}/clubs`;
 
 const field = "input w-full";
 const label = "eyebrow mb-1.5 block";
