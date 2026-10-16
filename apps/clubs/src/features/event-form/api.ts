@@ -52,6 +52,12 @@ export function toEventFormData(values: EventFormParsed, status?: "draft" | "pub
   fd.append("swag_enabled", String(values.swag_enabled));
 
   put("location_name", values.is_online ? undefined : values.location_name);
+  // The map link, for an in-person event. Left empty (or the event went
+  // online), the saved one is cleared rather than kept: an omitted field
+  // means "unchanged" to the backend.
+  const mapLink = values.is_online ? "" : (values.location_link ?? "").trim();
+  if (mapLink) put("location_link", mapLink);
+  else fd.append("clear_location_link", "true");
   put("url", values.url);
   put("reg_fee", values.has_fee ? values.reg_fee : undefined);
   put("prize_amount", values.has_prize ? values.prize_amount : undefined);

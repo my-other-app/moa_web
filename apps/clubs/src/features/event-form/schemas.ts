@@ -69,6 +69,8 @@ export const eventFormSchema = z
     // --- place
     is_online: z.boolean().default(false),
     location_name: z.string().trim().max(200).optional(),
+    /** The venue on Google Maps; it puts the event on the map for "near you" on the events site. */
+    location_link: z.string().trim().url("Paste the full map link").or(z.literal("")).optional(),
     url: z.string().trim().url("Enter a full URL").or(z.literal("")).optional(),
 
     // --- entry

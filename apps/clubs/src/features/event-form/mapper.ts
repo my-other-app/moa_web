@@ -20,6 +20,7 @@ const detailSchema = z
     reg_startdate: z.string().nullish(),
     reg_enddate: z.string().nullish(),
     location_name: z.string().nullish(),
+    location_link: z.string().nullish(),
     url: z.string().nullish(),
     is_online: z.boolean().nullish(),
     has_fee: z.boolean().nullish(),
@@ -106,6 +107,7 @@ export function eventDetailToFormValues(raw: unknown): EventFormValues {
 
     is_online: d.is_online ?? false,
     location_name: d.location_name ?? "",
+    location_link: d.location_link ?? "",
     url: d.url ?? "",
 
     has_fee: d.has_fee ?? false,

@@ -53,6 +53,7 @@ export const emptyEventForm: EventFormValues = {
   reg_enddate: "",
   is_online: false,
   location_name: "",
+  location_link: "",
   url: "",
   has_fee: false,
   has_prize: false,

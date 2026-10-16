@@ -53,20 +53,36 @@ export function WhereStep() {
           )}
         />
       ) : (
-        <FormField
-          control={form.control}
-          name="location_name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Venue</FormLabel>
-              <FormControl>
-                <Input {...field} value={field.value ?? ""} placeholder="Main Auditorium, Block C" />
-              </FormControl>
-              <FormDescription>As people would say it to a friend. The block and the room help more than the full address.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <>
+          <FormField
+            control={form.control}
+            name="location_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Venue</FormLabel>
+                <FormControl>
+                  <Input {...field} value={field.value ?? ""} placeholder="Main Auditorium, Block C" />
+                </FormControl>
+                <FormDescription>As people would say it to a friend. The block and the room help more than the full address.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="location_link"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Map link · optional</FormLabel>
+                <FormControl>
+                  <Input {...field} value={field.value ?? ""} type="url" inputMode="url" placeholder="https://maps.app.goo.gl/…" />
+                </FormControl>
+                <FormDescription>Paste the venue&apos;s Google Maps link. It puts the event on the map, so people nearby find it on events.myotherapp.in.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
       )}
     </div>
   );
