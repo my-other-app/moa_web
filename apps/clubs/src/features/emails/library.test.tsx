@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 
 const tpl = (id: string, stage: string, name: string, usage: Partial<{ events: number; customised: number; off: number; sends: number; recipients: number; delivery_rate: number | null; open_rate: number | null; bounced: number; last_sent_at: string | null }> = {}, enabled = true) => ({
   id, clubId: 5, eventId: null, stage, label: { INVITE: "Invite", PRE_EVENT: "Pre-event", REMINDER: "Reminder", POST_EVENT: "Post-event", CUSTOM: "Custom" }[stage], name, subject: `${name} · {{event_name}}`,
@@ -39,7 +39,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path.endsWith("/clubs/me/emails/overview")) return overview;
         throw new Error(`unstubbed GET ${path}`);
       }),
-      post: vi.fn(),
+      post: vi.fn(async (path: string, body: unknown) => {
+        if (path.endsWith("/clubs/me/emails/preview")) return { subject: `Rendered: ${(body as { subject: string }).subject}`, html: "<p>Hello</p>", text: "Hello", problems: [] };
+        throw new Error(`unstubbed POST ${path}`);
+      }),
       put: vi.fn(),
       del: vi.fn(),
     },
@@ -68,6 +71,16 @@ describe("the emails page", () => {
     expect(within(reminder).getByText("2 bounced across its sends.")).toBeInTheDocument();
     expect(screen.getByText("Off")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Sponsor shout-out" })).toBeInTheDocument();
-    expect(screen.getByText("1 event · 1 send")).toBeInTheDocument();
+    expect(screen.getByText("1 event · sent to 30")).toBeInTheDocument();
+    expect(within(invite).getByText("200")).toBeInTheDocument(); // sent to
+  });
+
+  it("previews an email with sample values on request", async () => {
+    render(<EmailLibraryPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Preview Invite · your ticket" }));
+    expect(await screen.findByText(/Rendered: Invite · your ticket/)).toBeInTheDocument();
+    expect(screen.getByTitle("Preview of Invite · your ticket")).toHaveAttribute("srcdoc", "<p>Hello</p>");
+    fireEvent.click(screen.getByRole("button", { name: "Hide Invite · your ticket" }));
+    expect(screen.queryByTitle("Preview of Invite · your ticket")).toBeNull();
   });
 });
