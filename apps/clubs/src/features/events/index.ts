@@ -1,6 +1,5 @@
 export { useClubEvents, useEventDetail, useEventsFigures } from "./queries";
 export { ClubEventsList } from "./components/events-list";
-export { EventRowActions } from "./components/event-row-actions";
 export { EventRowMenu, publicUrl } from "./components/event-row-menu";
 export { EventStatusBadge } from "./components/event-status-badge";
 export {

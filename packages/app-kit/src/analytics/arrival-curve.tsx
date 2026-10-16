@@ -6,11 +6,11 @@ import { CardLabel, FigurePanel, StatusBadge } from "@moa/ui";
 import { formatTime, minutesBetween, plural } from "../format";
 import type { EventFigures } from "./schemas";
 
-const ACCENT = "var(--brand, #17a58f)";
-const ADMIT = "#34d399";
-const INK = "var(--muted-foreground, #979797)";
-const LINE = "var(--border, #3d454f)";
-const SOFT = "color-mix(in srgb, var(--brand, #17a58f) 35%, transparent)";
+const ACCENT = "var(--brand)";
+const ADMIT = "var(--admit)";
+const INK = "var(--ink-3)";
+const LINE = "var(--line)";
+const SOFT = "color-mix(in srgb, var(--brand) 35%, transparent)";
 
 const signed = (n: number) => `${n > 0 ? "+" : ""}${n}`;
 
@@ -122,9 +122,9 @@ export function ArrivalCurve({ a, startsAt, timezone }: { a: EventFigures; start
 function Stat({ k, v, sub }: { k: string; v: React.ReactNode; sub?: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-muted-foreground font-mono text-[10px] tracking-[0.06em] uppercase">{k}</div>
+      <div className="text-ink-3 font-mono text-[10px] tracking-[0.06em] uppercase">{k}</div>
       <div className="mt-0.5 font-mono text-[15px] tabular-nums">{v}</div>
-      {sub ? <div className="text-muted-foreground text-[11px]">{sub}</div> : null}
+      {sub ? <div className="text-ink-3 text-[11px]">{sub}</div> : null}
     </div>
   );
 }
@@ -143,21 +143,21 @@ export function ArrivalCurveCard({ a, startsAt, timezone, fromReport, className 
         <CardLabel>Arrival curve</CardLabel>
         {fromReport ? <StatusBadge tone="default" label="From closeout report" /> : null}
         <span className="flex-1" />
-        <span className="text-muted-foreground flex items-center gap-3 font-mono text-[10px] tracking-[0.04em] uppercase">
+        <span className="text-ink-3 flex items-center gap-3 font-mono text-[10px] tracking-[0.04em] uppercase">
           <span className="flex items-center gap-1.5">
             <span aria-hidden="true" className="bg-brand/35 inline-block h-2 w-3 rounded-[2px]" /> per 15 min
           </span>
           <span className="flex items-center gap-1.5">
-            <span aria-hidden="true" className="inline-block h-[2px] w-3 rounded-full bg-emerald-400" /> in the house
+            <span aria-hidden="true" className="inline-block h-[2px] w-3 rounded-full bg-admit" /> in the house
           </span>
         </span>
       </div>
       {nobody ? (
-        <p className="text-muted-foreground py-8 text-center text-[12.5px]">The curve draws itself from the first admission.</p>
+        <p className="text-ink-3 py-8 text-center text-[12.5px]">The curve draws itself from the first admission.</p>
       ) : (
         <>
           <ArrivalCurve a={a} startsAt={startsAt} timezone={timezone} />
-          <div className="border-border/60 mt-3 grid grid-cols-2 gap-3 border-t pt-3 sm:grid-cols-4">
+          <div className="border-line-soft mt-3 grid grid-cols-2 gap-3 border-t pt-3 sm:grid-cols-4">
             <Stat k="First through" v={t.first_admit_at ? formatTime(t.first_admit_at, timezone) : "—"} sub={t.first_admit_at ? `${signed(minutesBetween(startsAt, t.first_admit_at))} min from start` : undefined} />
             <Stat k="Busiest quarter hour" v={t.peak_starts_at ? formatTime(t.peak_starts_at, timezone) : "—"} sub={t.peak_starts_at ? `${plural(t.peak_admits, "admission")} in 15 min` : undefined} />
             <Stat k="Half the house in" v={t.half_house_at ? formatTime(t.half_house_at, timezone) : "—"} sub={t.half_house_minutes !== null ? `${signed(t.half_house_minutes)} min from start` : undefined} />

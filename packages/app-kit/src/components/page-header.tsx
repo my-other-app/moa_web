@@ -40,7 +40,7 @@ export function PageHeader({
           {title}
         </h1>
         {description ? (
-          <p className="text-muted-foreground text-sm text-pretty">{description}</p>
+          <p className="text-ink-3 text-sm text-pretty">{description}</p>
         ) : null}
       </div>
       {action ? <div className="flex shrink-0 gap-2">{action}</div> : null}

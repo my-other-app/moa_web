@@ -17,4 +17,3 @@ export {
 } from "./schemas";
 export { NewAnnouncementDialog } from "./components/new-announcement-dialog";
 export { AUDIENCES } from "./schemas";
-export { AnnouncementComposer } from "./components/announcement-composer";
