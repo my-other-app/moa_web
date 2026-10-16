@@ -12,13 +12,13 @@
     },
     "regs": 1169,
     "paying": 412,
-    "gross": 197046,
+    "gross": 222046,
     "tickets": 196196,
     "refunds": 850,
     "refund_count": 2,
     "expenses": 86424,
     "expense_count": 23,
-    "net": 109772,
+    "net": 134772,
     "outstanding": 4500,
     "outstanding_count": 9,
     "avg_ticket": 476.2,
@@ -26,8 +26,10 @@
     "online_count": 390,
     "cash": 16000,
     "cash_count": 22,
-    "margin": 56,
-    "cost_per_head": 73.9
+    "margin": 61,
+    "cost_per_head": 73.9,
+    "other_income": 25000,
+    "other_income_count": 2
   },
   "deltas": {
     "gross": 9,
@@ -42,35 +44,40 @@
       "tickets": 18900,
       "refunds": 0,
       "expenses": 9000,
-      "net": 9900
+      "net": 9900,
+      "other": 0
     },
     {
       "month": "2026-08",
       "tickets": 39600,
       "refunds": 350,
       "expenses": 18000,
-      "net": 21600
+      "net": 21600,
+      "other": 0
     },
     {
       "month": "2026-09",
       "tickets": 66800,
       "refunds": 0,
       "expenses": 30000,
-      "net": 36800
+      "net": 36800,
+      "other": 0
     },
     {
       "month": "2026-10",
       "tickets": 61400,
       "refunds": 500,
       "expenses": 24000,
-      "net": 37400
+      "net": 62400,
+      "other": 25000
     },
     {
       "month": "2026-11",
       "tickets": 9496,
       "refunds": 0,
       "expenses": 5424,
-      "net": 4072
+      "net": 4072,
+      "other": 0
     }
   ],
   "by_type": [
@@ -79,56 +86,64 @@
       "events": 5,
       "tickets": 108866,
       "expenses": 51000,
-      "net": 57866
+      "net": 82866,
+      "other": 25000
     },
     {
       "type": "Competition",
       "events": 3,
       "tickets": 56992,
       "expenses": 20000,
-      "net": 36992
+      "net": 36992,
+      "other": 0
     },
     {
       "type": "Workshop",
       "events": 6,
       "tickets": 20838,
       "expenses": 9000,
-      "net": 11838
+      "net": 11838,
+      "other": 0
     },
     {
       "type": "Bootcamp",
       "events": 1,
       "tickets": 10350,
       "expenses": 4000,
-      "net": 6350
+      "net": 6350,
+      "other": 0
     },
     {
       "type": "Meetup",
       "events": 2,
       "tickets": 0,
       "expenses": 1200,
-      "net": -1200
+      "net": -1200,
+      "other": 0
     },
     {
       "type": "Social",
       "events": 2,
       "tickets": 0,
       "expenses": 800,
-      "net": -800
+      "net": -800,
+      "other": 0
     },
     {
       "type": "Seminar",
       "events": 1,
       "tickets": 0,
       "expenses": 0,
-      "net": 0
+      "net": 0,
+      "other": 0
     },
     {
       "type": "Club",
       "events": 0,
       "tickets": 0,
       "expenses": 424,
-      "net": -424
+      "net": -424,
+      "other": 0
     }
   ],
   "by_event": [
@@ -152,7 +167,8 @@
       "expense_count": 0,
       "margin": null,
       "outstanding": 0,
-      "outstanding_count": 0
+      "outstanding_count": 0,
+      "other_income": 0
     },
     {
       "id": 48,
@@ -174,7 +190,8 @@
       "expense_count": 1,
       "margin": 98,
       "outstanding": 0,
-      "outstanding_count": 0
+      "outstanding_count": 0,
+      "other_income": 0
     },
     {
       "id": 44,
@@ -196,7 +213,8 @@
       "expense_count": 0,
       "margin": null,
       "outstanding": 0,
-      "outstanding_count": 0
+      "outstanding_count": 0,
+      "other_income": 0
     },
     {
       "id": 41,
@@ -218,7 +236,8 @@
       "expense_count": 0,
       "margin": null,
       "outstanding": 0,
-      "outstanding_count": 0
+      "outstanding_count": 0,
+      "other_income": 0
     },
     {
       "id": 37,
@@ -231,7 +250,7 @@
       "tickets": 46500,
       "refunds": 500,
       "expenses": 21300,
-      "net": 25200,
+      "net": 50200,
       "held": true,
       "has_fee": true,
       "fee": 500,
@@ -240,7 +259,8 @@
       "expense_count": 1,
       "margin": 54,
       "outstanding": 4500,
-      "outstanding_count": 9
+      "outstanding_count": 9,
+      "other_income": 25000
     },
     {
       "id": 33,
@@ -262,7 +282,8 @@
       "expense_count": 1,
       "margin": 63,
       "outstanding": 0,
-      "outstanding_count": 0
+      "outstanding_count": 0,
+      "other_income": 0
     }
   ],
   "expenses": [
@@ -275,7 +296,8 @@
       "amount": 15000,
       "incurred_on": "2026-10-04",
       "note": "Main hall, 14 hours",
-      "created_at": "2026-10-05T09:00:00+00:00"
+      "created_at": "2026-10-05T09:00:00+00:00",
+      "kind": "expense"
     },
     {
       "id": "e2",
@@ -286,7 +308,8 @@
       "amount": 6300,
       "incurred_on": "2026-10-04",
       "note": null,
-      "created_at": "2026-10-05T09:02:00+00:00"
+      "created_at": "2026-10-05T09:02:00+00:00",
+      "kind": "expense"
     },
     {
       "id": "e3",
@@ -297,7 +320,20 @@
       "amount": 424,
       "incurred_on": "2026-09-14",
       "note": null,
-      "created_at": "2026-09-14T06:00:00+00:00"
+      "created_at": "2026-09-14T06:00:00+00:00",
+      "kind": "expense"
+    },
+    {
+      "id": "e4",
+      "event_id": 37,
+      "event_name": "Hack Night 04",
+      "kind": "income",
+      "title": "Acme sponsorship",
+      "category": "sponsorship",
+      "amount": 25000,
+      "incurred_on": "2026-10-01",
+      "note": "Gold tier, invoice 118",
+      "created_at": "2026-10-02T09:00:00+00:00"
     }
   ],
   "categories": [
@@ -357,6 +393,12 @@
       "label": "Merchandise",
       "amount": 0,
       "count": 0
+    },
+    {
+      "key": "other",
+      "label": "Sponsorship & other",
+      "amount": 25000,
+      "count": 2
     }
   ],
   "attention": {
@@ -379,5 +421,20 @@
     "outstanding": 0,
     "outstanding_count": 0,
     "expenses": 207
-  }
+  },
+  "income_by_category": [
+    {
+      "category": "sponsorship",
+      "amount": 25000,
+      "count": 1
+    }
+  ],
+  "income_categories": [
+    "sponsorship",
+    "grant",
+    "donation",
+    "sales",
+    "fees",
+    "other"
+  ]
 }

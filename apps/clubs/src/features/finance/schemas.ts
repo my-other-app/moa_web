@@ -5,10 +5,14 @@ export type FinanceScope = { kind: "event"; eventId: number } | { kind: "club" }
 
 const money = z.number();
 
+export const KINDS = ["expense", "income"] as const;
+export type EntryKind = (typeof KINDS)[number];
+
 export const expenseSchema = z.object({
   id: z.string(),
   event_id: z.number().nullable(),
   event_name: z.string().nullable(),
+  kind: z.enum(KINDS).default("expense"),
   title: z.string(),
   category: z.string(),
   amount: money,
@@ -27,6 +31,8 @@ export const financeSummarySchema = z.object({
     gross: money,
     tickets: money,
     merch: money.default(0),
+    other_income: money.default(0),
+    other_income_count: z.number().default(0),
     refunds: money,
     refund_count: z.number(),
     online: money.default(0),
@@ -50,8 +56,8 @@ export const financeSummarySchema = z.object({
     expenses: z.number().nullable(),
     net: z.number().nullable(),
   }),
-  by_month: z.array(z.object({ month: z.string(), tickets: money, merch: money.default(0), refunds: money, expenses: money, net: money })),
-  by_type: z.array(z.object({ type: z.string(), events: z.number(), tickets: money, merch: money.default(0), expenses: money, net: money })),
+  by_month: z.array(z.object({ month: z.string(), tickets: money, merch: money.default(0), other: money.default(0), refunds: money, expenses: money, net: money })),
+  by_type: z.array(z.object({ type: z.string(), events: z.number(), tickets: money, merch: money.default(0), other: money.default(0), expenses: money, net: money })),
   by_event: z.array(
     z.object({
       id: z.number(),
@@ -66,6 +72,7 @@ export const financeSummarySchema = z.object({
       paying: z.number(),
       tickets: money,
       merch: money.default(0),
+      other_income: money.default(0),
       online: money.default(0),
       cash: money.default(0),
       refunds: money,
@@ -79,6 +86,7 @@ export const financeSummarySchema = z.object({
   ),
   expenses: z.array(expenseSchema),
   by_category: z.array(z.object({ category: z.string(), amount: money, count: z.number() })).default([]),
+  income_by_category: z.array(z.object({ category: z.string(), amount: money, count: z.number() })).default([]),
   channels: z.array(z.object({ key: z.string(), label: z.string(), amount: money, count: z.number() })).default([]),
   attention: z
     .object({
@@ -89,6 +97,7 @@ export const financeSummarySchema = z.object({
     .default({ at_a_loss: [], owed: [], unlogged: [] }),
   ahead: z.object({ events: z.number(), paid_events: z.number(), regs: z.number(), tickets: money, outstanding: money, outstanding_count: z.number(), expenses: money }).default({ events: 0, paid_events: 0, regs: 0, tickets: 0, outstanding: 0, outstanding_count: 0, expenses: 0 }),
   categories: z.array(z.string()),
+  income_categories: z.array(z.string()).default(["sponsorship", "grant", "donation", "sales", "fees", "other"]),
   generated_at: z.string(),
 });
 
@@ -101,6 +110,7 @@ export type EventFilter = (typeof EVENT_FILTERS)[number];
 export const EVENT_FILTER_LABEL: Record<EventFilter, string> = { all: "All", held: "Held", ahead: "Ahead" };
 
 export const expenseFormSchema = z.object({
+  kind: z.enum(KINDS).default("expense"),
   title: z.string().trim().min(1, "Say what the money went on").max(120, "Keep the title under 120 characters"),
   category: z.string().min(1),
   amount: z.coerce.number({ message: "Enter the amount" }).positive("The amount must be more than zero").max(99_999_999.99, "That is more than the ledger can hold"),
@@ -121,7 +131,15 @@ export const CATEGORY_LABELS: Record<string, string> = {
   speakers: "Speakers",
   other: "Other",
 };
-export const categoryLabel = (c: string) => CATEGORY_LABELS[c] ?? c.charAt(0).toUpperCase() + c.slice(1);
+export const INCOME_CATEGORY_LABELS: Record<string, string> = {
+  sponsorship: "Sponsorship",
+  grant: "Grant",
+  donation: "Donation",
+  sales: "Sales",
+  fees: "Fees",
+  other: "Other",
+};
+export const categoryLabel = (c: string) => CATEGORY_LABELS[c] ?? INCOME_CATEGORY_LABELS[c] ?? c.charAt(0).toUpperCase() + c.slice(1);
 
 /** Period presets; each is a `from` date relative to today, `null` meaning all time. */
 export const PERIODS = [
