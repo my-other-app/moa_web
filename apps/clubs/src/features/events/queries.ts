@@ -3,7 +3,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 
-import { fetchClubEvents, fetchEventDetail, type ClubEventQuery } from "./api";
+import { fetchClubEvents, fetchEventDetail, fetchEventsFigures, type ClubEventQuery } from "./api";
 import { eventDetailSchema } from "./schemas";
 
 export function useClubEvents(query: ClubEventQuery) {
@@ -12,6 +12,11 @@ export function useClubEvents(query: ClubEventQuery) {
     queryFn: () => fetchClubEvents(query),
     placeholderData: keepPreviousData,
   });
+}
+
+/** The season above the list; refreshed once a minute so the countdown and the waits stay honest. */
+export function useEventsFigures() {
+  return useQuery({ queryKey: [...qk.events.all, "figures"], queryFn: fetchEventsFigures, staleTime: 30_000, refetchInterval: 60_000 });
 }
 
 /**

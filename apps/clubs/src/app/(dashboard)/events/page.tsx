@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { PageHeader } from "@moa/app-kit";
 import { Skeleton } from "@moa/ui";
 
 import { ClubEventsList } from "@/features/events";
@@ -8,14 +7,10 @@ import { ClubEventsList } from "@/features/events";
 export const metadata: Metadata = { title: "Events" };
 
 export default function EventsPage() {
+  // The screen brings its own header, as every rebuilt screen does.
   return (
-    <>
-      {/* The design puts the filters, search and CTA directly under the title
-          rather than in a header action slot, so the list owns them. */}
-      <PageHeader title="Events" />
-      <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-        <ClubEventsList />
-      </Suspense>
-    </>
+    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+      <ClubEventsList />
+    </Suspense>
   );
 }

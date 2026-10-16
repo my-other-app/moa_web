@@ -1,11 +1,13 @@
 import { api } from "@moa/app-kit";
 
-import { clubEventPageSchema } from "./schemas";
+import { clubEventPageSchema, eventsFiguresSchema, type EventScope, type EventSort } from "./schemas";
 
 export interface ClubEventQuery {
   search?: string | undefined;
-  /** undefined = all, true = past, false = upcoming. */
+  /** undefined = all, true = past, false = upcoming. The older switch; `scope` is finer. */
   isEnded?: boolean | undefined;
+  scope?: EventScope | undefined;
+  sort?: EventSort | undefined;
   offset: number;
   limit: number;
 }
@@ -15,11 +17,17 @@ export async function fetchClubEvents(query: ClubEventQuery) {
     query: {
       search: query.search,
       is_ended: query.isEnded,
+      scope: query.scope,
+      sort: query.sort,
       offset: query.offset,
       limit: query.limit,
     },
   });
   return clubEventPageSchema.parse(raw);
+}
+
+export async function fetchEventsFigures() {
+  return eventsFiguresSchema.parse(await api.get<unknown>("/api/v1/clubs/events/figures"));
 }
 
 /**
