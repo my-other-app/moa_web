@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, EmptyState, cn, toast } from "@moa/ui";
+import { Button, EmptyState, StatusBadge, cn, toast } from "@moa/ui";
 
 import {
   cameraProblem,
@@ -155,7 +155,7 @@ export function MerchPanel({
       <div>
         <label
           htmlFor="gate-merch-find"
-          className="mb-1.5 block font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-muted-foreground"
+          className="eyebrow mb-1.5 block"
         >
           Find the person
         </label>
@@ -165,9 +165,9 @@ export function MerchPanel({
           onChange={(e) => (setQ(e.target.value), setSelected(null))}
           placeholder="Name, email or ticket"
           autoComplete="off"
-          className="h-12 w-full rounded-md border bg-muted/40 px-3 text-[15px]"
+          className="input h-12 text-[15px]"
         />
-        <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+        <p className="text-ink-3 mt-1.5 text-[12.5px]">
           Search them, and you&apos;ll be shown exactly what they&apos;re owed.
           Handovers are recorded at {door}.
         </p>
@@ -183,19 +183,22 @@ export function MerchPanel({
               aria-hidden
               className="absolute left-1/2 top-1/2 aspect-square w-[52%] -translate-x-1/2 -translate-y-1/2 rounded-md border-2 border-white/70"
             />
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
+              round
               onClick={stopCamera}
-              className="absolute right-3 top-3 rounded-full border border-white/20 px-2.5 py-1 font-mono text-[10px] text-white/80"
+              className="absolute top-3 right-3"
             >
-              STOP
-            </button>
+              Stop the camera
+            </Button>
           </div>
         ) : (
           <Button
             size="lg"
             type="button"
-            variant="outline"
+            variant="secondary"
             className="mt-2.5 w-full"
             onClick={() => void startCamera()}
           >
@@ -203,25 +206,25 @@ export function MerchPanel({
           </Button>
         )}
         {cameraError ? (
-          <p className="mt-1.5 text-[12.5px] text-destructive">{cameraError}</p>
+          <p className="text-refuse mt-1.5 text-[12.5px]">{cameraError}</p>
         ) : null}
       </div>
 
       {!selected && settled.length >= 2 ? (
         results.data?.length ? (
-          <ul className="divide-y rounded-xl border">
+          <ul className="border-line divide-line-soft divide-y rounded-xl border">
             {results.data.map((r) => (
               <li key={r.id}>
                 <button
                   type="button"
                   onClick={() => setSelected(r.id)}
-                  className="flex min-h-14 w-full items-center gap-3 px-3 text-left hover:bg-muted/40"
+                  className="hover:bg-sunken flex min-h-14 w-full items-center gap-3 px-3 text-left"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-medium">
+                    <span className="text-ink block text-[14px] font-medium">
                       {r.name}
                     </span>
-                    <span className="block truncate font-mono text-[10.5px] text-muted-foreground">
+                    <span className="text-ink-3 block truncate font-mono text-[10.5px]">
                       {r.ticket_id} · {ROLE_LABEL[r.role] ?? r.role}
                       {r.email ? ` · ${r.email}` : ""}
                     </span>
@@ -231,54 +234,50 @@ export function MerchPanel({
             ))}
           </ul>
         ) : (
-          <p className="text-[12.5px] text-muted-foreground">
+          <p className="text-ink-3 text-[12.5px]">
             Nobody on the list matches. Try fewer letters, or their email.
           </p>
         )
       ) : null}
 
       {selected ? (
-        <div className="overflow-hidden rounded-xl border">
+        <div className="border-line overflow-hidden rounded-xl border">
           {status.data ? (
             <>
-              <div className="flex items-center gap-3 border-b bg-muted/30 px-3.5 py-3">
+              <div className="border-line-soft bg-sunken flex items-center gap-3 border-b px-3.5 py-3">
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-medium">
+                  <span className="text-ink block text-[15px] font-medium">
                     {status.data.attendee.name}
                   </span>
-                  <span className="block font-mono text-[10.5px] uppercase text-muted-foreground">
+                  <span className="text-ink-3 block font-mono text-[10.5px]">
                     {status.data.attendee.role_label} ·{" "}
                     {status.data.attendee.ticket_id}
                   </span>
                 </span>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => (setSelected(null), setQ(""))}
                 >
                   Change
                 </Button>
               </div>
               {bought.data && bought.data.length > 0 ? (
-                <div className="border-b bg-primary/5">
-                  <p className="px-3.5 pt-3 font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">
-                    Bought with the ticket
-                  </p>
+                <div className="border-line-soft bg-brand-soft border-b">
+                  <p className="eyebrow px-3.5 pt-3">Bought with the ticket</p>
                   {bought.data.map((o) => (
                     <div
                       key={o.id}
                       className="flex items-center gap-3 px-3.5 py-3"
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[14px] font-medium">
+                        <span className="text-ink block text-[14px] font-medium">
                           {o.summary}
                         </span>
                         <span
                           className={cn(
                             "mt-0.5 block font-mono text-[11.5px]",
-                            o.handed_over_at
-                              ? "text-emerald-700 dark:text-emerald-300"
-                              : "text-muted-foreground",
+                            o.handed_over_at ? "text-admit" : "text-ink-3",
                           )}
                         >
                           {o.handed_over_at
@@ -310,7 +309,7 @@ export function MerchPanel({
               ) : null}
               {status.data.items.length === 0 &&
               !(bought.data && bought.data.length > 0) ? (
-                <p className="px-3.5 py-4 text-[13px] text-muted-foreground">
+                <p className="text-ink-3 px-3.5 py-4 text-[13px]">
                   Nothing is set up for this event.
                 </p>
               ) : null}
@@ -327,31 +326,34 @@ export function MerchPanel({
                   collect.isPending &&
                   collect.variables?.itemId === item.item_id;
                 return (
-                  <div key={item.item_id} className="border-b last:border-b-0">
+                  <div
+                    key={item.item_id}
+                    className="border-line-soft border-b last:border-b-0"
+                  >
                     <div className="flex items-center gap-3 px-3.5 py-3">
                       {item.photo_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.photo_url}
                           alt=""
-                          className="size-10 shrink-0 rounded-md border object-cover"
+                          className="border-line-soft size-10 shrink-0 rounded-lg border object-cover"
                         />
                       ) : (
                         <span
                           aria-hidden
-                          className="size-10 shrink-0 rounded-md border bg-muted"
+                          className="bg-sunken size-10 shrink-0 rounded-lg"
                         />
                       )}
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[14px] font-medium">
+                        <span className="text-ink block text-[14px] font-medium">
                           {item.name}
                         </span>
                         <span
                           className={cn(
                             "mt-0.5 block font-mono text-[11.5px]",
                             item.status === "ALREADY_COLLECTED"
-                              ? "text-emerald-700 dark:text-emerald-300"
-                              : "text-muted-foreground",
+                              ? "text-admit"
+                              : "text-ink-3",
                           )}
                         >
                           {collectable
@@ -377,22 +379,20 @@ export function MerchPanel({
                       ) : canPick ? (
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="secondary"
                           aria-expanded={open}
                           onClick={() => setPicking(open ? null : item.item_id)}
                         >
                           {open ? "Cancel" : "Pick size"}
                         </Button>
                       ) : copy?.chip ? (
-                        <span className="shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase text-muted-foreground">
-                          {copy.chip}
-                        </span>
+                        <StatusBadge label={copy.chip} />
                       ) : null}
                     </div>
                     {open ? (
-                      <div className="flex flex-wrap gap-2 bg-muted/30 px-3.5 py-3">
+                      <div className="bg-sunken flex flex-wrap gap-2 px-3.5 py-3">
                         {item.on_file ? (
-                          <p className="basis-full text-[12px] text-muted-foreground">
+                          <p className="text-ink-3 basis-full text-[12px]">
                             On file: {item.on_file}. Picking one writes it to
                             their record, then collects.
                           </p>
@@ -400,15 +400,14 @@ export function MerchPanel({
                         {item.choices.map((c) => (
                           <Button
                             key={c.label}
-                            size="sm"
-                            variant={c.remaining > 0 ? "outline" : "ghost"}
+                            size="lg"
+                            variant={c.remaining > 0 ? "secondary" : "ghost"}
                             disabled={busy || c.remaining <= 0}
-                            className="h-11"
                             onClick={() => void handOver(item, c.label)}
                           >
-                            {c.label}{" "}
-                            <span className="ml-1 font-mono text-[10px] opacity-70">
-                              {c.remaining}
+                            {c.label}
+                            <span className="text-ink-3 font-mono text-[11px]">
+                              {c.remaining} left
                             </span>
                           </Button>
                         ))}
@@ -419,11 +418,11 @@ export function MerchPanel({
               })}
             </>
           ) : status.isError ? (
-            <p className="px-3.5 py-4 text-[13px] text-destructive">
+            <p className="text-refuse px-3.5 py-4 text-[13px]">
               {status.error.message}
             </p>
           ) : (
-            <p className="px-3.5 py-4 text-[13px] text-muted-foreground">
+            <p className="text-ink-3 px-3.5 py-4 text-[13px]">
               Looking up what they are owed…
             </p>
           )}
