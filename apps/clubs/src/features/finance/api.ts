@@ -31,6 +31,7 @@ export function statementUrl(scope: FinanceScope, range: Range): string {
 function body(form: ExpenseForm) {
   return {
     event_id: form.event_id,
+    kind: form.kind,
     title: form.title,
     category: form.category,
     amount: form.amount,

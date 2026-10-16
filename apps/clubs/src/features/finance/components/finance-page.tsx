@@ -8,7 +8,7 @@ import { CardLabel, Chip, DefinitionRows, EmptyState, FigurePanel, Notice, Pager
 
 import { statementUrl } from "../api";
 import { useDeleteExpense, useFinance } from "../queries";
-import { EVENT_FILTERS, EVENT_FILTER_LABEL, PERIODS, categoryLabel, monthLabel, periodLabel, periodRange, type EventFilter, type EventRow, type Expense, type FinanceScope, type FinanceSummary, type PeriodKey } from "../schemas";
+import { EVENT_FILTERS, EVENT_FILTER_LABEL, PERIODS, categoryLabel, monthLabel, periodLabel, periodRange, type EntryKind, type EventFilter, type EventRow, type Expense, type FinanceScope, type FinanceSummary, type PeriodKey } from "../schemas";
 import { ExpenseDialog } from "./expense-dialog";
 import { plural, rupees, short } from "./money";
 
@@ -46,10 +46,10 @@ function InOut({ s }: { s: FinanceSummary }) {
   const mid = PAD.t + (H - PAD.t - PAD.b) / 2;
   const half = (H - PAD.t - PAD.b) / 2 - 14;
   const slot = (W - PAD.l - PAD.r) / Math.max(1, rows.length);
-  const peak = Math.max(1, ...rows.map((r) => Math.max(r.tickets + r.merch, r.expenses)));
+  const peak = Math.max(1, ...rows.map((r) => Math.max(r.tickets + r.merch + r.other, r.expenses)));
   const bw = Math.min(34, slot * 0.42);
   const spansYears = rows.length > 1 && rows[0]!.month.slice(0, 4) !== rows.at(-1)!.month.slice(0, 4);
-  const empty = rows.every((r) => r.tickets + r.merch === 0 && r.expenses === 0);
+  const empty = rows.every((r) => r.tickets + r.merch + r.other === 0 && r.expenses === 0);
   const best = rows.reduce<FinanceSummary["by_month"][number] | null>((a, b) => (a === null || b.net > a.net ? b : a), null);
 
   return (
@@ -76,13 +76,13 @@ function InOut({ s }: { s: FinanceSummary }) {
             <line x1={PAD.l} x2={W - PAD.r} y1={mid} y2={mid} stroke={LINE} />
             {rows.map((r, i) => {
               const cx = PAD.l + slot * i + slot / 2;
-              const inn = r.tickets + r.merch;
+              const inn = r.tickets + r.merch + r.other;
               const up = (inn / peak) * half;
               const down = (r.expenses / peak) * half;
               const labelY = inn > 0 || r.expenses === 0 ? mid - up - 6 : mid + down + 13;
               return (
                 <g key={r.month}>
-                  <title>{`${monthLabel(r.month)}: ${rupees(inn)} in, ${rupees(r.expenses)} out${r.refunds ? `, ${rupees(r.refunds)} refunded` : ""} · net ${rupees(r.net)}`}</title>
+                  <title>{`${monthLabel(r.month)}: ${rupees(inn)} in${r.other ? ` (${rupees(r.other)} besides tickets)` : ""}, ${rupees(r.expenses)} out${r.refunds ? `, ${rupees(r.refunds)} refunded` : ""} · net ${rupees(r.net)}`}</title>
                   {inn > 0 ? <rect x={cx - bw / 2} y={mid - up} width={bw} height={up} rx={3} fill={BRAND} /> : null}
                   {r.expenses > 0 ? <rect x={cx - bw / 2} y={mid} width={bw} height={down} rx={3} fill={SPEND} opacity={0.9} /> : null}
                   {inn > 0 || r.expenses > 0 ? (
@@ -141,14 +141,14 @@ function WhereItWent({ s }: { s: FinanceSummary }) {
 
 function WhereItCameFrom({ s }: { s: FinanceSummary }) {
   const f = s.figures;
-  const rows = s.channels.filter((c) => c.amount > 0 || c.key !== "merch");
-  const total = Math.max(1, f.tickets + f.merch);
-  const any = f.tickets + f.merch > 0;
+  const rows = s.channels.filter((c) => c.amount > 0 || (c.key !== "merch" && c.key !== "other"));
+  const total = Math.max(1, f.tickets + f.merch + f.other_income);
+  const any = f.tickets + f.merch + f.other_income > 0;
   return (
     <FigurePanel className="p-4">
-      <CardLabel right={any ? <span className="text-ink-3 font-mono text-[11px]">{rupees(f.tickets + f.merch)} held</span> : null}>Where it came from</CardLabel>
+      <CardLabel right={any ? <span className="text-ink-3 font-mono text-[11px]">{rupees(f.tickets + f.merch + f.other_income)} held</span> : null}>Where it came from</CardLabel>
       {!any ? (
-        <p className="text-ink-3 mt-3 text-[12.5px]">{s.scope === "club" ? "No ticket money yet. A paid event fills this in, online and at the door." : "No ticket money yet for this event."}</p>
+        <p className="text-ink-3 mt-3 text-[12.5px]">{s.scope === "club" ? "Nothing in yet. A paid event fills this in, online and at the door; a sponsor or a grant goes in the ledger." : "Nothing in yet for this event. Tickets land here by themselves; a sponsor goes in the ledger."}</p>
       ) : (
         <ul className="mt-3 grid gap-2">
           {rows.map((c) => (
@@ -156,13 +156,14 @@ function WhereItCameFrom({ s }: { s: FinanceSummary }) {
               <div className="flex items-center justify-between gap-2 text-[12.5px]">
                 <span className="text-ink truncate">
                   {c.label}
-                  {c.count ? <span className="text-ink-3"> · {c.count} {plural(c.count, "guest")}</span> : null}
+                  {c.count ? <span className="text-ink-3"> · {c.count} {c.key === "other" ? plural(c.count, "entry", "entries") : plural(c.count, "guest")}</span> : null}
+                  {c.key === "other" && s.income_by_category.length ? <span className="text-ink-3"> · {s.income_by_category.map((r) => `${categoryLabel(r.category)} ${rupees(r.amount)}`).join(", ")}</span> : null}
                 </span>
                 <span className="text-ink-3 shrink-0 font-mono text-[11px] tabular-nums">
                   {rupees(c.amount)} · {Math.round((100 * c.amount) / total)}%
                 </span>
               </div>
-              <ProgressBar value={c.amount} max={total} tone={c.key === "cash" ? "accent" : "admit"} className="mt-1" label={`${c.label} income`} />
+              <ProgressBar value={c.amount} max={total} tone={c.key === "cash" || c.key === "other" ? "accent" : "admit"} className="mt-1" label={`${c.label} income`} />
             </li>
           ))}
         </ul>
@@ -182,7 +183,7 @@ function WhereItCameFrom({ s }: { s: FinanceSummary }) {
 
 function ByType({ s }: { s: FinanceSummary }) {
   const rows = s.by_type;
-  const max = Math.max(1, ...rows.map((r) => Math.max(r.tickets + r.merch, r.expenses)));
+  const max = Math.max(1, ...rows.map((r) => Math.max(r.tickets + r.merch + r.other, r.expenses)));
   return (
     <FigurePanel className="p-4">
       <CardLabel>By event type</CardLabel>
@@ -192,21 +193,21 @@ function ByType({ s }: { s: FinanceSummary }) {
         <ul className="mt-3 grid gap-2">
           {rows.map((r) => {
             const overhead = r.events === 0;
-            const inn = r.tickets + r.merch;
+            const inn = r.tickets + r.merch + r.other;
             return (
               <li key={r.type}>
                 <div className="flex items-center justify-between gap-2 text-[12.5px]">
                   <span className="text-ink truncate">
-                    {overhead ? "Club overheads" : r.type}
+                    {overhead ? "The club itself" : r.type}
                     {!overhead && <span className="text-ink-3"> · {r.events}</span>}
                   </span>
                   <span className={cn("shrink-0 font-mono text-[11px] tabular-nums", r.net < 0 ? "text-refuse" : "text-ink-3")}>
-                    {overhead ? `−${rupees(r.expenses)}` : `${rupees(inn)} in · ${rupees(r.expenses)} out · ${rupees(r.net)} net`}
+                    {overhead && !r.other ? `−${rupees(r.expenses)}` : `${rupees(inn)} in · ${rupees(r.expenses)} out · ${rupees(r.net)} net`}
                   </span>
                 </div>
                 <div className="mt-1 flex gap-1">
-                  {!overhead ? <ProgressBar value={inn} max={max} tone="admit" className="flex-1" label={`${r.type} income`} /> : null}
-                  <ProgressBar value={r.expenses} max={max} tone="caution" className="flex-1" label={`${overhead ? "Club overheads" : r.type} spend`} />
+                  {!overhead || r.other > 0 ? <ProgressBar value={inn} max={max} tone="admit" className="flex-1" label={`${overhead ? "The club itself" : r.type} income`} /> : null}
+                  <ProgressBar value={r.expenses} max={max} tone="caution" className="flex-1" label={`${overhead ? "The club itself" : r.type} spend`} />
                 </div>
               </li>
             );
@@ -227,6 +228,7 @@ function EventBrief({ s }: { s: FinanceSummary }) {
           rows={[
             { k: "Tickets held", v: rupees(f.tickets) },
             { k: "Merch", v: f.merch > 0 ? rupees(f.merch) : "—" },
+            { k: "Besides", v: f.other_income > 0 ? `${rupees(f.other_income)} · ${f.other_income_count} ${plural(f.other_income_count, "entry", "entries")}` : "—" },
             { k: "Refunded", v: f.refunds > 0 ? `−${rupees(f.refunds)}` : "—" },
             { k: "Expenses", v: f.expenses > 0 ? `−${rupees(f.expenses)}` : "—" },
             { k: "Net", v: <strong>{rupees(f.net)}</strong> },
@@ -290,7 +292,7 @@ function EventsTable({ s }: { s: FinanceSummary }) {
           <ul>
             {shown.map((r) => {
               const st = statusOf(r);
-              const inn = r.tickets + r.merch;
+              const inn = r.tickets + r.merch + r.other_income;
               return (
                 <li key={r.id} className="border-line-soft border-t">
                   <Link href={`/events/${r.id}/finance`} className={cn("hover:bg-sunken/50 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 text-[12.5px] transition-colors", cols)} aria-label={`${r.name} finance`}>
@@ -307,7 +309,7 @@ function EventsTable({ s }: { s: FinanceSummary }) {
                     </span>
                     <span className="hidden text-right font-mono tabular-nums sm:block">
                       <span className="text-ink block">{inn ? rupees(inn) : dash}</span>
-                      <span className="text-ink-3 block text-[11px]">{r.cash > 0 ? `${rupees(r.cash)} at the door` : r.refunds > 0 ? `${rupees(r.refunds)} refunded` : ""}</span>
+                      <span className="text-ink-3 block text-[11px]">{r.other_income > 0 ? `${rupees(r.other_income)} besides tickets` : r.cash > 0 ? `${rupees(r.cash)} at the door` : r.refunds > 0 ? `${rupees(r.refunds)} refunded` : ""}</span>
                     </span>
                     <span className="hidden text-right font-mono tabular-nums sm:block">
                       <span className="text-ink block">{r.expenses ? rupees(r.expenses) : dash}</span>
@@ -339,7 +341,8 @@ function EventsTable({ s }: { s: FinanceSummary }) {
 
 // ─── The ledger ──────────────────────────────────────────────────────────
 
-function Ledger({ scope, s, onEdit, onNew }: { scope: FinanceScope; s: FinanceSummary; onEdit: (x: Expense) => void; onNew: () => void }) {
+function Ledger({ scope, s, onEdit, onNew }: { scope: FinanceScope; s: FinanceSummary; onEdit: (x: Expense) => void; onNew: (kind: EntryKind) => void }) {
+  const [kind, setKind] = React.useState<"all" | EntryKind>("all");
   const [category, setCategory] = React.useState<string>("all");
   const [search, setSearch] = React.useState("");
   const [confirmId, setConfirmId] = React.useState<string | null>(null);
@@ -347,19 +350,32 @@ function Ledger({ scope, s, onEdit, onNew }: { scope: FinanceScope; s: FinanceSu
   const remove = useDeleteExpense();
   const pageSize = 10;
   const term = search.trim().toLowerCase();
-  const rows = s.expenses.filter((x) => (category === "all" || x.category === category) && (!term || x.title.toLowerCase().includes(term) || (x.note ?? "").toLowerCase().includes(term) || (x.event_name ?? "club").toLowerCase().includes(term)));
+  const rows = s.expenses.filter((x) => (kind === "all" || x.kind === kind) && (category === "all" || x.category === category) && (!term || x.title.toLowerCase().includes(term) || (x.note ?? "").toLowerCase().includes(term) || (x.event_name ?? "club").toLowerCase().includes(term)));
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const shown = rows.slice((page - 1) * pageSize, page * pageSize);
-  const cats = s.by_category.filter((c) => c.count > 0);
+  const counts = { expense: s.expenses.filter((x) => x.kind === "expense").length, income: s.expenses.filter((x) => x.kind === "income").length };
+  const cats = (kind === "income" ? s.income_by_category : kind === "expense" ? s.by_category : []).filter((c) => c.count > 0);
+  const pickKind = (k: "all" | EntryKind) => {
+    setKind(k);
+    setCategory("all");
+    setPage(1);
+  };
   const cols = scope.kind === "club" ? "sm:grid-cols-[100px_minmax(0,1.6fr)_minmax(0,1fr)_110px_110px_72px]" : "sm:grid-cols-[100px_minmax(0,1.6fr)_110px_110px_72px]";
 
   return (
     <FigurePanel className="p-0">
       <div className="border-line-soft flex flex-wrap items-center gap-2 border-b px-4 py-3">
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Which expenses">
-          <Chip active={category === "all"} onClick={() => { setCategory("all"); setPage(1); }}>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Which entries">
+          <Chip active={kind === "all"} onClick={() => pickKind("all")}>
             Ledger{s.expenses.length ? ` ${s.expenses.length}` : ""}
           </Chip>
+          <Chip active={kind === "expense"} onClick={() => pickKind("expense")}>
+            Expenses{counts.expense ? ` ${counts.expense}` : ""}
+          </Chip>
+          <Chip active={kind === "income"} onClick={() => pickKind("income")}>
+            Income{counts.income ? ` ${counts.income}` : ""}
+          </Chip>
+          {cats.length ? <span className="border-line-soft mx-1 hidden border-l sm:block" aria-hidden="true" /> : null}
           {cats.map((c) => (
             <Chip key={c.category} active={category === c.category} onClick={() => { setCategory(category === c.category ? "all" : c.category); setPage(1); }}>
               {categoryLabel(c.category)} {c.count}
@@ -371,13 +387,16 @@ function Ledger({ scope, s, onEdit, onNew }: { scope: FinanceScope; s: FinanceSu
             <SearchIcon className="size-3.5 shrink-0" aria-hidden="true" />
             <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Title, note or event" aria-label="Search the ledger" className="text-ink placeholder:text-ink-3 w-full bg-transparent text-[12.5px] outline-none" />
           </label>
-          <button type="button" className="btn btn-secondary h-9" onClick={onNew}>
-            <PlusIcon className="size-4" /> Log expense
+          <button type="button" className="btn btn-secondary h-9" onClick={() => onNew("expense")}>
+            <PlusIcon className="size-4" /> Expense
+          </button>
+          <button type="button" className="btn btn-secondary h-9" onClick={() => onNew("income")}>
+            <PlusIcon className="size-4" /> Income
           </button>
         </div>
       </div>
       {s.expenses.length === 0 ? (
-        <EmptyState icon={<ReceiptIcon />} title="Nothing logged yet" description="The venue, the food, the prizes, the printing — log each as it is paid and the net surplus becomes a real figure." action={<button type="button" className="btn btn-primary" onClick={onNew}><PlusIcon className="size-4" /> Log the first expense</button>} />
+        <EmptyState icon={<ReceiptIcon />} title="Nothing in the ledger yet" description="What went out — the venue, the food, the prizes — and what came in besides tickets — a sponsor, a grant. Log each as it happens and the net surplus becomes a real figure." action={<div className="flex gap-2"><button type="button" className="btn btn-primary" onClick={() => onNew("expense")}><PlusIcon className="size-4" /> Log an expense</button><button type="button" className="btn btn-secondary" onClick={() => onNew("income")}><PlusIcon className="size-4" /> Log an income</button></div>} />
       ) : rows.length === 0 ? (
         <EmptyState size="sm" title="Nothing matches" description="Try another word or category." />
       ) : (
@@ -413,7 +432,7 @@ function Ledger({ scope, s, onEdit, onNew }: { scope: FinanceScope; s: FinanceSu
                   </span>
                 ) : null}
                 <span className="text-ink-2 hidden sm:block">{categoryLabel(x.category)}</span>
-                <span className="text-ink text-right font-mono font-medium tabular-nums">{rupees(x.amount)}</span>
+                <span className={cn("text-right font-mono font-medium tabular-nums", x.kind === "income" ? "text-admit" : "text-ink")}>{x.kind === "income" ? `+${rupees(x.amount)}` : rupees(x.amount)}</span>
                 <span className="flex items-center justify-end gap-1">
                   <button type="button" className="border-line bg-surface text-ink-2 hover:bg-sunken hover:text-ink grid size-7 place-items-center rounded-full border" aria-label={`Edit ${x.title}`} onClick={() => onEdit(x)}>
                     <PencilIcon className="size-3.5" />
@@ -453,6 +472,7 @@ function incomeNote(f: FinanceSummary["figures"]): string {
   if (f.online > 0) parts.push(`${rupees(f.online)} online`);
   if (f.cash > 0) parts.push(`${rupees(f.cash)} at the door`);
   if (f.merch > 0) parts.push(`${rupees(f.merch)} merch`);
+  if (f.other_income > 0) parts.push(`${rupees(f.other_income)} besides tickets`);
   if (f.refunds > 0) parts.push(`${rupees(f.refunds)} refunded`);
   return parts.length ? parts.join(" · ") : "nothing in yet";
 }
@@ -460,7 +480,7 @@ function incomeNote(f: FinanceSummary["figures"]): string {
 export function FinancePage({ scope }: { scope: FinanceScope }) {
   const [today] = React.useState(() => new Date());
   const [period, setPeriod] = React.useState<PeriodKey>("6m");
-  const [dialog, setDialog] = React.useState<{ open: boolean; editing: Expense | null }>({ open: false, editing: null });
+  const [dialog, setDialog] = React.useState<{ open: boolean; editing: Expense | null; kind: EntryKind }>({ open: false, editing: null, kind: "expense" });
   const range = scope.kind === "club" ? periodRange(period, today) : {};
   const q = useFinance(scope, range);
   const s = q.data;
@@ -502,8 +522,8 @@ export function FinancePage({ scope }: { scope: FinanceScope }) {
           <a href={statementUrl(scope, range)} download className="btn btn-secondary h-9">
             <DownloadIcon className="size-4" /> Export statement
           </a>
-          <button type="button" className="btn btn-primary h-9" onClick={() => setDialog({ open: true, editing: null })}>
-            <PlusIcon className="size-4" /> Log expense
+          <button type="button" className="btn btn-primary h-9" onClick={() => setDialog({ open: true, editing: null, kind: "expense" })}>
+            <PlusIcon className="size-4" /> Add to ledger
           </button>
         </div>
       </div>
@@ -536,7 +556,7 @@ export function FinancePage({ scope }: { scope: FinanceScope }) {
               {rupees(heldOwed)} is still owed by {heldOwedCount} {plural(heldOwedCount, "guest")} at {a.owed.length === 1 ? owedAt.name : `${a.owed.length} events already held`}. It will not arrive by itself.
             </Notice>
           ) : a.unlogged.length > 0 ? (
-            <Notice tone="neutral" tag="Ledger" action={<button type="button" className="btn btn-secondary text-[12px]" onClick={() => setDialog({ open: true, editing: null })}>Log expense</button>}>
+            <Notice tone="neutral" tag="Ledger" action={<button type="button" className="btn btn-secondary text-[12px]" onClick={() => setDialog({ open: true, editing: null, kind: "expense" })}>Log expense</button>}>
               {a.unlogged.length === 1 ? `${a.unlogged[0]!.name} took ${rupees(a.unlogged[0]!.tickets)} and has no expense logged, so its net is just its income.` : `${a.unlogged.length} held paid events have no expense logged, so their net is just their income.`}
             </Notice>
           ) : s.ahead.paid_events > 0 ? (
@@ -545,7 +565,7 @@ export function FinancePage({ scope }: { scope: FinanceScope }) {
             </Notice>
           ) : f.gross > 0 && f.margin !== null && f.margin !== undefined ? (
             <Notice tone={f.margin >= 0 ? "admit" : "caution"} tag="Margin">
-              {f.margin >= 0 ? `${f.margin}% of what came in stayed with the club.` : `The club spent ${rupees(f.expenses - f.tickets - f.merch)} more than came in.`}
+              {f.margin >= 0 ? `${f.margin}% of what came in stayed with the club.` : `The club spent ${rupees(f.expenses - f.tickets - f.merch - f.other_income)} more than came in.`}
             </Notice>
           ) : null}
 
@@ -558,8 +578,8 @@ export function FinancePage({ scope }: { scope: FinanceScope }) {
             <WhereItCameFrom s={s} />
           </div>
           {club && <EventsTable s={s} />}
-          <Ledger scope={scope} s={s} onEdit={(x) => setDialog({ open: true, editing: x })} onNew={() => setDialog({ open: true, editing: null })} />
-          <ExpenseDialog scope={scope} events={s.by_event} categories={s.categories} editing={dialog.editing} open={dialog.open} onOpenChange={(open) => setDialog((d) => ({ open, editing: open ? d.editing : null }))} />
+          <Ledger scope={scope} s={s} onEdit={(x) => setDialog({ open: true, editing: x, kind: x.kind })} onNew={(kind) => setDialog({ open: true, editing: null, kind })} />
+          <ExpenseDialog scope={scope} events={s.by_event} categories={s.categories} incomeCategories={s.income_categories} editing={dialog.editing} kind={dialog.kind} open={dialog.open} onOpenChange={(open) => setDialog((d) => ({ ...d, open, editing: open ? d.editing : null }))} />
         </>
       )}
     </div>
