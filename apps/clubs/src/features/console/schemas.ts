@@ -21,6 +21,7 @@ export const EVENT_TABS = [
   { key: "team", label: "Doors", path: "/team" },
   { key: "agenda", label: "Agenda", path: "/agenda" },
   { key: "live", label: "Live", path: "/live" },
+  { key: "competition", label: "Competition", path: "/competition" },
   { key: "store", label: "Merchandise", path: "/store", when: "merch_enabled" },
   { key: "merch", label: "Swag", path: "/merch", when: "swag_enabled" },
   { key: "messages", label: "Messages", path: "/messages" },
