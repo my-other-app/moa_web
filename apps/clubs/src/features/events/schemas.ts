@@ -30,9 +30,44 @@ export const clubEventSchema = z.object({
   registration_count: z.number().nullish(),
   attended_count: z.number().nullish(),
   status: lifecycleSchema,
+  // What the organiser checks the row for; absent from a payload cached before they existed.
+  checked_in: z.number().catch(0),
+  max_participants: z.number().nullish(),
+  collected: z.number().catch(0),
+  outstanding: z.number().catch(0),
+  door_open: z.boolean().catch(false),
+  registration_open: z.boolean().catch(false),
+  ends_at: z.string().nullish(),
 });
 
 export const clubEventPageSchema = paginatedSchema(clubEventSchema);
+
+export const EVENT_SCOPES = ["upcoming", "now", "draft", "past", "all"] as const;
+export type EventScope = (typeof EVENT_SCOPES)[number];
+export const EVENT_SORTS = ["soonest", "latest", "registered", "viewed"] as const;
+export type EventSort = (typeof EVENT_SORTS)[number];
+
+const attentionRef = z.object({ id: z.number(), name: z.string(), at: z.string().nullish() });
+
+/** GET /clubs/events/figures — the season above the list. */
+export const eventsFiguresSchema = z.object({
+  upcoming: z.number(),
+  next_event: z.object({ id: z.number(), name: z.string(), starts_at: z.string() }).nullish(),
+  registered: z.number(),
+  capacity: z.number().nullish(),
+  collected: z.number(),
+  outstanding: z.number(),
+  attention: z.object({
+    closing_soon: z.array(attentionRef).default([]),
+    doors_open: z.array(attentionRef).default([]),
+    unmarked: z.array(attentionRef).default([]),
+    stale_drafts: z.array(attentionRef).default([]),
+  }),
+  past: z.number(),
+  drafts: z.number(),
+  generated_at: z.string(),
+});
+export type EventsFigures = z.infer<typeof eventsFiguresSchema>;
 
 export type ClubEvent = z.infer<typeof clubEventSchema>;
 

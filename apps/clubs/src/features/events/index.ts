@@ -1,4 +1,4 @@
-export { useClubEvents, useEventDetail } from "./queries";
+export { useClubEvents, useEventDetail, useEventsFigures } from "./queries";
 export { ClubEventsList } from "./components/events-list";
 export { EventRowActions } from "./components/event-row-actions";
 export { EventStatusBadge } from "./components/event-status-badge";
@@ -11,4 +11,10 @@ export {
   type ClubEvent,
   type EventDetail,
   type EventStatus,
+  eventsFiguresSchema,
+  EVENT_SCOPES,
+  EVENT_SORTS,
+  type EventScope,
+  type EventSort,
+  type EventsFigures,
 } from "./schemas";

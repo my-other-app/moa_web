@@ -1,0 +1,112 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { CopyIcon, CopyPlusIcon, ExternalLinkIcon, MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  buttonVariants,
+  cn,
+  toast,
+} from "@moa/ui";
+
+import { useDeleteEvent } from "@/features/event-form";
+
+import type { ClubEvent } from "../schemas";
+import { DuplicateDialog } from "./duplicate-dialog";
+
+/** The public page an organiser hands out, never the dashboard URL they stand on. */
+export const publicUrl = (id: number) => `https://events.myotherapp.in/${id}`;
+
+/**
+ * Everything a row can do that is not its one primary action, behind one
+ * button. Delete sits last, after a rule, and asks first — it used to be a
+ * single click on the same row as the name.
+ */
+export function EventRowMenu({ event }: { event: Pick<ClubEvent, "id" | "name" | "registration_count"> }) {
+  const router = useRouter();
+  const remove = useDeleteEvent();
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [dupOpen, setDupOpen] = React.useState(false);
+  const registered = event.registration_count ?? 0;
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(publicUrl(event.id));
+      toast.success("Public event link copied");
+    } catch {
+      window.open(publicUrl(event.id), "_blank", "noopener,noreferrer");
+    }
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" aria-label={`More for ${event.name}`} className="border-line bg-surface text-ink-2 hover:bg-sunken hover:text-ink grid size-9 shrink-0 place-items-center rounded-full border transition-colors">
+            <MoreHorizontalIcon className="size-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem onClick={() => router.push(`/events/${event.id}/edit`)}>
+            <PencilIcon className="size-4" /> Edit details
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setDupOpen(true)}>
+            <CopyPlusIcon className="size-4" /> Duplicate
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => window.open(publicUrl(event.id), "_blank", "noopener,noreferrer")}>
+            <ExternalLinkIcon className="size-4" /> Open public page
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={copyLink}>
+            <CopyIcon className="size-4" /> Copy public link
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
+            <Trash2Icon className="size-4" /> Delete event
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {dupOpen ? <DuplicateDialog event={event} onClose={() => setDupOpen(false)} /> : null}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{event.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {registered > 0 ? (
+                <>
+                  <strong>
+                    {registered.toLocaleString("en-IN")} {registered === 1 ? "person has" : "people have"} already registered.
+                  </strong>{" "}
+                  They lose this event and their tickets. This cannot be undone from here.
+                </>
+              ) : (
+                "This removes the event from the app. It cannot be undone from here."
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction className={cn(buttonVariants({ variant: "destructive" }))} onClick={() => void remove.mutateAsync(event.id)}>
+              Delete event
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
