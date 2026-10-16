@@ -23,8 +23,10 @@ import type { EventFormParsed } from "./schemas";
  * Optional fields are omitted entirely rather than sent empty: FastAPI's
  * Optional[float] = Form(None) rejects "" with a validation error.
  */
-export function toEventFormData(values: EventFormParsed): FormData {
+export function toEventFormData(values: EventFormParsed, status?: "draft" | "published"): FormData {
   const fd = new FormData();
+  // Where the event starts on its status clock; only create reads it.
+  if (status) fd.append("status", status);
 
   const put = (key: string, value: string | number | boolean | undefined | null) => {
     if (value === undefined || value === null || value === "") return;
@@ -105,9 +107,14 @@ export function toEventFormData(values: EventFormParsed): FormData {
 
 const createdSchema = z.object({ id: z.coerce.number(), name: z.string() }).passthrough();
 
-export async function createEvent(values: EventFormParsed) {
-  const raw = await api.post<unknown>("/api/v1/events/create", toEventFormData(values));
+export async function createEvent(values: EventFormParsed, status: "draft" | "published" = "published") {
+  const raw = await api.post<unknown>("/api/v1/events/create", toEventFormData(values, status));
   return createdSchema.parse(raw);
+}
+
+/** A draft goes live from the console; the status clock lives under closeout. */
+export async function publishEvent(eventId: number) {
+  return z.object({ status: z.string() }).passthrough().parse(await api.patch<unknown>(`/api/v1/events/${eventId}/closeout/settings`, { status: "published" }));
 }
 
 export async function updateEvent(eventId: number, values: EventFormParsed) {

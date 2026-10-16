@@ -5,7 +5,7 @@ import { qk } from "@moa/api";
 import { staleTimes } from "@moa/app-kit";
 import { toast } from "@moa/ui";
 
-import { createEvent, deleteEvent, fetchCategories, fetchEvent, fetchInterests, updateEvent, duplicateEvent, type DuplicateInput } from "./api";
+import { createEvent, deleteEvent, fetchCategories, fetchEvent, fetchInterests, publishEvent, updateEvent, duplicateEvent, type DuplicateInput } from "./api";
 import type { EventFormParsed } from "./schemas";
 
 export function useEventCategories() {
@@ -35,10 +35,22 @@ export function useEvent(eventId: number | undefined) {
 export function useCreateEvent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (values: EventFormParsed) => createEvent(values),
+    mutationFn: ({ values, status }: { values: EventFormParsed; status: "draft" | "published" }) => createEvent(values, status),
+    onSuccess: async (_made, { status }) => {
+      toast.success(status === "draft" ? "Saved as a draft" : "Event published");
+      await queryClient.invalidateQueries({ queryKey: qk.events.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function usePublishEvent(eventId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => publishEvent(eventId),
     onSuccess: async () => {
       toast.success("Event published");
-      await queryClient.invalidateQueries({ queryKey: qk.events.all });
+      await Promise.all([queryClient.invalidateQueries({ queryKey: qk.events.all }), queryClient.invalidateQueries({ queryKey: qk.events.detail(eventId) })]);
     },
     onError: (error: Error) => toast.error(error.message),
   });

@@ -4,12 +4,13 @@ import { screen } from "@testing-library/react";
 import { Form } from "@moa/ui";
 
 import { render } from "@/test/render";
-import { BasicsStep } from "./event-form/components/steps/basics-step";
-import { DetailsStep } from "./event-form/components/steps/details-step";
 import { EntryStep } from "./event-form/components/steps/entry-step";
-import { PlaceStep } from "./event-form/components/steps/place-step";
+import { EventStep } from "./event-form/components/steps/event-step";
+import { PeopleStep } from "./event-form/components/steps/people-step";
 import { QuestionsStep } from "./event-form/components/steps/questions-step";
-import { ScheduleStep } from "./event-form/components/steps/schedule-step";
+import { ReachStep } from "./event-form/components/steps/reach-step";
+import { WhenStep } from "./event-form/components/steps/when-step";
+import { WhereStep } from "./event-form/components/steps/where-step";
 import { emptyEventForm } from "./event-form/components/event-form";
 
 /**
@@ -34,12 +35,13 @@ function WithForm({ children }: { children: React.ReactNode }) {
 
 describe("event form steps render", () => {
   const steps = [
-    ["Basics", BasicsStep],
-    ["Schedule", ScheduleStep],
-    ["Place", PlaceStep],
-    ["Entry", EntryStep],
-    ["Details", DetailsStep],
-    ["Questions", QuestionsStep],
+    ["The event", EventStep],
+    ["When", WhenStep],
+    ["Where", WhereStep],
+    ["Places and money", EntryStep],
+    ["People", PeopleStep],
+    ["Reach and rules", ReachStep],
+    ["Sign-up questions", QuestionsStep],
   ] as const;
 
   for (const [name, Step] of steps) {
@@ -54,13 +56,13 @@ describe("event form steps render", () => {
     });
   }
 
-  it("Details shows the speakers section", () => {
+  it("People shows the speakers section", () => {
     render(
       <WithForm>
-        <DetailsStep />
+        <PeopleStep />
       </WithForm>
     );
-    expect(screen.getByText("Speakers")).toBeInTheDocument();
+    expect(screen.getByText("Speakers and mentors")).toBeInTheDocument();
   });
 
   it("Questions shows its intro copy", () => {
@@ -69,7 +71,7 @@ describe("event form steps render", () => {
         <QuestionsStep />
       </WithForm>
     );
-    expect(screen.getByText(/Asked when someone registers/)).toBeInTheDocument();
+    expect(screen.getByText(/Only a name and an email are asked/)).toBeInTheDocument();
   });
 });
 
