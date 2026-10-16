@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
-import { fetchSite, patchSite, previewSite, publishSite } from "./api";
+import { fetchSite, fetchSiteAnalytics, patchSite, previewSite, publishSite } from "./api";
 import type { SitePatch } from "./schemas";
 
 const KEY = ["club-site"] as const;
@@ -15,6 +15,11 @@ export function useSite() {
 /** The page as the current choices would make it; keyed on them so each edit re-renders once the typing settles. */
 export function usePreview(patch: SitePatch, enabled: boolean) {
   return useQuery({ queryKey: [...KEY, "preview", patch], queryFn: () => previewSite(patch), enabled, staleTime: 60_000, placeholderData: (prev) => prev });
+}
+
+/** What the site brought. Not retried: a server without site tracking answers 404 and the panel stays away. */
+export function useSiteAnalytics(days: number, enabled: boolean) {
+  return useQuery({ queryKey: [...KEY, "analytics", days], queryFn: () => fetchSiteAnalytics(days), enabled, staleTime: 30_000, retry: false });
 }
 
 export function usePatchSite() {
@@ -32,6 +37,7 @@ export function usePublishSite() {
     mutationFn: publishSite,
     onSuccess: (data) => {
       queryClient.setQueryData(KEY, data);
+      void queryClient.invalidateQueries({ queryKey: [...KEY, "analytics"] });
       toast.success("Site updated");
     },
     onError: (error: Error) => toast.error(error.message),

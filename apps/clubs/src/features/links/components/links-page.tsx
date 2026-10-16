@@ -237,6 +237,7 @@ function Row({
               aria-hidden="true"
             />
             <span className="truncate">{l.name}</span>
+            {l.kind === "website" ? <span className="tag ml-1">Automatic</span> : null}
             {l.clicks_ever === 0 ? (
               <span className="text-caution ml-1 font-mono text-[10px] tracking-[0.06em] uppercase">
                 never opened
@@ -255,6 +256,10 @@ function Row({
                 className="text-ink-2 block truncate text-[12.5px] hover:underline"
               >
                 {l.target.name}
+              </Link>
+            ) : l.target.kind === "website" ? (
+              <Link href="/website" className="text-ink-2 block truncate text-[12.5px] hover:underline">
+                Website
               </Link>
             ) : (
               <span className="text-ink-2 block truncate text-[12.5px]">
@@ -365,10 +370,11 @@ export function LinksPage({ scope }: { scope: LinkScope }) {
   const counts = o
     ? {
         all: o.links.length,
+        website: o.links.filter((l) => l.target.kind === "website").length,
         club: o.links.filter((l) => l.target.kind === "club").length,
         event: o.links.filter((l) => l.target.kind === "event").length,
       }
-    : { all: 0, club: 0, event: 0 };
+    : { all: 0, website: 0, club: 0, event: 0 };
   const periodWord = days >= 3650 ? "all time" : `${days} days`;
   const never = o?.attention.never_opened ?? [];
   const lowShare = o && o.untracked.total >= 10 && o.totals.share_of_all < 30;

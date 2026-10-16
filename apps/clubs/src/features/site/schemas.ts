@@ -28,7 +28,29 @@ export const siteSchema = z.object({
   slug: z.string(),
   templates: z.array(z.object({ key: z.string(), name: z.string(), blurb: z.string() })),
   fonts: z.array(z.object({ key: z.string(), name: z.string() })),
+  /** The site's own tracking link once it is published (absent from a server without site tracking). */
+  tracking: z.object({ link_id: z.string(), code: z.string(), short_url: z.string() }).nullable().optional().catch(null),
 });
 export type Site = z.infer<typeof siteSchema>;
+
+const n = z.number().catch(0);
+export const siteAnalyticsSchema = z.object({
+  published: z.boolean(),
+  days: z.number(),
+  link: z.object({ id: z.string(), code: z.string(), short_url: z.string(), destination: z.string() }).nullable(),
+  visits: n,
+  visitors: n,
+  signups: n,
+  came: n,
+  follows: n,
+  rate: n,
+  deltas: z.object({ visits: z.number().nullable(), signups: z.number().nullable() }).catch({ visits: null, signups: null }),
+  series: z.array(z.object({ day: z.string(), visits: n, signups: n })).catch([]),
+  sources: z.array(z.object({ kind: z.enum(["website", "link"]).catch("link"), link_id: z.string(), name: z.string(), visits: n, signups: n, rate: n })).catch([]),
+  referrers: z.array(z.object({ referrer: z.string(), visits: n })).catch([]),
+  devices: z.array(z.object({ device: z.string(), visits: n })).catch([]),
+  events: z.array(z.object({ event_id: z.number(), name: z.string(), signups: n, came: n })).catch([]),
+});
+export type SiteAnalytics = z.infer<typeof siteAnalyticsSchema>;
 
 export type SitePatch = Partial<{ template: Template; theme: Theme; font: Font; headline: string | null; subline: string | null; sections: Record<string, boolean> }>;

@@ -301,6 +301,12 @@ export function LinkDetailPanel({
           </dl>
           <Qr url={link.url} code={link.code} size={96} />
         </div>
+        {link.kind === "website" ? (
+          <p className="text-ink-3 m-0 text-[12px] leading-[1.55]">
+            Your website&apos;s own link, made when the site was published. It counts the visits that came through none of
+            your other links, and the sign-ups from the site&apos;s event buttons. It stays while the site is up.
+          </p>
+        ) : (
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <button
@@ -329,6 +335,7 @@ export function LinkDetailPanel({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        )}
       </div>
 
       {q.isPending ? (
