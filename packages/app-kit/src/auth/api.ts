@@ -9,17 +9,6 @@ export interface TokenResponse {
   refresh_token: string;
 }
 
-/**
- * /auth/token is an OAuth2 password-flow endpoint, so the body must be
- * form-encoded. The tokens in the JSON response are ignored on purpose: the
- * same response also sets httpOnly cookies, and those are what authenticate
- * every later request. Storing the token in JS would hand any XSS an admin
- * session -- the exact weakness in the dashboard this replaces.
- *
- * An account with two-factor sign-in is refused with TOTP_REQUIRED until the
- * same form is sent again with `totp_code`: the authenticator's six digits,
- * or one of the account's recovery codes.
- */
 let loginScope: string | undefined;
 
 /**
@@ -32,6 +21,17 @@ export function setLoginScope(scope: string | undefined) {
   loginScope = scope;
 }
 
+/**
+ * /auth/token is an OAuth2 password-flow endpoint, so the body must be
+ * form-encoded. The tokens in the JSON response are ignored on purpose: the
+ * same response also sets httpOnly cookies, and those are what authenticate
+ * every later request. Storing the token in JS would hand any XSS an admin
+ * session -- the exact weakness in the dashboard this replaces.
+ *
+ * An account with two-factor sign-in is refused with TOTP_REQUIRED until the
+ * same form is sent again with `totp_code`: the authenticator's six digits,
+ * or one of the account's recovery codes.
+ */
 export async function login(input: LoginInput & { totp_code?: string }): Promise<TokenResponse> {
   const body = new URLSearchParams({
     username: input.username,
