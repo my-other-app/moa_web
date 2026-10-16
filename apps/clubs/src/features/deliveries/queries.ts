@@ -36,7 +36,37 @@ export function useDeliveryLog(q: DeliveryLogQuery) {
     queryFn: () => fetchDeliveryLog(q),
     placeholderData: keepPreviousData,
     staleTime: 10_000,
+    // A send in flight changes its row and the tally as it lands.
+    refetchInterval: (query) => (query.state.data?.tally.pending ? 3_000 : false),
   });
+}
+
+export type TallyKind = "ticket" | "certificate" | "message";
+
+/** One kind's tally, without its rows: the figures a page leads with. */
+export function useDeliveryTally(eventId: number, kind: TallyKind) {
+  const q = { eventId, kind, page: 1, pageSize: 1 };
+  return useQuery({
+    queryKey: logKey(q),
+    queryFn: () => fetchDeliveryLog(q),
+    select: (d) => d.tally,
+    staleTime: 10_000,
+    refetchInterval: (query) => (query.state.data?.tally.pending ? 3_000 : false),
+  });
+}
+
+/** Tickets, certificates and messages, each on its own, for a page that reads them side by side. */
+export function useDeliveryTallies(eventId: number) {
+  const ticket = useDeliveryTally(eventId, "ticket");
+  const certificate = useDeliveryTally(eventId, "certificate");
+  const message = useDeliveryTally(eventId, "message");
+  return {
+    ticket: ticket.data,
+    certificate: certificate.data,
+    message: message.data,
+    isPending: ticket.isPending || certificate.isPending || message.isPending,
+    isError: ticket.isError || certificate.isError || message.isError,
+  };
 }
 
 const describeSend = (r: SendResponse) => {

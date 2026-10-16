@@ -211,11 +211,13 @@ export function useMessages(eventId: number, page: number, pageSize = 20) {
 
 export function useSendMessage(eventId: number) {
   const refresh = useRefreshEmails({ kind: "event", eventId });
+  const refreshDeliveries = useRefreshDeliveries(eventId);
   return useMutation({
     mutationFn: (body: MessageBody) => sendMessage(eventId, body),
     onSuccess: (m) => {
       toast.success(m.recipients ? `Sending to ${m.recipients} ${m.recipients === 1 ? "guest" : "guests"}` : "Nobody to send to");
       refresh();
+      refreshDeliveries();
     },
     onError: (error: Error) => toast.error(error.message),
   });

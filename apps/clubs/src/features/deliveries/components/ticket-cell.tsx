@@ -12,12 +12,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  IconButton,
   StatusBadge,
   Tooltip,
   TooltipContent,
@@ -92,15 +92,14 @@ export function TicketCell({
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="icon-xs"
-            variant="ghost"
+          <IconButton
+            label={`Ticket actions for ${name}`}
+            size="xs"
+            variant="quiet"
             disabled={busy}
-            aria-label={`Ticket actions for ${name}`}
           >
             <MoreHorizontalIcon />
-          </Button>
+          </IconButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem
@@ -109,7 +108,7 @@ export function TicketCell({
           >
             <span className="flex flex-col">
               <span>Send ticket again</span>
-              <span className="text-muted-foreground text-xs">
+              <span className="text-ink-3 text-xs">
                 {revoked
                   ? "Reinstate it first."
                   : "By email, even if it was delivered before."}
@@ -125,7 +124,7 @@ export function TicketCell({
             >
               <span className="flex flex-col">
                 <span>Reinstate this ticket</span>
-                <span className="text-muted-foreground text-xs">
+                <span className="text-ink-3 text-xs">
                   Check-in accepts it again.
                 </span>
               </span>
@@ -156,8 +155,9 @@ export function TicketCell({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogCancel variant="secondary">Keep it</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={() =>
                 revoke.mutate({ registrationId: row.id, revoke: true })
               }

@@ -62,8 +62,9 @@ export function SendTemplateDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Not now</AlertDialogCancel>
+          <AlertDialogCancel variant="secondary">Not now</AlertDialogCancel>
           <AlertDialogAction
+            variant="primary"
             disabled={send.isPending || !template || n === 0}
             onClick={(e) => {
               e.preventDefault();

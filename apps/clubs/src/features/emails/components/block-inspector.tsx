@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { PlusIcon, Trash2Icon, UploadIcon, XIcon } from "lucide-react";
-import { Button, cn, toast } from "@moa/ui";
+import { Button, IconButton, cn, toast } from "@moa/ui";
 
 import { uploadEmailImage } from "../api";
 import {
@@ -56,8 +56,11 @@ const RowsEditor = ({
   <div className="space-y-2">
     <span className={ui.label}>{label}</span>
     {rows.map((r, i) => (
-      <div key={i} className="rounded-md border p-2">
-        <div className="mb-1.5 flex items-center gap-1.5">
+      <div
+        key={i}
+        className="border-line-soft bg-sunken/40 rounded-xl border p-2.5"
+      >
+        <div className="mb-2 flex items-center gap-1.5">
           <input
             aria-label={`Row ${i + 1} label`}
             value={r.label}
@@ -69,16 +72,17 @@ const RowsEditor = ({
                 ),
               )
             }
-            className={cn(ui.control, "h-8 text-[12px]")}
+            className={ui.small}
           />
-          <button
-            type="button"
-            aria-label={`Remove row ${i + 1}`}
+          <IconButton
+            label={`Remove row ${i + 1}`}
+            size="xs"
+            variant="quiet"
+            danger
             onClick={() => onChange(rows.filter((_, j) => j !== i))}
-            className={ui.iconBtn}
           >
-            <XIcon className="size-3.5" />
-          </button>
+            <XIcon />
+          </IconButton>
         </div>
         <TemplateField
           id={`row-${i}-value`}
@@ -95,7 +99,7 @@ const RowsEditor = ({
     ))}
     <Button
       type="button"
-      variant="outline"
+      variant="secondary"
       size="xs"
       onClick={() => onChange([...rows, { label: "Label", value: "" }])}
     >
@@ -146,7 +150,7 @@ const ImageSource = ({
         onChange={(source) => patch({ source })}
       />
       {block.source === "upload" ? (
-        <div className="rounded-md border border-dashed p-2.5">
+        <div className="border-line rounded-xl border border-dashed p-3">
           <p className={cn(ui.note, "mb-1.5 truncate")}>
             {block.imageKey
               ? block.imageKey.split("/").pop()
@@ -161,7 +165,7 @@ const ImageSource = ({
           />
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="xs"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
@@ -276,7 +280,7 @@ function Fields({
               id="b-alt"
               value={block.alt}
               onChange={(e) => patch({ alt: e.target.value })}
-              className={cn(ui.control, ui.input)}
+              className={ui.control}
             />
           </div>
           <NumberField
@@ -427,7 +431,7 @@ function StyleFields({
   const textual = !["divider", "spacer", "image"].includes(kind);
   const spaced = kind !== "spacer";
   return (
-    <div className="space-y-2.5 border-t pt-3">
+    <div className="border-line-soft space-y-2.5 border-t pt-3">
       <p className={ui.heading}>Style</p>
       {kind !== "spacer" && kind !== "divider" ? (
         <Segmented
@@ -548,9 +552,9 @@ export function BlockInspector({
 } & TokenProps) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-[13px] font-medium">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-ink text-[13.5px] font-semibold">
             {BLOCK_META[block.kind].label}
           </p>
           <p className={ui.note}>{BLOCK_META[block.kind].note}</p>
@@ -559,6 +563,7 @@ export function BlockInspector({
           type="button"
           variant="ghost"
           size="xs"
+          danger
           onClick={onRemove}
           aria-label="Remove block"
         >
