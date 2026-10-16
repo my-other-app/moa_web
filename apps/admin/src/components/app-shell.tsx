@@ -53,11 +53,26 @@ const THEMES = [
   { value: "dark", label: "Dark", Icon: MoonIcon },
 ] as const;
 
-function Brand({ collapsed }: { collapsed: boolean }) {
+function Brand({ collapsed, onToggle }: { collapsed: boolean; onToggle?: () => void }) {
   return (
-    <div className={cn("px-5 pt-[22px] pb-[18px]", collapsed && "px-0 text-center")}>
-      <span className="text-ink block truncate text-[15px] font-semibold tracking-[-0.02em]">{collapsed ? PRODUCT.slice(0, 2) : PRODUCT}</span>
-      <span className={cn("eyebrow block", collapsed && "hidden")}>Admin</span>
+    <div className={cn("flex items-start gap-2 px-4 pt-[18px] pb-[14px]", collapsed && "flex-col items-center px-0")}>
+      <div className={cn("min-w-0 flex-1 pl-1", collapsed && "hidden")}>
+        <span className="text-ink block truncate text-[15px] font-semibold tracking-[-0.02em]">{PRODUCT}</span>
+        <span className="eyebrow block">Admin</span>
+      </div>
+      {onToggle ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
+          className="border-line bg-surface text-ink-2 hover:bg-sunken hover:text-ink grid size-8 shrink-0 place-items-center rounded-full border transition-colors"
+        >
+          {collapsed ? <PanelLeftOpenIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
+        </button>
+      ) : (
+        <span className={cn("text-ink hidden truncate text-[15px] font-semibold", collapsed && "block")}>{PRODUCT.slice(0, 2)}</span>
+      )}
     </div>
   );
 }
@@ -122,10 +137,10 @@ function Identity({ user, collapsed }: { user: SessionUser; collapsed: boolean }
   );
 }
 
-function Rail({ user, badges, collapsed, onNavigate }: { user: SessionUser; badges?: Record<string, string>; collapsed: boolean; onNavigate?: () => void }) {
+function Rail({ user, badges, collapsed, onNavigate, onToggle }: { user: SessionUser; badges?: Record<string, string>; collapsed: boolean; onNavigate?: () => void; onToggle?: () => void }) {
   return (
     <div className="flex min-h-full flex-col">
-      <Brand collapsed={collapsed} />
+      <Brand collapsed={collapsed} onToggle={onToggle} />
       <SidebarNav badges={badges} collapsed={collapsed} onNavigate={onNavigate} />
       <div className="flex-1" />
       <Identity user={user} collapsed={collapsed} />
@@ -153,7 +168,7 @@ export function AppShell({ user, badges, children }: { user: SessionUser; badges
             collapsed ? "w-[68px]" : "w-[236px]"
           )}
         >
-          <Rail user={user} badges={badges} collapsed={collapsed} />
+          <Rail user={user} badges={badges} collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
         </aside>
 
         <div className="bg-surface shadow-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-sheet)]">
@@ -171,15 +186,6 @@ export function AppShell({ user, badges, children }: { user: SessionUser; badges
                 <Rail user={user} badges={badges} collapsed={false} onNavigate={() => setMobileOpen(false)} />
               </SheetContent>
             </Sheet>
-            <button
-              type="button"
-              onClick={() => setCollapsed((c) => !c)}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              aria-expanded={!collapsed}
-              className="border-line bg-surface text-ink-2 hover:bg-sunken hover:text-ink hidden size-9 shrink-0 place-items-center rounded-full border transition-colors lg:grid"
-            >
-              {collapsed ? <PanelLeftOpenIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
-            </button>
             <div className="bg-sunken flex min-w-0 flex-1 items-center gap-2 rounded-full px-4 py-[10px]">
               <Breadcrumbs />
             </div>
