@@ -178,6 +178,45 @@ function Segmented<T extends string>({
   );
 }
 
+export interface IconToggleProps extends Omit<React.ComponentProps<"button">, "children" | "onChange"> {
+  /** The state the toggle shows. */
+  on: boolean;
+  /** What pressing it does in each state: "Hide the layer" / "Show the layer". The accessible name and the tooltip. */
+  labelOn: string;
+  labelOff: string;
+  /** The icon in each state: an open eye and a crossed eye, a lock and an open lock. */
+  iconOn: React.ReactNode;
+  iconOff: React.ReactNode;
+  onToggle: () => void;
+  /** How the on state reads: `brand` for a thing shown, `caution` for a thing held (locked). */
+  tone?: "brand" | "caution";
+  size?: "xs" | "sm";
+}
+
+/**
+ * A square icon toggle for a row: the icon says the state, the label
+ * says what pressing it does. 28px in a list row, 32px in a toolbar.
+ * Quiet when off; the on state takes the tone.
+ */
+function IconToggle({ on, labelOn, labelOff, iconOn, iconOff, onToggle, onClick, tone = "brand", size = "xs", className, ...props }: IconToggleProps) {
+  const label = on ? labelOn : labelOff;
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      aria-label={label}
+      title={label}
+      data-slot="icon-toggle"
+      onClick={(e) => {
+        onClick?.(e);
+        onToggle();
+      }}
+      className={cn("btn btn-quiet btn-icon", size === "xs" ? "btn-xs" : "btn-sm", on && tone === "caution" && "text-caution aria-pressed:text-caution", className)} {...props}>
+      {on ? iconOn : iconOff}
+    </button>
+  );
+}
+
 /** The row above a list inside a panel: chips on the left, search and sort on the right. */
 function Toolbar({
   className,
@@ -213,11 +252,4 @@ function ToolbarEnd({
   );
 }
 
-export {
-  SearchField,
-  NativeSelect,
-  ChoiceCard,
-  Segmented,
-  Toolbar,
-  ToolbarEnd,
-};
+export { SearchField, NativeSelect, ChoiceCard, Segmented, IconToggle, Toolbar, ToolbarEnd };

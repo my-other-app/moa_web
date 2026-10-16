@@ -14,6 +14,7 @@ import { cn } from "../lib/cn";
  *   primary     btn-primary       the one thing the page is for
  *   secondary   btn-secondary     everything else
  *   ghost       btn-ghost         a quiet, link-like action
+ *   quiet       btn-quiet         an icon button in a row; ink, no line
  *   destructive btn-destructive   the one that removes
  *
  *   size      class    height
@@ -32,6 +33,7 @@ const buttonVariants = cva("btn", {
       primary: "btn-primary",
       secondary: "btn-secondary",
       ghost: "btn-ghost",
+      quiet: "btn-quiet",
       destructive: "btn-destructive",
       /* Aliases from before the sheet was the only source. */
       default: "btn-primary",
@@ -93,7 +95,7 @@ type IconButtonProps = Omit<React.ComponentProps<"button">, "children"> & {
   /** What the button does; what a screen reader says and what the tooltip shows. */
   label: string;
   size?: "xs" | "sm" | "md";
-  variant?: "secondary" | "ghost";
+  variant?: "secondary" | "ghost" | "quiet";
   danger?: boolean;
   children: React.ReactNode;
 };

@@ -36,8 +36,6 @@ export const ui = {
   caution: "text-amber-600 dark:text-amber-400",
   cautionBox: "rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11.5px] leading-[1.5] text-amber-700 dark:text-amber-300",
   refuseBox: "rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-2 text-[11.5px] leading-[1.5] text-destructive",
-  iconBtn:
-    "grid size-7 shrink-0 place-items-center rounded text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent",
 } as const;
 
 // ─── Fonts ──────────────────────────────────────────────────────────────

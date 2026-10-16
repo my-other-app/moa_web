@@ -16,7 +16,8 @@ import {
   type TicketLayer,
   ticketArea,
 } from "@moa/layout";
-import { Button, InlineAlert, Switch, cn } from "@moa/ui";
+import { Button, IconButton, IconToggle, InlineAlert, Switch, cn } from "@moa/ui";
+import { ArrowDownIcon, ArrowUpIcon, CopyIcon, EyeIcon, EyeOffIcon, LockIcon, LockOpenIcon, Trash2Icon } from "lucide-react";
 import * as React from "react";
 
 import type { DesignerConfig } from "../config";
@@ -158,67 +159,40 @@ export const LayersPanel = ({
                     {l.kind === "text" ? l.text || "empty" : KIND_LABEL[l.kind]}
                   </span>
                 </span>
-                <span className="flex items-center opacity-70 group-hover:opacity-100">
-                  <button
-                    type="button"
-                    className={ui.iconBtn}
-                    aria-label={l.hidden ? `Show ${l.name}` : `Hide ${l.name}`}
-                    title={l.hidden ? "Show" : "Hide"}
+                <span className="flex items-center gap-0.5 opacity-70 group-hover:opacity-100 has-[[aria-pressed=true]]:opacity-100">
+                  <IconToggle
+                    on={!l.hidden}
+                    labelOn={`Hide ${l.name}`}
+                    labelOff={`Show ${l.name}`}
+                    iconOn={<EyeIcon />}
+                    iconOff={<EyeOffIcon />}
                     disabled={disabled || pinned}
-                    onClick={(e) => (e.stopPropagation(), onPatch(l.id, { hidden: !l.hidden }))}
-                  >
-                    {l.hidden ? "◌" : "◉"}
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(ui.iconBtn, l.locked && ui.caution)}
-                    aria-label={l.locked ? `Unlock ${l.name}` : `Lock ${l.name}`}
-                    title={l.locked ? "Unlock" : "Lock in place"}
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
+                    onToggle={() => onPatch(l.id, { hidden: !l.hidden })}
+                  />
+                  <IconToggle
+                    on={!!l.locked}
+                    labelOn={`Unlock ${l.name}`}
+                    labelOff={`Lock ${l.name} in place`}
+                    iconOn={<LockIcon />}
+                    iconOff={<LockOpenIcon />}
+                    tone="caution"
                     disabled={disabled}
-                    onClick={(e) => (e.stopPropagation(), onPatch(l.id, { locked: !l.locked }))}
-                  >
-                    {l.locked ? "▣" : "□"}
-                  </button>
-                  <button
-                    type="button"
-                    className={ui.iconBtn}
-                    aria-label={`Bring ${l.name} forward`}
-                    title="Forward"
-                    disabled={disabled || i === 0}
-                    onClick={(e) => (e.stopPropagation(), onMove(l.id, 1))}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    className={ui.iconBtn}
-                    aria-label={`Send ${l.name} backward`}
-                    title="Backward"
-                    disabled={disabled || i === ordered.length - 1}
-                    onClick={(e) => (e.stopPropagation(), onMove(l.id, -1))}
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    className={ui.iconBtn}
-                    aria-label={`Duplicate ${l.name}`}
-                    title="Duplicate"
-                    disabled={disabled || l.kind === "qr"}
-                    onClick={(e) => (e.stopPropagation(), onDuplicate(l.id))}
-                  >
-                    ⧉
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(ui.iconBtn, "hover:bg-destructive/10 hover:text-destructive")}
-                    aria-label={`Delete ${l.name}`}
-                    title={pinned ? "Every ticket needs its QR code" : "Delete"}
-                    disabled={disabled || pinned}
-                    onClick={(e) => (e.stopPropagation(), onRemove(l.id))}
-                  >
-                    ✕
-                  </button>
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
+                    onToggle={() => onPatch(l.id, { locked: !l.locked })}
+                  />
+                  <IconButton label={`Bring ${l.name} forward`} variant="quiet" size="xs" disabled={disabled || i === 0} onClick={(e) => (e.stopPropagation(), onMove(l.id, 1))}>
+                    <ArrowUpIcon />
+                  </IconButton>
+                  <IconButton label={`Send ${l.name} backward`} variant="quiet" size="xs" disabled={disabled || i === ordered.length - 1} onClick={(e) => (e.stopPropagation(), onMove(l.id, -1))}>
+                    <ArrowDownIcon />
+                  </IconButton>
+                  <IconButton label={`Duplicate ${l.name}`} variant="quiet" size="xs" disabled={disabled || l.kind === "qr"} onClick={(e) => (e.stopPropagation(), onDuplicate(l.id))}>
+                    <CopyIcon />
+                  </IconButton>
+                  <IconButton label={pinned ? "Every ticket needs its QR code" : `Delete ${l.name}`} variant="quiet" size="xs" danger disabled={disabled || pinned} onClick={(e) => (e.stopPropagation(), onRemove(l.id))}>
+                    <Trash2Icon />
+                  </IconButton>
                 </span>
               </div>
             </li>

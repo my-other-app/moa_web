@@ -18,11 +18,14 @@ One stylesheet (`.btn` in `meridian.css`) and one component (`<Button>`) that em
 | primary | `btn-primary` | the one thing the page is for; brand fill |
 | secondary | `btn-secondary` | everything else; surface with a line |
 | ghost | `btn-ghost` | a quiet, link-like action; brand text |
+| quiet | `btn-quiet` | an icon button in a row; ink, no line |
 | destructive | `btn-destructive` | the one that removes; refuse fill |
 
 Add `btn-danger` to a secondary or ghost button whose action removes something (refuse text). Add `btn-icon` for a square icon-only button, `btn-round` to make it round. Nothing else sets a button's height, padding, radius or type: never `h-8 px-2 text-[12px]`.
 
-`<IconButton label="Copy">` is the icon-only button for a row: round, 32px, a line around it, with the label as its accessible name and tooltip.
+`<IconButton label="Copy">` is the icon-only button for a row: round, 32px, a line around it, with the label as its accessible name and tooltip. `variant="quiet"` is the one for a dense row (a layer list): ink, no line, 28px with `size="xs"`.
+
+`<IconToggle on labelOn labelOff iconOn iconOff onToggle>` is a square icon toggle whose icon says the state and whose label says what pressing it does: an open eye to hide, a crossed eye to show; an open lock to hold in place, a closed lock (caution) to release. Never a glyph character, never a filled or empty box.
 
 ## Fields
 
