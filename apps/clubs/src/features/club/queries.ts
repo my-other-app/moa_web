@@ -12,12 +12,16 @@ import {
   fetchMyClub,
   fetchOrganizations,
   createPartner,
+  createTeamMember,
   deletePartner,
+  deleteTeamMember,
   updateClubCover,
   updateClubLogo,
   updateMyClub,
   updatePartner,
   updatePartnerLogo,
+  updateTeamMember,
+  updateTeamMemberPhoto,
 } from "./api";
 
 /**
@@ -32,7 +36,7 @@ export function useClubDashboard() {
     refetchInterval: (q) => (q.state.data?.live.length ? 15_000 : 60_000),
   });
 }
-import type { ChangePasswordForm, ClubProfileForm, PartnerForm } from "./schemas";
+import type { ChangePasswordForm, ClubProfileForm, PartnerForm, TeamMemberForm } from "./schemas";
 
 export function useMyClub() {
   return useQuery({
@@ -129,6 +133,52 @@ export function useUpdatePartner() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, form }: { id: number; form: PartnerForm }) => updatePartner(id, form),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useCreateTeamMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (form: TeamMemberForm) => createTeamMember(form),
+    onSuccess: async () => {
+      toast.success("Added to the team");
+      await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useUpdateTeamMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, form }: { id: number; form: TeamMemberForm }) => updateTeamMember(id, form),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useDeleteTeamMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteTeamMember(id),
+    onSuccess: async () => {
+      toast.success("Removed from the team");
+      await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useUpdateTeamMemberPhoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: number; file: File }) => updateTeamMemberPhoto(id, file),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },

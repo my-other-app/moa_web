@@ -11,8 +11,11 @@ import {
   type InterestCategory,
   type Organization,
   clubPartnerSchema,
+  clubTeamMemberSchema,
   type ClubPartner,
+  type ClubTeamMember,
   type PartnerForm,
+  type TeamMemberForm,
 } from "./schemas";
 import { clubOverviewSchema } from "./overview-schemas";
 import { clubDashboardSchema } from "@moa/app-kit";
@@ -114,6 +117,29 @@ export async function updatePartner(id: number, form: PartnerForm): Promise<Club
 export async function deletePartner(id: number): Promise<void> {
   await api.del<unknown>(`/api/v1/clubs/partners/${id}`);
 }
+
+export async function createTeamMember(form: TeamMemberForm): Promise<ClubTeamMember> {
+  const raw = await api.post<unknown>("/api/v1/clubs/team", teamBody(form));
+  return clubTeamMemberSchema.parse(raw);
+}
+
+export async function updateTeamMember(id: number, form: TeamMemberForm): Promise<ClubTeamMember> {
+  const raw = await api.patch<unknown>(`/api/v1/clubs/team/${id}`, teamBody(form));
+  return clubTeamMemberSchema.parse(raw);
+}
+
+export async function deleteTeamMember(id: number): Promise<void> {
+  await api.del<unknown>(`/api/v1/clubs/team/${id}`);
+}
+
+export async function updateTeamMemberPhoto(id: number, file: File): Promise<ClubTeamMember> {
+  const form = new FormData();
+  form.append("photo", file);
+  const raw = await api.put<unknown>(`/api/v1/clubs/team/${id}/photo`, form);
+  return clubTeamMemberSchema.parse(raw);
+}
+
+const teamBody = (form: TeamMemberForm) => ({ name: form.name, role: form.role || null, instagram: form.instagram || null, linkedin: form.linkedin || null, x: form.x || null, website: form.website || null });
 
 export async function updatePartnerLogo(id: number, file: File): Promise<ClubPartner> {
   const form = new FormData();

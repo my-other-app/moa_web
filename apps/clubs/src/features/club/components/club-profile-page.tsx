@@ -15,8 +15,7 @@ import {
   UploadIcon,
   XIcon,
   YoutubeIcon,
-  type LucideIcon,
-} from "lucide-react";
+  type LucideIcon, ImagePlusIcon } from "lucide-react";
 import { initials, pickImage } from "@moa/app-kit";
 import {
   CardLabel,
@@ -25,9 +24,7 @@ import {
   InitialsAvatar,
   Skeleton,
   cn,
-  toast,
-} from "@moa/ui";
-import { useObjectUrl } from "@moa/ui/hooks";
+  toast, Combobox } from "@moa/ui";
 
 import {
   useCreatePartner,
@@ -49,6 +46,8 @@ import {
   type ClubSelf,
 } from "../schemas";
 import { InterestPicker } from "./interest-picker";
+import { TeamPanel } from "./team-panel";
+import { usePick } from "./use-pick";
 
 /**
  * The club profile: one page, edited in place, saved once.
@@ -59,11 +58,10 @@ import { InterestPicker } from "./interest-picker";
  * and the cover upload the moment they are picked; partners save row by
  * row; everything else waits for Save changes.
  */
-const MAX_BYTES = 5 * 1024 * 1024;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const CLUB_PAGE = "events.myotherapp.in/clubs";
 
-const field = "input h-10 w-full";
+const field = "input w-full";
 const label = "eyebrow mb-1.5 block";
 
 function Err({ message }: { message?: string }) {
@@ -73,35 +71,6 @@ function Err({ message }: { message?: string }) {
 }
 
 /** Picks an image file, checks it, and hands it over; the preview shows while it uploads. */
-function usePick(onFile: (f: File) => void, what: string) {
-  const ref = React.useRef<HTMLInputElement>(null);
-  const [picked, setPicked] = React.useState<File | null>(null);
-  const preview = useObjectUrl(picked);
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/"))
-      return void toast.error(`Choose an image file for the ${what}`);
-    if (file.size > MAX_BYTES)
-      return void toast.error(`The ${what} must be under 5 MB`);
-    setPicked(file);
-    onFile(file);
-  };
-  const input = (
-    <input
-      ref={ref}
-      type="file"
-      accept="image/*"
-      onChange={onChange}
-      className="sr-only"
-      tabIndex={-1}
-      aria-hidden="true"
-    />
-  );
-  return { open: () => ref.current?.click(), preview, input };
-}
-
 // ─── Identity ────────────────────────────────────────────────────────────
 
 function LogoControl({ club }: { club: ClubSelf }) {
@@ -391,6 +360,10 @@ function PartnersPanel({ club }: { club: ClubSelf }) {
     (k: keyof PartnerDraft) => (e: React.ChangeEvent<HTMLInputElement>) =>
       setDraft((d) => ({ ...d, [k]: e.target.value }));
 
+  const logoUpload = useUpdatePartnerLogo();
+  const [newLogo, setNewLogo] = React.useState<File | null>(null);
+  const { open: pickNewLogo, preview: newLogoPreview, input: newLogoInput, clear: clearNewLogo } = usePick((f) => setNewLogo(f), "partner logo");
+
   const add = async () => {
     const parsed = partnerFormSchema.safeParse(draft);
     if (!parsed.success)
@@ -398,8 +371,11 @@ function PartnersPanel({ club }: { club: ClubSelf }) {
         parsed.error.issues[0]?.message ?? "Check the partner",
       );
     setError(null);
-    await create.mutateAsync(parsed.data);
+    const made = await create.mutateAsync(parsed.data);
+    if (newLogo) await logoUpload.mutateAsync({ id: made.id, file: newLogo });
     setDraft(draftOf());
+    setNewLogo(null);
+    clearNewLogo();
     setAdding(false);
   };
 
@@ -433,9 +409,10 @@ function PartnersPanel({ club }: { club: ClubSelf }) {
       )}
       {adding && (
         <div className="border-line-soft mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
-          <span className="bg-sunken grid size-10 shrink-0 place-items-center rounded-xl">
-            <PlusIcon className="text-ink-3 size-4" />
-          </span>
+          <button type="button" aria-label="Add the new partner's logo" title="Add a logo" onClick={pickNewLogo} className="border-line relative size-10 shrink-0 overflow-hidden rounded-xl border bg-transparent p-0">
+            {newLogoPreview ? <Image src={newLogoPreview} alt="" fill sizes="40px" className="object-cover" unoptimized /> : <span className="bg-sunken grid size-full place-items-center"><ImagePlusIcon className="text-ink-3 size-4" /></span>}
+          </button>
+          {newLogoInput}
           <input
             aria-label="New partner name"
             className={cn(field, "min-w-[160px] flex-[2]")}
@@ -555,7 +532,6 @@ function ProfileForm({ club }: { club: ClubSelf }) {
   const brandSecondary = useWatch({ control, name: "brand_secondary" }) ?? "";
   const { errors, isDirty } = form.formState;
   const saving = update.isPending || form.formState.isSubmitting;
-  const [orgText, setOrgText] = React.useState(() => club.org?.name ?? "");
   const colour = HEX.test(brandPrimary) ? brandPrimary : "#17a58f";
 
   const onSubmit = async (values: Values) => {
@@ -653,36 +629,18 @@ function ProfileForm({ club }: { club: ClubSelf }) {
             <label htmlFor="club-org" className={label}>
               Organisation
             </label>
-            <input
+            <Combobox
               id="club-org"
-              list="club-org-options"
-              className={field}
-              placeholder={orgs ? "Type to search the list" : "Loading…"}
+              label="Organisation"
+              value={orgId ?? null}
+              options={(orgs ?? []).map((o) => ({ value: o.id, label: o.name, hint: [o.type, o.address].filter(Boolean).join(" · ") || undefined }))}
+              onChange={(v) => form.setValue("org_id", v, { shouldDirty: true })}
+              placeholder="Choose the college or organisation"
+              emptyText="Not on the list yet — ask support to add it."
+              loading={!orgs}
               disabled={saving}
-              value={orgText}
-              onChange={(e) => {
-                const text = e.target.value;
-                setOrgText(text);
-                const hit = (orgs ?? []).find(
-                  (o) => o.name.toLowerCase() === text.trim().toLowerCase(),
-                );
-                form.setValue("org_id", hit ? hit.id : null, {
-                  shouldDirty: true,
-                });
-              }}
             />
-            <datalist id="club-org-options">
-              {(orgs ?? []).map((org) => (
-                <option key={org.id} value={org.name} />
-              ))}
-            </datalist>
-            <p className="micro text-ink-3 mt-1.5">
-              {orgId == null
-                ? orgText.trim()
-                  ? "Not on the list yet — leave it blank or ask support to add it."
-                  : "Leave blank if the club is not part of one."
-                : "On the list."}
-            </p>
+            <p className="micro text-ink-3 mt-1.5">{orgId == null ? "Leave it empty if the club is not part of one." : "On the list."}</p>
           </div>
         </div>
         <div>
@@ -788,6 +746,7 @@ function ProfileForm({ club }: { club: ClubSelf }) {
       </FigurePanel>
 
       <PartnersPanel club={club} />
+      <TeamPanel club={club} />
 
       <FigurePanel className="flex flex-col gap-3 p-4">
         <CardLabel>Links</CardLabel>

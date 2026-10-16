@@ -58,7 +58,7 @@ describe("club profile", () => {
     expect(await screen.findByTestId("club-name")).toHaveTextContent("LetMeGoo");
     expect(screen.queryByDisplayValue("LetMeGoo")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Change password/ })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Organisation")).toHaveAttribute("list", "club-org-options");
+    expect(screen.getByRole("combobox", { name: "Organisation" })).toBeInTheDocument();
     expect(screen.getByLabelText("Tagline")).toHaveValue("Trivandrum's maker collective");
     expect(screen.getByTestId("club-handle")).toHaveTextContent("letmegoo-33b259");
     expect(screen.queryByDisplayValue("letmegoo-33b259")).not.toBeInTheDocument();

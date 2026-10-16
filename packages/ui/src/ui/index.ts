@@ -107,6 +107,7 @@ export {
   SheetDescription,
 } from "./sheet";
 export { Popover, PopoverTrigger, PopoverContent } from "./popover";
+export { Combobox, type ComboboxOption, type ComboboxProps } from "./combobox";
 export {
   Form,
   FormItem,

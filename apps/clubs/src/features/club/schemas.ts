@@ -65,6 +65,19 @@ export const clubPartnerSchema = z.object({
 });
 export type ClubPartner = z.infer<typeof clubPartnerSchema>;
 
+export const clubTeamMemberSchema = z.object({
+  id: z.coerce.number(),
+  name: z.string(),
+  role: z.string().nullish(),
+  instagram: z.string().nullish(),
+  linkedin: z.string().nullish(),
+  x: z.string().nullish(),
+  website: z.string().nullish(),
+  sort_order: z.number().default(0),
+  photo: imageFieldSchema,
+});
+export type ClubTeamMember = z.infer<typeof clubTeamMemberSchema>;
+
 export const clubSelfSchema = z.object({
   id: z.coerce.number(),
   name: z.string(),
@@ -77,6 +90,7 @@ export const clubSelfSchema = z.object({
   tagline: z.string().nullish(),
   cover: imageFieldSchema,
   partners: z.array(clubPartnerSchema).catch([]).default([]),
+  team: z.array(clubTeamMemberSchema).catch([]).default([]),
   rating: z.number().nullish(),
   total_ratings: z.number().nullish(),
   total_events: z.number().nullish(),
@@ -181,6 +195,27 @@ export const partnerFormSchema = z.object({
     .transform((v) => (v === "" ? null : v)),
 });
 export type PartnerForm = z.infer<typeof partnerFormSchema>;
+
+const handle = z.string().trim().max(255, "Keep it under 255 characters");
+export const teamMemberFormSchema = z.object({
+  name: z.string().trim().min(1, "Name the person").max(100, "Keep the name under 100 characters"),
+  role: z.string().trim().max(80, "Keep the role under 80 characters"),
+  instagram: handle,
+  linkedin: handle,
+  x: handle,
+  website: handle,
+});
+export type TeamMemberForm = z.infer<typeof teamMemberFormSchema>;
+
+/** A handle or a link, as typed, made into the link the page opens. */
+export function socialHref(kind: "instagram" | "linkedin" | "x" | "website", raw: string): string {
+  const v = raw.trim().replace(/^@/, "");
+  if (/^https?:\/\//i.test(v)) return v;
+  if (kind === "instagram") return `https://instagram.com/${v}`;
+  if (kind === "x") return `https://x.com/${v}`;
+  if (kind === "linkedin") return v.includes("/") ? `https://${v.replace(/^\/+/, "")}` : `https://linkedin.com/in/${v}`;
+  return `https://${v}`;
+}
 
 /** Swatches offered before the custom picker; the first is the product's own teal. */
 export const BRAND_PRESETS = ["#17a58f", "#2f6fed", "#7c4dff", "#ef6c35", "#e24a8d", "#f2b136"] as const;
