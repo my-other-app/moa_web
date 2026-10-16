@@ -30,27 +30,27 @@ export function AttentionCard({
 }) {
   return (
     <Shell className={className}>
-      <div className="border-border/60 flex items-center justify-between border-b px-4 py-3">
+      <div className="border-line-soft flex items-center justify-between border-b px-4 py-3">
         <CardLabel>Needs attention</CardLabel>
-        <span className="text-muted-foreground font-mono text-[11px] tabular-nums">{items.length}</span>
+        <span className="text-ink-3 font-mono text-[11px] tabular-nums">{items.length}</span>
       </div>
       {items.length === 0 ? (
-        <p className="text-muted-foreground px-4 py-7 text-center text-[12.5px]">{allClear}</p>
+        <p className="text-ink-3 px-4 py-7 text-center text-[12.5px]">{allClear}</p>
       ) : (
         items.map((a) => {
           const href = hrefFor(a);
           const inner = (
             <>
               <div className="flex items-center gap-2">
-                <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", a.tone === "red" ? "bg-red-500" : "bg-amber-400")} />
+                <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", a.tone === "red" ? "bg-refuse" : "bg-caution")} />
                 <span className="text-foreground text-[13px] font-medium">{a.title}</span>
               </div>
-              <div className="text-muted-foreground mt-1 ml-3.5 text-[12.5px] leading-[1.5]">{a.body}</div>
+              <div className="text-ink-3 mt-1 ml-3.5 text-[12.5px] leading-[1.5]">{a.body}</div>
             </>
           );
-          const cls = "border-border/60 block w-full border-t px-4 py-3 text-left transition-colors first:border-t-0";
+          const cls = "border-line-soft block w-full border-t px-4 py-3 text-left transition-colors first:border-t-0";
           return href ? (
-            <Link key={`${a.kind}-${a.event_id}`} href={href} className={cn(cls, "hover:bg-muted/50")}>
+            <Link key={`${a.kind}-${a.event_id}`} href={href} className={cn(cls, "hover:bg-sunken")}>
               {inner}
             </Link>
           ) : (
@@ -88,31 +88,31 @@ export function DoorsOpenCard({
 }) {
   return (
     <Shell className={className}>
-      <div className="border-border/60 flex items-center justify-between border-b px-4 py-3">
+      <div className="border-line-soft flex items-center justify-between border-b px-4 py-3">
         <CardLabel>Doors open now</CardLabel>
         {live.length ? (
-          <span className="flex items-center gap-1.5 font-mono text-[10px] text-emerald-500">
-            <span aria-hidden="true" className="size-[5px] rounded-full bg-emerald-500 [animation:pulse-ring_2.4s_infinite] motion-reduce:[animation:none]" />
+          <span className="flex items-center gap-1.5 font-mono text-[10px] text-admit">
+            <span aria-hidden="true" className="size-[5px] rounded-full bg-admit [animation:pulse-ring_2.4s_infinite] motion-reduce:[animation:none]" />
             LIVE
           </span>
         ) : null}
       </div>
       {live.length === 0 ? (
-        <p className="text-muted-foreground px-4 py-7 text-center text-[12.5px]">{emptyBody}</p>
+        <p className="text-ink-3 px-4 py-7 text-center text-[12.5px]">{emptyBody}</p>
       ) : (
         live.map((l) => (
-          <div key={l.event_id} className="border-border/60 border-t p-4 first:border-t-0">
+          <div key={l.event_id} className="border-line-soft border-t p-4 first:border-t-0">
             <div className="flex items-baseline justify-between gap-2.5">
               <Link href={eventHref(l)} className="text-foreground hover:text-brand min-w-0 truncate text-[15px] font-medium">
                 {l.name}
-                {showClub && l.club ? <span className="text-muted-foreground font-normal"> · {l.club}</span> : null}
+                {showClub && l.club ? <span className="text-ink-3 font-normal"> · {l.club}</span> : null}
               </Link>
-              <span className="text-muted-foreground shrink-0 font-mono text-[12px] tabular-nums">
+              <span className="text-ink-3 shrink-0 font-mono text-[12px] tabular-nums">
                 {l.checked_in} / {l.registered}
               </span>
             </div>
             <ProgressBar value={l.checked_in} max={l.registered} className="mt-2.5" label={`${l.name} checked in`} tone="admit" />
-            <div className="text-muted-foreground mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 font-mono text-[11px] tracking-[0.04em]">
+            <div className="text-ink-3 mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 font-mono text-[11px] tracking-[0.04em]">
               <span>{pct(l.checked_in, l.registered)}% TURNOUT</span>
               <span className="uppercase">
                 {l.gates.length ? l.gates.join(" + ") : "no door yet"} · {plural(l.volunteers, "volunteer")}
@@ -127,7 +127,7 @@ export function DoorsOpenCard({
           </div>
         ))
       )}
-      <div className="border-border/60 text-muted-foreground border-t px-4 py-3 text-[12px]">Counts refresh every 15 seconds{refreshing ? " · refreshing" : ""}.</div>
+      <div className="border-line-soft text-ink-3 border-t px-4 py-3 text-[12px]">Counts refresh every 15 seconds{refreshing ? " · refreshing" : ""}.</div>
     </Shell>
   );
 }

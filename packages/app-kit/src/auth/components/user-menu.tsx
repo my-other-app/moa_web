@@ -52,7 +52,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
             <span className="text-sm font-medium">
               {user.full_name ?? user.username}
             </span>
-            <span className="text-muted-foreground truncate text-xs">
+            <span className="text-ink-3 truncate text-xs">
               {user.email}
             </span>
           </div>

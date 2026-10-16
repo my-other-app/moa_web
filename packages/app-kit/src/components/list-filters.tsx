@@ -117,7 +117,7 @@ export function ListFilters({
 
           <Button
             size="icon-sm"
-            variant="outline"
+            variant="secondary"
             className={pressable}
             aria-label={
               order === "asc" ? "Sorted ascending — switch to descending" : "Sorted descending — switch to ascending"

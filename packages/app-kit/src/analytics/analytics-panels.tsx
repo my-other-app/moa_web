@@ -8,28 +8,28 @@ import { formatTime, pct, plural } from "../format";
 import type { EventFigures } from "./schemas";
 
 const VIA_COLOR: Record<string, string> = {
-  gate: "var(--brand, #17a58f)",
-  kiosk: "#34d399",
-  desk: "#fbbf24",
-  walkup: "#a9adb0",
-  offline_sync: "#767b80",
-  phone: "#9747ff",
-  app: "#4cc8ae",
+  gate: "var(--brand)",
+  kiosk: "var(--admit)",
+  desk: "var(--caution)",
+  walkup: "var(--ink-3)",
+  offline_sync: "var(--ink-2)",
+  phone: "color-mix(in srgb, var(--info) 55%, var(--refuse))",
+  app: "color-mix(in srgb, var(--brand) 55%, var(--canvas))",
 };
 const KIND_TONE: Record<string, StatusTone> = { door: "info", desk: "warning", kiosk: "success" };
 const KIND_LABEL: Record<string, string> = { door: "Door", desk: "Desk", kiosk: "Kiosk" };
 const CHANNEL_LABEL: Record<string, string> = { email: "Email", whatsapp: "WhatsApp" };
 
 function Row({ children }: { children: React.ReactNode }) {
-  return <div className="border-border/60 border-t py-2 first:border-t-0">{children}</div>;
+  return <div className="border-line-soft border-t py-2 first:border-t-0">{children}</div>;
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-muted-foreground py-5 text-center text-[12.5px]">{children}</p>;
+  return <p className="text-ink-3 py-5 text-center text-[12.5px]">{children}</p>;
 }
 
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="text-muted-foreground mt-2.5 text-[11.5px] leading-[1.5]">{children}</p>;
+  return <p className="text-ink-3 mt-2.5 text-[11.5px] leading-[1.5]">{children}</p>;
 }
 
 /**
@@ -73,12 +73,12 @@ export function EventAnalyticsPanels({
             <div className="flex items-baseline gap-2">
               <span className="min-w-0 flex-1 truncate text-[12.5px]">{d.name}</span>
               <StatusBadge tone={KIND_TONE[d.kind] ?? "default"} label={KIND_LABEL[d.kind] ?? d.kind} />
-              <span className="text-muted-foreground font-mono text-[12px] tabular-nums">
+              <span className="text-ink-3 font-mono text-[12px] tabular-nums">
                 {d.admits} <span className="opacity-70">· {Math.round(d.share_pct)}%</span>
               </span>
             </div>
             <ProgressBar value={d.admits} max={Math.max(1, admitted)} height={7} className="mt-1.5" label={`${d.name} admitted`} tone={d.kind === "desk" ? "muted" : d.kind === "kiosk" ? "admit" : "accent"} />
-            <div className="text-muted-foreground mt-1 font-mono text-[10.5px] uppercase">
+            <div className="text-ink-3 mt-1 font-mono text-[10.5px] uppercase">
               peak {d.peak_admits} / 15 min
               {d.last_admit_at ? ` · last ${formatTime(d.last_admit_at, timezone)}` : ""}
             </div>
@@ -116,16 +116,16 @@ export function EventAnalyticsPanels({
                 <div className="flex items-baseline gap-2">
                   <span aria-hidden="true" className="size-2 shrink-0 self-center rounded-full" style={{ background: ty.color }} />
                   <span className="min-w-0 flex-1 truncate text-[12.5px]">{ty.label}</span>
-                  <span className="text-muted-foreground font-mono text-[12px] tabular-nums">
+                  <span className="text-ink-3 font-mono text-[12px] tabular-nums">
                     {ty.checked_in} / {ty.registered}
                   </span>
-                  <span className={`w-10 text-right font-mono text-[12px] tabular-nums ${share !== null && share < 50 ? "text-amber-500" : "text-emerald-500"}`}>
+                  <span className={`w-10 text-right font-mono text-[12px] tabular-nums ${share !== null && share < 50 ? "text-caution" : "text-admit"}`}>
                     {share !== null ? `${share}%` : "—"}
                   </span>
                 </div>
                 <ProgressBar value={ty.checked_in} max={Math.max(1, ty.registered)} height={7} className="mt-1.5" label={`${ty.label} checked in`} tone="admit" />
                 {canNudge ? (
-                  <Link href={messagesHref!(ty.role)} className="text-muted-foreground hover:text-brand mt-1 inline-block text-[11px]">
+                  <Link href={messagesHref!(ty.role)} className="text-ink-3 hover:text-brand mt-1 inline-block text-[11px]">
                     Message the {missing} not yet here →
                   </Link>
                 ) : null}
@@ -149,27 +149,27 @@ export function EventAnalyticsPanels({
           <>
             <div className="flex items-baseline gap-2">
               <span className="font-mono text-[26px] leading-none tabular-nums">{sent}</span>
-              <span className="text-muted-foreground font-mono text-[12px]">of {attempted} delivered</span>
+              <span className="text-ink-3 font-mono text-[12px]">of {attempted} delivered</span>
             </div>
             {a.deliveries.map((d) => {
               const all = d.sent + d.failed + d.skipped + d.pending;
               return (
-                <div key={d.channel} className="border-border/60 mt-3 border-t pt-2">
+                <div key={d.channel} className="border-line-soft mt-3 border-t pt-2">
                   <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
                     <span>{CHANNEL_LABEL[d.channel] ?? d.channel}</span>
-                    <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+                    <span className="text-ink-3 font-mono text-[11px] tabular-nums">
                       {d.sent} sent{d.failed ? ` · ${d.failed} failed` : ""}
                       {d.skipped ? ` · ${d.skipped} skipped` : ""}
                       {d.pending ? ` · ${d.pending} pending` : ""}
                     </span>
                   </div>
-                  <div className="bg-muted mt-1.5 flex h-[7px] w-full overflow-hidden rounded-full" role="img" aria-label={`${d.channel}: ${d.sent} sent, ${d.failed} failed, ${d.skipped} skipped, ${d.pending} pending`}>
+                  <div className="bg-sunken mt-1.5 flex h-[7px] w-full overflow-hidden rounded-full" role="img" aria-label={`${d.channel}: ${d.sent} sent, ${d.failed} failed, ${d.skipped} skipped, ${d.pending} pending`}>
                     {(
                       [
-                        ["sent", "bg-emerald-500"],
-                        ["failed", "bg-red-500"],
+                        ["sent", "bg-admit"],
+                        ["failed", "bg-refuse"],
                         ["skipped", "bg-muted-foreground/50"],
-                        ["pending", "bg-amber-400"],
+                        ["pending", "bg-caution"],
                       ] as const
                     ).map(([k, cls]) => {
                       const v = d[k];
@@ -188,26 +188,26 @@ export function EventAnalyticsPanels({
         <CardLabel className="mb-3">How guests were admitted</CardLabel>
         {nobody ? <Empty>Gate, kiosk, desk and walk-up shares appear as people arrive.</Empty> : null}
         {!nobody ? (
-          <div className="bg-muted flex h-[9px] w-full overflow-hidden rounded-full" role="img" aria-label={a.via.map((v) => `${v.label}: ${v.admits}`).join(", ")}>
+          <div className="bg-sunken flex h-[9px] w-full overflow-hidden rounded-full" role="img" aria-label={a.via.map((v) => `${v.label}: ${v.admits}`).join(", ")}>
             {a.via.map((v) => (
               <span key={v.via} style={{ width: `${(v.admits / admitted) * 100}%`, background: VIA_COLOR[v.via] ?? VIA_COLOR.walkup }} />
             ))}
           </div>
         ) : null}
         {a.via.map((v) => (
-          <div key={v.via} className="border-border/60 flex items-center gap-2 border-t py-2 first:border-t-0">
+          <div key={v.via} className="border-line-soft flex items-center gap-2 border-t py-2 first:border-t-0">
             <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: VIA_COLOR[v.via] ?? VIA_COLOR.walkup }} />
             <span className="flex-1 text-[12.5px]">{v.label}</span>
-            <span className="text-muted-foreground font-mono text-[12px] tabular-nums">
+            <span className="text-ink-3 font-mono text-[12px] tabular-nums">
               {v.admits} <span className="opacity-70">· {pct(v.admits, admitted)}%</span>
             </span>
           </div>
         ))}
         {a.cards.printed + a.cards.failed > 0 ? (
-          <div className="border-border bg-muted/50 text-muted-foreground mt-3 rounded-lg border px-3 py-2 text-[12px]">
+          <div className="border-line bg-sunken text-ink-3 mt-3 rounded-lg border px-3 py-2 text-[12px]">
             <StatusBadge tone="info" label="Cards" className="mr-2" />
             {plural(a.cards.printed, "card")} printed for {plural(a.cards.holders, "guest")}
-            {a.cards.failed ? <span className="text-red-500"> · {a.cards.failed} failed</span> : null}
+            {a.cards.failed ? <span className="text-refuse"> · {a.cards.failed} failed</span> : null}
           </div>
         ) : null}
         {a.contacts.phone + a.contacts.email > 0 ? (

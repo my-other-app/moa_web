@@ -455,6 +455,10 @@
     background: var(--refuse);
     border-color: var(--refuse);
   }
+  /* Dark refuse is a light salmon: white on it read at about 2.3:1. */
+  .dark .btn-destructive {
+    color: var(--canvas);
+  }
   .btn-destructive:not(:disabled):hover {
     filter: brightness(1.06);
   }

@@ -99,7 +99,7 @@ export function ResourceList<T>({
         <div className="flex-1" />
         {actions}
         {total !== null ? (
-          <p className="text-muted-foreground text-xs tabular-nums">
+          <p className="text-ink-3 text-xs tabular-nums">
             {total.toLocaleString("en-IN")} total
           </p>
         ) : null}
@@ -116,7 +116,7 @@ export function ResourceList<T>({
           <button
             type="button"
             onClick={clearSelection}
-            className="text-muted-foreground ml-auto text-xs underline-offset-4 hover:underline"
+            className="text-ink-3 ml-auto text-xs underline-offset-4 hover:underline"
           >
             Clear selection
           </button>
@@ -146,7 +146,7 @@ export function ResourceList<T>({
                 <button
                   type="button"
                   onClick={params.reset}
-                  className="text-primary text-sm underline-offset-4 hover:underline"
+                  className="text-brand text-sm underline-offset-4 hover:underline"
                 >
                   Clear search
                 </button>
