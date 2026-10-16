@@ -1,9 +1,6 @@
-import type { Metadata } from "next";
+import { permanentRedirect } from "next/navigation";
 
-import { ClubProfilePage } from "@/features/club";
-
-export const metadata: Metadata = { title: "Club profile" };
-
+/** The profile is edited in place on /profile; this old address only forwards there. */
 export default function EditProfilePage() {
-  return <ClubProfilePage />;
+  permanentRedirect("/profile");
 }
