@@ -7,6 +7,7 @@ import { CardLabel, ChoiceCard, EmptyState, FigurePanel, NativeSelect, Notice, S
 
 import { usePatchSite, usePreview, usePublishSite, useSite } from "../queries";
 import { SECTIONS, SECTION_EMPTY, SECTION_LABEL, type Site, type SitePatch, type Template, type Theme } from "../schemas";
+import { SiteAnalytics } from "./site-analytics";
 
 /**
  * The club's website: a public page made from the club's own data and a
@@ -214,6 +215,8 @@ export function SitePage() {
           Nothing is public until you publish. Set the look, then Publish site puts the page at {site.url.replace(/^https?:\/\//, "")}.
         </Notice>
       )}
+
+      {site?.published_at ? <SiteAnalytics published /> : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         {!site ? <Skeleton className="h-[640px]" /> : <Editor site={site} draft={draft} setDraft={setDraft} />}
