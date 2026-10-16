@@ -81,6 +81,7 @@ const { GateConsole } = await import("./components/gate-console");
 const { OutcomeCard } = await import("./components/outcome-card");
 const { ShelfPicker } = await import("./components/shelf-picker");
 const { outcomeCard } = await import("./lib/outcome-copy");
+const { brandOnDark } = await import("./components/door-kit");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -202,5 +203,32 @@ describe("the shelf at the desk", () => {
     expect(screen.getByLabelText("Kit quantity")).toHaveTextContent("1");
     expect(screen.getByRole("button", { name: "One more Kit" })).toBeDisabled();
     expect(screen.getByText("Take for merchandise")).toBeInTheDocument();
+  });
+});
+
+describe("an event's colour on a dark door screen", () => {
+  const vars = (c: string | null) => brandOnDark(c) as Record<string, string> | undefined;
+
+  it("keeps Meridian's brand unless the colour is a #rrggbb", () => {
+    expect(vars(null)).toBeUndefined();
+    expect(vars("teal")).toBeUndefined();
+    expect(vars("#abc")).toBeUndefined();
+  });
+
+  it("uses the colour as it is when it reads on the dark canvas, with dark text on its fills", () => {
+    expect(vars("#1DB9A0")).toEqual({
+      "--brand": "#1db9a0",
+      "--brand-soft": "color-mix(in srgb, #1db9a0 16%, transparent)",
+      "--brand-line": "color-mix(in srgb, #1db9a0 40%, transparent)",
+      "--brand-foreground": "var(--canvas)",
+    });
+    expect(vars("#ffd400")?.["--brand-foreground"]).toBe("var(--canvas)");
+  });
+
+  it("lifts a colour too deep to read on the dark canvas, and puts light text on it", () => {
+    const navy = vars("#0a1f44")!;
+    expect(navy["--brand"]).not.toBe("#0a1f44");
+    expect(navy["--brand"]).toMatch(/^#[0-9a-f]{6}$/);
+    expect(navy["--brand-foreground"]).toBe("var(--ink)");
   });
 });

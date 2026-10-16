@@ -8,7 +8,7 @@ import { Button, cn, toast } from "@moa/ui";
 import { CameraIcon, CameraOffIcon, DoorClosedIcon, LockIcon, MonitorSmartphoneIcon, PrinterIcon, RefreshCwIcon, ServerCrashIcon, UnplugIcon } from "lucide-react";
 
 import { PrintFrame } from "@/features/idcards";
-import { CameraWell, DOOR_FIELD, DoorBanner, DoorCount, DoorProgress, DoorSpinner, TONE_ICON, TONE_SOFT, TONE_SOLID, cameraProblem, startScanner, type DoorTone, type Scanner } from "@/features/gate";
+import { CameraWell, DOOR_FIELD, brandOnDark, DoorBanner, DoorCount, DoorProgress, DoorSpinner, TONE_ICON, TONE_SOFT, TONE_SOLID, cameraProblem, startScanner, type DoorTone, type Scanner } from "@/features/gate";
 
 import {
   KIOSK_TOKEN_STORAGE,
@@ -130,9 +130,14 @@ export function KioskApp() {
   );
 }
 
-/** The dark scale for everything inside, from Meridian's own `.dark` tokens. */
-const Shell = ({ children }: { children: React.ReactNode }) => (
-  <div className="dark bg-canvas text-ink min-h-dvh">{children}</div>
+/**
+ * The dark scale for everything inside, from Meridian's own `.dark` tokens;
+ * with an event, its colour as the brand (`brandOnDark`).
+ */
+const Shell = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
+  <div data-slot="kiosk" style={style} className="dark bg-canvas text-ink min-h-dvh">
+    {children}
+  </div>
 );
 
 /** A whole-screen state: not paired, opening, could not open. */
@@ -345,12 +350,14 @@ function Kiosk({
     }
   };
   const g = result?.guest;
+  // The club's colour on the buttons, the accents and the agenda; never on a verdict.
+  const brand = brandOnDark(ctx.event.brand_primary);
   const v = verdictOf(result);
   const VerdictIcon = TONE_ICON[v.tone];
   const place = [ctx.event.org_name, ctx.device.door].filter(Boolean).join(" · ");
 
   return (
-    <Shell>
+    <Shell style={brand}>
       {printing ? (
         <PrintFrame
           key={printing}
@@ -368,6 +375,7 @@ function Kiosk({
       ) : null}
       <header className="bg-surface border-line-soft border-b">
         <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-4">
+          <span aria-hidden="true" className="bg-brand size-3 shrink-0 rounded-full" />
           <div className="min-w-0 flex-1">
             <p className="text-ink truncate text-[18px] leading-[1.3] font-semibold tracking-[-0.01em]">
               {ctx.event.name}
@@ -416,7 +424,8 @@ function Kiosk({
         >
           <section className="space-y-5">
             <div>
-              <h1 className="text-ink text-[40px] leading-tight font-semibold tracking-[-0.025em]">
+              <p className="text-brand text-[15px] font-semibold">Self check-in</p>
+              <h1 className="text-ink mt-1 text-[40px] leading-tight font-semibold tracking-[-0.025em]">
                 Scan your ticket
               </h1>
               <p className="text-ink-2 mt-1.5 text-[17px] leading-[1.5]">
@@ -429,6 +438,7 @@ function Kiosk({
               on={cameraOn}
               frame={46}
               className="aspect-[4/3]"
+              style={brand}
             >
               {cameraOn ? (
                 <span className="bg-canvas/80 text-ink absolute inset-x-0 bottom-5 mx-auto w-fit rounded-full px-4 py-2 text-[15px] backdrop-blur-sm">
@@ -497,7 +507,7 @@ function Kiosk({
             </form>
           </section>
           {selfQr.data?.enabled && selfPng ? (
-            <aside className="bg-surface border-line-soft flex flex-col items-center gap-3 self-start rounded-[var(--radius-sheet)] border p-6 text-center">
+            <aside className="bg-surface border-brand-line flex flex-col items-center gap-3 self-start rounded-[var(--radius-sheet)] border p-6 text-center">
               <h2 className="text-ink text-[22px] font-semibold tracking-[-0.015em]">
                 No ticket handy?
               </h2>

@@ -5,7 +5,7 @@ import type { KioskContext, RedeemResult } from "./schemas";
 
 const ctx: KioskContext = {
   device: { id: "k1", name: "Lobby tablet", door: "Lobby kiosk", expires_at: "2026-10-17T00:00:00Z" },
-  event: { id: 37, name: "Hack Night 04", org_name: "Edge AI Club", venue: null, starts_at: null, brand_primary: "#1db9a0", poster_url: null, door_open: true, reprint_policy: "anyone", auto_print_badges: false, has_fee: false },
+  event: { id: 37, name: "Hack Night 04", org_name: "Edge AI Club", venue: null, starts_at: null, brand_primary: "#e4572e", poster_url: null, door_open: true, reprint_policy: "anyone", auto_print_badges: false, has_fee: false },
   self_check_in: { self_check_in_enabled: false, self_check_in_verify: "name", self_check_in_print: false, has_pin: true },
   counters: { registered: 120, checked_in: 64, checked_in_here: 21 },
   agenda: [],
@@ -78,6 +78,28 @@ describe("the kiosk", () => {
     expect(screen.getByText("/ 120")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Start camera/ })).toBeInTheDocument();
     expect(api.context).toHaveBeenCalledWith("kiosk_tok");
+  });
+
+  it("carries the event's own colour as the brand, and keeps verdicts in their tones", async () => {
+    localStorage.setItem(KIOSK_TOKEN_STORAGE, "kiosk_tok");
+    api.redeem.mockResolvedValue({ ...matched, outcome: "UNPAID", guest: null });
+    const { container } = render(<KioskApp />);
+    await screen.findByRole("heading", { name: "Scan your ticket" });
+    const root = container.querySelector<HTMLElement>('[data-slot="kiosk"]')!;
+    expect(root.style.getPropertyValue("--brand")).toBe("#e4572e");
+    expect(root.style.getPropertyValue("--brand-soft")).toContain("#e4572e");
+    expect(root.style.getPropertyValue("--brand-foreground")).toBe("var(--canvas)");
+    fireEvent.change(screen.getByLabelText("Ticket code"), { target: { value: "MOA-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Check in" }));
+    expect((await screen.findByText("Not paid")).className).toContain("text-refuse");
+  });
+
+  it("falls back to Meridian's brand when the event has no usable colour", async () => {
+    localStorage.setItem(KIOSK_TOKEN_STORAGE, "kiosk_tok");
+    api.context.mockResolvedValue({ ...ctx, event: { ...ctx.event, brand_primary: "teal" } });
+    const { container } = render(<KioskApp />);
+    await screen.findByRole("heading", { name: "Scan your ticket" });
+    expect(container.querySelector<HTMLElement>('[data-slot="kiosk"]')!.style.getPropertyValue("--brand")).toBe("");
   });
 
   it("welcomes a guest by name after a typed code, with a way to take it back", async () => {

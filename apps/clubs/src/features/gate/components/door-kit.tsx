@@ -53,6 +53,46 @@ export const TONE_ICON: Record<DoorTone, React.ComponentType<{ className?: strin
   info: CloudUploadIcon,
 };
 
+const RRGGBB = /^#[0-9a-f]{6}$/i;
+const linear = (v: number) => {
+  const c = v / 255;
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+};
+const luminance = ([r, g, b]: number[]) => 0.2126 * linear(r!) + 0.7152 * linear(g!) + 0.0722 * linear(b!);
+const toHex = (rgb: number[]) => `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("")}`;
+
+/**
+ * An event's own colour as the brand of a screen on Meridian's dark scale
+ * (the kiosk, the phone check-in). Set on the screen's root, it overrides
+ * the variables every kit class reads: `--brand` for fills, text and the
+ * focus ring; `--brand-soft` and `--brand-line` for the tints;
+ * `--brand-foreground` for text on a brand fill. The admit, caution and
+ * refuse tones are untouched — a verdict never takes the club's colour.
+ *
+ * A colour too deep to read as text on the dark canvas is lifted toward
+ * white until it does (about 3:1), and the text on a fill is whichever of
+ * the dark canvas or the light ink contrasts more with it. Anything that is
+ * not a `#rrggbb` leaves Meridian's own brand in place.
+ */
+export function brandOnDark(color: string | null | undefined): React.CSSProperties | undefined {
+  if (!color || !RRGGBB.test(color)) return undefined;
+  let rgb = [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16));
+  let lifted = false;
+  for (let step = 0; luminance(rgb) < 0.12 && step < 12; step++) {
+    rgb = rgb.map((c) => c + (255 - c) * 0.15);
+    lifted = true;
+  }
+  const brand = lifted ? toHex(rgb) : color.toLowerCase();
+  const l = luminance(rgb);
+  const darkText = (l + 0.05) / 0.05 >= 1.05 / (l + 0.05);
+  return {
+    "--brand": brand,
+    "--brand-soft": `color-mix(in srgb, ${brand} 16%, transparent)`,
+    "--brand-line": `color-mix(in srgb, ${brand} 40%, transparent)`,
+    "--brand-foreground": darkText ? "var(--canvas)" : "var(--ink)",
+  } as React.CSSProperties;
+}
+
 /** The field at the door: the kit's field at the touch height, 16px so a phone does not zoom on focus. */
 export const DOOR_FIELD = "input h-11 text-[16px]";
 /** A field's label at the door. */
@@ -164,6 +204,7 @@ export function CameraWell({
   on,
   frame = 58,
   className,
+  style,
   children,
 }: {
   videoRef: React.Ref<HTMLVideoElement>;
@@ -171,10 +212,12 @@ export function CameraWell({
   /** The frame's width as a percentage of the well. */
   frame?: number;
   className?: string;
+  /** The screen's brand variables (`brandOnDark`), which the well's own `.dark` would otherwise reset. */
+  style?: React.CSSProperties;
   children?: React.ReactNode;
 }) {
   return (
-    <div className={cn("dark bg-canvas text-ink ring-line relative flex items-center justify-center overflow-hidden rounded-[var(--radius-panel)] ring-1", className)}>
+    <div style={style} className={cn("dark bg-canvas text-ink ring-line relative flex items-center justify-center overflow-hidden rounded-[var(--radius-panel)] ring-1", className)}>
       <video ref={videoRef} playsInline muted className={on ? "absolute inset-0 size-full object-cover" : "hidden"} />
       {on ? (
         <div

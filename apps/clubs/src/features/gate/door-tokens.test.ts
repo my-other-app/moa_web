@@ -26,6 +26,8 @@ const BANNED: [string, RegExp][] = [
   ["white outside a QR code", /\b(?:text|border|ring|from|to)-white\b|\bbg-white\//],
   ["a pre-Meridian token", /\b(?:text-muted-foreground|text-foreground|bg-muted|bg-card|border-border|bg-primary|text-primary|border-primary|text-destructive|border-destructive)\b/],
   ["a retired button name", /variant="(?:outline|default|link|display)"/],
+  // An event's colour reaches these screens as CSS variables (brandOnDark), never as an inline colour.
+  ["an inline colour style", /style=\{\{[^}]*\b(?:background|backgroundColor|color|borderColor)\s*:/],
 ];
 
 describe("the door screens are drawn in tokens", () => {

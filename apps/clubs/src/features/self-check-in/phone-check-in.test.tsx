@@ -32,8 +32,10 @@ describe("checking in from a phone", () => {
     api.lookup.mockResolvedValue({ outcome: "READY", channel: null, masked: null, checked_in_at: null, door: null });
     api.checkIn.mockResolvedValue({ outcome: "CHECKED_IN", guest: { first_name: "Ananya", display_name: "Ananya Iyer", role_label: "Speaker", ticket_id: "MOA-1" }, can_print: true });
     const { container } = render(<PhoneCheckIn token="tok" />);
-    expect(container.querySelector(".dark")).not.toBeNull();
     expect(await screen.findByRole("heading", { name: "Hack Night 04" })).toBeInTheDocument();
+    const root = container.querySelector<HTMLElement>('[data-slot="self-check-in"]')!;
+    expect(root).toHaveClass("dark");
+    expect(root.style.getPropertyValue("--brand")).toBe("#1db9a0");
     expect(screen.getByText("Checking in at Lobby tablet")).toBeInTheDocument();
     const continueButton = screen.getByRole("button", { name: "Continue" });
     expect(continueButton).toBeDisabled();

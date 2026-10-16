@@ -6,6 +6,7 @@ export { useGateStoreOrders, useGateHandOver, useGateCatalog } from "./queries";
 export { type GateStoreOrder, type GateCatalog } from "./schemas";
 export {
   CameraWell,
+  brandOnDark,
   DOOR_FIELD,
   DOOR_LABEL,
   DoorBanner,

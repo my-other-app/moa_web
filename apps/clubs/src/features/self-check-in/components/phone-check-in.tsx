@@ -6,7 +6,7 @@ import { ApiError } from "@moa/api";
 import { Button, cn } from "@moa/ui";
 import { CircleCheckIcon, CircleXIcon, MapPinIcon, PrinterIcon, TriangleAlertIcon } from "lucide-react";
 
-import { DOOR_FIELD, DOOR_LABEL, DoorSpinner, TONE_SOFT, TONE_SOLID, type DoorTone } from "@/features/gate";
+import { DOOR_FIELD, DOOR_LABEL, DoorSpinner, TONE_SOFT, TONE_SOLID, brandOnDark, type DoorTone } from "@/features/gate";
 
 import { checkInSelf, lookupSelf, printSelf, resendSelf, startSelf, statusSelf, verifySelf, type CheckInResult, type LookupResult, type SelfSession } from "../api";
 
@@ -156,8 +156,9 @@ export function PhoneCheckIn({ token }: { token: string }) {
   const stepAt = step === "name" || step === "contact" ? 0 : step === "code" ? 1 : step === "confirm" ? stepLabels.length - 1 : -1;
   const cardOut = status.data?.print?.status === "DONE";
 
+  // The club's colour on the buttons, the steps and the accents; never on a verdict.
   return (
-    <div className="dark bg-canvas text-ink min-h-dvh">
+    <div data-slot="self-check-in" style={brandOnDark(session?.event.brand_primary)} className="dark bg-canvas text-ink min-h-dvh">
       <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 pt-[max(20px,env(safe-area-inset-top))] pb-10">
         {startError ? (
           <div className="my-auto">
@@ -172,7 +173,10 @@ export function PhoneCheckIn({ token }: { token: string }) {
         ) : (
           <>
             <header className="mb-6">
-              {session.event.org_name ? <p className="eyebrow">{session.event.org_name}</p> : null}
+              <p className="flex items-center gap-2">
+                <span aria-hidden="true" className="bg-brand size-2.5 shrink-0 rounded-full" />
+                {session.event.org_name ? <span className="eyebrow">{session.event.org_name}</span> : null}
+              </p>
               <h1 className="text-ink mt-1 text-[24px] leading-tight font-semibold tracking-[-0.02em]">{session.event.name}</h1>
               <p className="text-ink-2 mt-1.5 flex items-center gap-1.5 text-[14px]">
                 <MapPinIcon aria-hidden="true" className="text-brand size-4" />
