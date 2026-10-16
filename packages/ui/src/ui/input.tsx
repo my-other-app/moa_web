@@ -9,7 +9,7 @@ const inputVariants = cva(
     variants: {
       variant: {
         default:
-          "placeholder:text-muted-foreground dark:bg-input/30 border-input h-9 rounded-md border px-3 py-1 text-base shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] md:text-sm",
+          "placeholder:text-muted-foreground dark:bg-input/30 border-input h-9 rounded-md border px-3 py-1 text-base shadow-xs focus-visible:border-brand focus-visible:ring-[var(--focus-ring)] focus-visible:ring-[3px] md:text-sm",
         /*
          * The form field from the design (node 368:306): 44px tall, 8px
          * radius, a hairline charcoal border and grey medium placeholder
@@ -17,7 +17,7 @@ const inputVariants = cva(
          * both dashboards keeps one implementation.
          */
         design:
-          "placeholder:text-muted-foreground border-border bg-card text-foreground h-11 rounded-lg border pl-3 pr-3.5 py-1.5 text-base focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+          "placeholder:text-muted-foreground border-border bg-card text-foreground h-11 rounded-lg border pl-3 pr-3.5 py-1.5 text-base focus-visible:border-brand focus-visible:ring-[var(--focus-ring)] focus-visible:ring-[3px]",
       },
     },
     defaultVariants: { variant: "default" },

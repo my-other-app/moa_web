@@ -19,8 +19,10 @@ const bebasNeue = Bebas_Neue({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Organiser · My Other App", template: "%s · Organiser" },
-  description: "Run your club's events on My Other App.",
+  title: { default: "MyOtherApp Clubs", template: "%s · MyOtherApp Clubs" },
+  description: "Run your club's events: tickets, the gate, the people, the money.",
+  applicationName: "MyOtherApp Clubs",
+  appleWebApp: { title: "Clubs", capable: true, statusBarStyle: "black-translucent" },
   robots: { index: false, follow: false },
 };
 

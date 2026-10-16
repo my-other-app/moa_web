@@ -45,13 +45,13 @@ function SelectTrigger({
           ? [
               "h-11 w-full rounded-lg border-[0.5px] border-[var(--swatch-ink)] bg-white pl-2 pr-3.5 py-1.5 text-base font-medium",
               "data-[placeholder]:text-[var(--swatch-grey)]",
-              "focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+              "focus-visible:ring-[var(--focus-ring)] focus-visible:ring-[3px]",
             ]
           : [
               "border-input w-fit rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs",
               "data-[size=default]:h-9 data-[size=sm]:h-8",
               "data-[placeholder]:text-muted-foreground",
-              "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+              "focus-visible:border-brand focus-visible:ring-[var(--focus-ring)] focus-visible:ring-[3px]",
             ],
         className
       )}
