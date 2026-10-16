@@ -20,7 +20,7 @@ export function useSession(initialData?: SessionUser) {
 export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: LoginInput) => login(input),
+    mutationFn: (input: LoginInput & { totp_code?: string }) => login(input),
     onSuccess: async () => {
       // The cookie is now set; pull the profile so the shell can render the
       // right identity immediately rather than after a navigation.

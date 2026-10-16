@@ -4,24 +4,37 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRightIcon, EyeIcon, EyeOffIcon, Loader2Icon } from "lucide-react";
-import { ApiError } from "@moa/api";
 import {
-  Button,
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  Input,
-  cn,
-} from "@moa/ui";
-import { pressable } from "@moa/ui/motion";
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  EyeIcon,
+  EyeOffIcon,
+  Loader2Icon,
+  ShieldCheckIcon,
+} from "lucide-react";
+import { ApiError } from "@moa/api";
+import { IconToggle, Notice } from "@moa/ui";
 
 import { useLogin } from "../queries";
 import { loginSchema, type LoginInput } from "../schemas";
 
+/**
+ * The codes /auth/token refuses with when the answer is not "wrong
+ * password": the account wants its authenticator code, the code was wrong,
+ * or this door is locked after too many tries.
+ */
+const TOTP_REQUIRED = "TOTP_REQUIRED";
+const TOTP_INVALID = "TOTP_INVALID";
+const LOGIN_LOCKED = "LOGIN_LOCKED";
+
+type Problem = { tone: "refuse" | "caution"; text: string };
+
+/**
+ * Sign in, in two steps when the account has two-factor sign-in: the
+ * password first, then — only if the server asks for it — the code from
+ * the authenticator app or a recovery code. The password is checked before
+ * the code is asked for, so the second step never appears for a wrong one.
+ */
 export function LoginForm({
   usernamePlaceholder = "your_username",
   redirectTo = "/",
@@ -34,17 +47,24 @@ export function LoginForm({
   const searchParams = useSearchParams();
   const login = useLogin();
   const [showPassword, setShowPassword] = React.useState(false);
-  const [formError, setFormError] = React.useState<string | null>(null);
+  const [problem, setProblem] = React.useState<Problem | null>(null);
+  const [step, setStep] = React.useState<"password" | "code">("password");
+  const [code, setCode] = React.useState("");
+  /** Whose second factor is being asked for, as typed at the first step. */
+  const [who, setWho] = React.useState("");
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: { username: "", password: "" },
   });
+  const { errors } = form.formState;
 
   async function onSubmit(values: LoginInput) {
-    setFormError(null);
+    setProblem(null);
     try {
-      await login.mutateAsync(values);
+      await login.mutateAsync(
+        step === "code" ? { ...values, totp_code: code.trim() } : values
+      );
       // `next` is validated below before use: an open redirect here would let
       // a crafted link bounce an admin to an attacker's page after a genuine
       // sign-in.
@@ -54,105 +74,149 @@ export function LoginForm({
       router.replace(safeNext);
       router.refresh();
     } catch (error) {
-      setFormError(
-        error instanceof ApiError
-          ? error.message
-          : "Could not sign in. Please try again."
-      );
+      if (!(error instanceof ApiError)) {
+        setProblem({ tone: "refuse", text: "Could not sign in. Please try again." });
+        return;
+      }
+      if (error.errorCode === TOTP_REQUIRED) {
+        // The password was right; the account wants its second factor.
+        setWho(values.username.trim());
+        setStep("code");
+        setCode("");
+        return;
+      }
+      if (error.errorCode === TOTP_INVALID) setCode("");
+      setProblem({
+        tone: error.errorCode === LOGIN_LOCKED || error.status === 429 ? "caution" : "refuse",
+        text: error.message,
+      });
     }
   }
+
+  const back = () => {
+    setStep("password");
+    setCode("");
+    setProblem(null);
+  };
 
   const isSubmitting = form.formState.isSubmitting || login.isPending;
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5" noValidate>
-        <FormField
-          control={form.control}
-          name="username"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Username</FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  autoComplete="username"
-                  autoFocus
-                  placeholder={usernamePlaceholder}
-                  disabled={isSubmitting}
+    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+      {step === "password" ? (
+        <>
+          <div className="field">
+            <label htmlFor="login-username">Username</label>
+            <input
+              id="login-username"
+              {...form.register("username")}
+              autoComplete="username"
+              autoFocus
+              autoCapitalize="off"
+              spellCheck={false}
+              placeholder={usernamePlaceholder}
+              disabled={isSubmitting}
+              aria-invalid={errors.username ? true : undefined}
+              aria-describedby={errors.username ? "login-username-error" : undefined}
+              className="input h-11"
+            />
+            {errors.username ? (
+              <p id="login-username-error" className="text-refuse mt-1.5 text-[12px]">
+                {errors.username.message}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="field">
+            <label htmlFor="login-password">Password</label>
+            <div className="relative">
+              <input
+                id="login-password"
+                {...form.register("password")}
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="••••••••••"
+                disabled={isSubmitting}
+                aria-invalid={errors.password ? true : undefined}
+                aria-describedby={errors.password ? "login-password-error" : undefined}
+                className="input h-11 pr-11"
+              />
+              <span className="absolute inset-y-0 right-1.5 flex items-center">
+                <IconToggle
+                  on={showPassword}
+                  labelOn="Hide password"
+                  labelOff="Show password"
+                  iconOn={<EyeIcon />}
+                  iconOff={<EyeOffIcon />}
+                  onToggle={() => setShowPassword((v) => !v)}
+                  tabIndex={-1}
                 />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+              </span>
+            </div>
+            {errors.password ? (
+              <p id="login-password-error" className="text-refuse mt-1.5 text-[12px]">
+                {errors.password.message}
+              </p>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="bg-sunken flex items-start gap-3 rounded-[var(--radius-field)] px-3.5 py-3">
+            <ShieldCheckIcon className="text-brand mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p className="text-ink-2 m-0 text-[12.5px] leading-[1.5]">
+              Two-factor sign-in is on for <span className="text-ink font-medium">{who}</span>. Enter the 6-digit
+              code from the authenticator app, or one of the recovery codes.
+            </p>
+          </div>
+          <div className="field">
+            <label htmlFor="login-code">Authenticator code</label>
+            <input
+              id="login-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              autoFocus
+              autoComplete="one-time-code"
+              autoCapitalize="off"
+              spellCheck={false}
+              maxLength={12}
+              placeholder="123456"
+              disabled={isSubmitting}
+              className="input h-11 font-mono tracking-[0.2em]"
+            />
+          </div>
+        </>
+      )}
 
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Input
-                    {...field}
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    placeholder="••••••••••"
-                    disabled={isSubmitting}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className={cn(
-                      "text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md transition-colors",
-                      "focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
-                    )}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeOffIcon className="size-4" />
-                    ) : (
-                      <EyeIcon className="size-4" />
-                    )}
-                  </button>
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      {problem ? (
+        <Notice tone={problem.tone} className="animate-in fade-in-0 slide-in-from-top-1 motion-reduce:animate-none">
+          {problem.text}
+        </Notice>
+      ) : null}
 
-        {formError ? (
-          <p
-            role="alert"
-            className="bg-destructive/10 text-destructive animate-in fade-in-0 slide-in-from-top-1 rounded-md px-3 py-2 text-sm motion-reduce:animate-none"
-          >
-            {formError}
-          </p>
-        ) : null}
+      <button
+        type="submit"
+        className="btn btn-primary btn-lg group mt-1 w-full"
+        disabled={isSubmitting || (step === "code" && code.trim().length < 6)}
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2Icon className="animate-spin" />
+            {step === "code" ? "Checking the code…" : "Signing in…"}
+          </>
+        ) : (
+          <>
+            {step === "code" ? "Verify and sign in" : "Sign in"}
+            <ArrowRightIcon className="transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" />
+          </>
+        )}
+      </button>
 
-        <Button
-          type="submit"
-          className={cn("group w-full", pressable)}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2Icon className="animate-spin" />
-              Signing in…
-            </>
-          ) : (
-            <>
-              Sign in
-              <ArrowRightIcon className="transition-transform duration-200 group-hover:translate-x-0.5" />
-            </>
-          )}
-        </Button>
-      </form>
-    </Form>
+      {step === "code" ? (
+        <button type="button" className="btn btn-ghost btn-sm self-center" onClick={back} disabled={isSubmitting}>
+          <ArrowLeftIcon /> Back to the password
+        </button>
+      ) : null}
+    </form>
   );
 }

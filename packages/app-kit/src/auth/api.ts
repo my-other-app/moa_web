@@ -15,12 +15,17 @@ export interface TokenResponse {
  * same response also sets httpOnly cookies, and those are what authenticate
  * every later request. Storing the token in JS would hand any XSS an admin
  * session -- the exact weakness in the dashboard this replaces.
+ *
+ * An account with two-factor sign-in is refused with TOTP_REQUIRED until the
+ * same form is sent again with `totp_code`: the authenticator's six digits,
+ * or one of the account's recovery codes.
  */
-export async function login(input: LoginInput): Promise<TokenResponse> {
+export async function login(input: LoginInput & { totp_code?: string }): Promise<TokenResponse> {
   const body = new URLSearchParams({
     username: input.username,
     password: input.password,
   });
+  if (input.totp_code) body.set("totp_code", input.totp_code);
   return api.post<TokenResponse>("/api/v1/auth/token", body);
 }
 

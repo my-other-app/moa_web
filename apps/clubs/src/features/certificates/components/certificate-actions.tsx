@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ExternalLinkIcon, MoreHorizontalIcon } from "lucide-react";
+import { FileTextIcon, MoreHorizontalIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,12 +11,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  IconButton,
 } from "@moa/ui";
 
 import { useSendOneDocument } from "@/features/deliveries";
@@ -25,7 +25,11 @@ import { certificatePdfUrl } from "../api";
 import { useRevokeCertificate } from "../queries";
 import type { CertificateRow } from "../schemas";
 
-/** Open it, send it again, or take it back. */
+/**
+ * A row's actions: the certificate itself one click away (it is the
+ * preview), and behind the menu sending it again or taking it back. A
+ * revoked one has no PDF — the download is refused — so its button is off.
+ */
 export function CertificateActions({
   eventId,
   row,
@@ -40,36 +44,41 @@ export function CertificateActions({
   const busy = sendOne.isPending || revoke.isPending;
 
   return (
-    <>
+    <span className="flex items-center justify-end gap-1">
+      {revoked ? (
+        <IconButton label={`${row.name}'s certificate is revoked`} disabled>
+          <FileTextIcon />
+        </IconButton>
+      ) : (
+        <a
+          href={certificatePdfUrl(row.ticket_id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Open ${row.name}'s certificate`}
+          title="Open the PDF"
+          className="btn btn-secondary btn-icon btn-sm btn-round"
+        >
+          <FileTextIcon />
+        </a>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="icon-xs"
-            variant="ghost"
+          <IconButton
+            label={`Actions for ${row.name}`}
+            variant="quiet"
             disabled={busy}
-            aria-label={`Actions for ${row.name}`}
           >
             <MoreHorizontalIcon />
-          </Button>
+          </IconButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem disabled={revoked} asChild>
-            <a
-              href={certificatePdfUrl(row.ticket_id)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLinkIcon /> Open the PDF
-            </a>
-          </DropdownMenuItem>
           <DropdownMenuItem
             disabled={revoked}
             onSelect={() => sendOne.mutate(row.registration_id)}
           >
             <span className="flex flex-col">
               <span>Send again</span>
-              <span className="text-muted-foreground text-xs">
+              <span className="text-ink-3 text-xs">
                 By email, even if it was delivered before.
               </span>
             </span>
@@ -86,7 +95,7 @@ export function CertificateActions({
             >
               <span className="flex flex-col">
                 <span>Reinstate</span>
-                <span className="text-muted-foreground text-xs">
+                <span className="text-ink-3 text-xs">
                   Its QR verifies again.
                 </span>
               </span>
@@ -122,6 +131,7 @@ export function CertificateActions({
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={() =>
                 revoke.mutate({
                   registrationId: row.registration_id,
@@ -134,6 +144,6 @@ export function CertificateActions({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </span>
   );
 }
