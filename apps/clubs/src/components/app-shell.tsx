@@ -26,6 +26,8 @@ import {
   cn,
 } from "@moa/ui";
 
+import { RouteGate, useAccess } from "@/features/access";
+
 import { Breadcrumbs } from "./breadcrumbs";
 import { GateCard } from "./gate-card";
 import { SidebarNav } from "./sidebar-nav";
@@ -85,6 +87,8 @@ function Identity({ user, clubName, collapsed }: { user: SessionUser; clubName: 
   const logout = useLogout();
   const { theme, setTheme } = useTheme();
   const mode = THEMES.some((t) => t.value === theme) ? (theme as string) : "system";
+  const access = useAccess();
+  const who = access.member ? `${access.member.full_name ?? access.member.email} · ${access.roleLabel}` : "Owner · club account";
 
   async function signOut() {
     await logout.mutateAsync();
@@ -107,7 +111,7 @@ function Identity({ user, clubName, collapsed }: { user: SessionUser; clubName: 
             <span className="bg-brand-soft text-brand grid size-8 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">{initials(clubName)}</span>
             <span className={cn("min-w-0 flex-1", collapsed && "hidden")}>
               <span className="text-ink block truncate text-[12.5px] font-semibold">{clubName}</span>
-              <span className="text-ink-3 block truncate font-mono text-[10px] tracking-[0.04em]">Shared club login</span>
+              <span className="text-ink-3 block truncate font-mono text-[10px] tracking-[0.04em]">{who}</span>
             </span>
             <ChevronsUpDownIcon className={cn("text-ink-3 size-4 shrink-0", collapsed && "hidden")} aria-hidden="true" />
           </button>
@@ -115,7 +119,7 @@ function Identity({ user, clubName, collapsed }: { user: SessionUser; clubName: 
         <DropdownMenuContent side={collapsed ? "right" : "top"} align={collapsed ? "end" : "start"} sideOffset={8} className="w-60">
           <DropdownMenuLabel className="font-normal">
             <span className="block truncate text-sm font-medium">{clubName}</span>
-            <span className="text-ink-3 block truncate text-xs">{user.email}</span>
+            <span className="text-ink-3 block truncate text-xs">{access.member ? `${access.member.email} · ${access.roleLabel}` : user.email}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="eyebrow">Appearance</DropdownMenuLabel>
@@ -197,7 +201,9 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
             </div>
           </div>
           <main ref={mainRef} className="scroll-thin min-h-0 flex-1 overflow-auto">
-            <div className="mx-auto max-w-[1180px] px-6 pt-5 pb-16 max-sm:px-4">{children}</div>
+            <div className="mx-auto max-w-[1180px] px-6 pt-5 pb-16 max-sm:px-4">
+              <RouteGate>{children}</RouteGate>
+            </div>
           </main>
         </div>
       </div>

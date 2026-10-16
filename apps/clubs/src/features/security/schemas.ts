@@ -9,6 +9,8 @@ export const sessionSchema = z.object({
   created_at: z.string().nullable(),
   last_seen_at: z.string().nullable(),
   current: z.boolean(),
+  /** A club team member's session on the club account: their name. */
+  who: z.string().nullable().optional().catch(null),
 });
 
 export const historyRowSchema = z.object({

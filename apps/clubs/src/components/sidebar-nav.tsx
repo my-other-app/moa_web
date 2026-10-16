@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@moa/ui";
 
+import { useAccess } from "@/features/access";
+
 import { NAV_GROUPS, isActive, navItems, type NavItem } from "./nav-items";
 
 /**
@@ -20,9 +22,12 @@ import { NAV_GROUPS, isActive, navItems, type NavItem } from "./nav-items";
  */
 export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { can } = useAccess();
+  // A role sees only what it can open; the club's own account sees everything.
+  const visible = navItems.filter((i) => !i.needs || can[i.needs]);
   const sections: { key: string; label: string; items: NavItem[] }[] = [
-    { key: "main", label: "Menu", items: navItems.filter((i) => !i.group) },
-    ...NAV_GROUPS.map((g) => ({ key: g.key, label: g.label, items: navItems.filter((i) => i.group === g.key) })),
+    { key: "main", label: "Menu", items: visible.filter((i) => !i.group) },
+    ...NAV_GROUPS.map((g) => ({ key: g.key, label: g.label, items: visible.filter((i) => i.group === g.key) })),
   ].filter((s) => s.items.length > 0);
 
   return (

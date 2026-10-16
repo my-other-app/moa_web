@@ -1,6 +1,7 @@
 import {
   GlobeIcon,
   BellIcon,
+  KeyRoundIcon,
   BuildingIcon,
   CalendarDaysIcon,
   LayoutDashboardIcon,
@@ -14,6 +15,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import type { Cap } from "@/features/access/schemas";
+
 export type NavGroup = "grow" | "manage";
 
 export interface NavItem {
@@ -23,6 +26,8 @@ export interface NavItem {
   exact?: boolean;
   /** Ungrouped items are the day's work; Grow and Manage sit under their own headings. */
   group?: NavGroup;
+  /** What the signed-in role needs to see it at all (see features/access). */
+  needs?: Cap;
 }
 
 export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
@@ -46,16 +51,17 @@ export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
 export const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboardIcon, exact: true },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
-  { href: "/followers", label: "Followers", icon: UsersIcon },
-  { href: "/threads", label: "Threads", icon: MessagesSquareIcon },
-  { href: "/announcements", label: "Announcements", icon: BellIcon },
-  { href: "/emails", label: "Emails", icon: MailIcon },
-  { href: "/links", label: "Tracking links", icon: LinkIcon, group: "grow" },
-  { href: "/website", label: "Website", icon: GlobeIcon, group: "grow" },
-  { href: "/templates", label: "Templates", icon: PaletteIcon, group: "grow" },
-  { href: "/finance", label: "Finance", icon: WalletIcon, group: "manage" },
+  { href: "/followers", label: "Followers", icon: UsersIcon, needs: "edit_events" },
+  { href: "/threads", label: "Threads", icon: MessagesSquareIcon, needs: "edit_events" },
+  { href: "/announcements", label: "Announcements", icon: BellIcon, needs: "edit_events" },
+  { href: "/emails", label: "Emails", icon: MailIcon, needs: "edit_events" },
+  { href: "/links", label: "Tracking links", icon: LinkIcon, group: "grow", needs: "edit_events" },
+  { href: "/website", label: "Website", icon: GlobeIcon, group: "grow", needs: "edit_events" },
+  { href: "/templates", label: "Templates", icon: PaletteIcon, group: "grow", needs: "edit_events" },
+  { href: "/finance", label: "Finance", icon: WalletIcon, group: "manage", needs: "money" },
+  { href: "/access", label: "Access", icon: KeyRoundIcon, group: "manage", needs: "see_access" },
   { href: "/security", label: "Security", icon: ShieldCheckIcon, group: "manage" },
-  { href: "/profile", label: "Club profile", icon: BuildingIcon, group: "manage" },
+  { href: "/profile", label: "Club profile", icon: BuildingIcon, group: "manage", needs: "club_profile" },
 ];
 
 export function isActive(pathname: string, item: NavItem): boolean {
