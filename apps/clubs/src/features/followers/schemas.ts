@@ -77,3 +77,56 @@ export const followerProfileSchema = z.object({
   totals: z.object({ registrations: z.number(), attended: z.number(), paid: z.number() }),
 });
 export type FollowerProfile = z.infer<typeof followerProfileSchema>;
+
+// --- the followers page ----------------------------------------------------------------------
+
+export const SEGMENTS = ["all", "new", "regulars", "once", "never", "quiet"] as const;
+export type Segment = (typeof SEGMENTS)[number];
+export const SEGMENT_LABEL: Record<Segment, string> = { all: "Everyone", new: "New", regulars: "Regulars", once: "Came once", never: "Never came", quiet: "Gone quiet" };
+export const SEGMENT_HINT: Record<Segment, string> = {
+  all: "Everyone who follows the club.",
+  new: "Followed in the last 30 days.",
+  regulars: "Came to two or more of your events.",
+  once: "Came to one event.",
+  never: "Never been to one — some are registered for the next.",
+  quiet: "Nothing in 90 days and not in for anything ahead.",
+};
+export const SORTS = ["newest", "oldest", "active", "name"] as const;
+export type FollowerSort = (typeof SORTS)[number];
+export const SORT_LABEL: Record<FollowerSort, string> = { newest: "Newest first", oldest: "Longest following", active: "Most active", name: "By name" };
+
+export const followerRowSchema = z.object({
+  user: z.object({ id: z.coerce.number(), full_name: z.string(), username: z.string().nullish(), avatar: z.any().nullish() }),
+  org: z.string().nullish(),
+  interests: z.array(z.string()).default([]),
+  followed_at: z.string().nullish(),
+  source: z.string().nullish(),
+  registrations: z.number(),
+  attended: z.number(),
+  last_registered_at: z.string().nullish(),
+  upcoming: z.number(),
+  segments: z.array(z.string()).default([]),
+});
+export type FollowerRow = z.infer<typeof followerRowSchema>;
+
+export const followersListSchema = z.object({ items: z.array(followerRowSchema), total: z.number(), limit: z.number(), offset: z.number(), counts: z.record(z.number()) });
+export type FollowersList = z.infer<typeof followersListSchema>;
+
+const named = z.object({ name: z.string(), count: z.number() });
+export const followersInsightsSchema = z.object({
+  total: z.number(),
+  new: z.number(),
+  new_delta: z.number().nullish(),
+  came: z.number(),
+  regulars: z.number(),
+  registered_ahead: z.number(),
+  quiet: z.number(),
+  next_event: z.object({ id: z.number(), name: z.string() }).nullish(),
+  growth: z.array(z.object({ month: z.string(), joined: z.number(), total: z.number() })),
+  by_org: z.array(named),
+  interests: z.array(named),
+  sources: z.array(named),
+  segments: z.record(z.number()),
+  generated_at: z.string(),
+});
+export type FollowersInsights = z.infer<typeof followersInsightsSchema>;

@@ -3,7 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { staleTimes } from "@moa/app-kit";
 
-import { fetchClubFollowers, fetchFollowerProfile } from "./api";
+import { keepPreviousData } from "@tanstack/react-query";
+
+import { fetchClubFollowers, fetchFollowerProfile, fetchFollowersInsights, fetchFollowersList, type FollowersQuery } from "./api";
 
 export function useClubFollowers(
   clubId: number | null | undefined,
@@ -25,4 +27,12 @@ export function useFollowerProfile(clubId: number | null | undefined, userId: nu
     queryFn: () => fetchFollowerProfile(clubId as number, userId),
     enabled: !!clubId && userId > 0,
   });
+}
+
+export function useFollowersList(q: FollowersQuery) {
+  return useQuery({ queryKey: ["followers", "list", q], queryFn: () => fetchFollowersList(q), staleTime: 30_000, placeholderData: keepPreviousData });
+}
+
+export function useFollowersInsights() {
+  return useQuery({ queryKey: ["followers", "insights"], queryFn: fetchFollowersInsights, staleTime: 60_000 });
 }
