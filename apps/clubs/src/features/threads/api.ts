@@ -1,6 +1,6 @@
 import { api } from "@moa/app-kit";
 
-import { commentSchema, threadPageSchema, threadSchema, type ComposeInput } from "./schemas";
+import { commentSchema, threadInsightsSchema, threadPageSchema, threadSchema, threadsPageSchema, type ComposeInput, type ThreadScope, type ThreadSort } from "./schemas";
 import { z } from "zod";
 
 const BASE = "/api/v1/clubs/threads";
@@ -46,4 +46,12 @@ export async function deleteComment(id: string, commentId: string) {
 export async function replyAsClub(id: string, body: string) {
   const raw = await api.post<unknown>(`${BASE}/${id}/comments`, { body });
   return commentSchema.parse(raw);
+}
+
+export async function fetchThreadsPage(params: { scope: ThreadScope; sort: ThreadSort; offset: number; limit: number }) {
+  return threadsPageSchema.parse(await api.get<unknown>(`${BASE}/page`, { query: params }));
+}
+
+export async function fetchThreadInsights() {
+  return threadInsightsSchema.parse(await api.get<unknown>(`${BASE}/insights`));
 }
