@@ -1,4 +1,5 @@
 import {
+  GlobeIcon,
   BellIcon,
   BuildingIcon,
   CalendarDaysIcon,
@@ -50,6 +51,7 @@ export const navItems: NavItem[] = [
   { href: "/announcements", label: "Announcements", icon: BellIcon },
   { href: "/emails", label: "Emails", icon: MailIcon },
   { href: "/links", label: "Tracking links", icon: LinkIcon, group: "grow" },
+  { href: "/website", label: "Website", icon: GlobeIcon, group: "grow" },
   { href: "/templates", label: "Templates", icon: PaletteIcon, group: "grow" },
   { href: "/finance", label: "Finance", icon: WalletIcon, group: "manage" },
   { href: "/security", label: "Security", icon: ShieldCheckIcon, group: "manage" },
