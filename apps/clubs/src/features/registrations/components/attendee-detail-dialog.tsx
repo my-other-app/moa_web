@@ -2,7 +2,17 @@
 
 import * as React from "react";
 import { formatDateTime } from "@moa/app-kit";
-import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Skeleton, StatusBadge, toast } from "@moa/ui";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  Skeleton,
+  StatusBadge,
+  toast,
+} from "@moa/ui";
 
 import { type DeliveryBrief, verdictOf } from "@/features/deliveries";
 
@@ -10,11 +20,25 @@ import { useRegistration } from "../queries";
 import type { EventField, RegistrationDetail } from "../schemas";
 
 /** A value shown in full, with a copy button -- names and addresses are cut short in the list, never here. */
-function Copyable({ value, mono }: { value: string | null | undefined; mono?: boolean }) {
+function Copyable({
+  value,
+  mono,
+}: {
+  value: string | null | undefined;
+  mono?: boolean;
+}) {
   if (!value) return <span className="text-muted-foreground">—</span>;
   return (
     <span className="flex items-start gap-2">
-      <span className={mono ? "min-w-0 flex-1 font-mono text-xs break-all" : "min-w-0 flex-1 break-words"}>{value}</span>
+      <span
+        className={
+          mono
+            ? "min-w-0 flex-1 font-mono text-xs break-all"
+            : "min-w-0 flex-1 break-words"
+        }
+      >
+        {value}
+      </span>
       <button
         type="button"
         onClick={() => {
@@ -35,7 +59,9 @@ function Rows({ rows }: { rows: { k: string; v: React.ReactNode }[] }) {
     <dl className="m-0">
       {rows.map((r) => (
         <div key={r.k} className="flex gap-3 border-t py-1.5 first:border-t-0">
-          <dt className="text-muted-foreground w-24 shrink-0 font-mono text-[11px] uppercase tracking-[0.05em] leading-relaxed">{r.k}</dt>
+          <dt className="text-muted-foreground w-24 shrink-0 font-mono text-[11px] uppercase tracking-[0.05em] leading-relaxed">
+            {r.k}
+          </dt>
           <dd className="m-0 min-w-0 flex-1 text-sm">{r.v}</dd>
         </div>
       ))}
@@ -43,10 +69,18 @@ function Rows({ rows }: { rows: { k: string; v: React.ReactNode }[] }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="bg-muted/40 rounded-md border px-3.5 py-3">
-      <h3 className="text-muted-foreground mb-2 font-mono text-[10px] uppercase tracking-[0.08em]">{title}</h3>
+      <h3 className="text-muted-foreground mb-2 font-mono text-[10px] uppercase tracking-[0.08em]">
+        {title}
+      </h3>
       {children}
     </section>
   );
@@ -56,8 +90,10 @@ const sendLine = (d: DeliveryBrief) => {
   const v = verdictOf(d);
   const when = d.sent_at ? ` · ${formatDateTime(d.sent_at)}` : "";
   const why = d.reason ?? d.error;
-  if (d.status === "sent" && !d.outcome) return `sent${when} — waiting to hear it arrived`;
-  if (d.status === "failed") return `failed after ${d.attempts} ${d.attempts === 1 ? "try" : "tries"}${why ? ` — ${why}` : ""}`;
+  if (d.status === "sent" && !d.outcome)
+    return `sent${when} — waiting to hear it arrived`;
+  if (d.status === "failed")
+    return `failed after ${d.attempts} ${d.attempts === 1 ? "try" : "tries"}${why ? ` — ${why}` : ""}`;
   if (d.status === "skipped") return `skipped — ${why ?? "no address"}`;
   return `${v.label.toLowerCase()}${when}${why && d.outcome && d.outcome !== "delivered" && d.outcome !== "read" ? ` — ${why}` : ""}`;
 };
@@ -94,7 +130,11 @@ export function AttendeeDetailDialog({
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{a?.full_name ?? a?.name ?? "Guest"}</DialogTitle>
-          <DialogDescription>{a ? `On the list since ${formatDateTime(a.created_at)}` : "Loading…"}</DialogDescription>
+          <DialogDescription>
+            {a
+              ? `On the list since ${formatDateTime(a.created_at)}`
+              : "Loading…"}
+          </DialogDescription>
         </DialogHeader>
         {!a ? (
           <div className="space-y-2">
@@ -105,9 +145,23 @@ export function AttendeeDetailDialog({
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-1.5">
-              <StatusBadge tone="default" label={a.role.charAt(0).toUpperCase() + a.role.slice(1)} />
-              {a.is_attended ? <StatusBadge tone="success" label="Checked in" /> : <StatusBadge tone="default" label="Not yet in" />}
-              {a.ticket_revoked_at ? <StatusBadge tone="destructive" label="Ticket revoked" /> : <StatusBadge tone="info" label={`Ticket ${a.ticket_id ?? ""}`} />}
+              <StatusBadge
+                tone="default"
+                label={a.role.charAt(0).toUpperCase() + a.role.slice(1)}
+              />
+              {a.is_attended ? (
+                <StatusBadge tone="success" label="Checked in" />
+              ) : (
+                <StatusBadge tone="default" label="Not yet in" />
+              )}
+              {a.ticket_revoked_at ? (
+                <StatusBadge tone="destructive" label="Ticket revoked" />
+              ) : (
+                <StatusBadge
+                  tone="info"
+                  label={`Ticket ${a.ticket_id ?? ""}`}
+                />
+              )}
               {a.certificate_revoked_at ? (
                 <StatusBadge tone="destructive" label="Certificate revoked" />
               ) : a.certificate_issued_at ? (
@@ -121,7 +175,12 @@ export function AttendeeDetailDialog({
                   { k: "Name", v: <Copyable value={a.full_name ?? a.name} /> },
                   { k: "Email", v: <Copyable value={a.email} mono /> },
                   { k: "Phone", v: <Copyable value={a.phone} mono /> },
-                  { k: "Institution", v: a.institution ?? <span className="text-muted-foreground">—</span> },
+                  {
+                    k: "Institution",
+                    v: a.institution ?? (
+                      <span className="text-muted-foreground">—</span>
+                    ),
+                  },
                 ]}
               />
             </Section>
@@ -132,7 +191,13 @@ export function AttendeeDetailDialog({
                   rows={[
                     ...fields.map((f) => ({
                       k: f.label ?? f.key,
-                      v: answers[f.key] ? String(answers[f.key]) : <span className="text-muted-foreground">not answered</span>,
+                      v: answers[f.key] ? (
+                        String(answers[f.key])
+                      ) : (
+                        <span className="text-muted-foreground">
+                          not answered
+                        </span>
+                      ),
                     })),
                     ...Object.entries(answers)
                       .filter(([k]) => !fields.some((f) => f.key === k))
@@ -146,20 +211,37 @@ export function AttendeeDetailDialog({
               <Rows
                 rows={[
                   { k: "Ticket", v: <Copyable value={a.ticket_id} mono /> },
-                  { k: "Status", v: a.ticket_revoked_at ? `Revoked ${formatDateTime(a.ticket_revoked_at)} — check-in refuses it` : "Issued" },
+                  {
+                    k: "Status",
+                    v: a.ticket_revoked_at
+                      ? `Revoked ${formatDateTime(a.ticket_revoked_at)} — check-in refuses it`
+                      : "Issued",
+                  },
                   {
                     k: "Sent",
                     v: ticketSends.length ? (
                       <span className="flex flex-col gap-1">
                         {ticketSends.map((d) => (
-                          <span key={d.channel} className="flex flex-wrap items-center gap-1.5">
-                            <StatusBadge tone={verdictOf(d).tone} label={d.channel === "email" ? "Email" : d.channel} />
-                            <span className="text-muted-foreground text-xs">{sendLine(d)}</span>
+                          <span
+                            key={d.channel}
+                            className="flex flex-wrap items-center gap-1.5"
+                          >
+                            <StatusBadge
+                              tone={verdictOf(d).tone}
+                              label={
+                                d.channel === "email" ? "Email" : d.channel
+                              }
+                            />
+                            <span className="text-muted-foreground text-xs">
+                              {sendLine(d)}
+                            </span>
                           </span>
                         ))}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground">not sent yet</span>
+                      <span className="text-muted-foreground">
+                        not sent yet
+                      </span>
                     ),
                   },
                 ]}
@@ -184,9 +266,19 @@ export function AttendeeDetailDialog({
                     v: certSends.length ? (
                       <span className="flex flex-col gap-1">
                         {certSends.map((d) => (
-                          <span key={d.channel} className="flex flex-wrap items-center gap-1.5">
-                            <StatusBadge tone={verdictOf(d).tone} label={d.channel === "email" ? "Email" : d.channel} />
-                            <span className="text-muted-foreground text-xs">{sendLine(d)}</span>
+                          <span
+                            key={d.channel}
+                            className="flex flex-wrap items-center gap-1.5"
+                          >
+                            <StatusBadge
+                              tone={verdictOf(d).tone}
+                              label={
+                                d.channel === "email" ? "Email" : d.channel
+                              }
+                            />
+                            <span className="text-muted-foreground text-xs">
+                              {sendLine(d)}
+                            </span>
                           </span>
                         ))}
                       </span>
@@ -201,9 +293,19 @@ export function AttendeeDetailDialog({
             <Section title="At the event">
               <Rows
                 rows={[
-                  { k: "Check-in", v: a.is_attended ? (a.attended_on ? formatDateTime(a.attended_on) : "Checked in") : "Not checked in" },
+                  {
+                    k: "Check-in",
+                    v: a.is_attended
+                      ? a.attended_on
+                        ? formatDateTime(a.attended_on)
+                        : "Checked in"
+                      : "Not checked in",
+                  },
                   { k: "Registered", v: formatDateTime(a.created_at) },
-                  { k: "Updated", v: a.updated_at ? formatDateTime(a.updated_at) : "—" },
+                  {
+                    k: "Updated",
+                    v: a.updated_at ? formatDateTime(a.updated_at) : "—",
+                  },
                 ]}
               />
             </Section>
@@ -213,7 +315,12 @@ export function AttendeeDetailDialog({
                 Correct details
               </Button>
               <span className="flex-1" />
-              <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => onRemove(a)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => onRemove(a)}
+              >
                 Remove from the list
               </Button>
             </div>

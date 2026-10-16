@@ -34,9 +34,16 @@ export function SendTemplateDialog({
   onSent?: () => void;
 }) {
   const send = useSendTemplate(eventId);
-  const count = useAudienceCount(eventId, template?.audience ?? { who: "ALL", roles: [] }, open && template !== null);
+  const count = useAudienceCount(
+    eventId,
+    template?.audience ?? { who: "ALL", roles: [] },
+    open && template !== null,
+  );
   const n = count.data?.recipients;
-  const files = [template?.attachments.ticketPdf ? "the ticket" : null, template?.attachments.certificatePdf ? "the certificate" : null].filter(Boolean);
+  const files = [
+    template?.attachments.ticketPdf ? "the ticket" : null,
+    template?.attachments.certificatePdf ? "the certificate" : null,
+  ].filter(Boolean);
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -44,9 +51,14 @@ export function SendTemplateDialog({
           <AlertDialogTitle>Send “{template?.name}” now?</AlertDialogTitle>
           <AlertDialogDescription>
             {template ? audienceSummary(template.audience) : ""}
-            {n === undefined ? " — counting…" : ` — ${n} ${n === 1 ? "guest" : "guests"} with an email address`}
-            {count.data?.withoutEmail ? `, ${count.data.withoutEmail} without one` : ""}.
-            {files.length ? ` Each email carries ${files.join(" and ")}.` : ""} Guests are emailed one by one; the message shows how it went.
+            {n === undefined
+              ? " — counting…"
+              : ` — ${n} ${n === 1 ? "guest" : "guests"} with an email address`}
+            {count.data?.withoutEmail
+              ? `, ${count.data.withoutEmail} without one`
+              : ""}
+            .{files.length ? ` Each email carries ${files.join(" and ")}.` : ""}{" "}
+            Guests are emailed one by one; the message shows how it went.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -28,9 +28,18 @@ import {
 } from "@moa/ui";
 
 import { useAddAttendee, useUpdateRegistration } from "../queries";
-import { REGISTRATION_ROLES, type EventField, type RegistrationDetail, type RegistrationRole } from "../schemas";
+import {
+  REGISTRATION_ROLES,
+  type EventField,
+  type RegistrationDetail,
+  type RegistrationRole,
+} from "../schemas";
 
-const ROLE_LABELS: Record<RegistrationRole, string> = { attendee: "Attendee", speaker: "Speaker", staff: "Staff" };
+const ROLE_LABELS: Record<RegistrationRole, string> = {
+  attendee: "Attendee",
+  speaker: "Speaker",
+  staff: "Staff",
+};
 
 const valuesSchema = z.object({
   full_name: z.string().trim().min(1, "A name is needed.").max(100),
@@ -62,13 +71,34 @@ export function AttendeeFormDialog({
   const add = useAddAttendee(eventId);
   const update = useUpdateRegistration(eventId);
   const answersOf = (r: RegistrationDetail | null) =>
-    Object.fromEntries(fields.map((f) => [f.key, String((r?.additional_details as Record<string, unknown> | null | undefined)?.[f.key] ?? "")]));
+    Object.fromEntries(
+      fields.map((f) => [
+        f.key,
+        String(
+          (
+            r?.additional_details as Record<string, unknown> | null | undefined
+          )?.[f.key] ?? "",
+        ),
+      ]),
+    );
   const form = useForm<Values>({
     resolver: zodResolver(valuesSchema),
     mode: "onBlur",
     defaultValues: existing
-      ? { full_name: existing.full_name ?? "", email: existing.email ?? "", phone: existing.phone ?? "", role: existing.role, answers: answersOf(existing) }
-      : { full_name: "", email: "", phone: "", role: "attendee", answers: answersOf(null) },
+      ? {
+          full_name: existing.full_name ?? "",
+          email: existing.email ?? "",
+          phone: existing.phone ?? "",
+          role: existing.role,
+          answers: answersOf(existing),
+        }
+      : {
+          full_name: "",
+          email: "",
+          phone: "",
+          role: "attendee",
+          answers: answersOf(null),
+        },
   });
   const busy = add.isPending || update.isPending;
 
@@ -80,18 +110,38 @@ export function AttendeeFormDialog({
         return;
       }
     }
-    const answers = Object.fromEntries(Object.entries(v.answers).filter(([, value]) => value.trim() !== ""));
+    const answers = Object.fromEntries(
+      Object.entries(v.answers).filter(([, value]) => value.trim() !== ""),
+    );
     const done = () => {
       onOpenChange(false);
       form.reset();
     };
     if (existing) {
       update.mutate(
-        { registrationId: existing.id, patch: { full_name: v.full_name, email: v.email, phone: v.phone || null, role: v.role, additional_details: answers } },
-        { onSuccess: done }
+        {
+          registrationId: existing.id,
+          patch: {
+            full_name: v.full_name,
+            email: v.email,
+            phone: v.phone || null,
+            role: v.role,
+            additional_details: answers,
+          },
+        },
+        { onSuccess: done },
       );
     } else {
-      add.mutate({ full_name: v.full_name, email: v.email, phone: v.phone || null, role: v.role, additional_details: answers }, { onSuccess: done });
+      add.mutate(
+        {
+          full_name: v.full_name,
+          email: v.email,
+          phone: v.phone || null,
+          role: v.role,
+          additional_details: answers,
+        },
+        { onSuccess: done },
+      );
     }
   });
 
@@ -99,7 +149,11 @@ export function AttendeeFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{existing ? `Correct ${existing.full_name ?? "this guest"}` : "Add a guest"}</DialogTitle>
+          <DialogTitle>
+            {existing
+              ? `Correct ${existing.full_name ?? "this guest"}`
+              : "Add a guest"}
+          </DialogTitle>
           <DialogDescription>
             {existing
               ? "Name, contact, role and answers. Their account is left alone — this is the registration."
@@ -129,7 +183,11 @@ export function AttendeeFormDialog({
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="ananya@example.com" {...field} />
+                      <Input
+                        type="email"
+                        placeholder="ananya@example.com"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -184,10 +242,18 @@ export function AttendeeFormDialog({
                       <FormItem>
                         <FormLabel>
                           {f.label ?? f.key}
-                          {f.required === false ? <span className="text-muted-foreground"> — optional</span> : null}
+                          {f.required === false ? (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              — optional
+                            </span>
+                          ) : null}
                         </FormLabel>
                         {f.options?.length ? (
-                          <Select value={field.value || ""} onValueChange={field.onChange}>
+                          <Select
+                            value={field.value || ""}
+                            onValueChange={field.onChange}
+                          >
                             <FormControl>
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Choose" />
@@ -214,7 +280,11 @@ export function AttendeeFormDialog({
               </div>
             ) : null}
             <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={busy}>

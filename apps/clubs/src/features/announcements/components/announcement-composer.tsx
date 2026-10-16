@@ -92,13 +92,16 @@ export function AnnouncementComposer({
         >
           <span>
             {tooShort ? (
-              <span className="text-destructive">Write at least 5 characters</span>
+              <span className="text-destructive">
+                Write at least 5 characters
+              </span>
             ) : (
               `Sent as a notification titled “${eventName}”`
             )}
           </span>
           <span className="tabular-nums">
-            {trimmed.length.toLocaleString("en-IN")} / {MAX_BODY.toLocaleString("en-IN")}
+            {trimmed.length.toLocaleString("en-IN")} /{" "}
+            {MAX_BODY.toLocaleString("en-IN")}
           </span>
         </p>
       </div>
@@ -110,12 +113,11 @@ export function AnnouncementComposer({
           size="lg"
           disabled={!canSend}
           onClick={() => setConfirmOpen(true)}
-          className={cn(
-            "w-full sm:w-auto",
-            pressable
-          )}
+          className={cn("w-full sm:w-auto", pressable)}
         >
-          {send.isPending ? <Loader2Icon className="size-5 animate-spin" /> : null}
+          {send.isPending ? (
+            <Loader2Icon className="size-5 animate-spin" />
+          ) : null}
           {send.isPending ? "Sending…" : "Send Message"}
         </Button>
       </div>
@@ -131,15 +133,19 @@ export function AnnouncementComposer({
               ?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              It arrives as a phone notification titled “{eventName}” and cannot be
-              recalled.
+              It arrives as a phone notification titled “{eventName}” and cannot
+              be recalled.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <p className="bg-muted rounded-md p-3 text-sm whitespace-pre-wrap">{trimmed}</p>
+          <p className="bg-muted rounded-md p-3 text-sm whitespace-pre-wrap">
+            {trimmed}
+          </p>
 
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={send.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={send.isPending}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               className={cn(buttonVariants())}
               disabled={send.isPending}

@@ -44,7 +44,9 @@ function Figure({
   return (
     <div className="bg-muted/50 rounded-xl p-4">
       <p className="text-muted-foreground text-xs font-medium">{label}</p>
-      <p className="mt-1.5 text-2xl leading-none font-semibold tabular-nums">{value}</p>
+      <p className="mt-1.5 text-2xl leading-none font-semibold tabular-nums">
+        {value}
+      </p>
       {caption ? (
         <p className="text-muted-foreground mt-1 text-xs">{caption}</p>
       ) : null}
@@ -91,7 +93,9 @@ export function EventInsightsPanel({ eventId }: { eventId: number }) {
             label="Revenue"
             value={formatCurrency(data.total_revenue)}
             caption={
-              payment ? `${formatNumber(payment.paid)} paid registrations` : undefined
+              payment
+                ? `${formatNumber(payment.paid)} paid registrations`
+                : undefined
             }
           />
           <Figure
@@ -100,7 +104,7 @@ export function EventInsightsPanel({ eventId }: { eventId: number }) {
             caption={
               attendance
                 ? `${formatNumber(attendance.attended)} of ${formatNumber(
-                    attendance.attended + attendance.absent
+                    attendance.attended + attendance.absent,
                   )} checked in`
                 : undefined
             }
@@ -115,10 +119,17 @@ export function EventInsightsPanel({ eventId }: { eventId: number }) {
         <div className="grid gap-6 md:grid-cols-2">
           {payment && payment.paid + payment.unpaid > 0 ? (
             <div className="space-y-2">
-              <p className="text-muted-foreground text-xs font-medium">Payment</p>
+              <p className="text-muted-foreground text-xs font-medium">
+                Payment
+              </p>
               <DistributionBar
                 segments={[
-                  { key: "paid", label: "Paid", value: payment.paid, tone: "success" },
+                  {
+                    key: "paid",
+                    label: "Paid",
+                    value: payment.paid,
+                    tone: "success",
+                  },
                   {
                     key: "unpaid",
                     label: "Unpaid",
@@ -132,7 +143,9 @@ export function EventInsightsPanel({ eventId }: { eventId: number }) {
 
           {attendance && attendance.attended + attendance.absent > 0 ? (
             <div className="space-y-2">
-              <p className="text-muted-foreground text-xs font-medium">Attendance</p>
+              <p className="text-muted-foreground text-xs font-medium">
+                Attendance
+              </p>
               <DistributionBar
                 segments={[
                   {
@@ -181,7 +194,7 @@ export function EventInsightsPanel({ eventId }: { eventId: number }) {
               Where they came from
               {data.total_institutions > data.top_institutions.length
                 ? ` · top ${data.top_institutions.length} of ${formatNumber(
-                    data.total_institutions
+                    data.total_institutions,
                   )}`
                 : ""}
             </p>
@@ -191,7 +204,7 @@ export function EventInsightsPanel({ eventId }: { eventId: number }) {
                   key={institution.name}
                   style={stagger(i)}
                   className={cn(
-                    "animate-in fade-in-0 slide-in-from-bottom-1 bg-muted/40 flex items-center gap-3 rounded-xl p-3 duration-300 motion-reduce:animate-none"
+                    "animate-in fade-in-0 slide-in-from-bottom-1 bg-muted/40 flex items-center gap-3 rounded-xl p-3 duration-300 motion-reduce:animate-none",
                   )}
                 >
                   <span className="bg-background text-muted-foreground grid size-6 shrink-0 place-items-center rounded-md text-xs font-semibold tabular-nums">

@@ -64,11 +64,11 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
         <OutcomeCard card={card.model} onDismiss={() => setCard(null)}>
           <div className="flex flex-col gap-2 border-t border-current/20 px-4 py-3">
             {card.sameName ? (
-              <Button type="button" className="h-12 w-full" onClick={() => (setCard(null), void submit(undefined, true))}>
+              <Button size="lg" type="button" className="w-full" onClick={() => (setCard(null), void submit(undefined, true))}>
                 A different person — register them
               </Button>
             ) : null}
-            <Button type="button" variant="outline" className="h-12 w-full" onClick={() => setCard(null)}>
+            <Button size="lg" type="button" variant="outline" className="w-full" onClick={() => setCard(null)}>
               {card.sameName ? "Back — I’ll check the list" : "Next walk-up"}
             </Button>
           </div>
@@ -130,7 +130,7 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
             </div>
           ))}
           {ctx.has_store && catalog.data?.enabled ? <ShelfPicker catalog={catalog.data} picks={picks} onChange={setPicks} /> : null}
-          <Button type="submit" className="mt-1 h-12 w-full">
+          <Button type="submit" className="mt-1 w-full" size="lg">
             Register and check in
           </Button>
           <p className="text-[11.5px] leading-[1.5] text-muted-foreground">Anyone already on the list is caught and pointed at Find instead of making a second record.</p>

@@ -167,8 +167,8 @@ describe("event screen", () => {
 describe("attendees tab", () => {
   it("renders the guest list with its filters, the delivery bar and the import", async () => {
     render(<RegistrationsPanel eventId={37} />);
-    expect(await screen.findByRole("button", { name: "CHECKED IN" })).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "NOT DELIVERED" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Checked in" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Not delivered" })).toBeInTheDocument();
     expect(await screen.findByText("NEX25AA001")).toBeInTheDocument();
     expect(await screen.findByText("Test Participant One")).toBeInTheDocument();
     expect(await screen.findByText("Tickets by email")).toBeInTheDocument();

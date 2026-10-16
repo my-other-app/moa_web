@@ -46,9 +46,19 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
     <div className={cn(enter, "space-y-8")}>
       <EventStatCards event={event} />
       <EventOverviewTab eventId={eventId} event={event} />
-      {event ? <AnnouncementComposer eventId={eventId} eventName={event.name} recipientCount={registered} /> : null}
+      {event ? (
+        <AnnouncementComposer
+          eventId={eventId}
+          eventName={event.name}
+          recipientCount={registered}
+        />
+      ) : null}
       <EventInsightsPanel eventId={eventId} />
-      <EventReviewsPanel eventId={eventId} rating={event?.rating} totalRatings={event?.total_rating} />
+      <EventReviewsPanel
+        eventId={eventId}
+        rating={event?.rating}
+        totalRatings={event?.total_rating}
+      />
     </div>
   );
 }

@@ -321,7 +321,7 @@ export function SubscribersTab() {
                         {row.status === "past_due" && canMoney && row.razorpay_subscription_id ? (
                           <button
                             type="button"
-                            className="btn btn-secondary px-2.5 py-1 text-[12.5px] whitespace-nowrap"
+                            className="btn btn-secondary btn-sm"
                             disabled={retry.isPending}
                             onClick={() => retry.mutate(row.id)}
                           >

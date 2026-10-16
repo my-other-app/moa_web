@@ -69,7 +69,7 @@ function SessionsPanel({ s }: { s: SecurityOverview }) {
                 {!x.current && (
                   <button
                     type="button"
-                    className={cn("btn btn-ghost h-8 px-2 text-[12.5px]", asking ? "text-refuse" : "text-brand")}
+                    className={cn("btn btn-ghost btn-sm", asking ? "text-refuse" : "text-brand")}
                     onClick={() => {
                       if (asking) {
                         revoke.mutate(x.id);
@@ -123,7 +123,7 @@ function PasswordCard() {
           </div>
         ))}
         <div>
-          <button type="submit" className="btn btn-secondary h-9" disabled={busy}>
+          <button type="submit" className="btn btn-secondary" disabled={busy}>
             {busy ? <Loader2Icon className="size-4 animate-spin" /> : <KeyRoundIcon className="size-4" />} Update password
           </button>
         </div>
@@ -178,10 +178,10 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
             ))}
           </ul>
           <div className="mt-2 flex gap-2">
-            <button type="button" className="btn btn-secondary h-8 text-[12.5px]" onClick={() => copy(codes.join("\n"))}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(codes.join("\n"))}>
               <CopyIcon className="size-3.5" /> Copy all
             </button>
-            <button type="button" className="btn btn-ghost h-8 text-[12.5px]" onClick={() => setCodes(null)}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCodes(null)}>
               Done
             </button>
           </div>
@@ -191,7 +191,7 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
           <p className="text-ink-2 text-[12.5px]">Add this key to the authenticator app, then enter the code it shows.</p>
           <div className="bg-sunken flex items-center gap-2 rounded-xl px-3 py-2">
             <code className="text-ink flex-1 break-all text-[12.5px]">{setup.secret}</code>
-            <button type="button" className="btn btn-ghost h-7 px-2" aria-label="Copy the key" onClick={() => copy(setup.secret)}>
+            <button type="button" className="btn btn-ghost btn-xs" aria-label="Copy the key" onClick={() => copy(setup.secret)}>
               <CopyIcon className="size-3.5" />
             </button>
           </div>
@@ -200,10 +200,10 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
           </a>
           <div className="flex gap-2">
             <input aria-label="Authenticator code" className={cn(field, "w-[140px] font-mono tracking-[0.2em]")} inputMode="numeric" maxLength={8} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} />
-            <button type="button" className="btn btn-primary h-10" onClick={finish} disabled={enable.isPending || code.trim().length < 6}>
+            <button type="button" className="btn btn-primary btn-lg" onClick={finish} disabled={enable.isPending || code.trim().length < 6}>
               Turn on
             </button>
-            <button type="button" className="btn btn-ghost h-10" onClick={() => setSetup(null)}>
+            <button type="button" className="btn btn-ghost btn-lg" onClick={() => setSetup(null)}>
               Cancel
             </button>
           </div>
@@ -211,10 +211,10 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
       ) : turningOff ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <input aria-label="Authenticator code" className={cn(field, "w-[140px] font-mono tracking-[0.2em]")} inputMode="numeric" maxLength={8} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} />
-          <button type="button" className="btn btn-secondary text-refuse h-10" onClick={off} disabled={disable.isPending || code.trim().length < 6}>
+          <button type="button" className="btn btn-secondary btn-lg btn-danger" onClick={off} disabled={disable.isPending || code.trim().length < 6}>
             Turn off
           </button>
-          <button type="button" className="btn btn-ghost h-10" onClick={() => setTurningOff(false)}>
+          <button type="button" className="btn btn-ghost btn-lg" onClick={() => setTurningOff(false)}>
             Cancel
           </button>
         </div>
@@ -222,13 +222,13 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
         <div className="mt-3 flex items-center gap-3">
           {on ? (
             <>
-              <button type="button" className="btn btn-secondary h-9" onClick={() => setTurningOff(true)}>
+              <button type="button" className="btn btn-secondary" onClick={() => setTurningOff(true)}>
                 Turn off
               </button>
               <span className="text-ink-3 text-[12px]">{s.two_factor.recovery_codes_remaining} recovery codes left</span>
             </>
           ) : (
-            <button type="button" className="btn btn-secondary text-brand h-9" onClick={begin} disabled={start.isPending}>
+            <button type="button" className="btn btn-secondary text-brand" onClick={begin} disabled={start.isPending}>
               Turn on
             </button>
           )}
@@ -351,7 +351,7 @@ export function SecurityPage() {
         </div>
         <button
           type="button"
-          className={cn("btn h-9", confirmAll ? "btn-primary" : "btn-secondary")}
+          className={cn("btn btn-secondary", confirmAll ? "btn-primary" : "btn-secondary")}
           disabled={!s || otherCount === 0 || others.isPending}
           onClick={() => {
             if (confirmAll) {

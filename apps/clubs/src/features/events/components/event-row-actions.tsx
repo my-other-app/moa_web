@@ -87,7 +87,11 @@ export function EventRowActions({
             type="button"
             onClick={() => setConfirmOpen(true)}
             aria-label={`Delete ${event.name}`}
-            className={cn(ACTION, "hover:border-destructive/50 hover:text-destructive", pressable)}
+            className={cn(
+              ACTION,
+              "hover:border-destructive/50 hover:text-destructive",
+              pressable,
+            )}
           >
             <Icon name="trash-03" size={18} />
           </button>
@@ -108,7 +112,9 @@ export function EventRowActions({
         </TooltipTrigger>
         <TooltipContent>Duplicate</TooltipContent>
       </Tooltip>
-      {dupOpen ? <DuplicateDialog event={event} onClose={() => setDupOpen(false)} /> : null}
+      {dupOpen ? (
+        <DuplicateDialog event={event} onClose={() => setDupOpen(false)} />
+      ) : null}
 
       <Tooltip>
         <TooltipTrigger asChild>
@@ -133,10 +139,11 @@ export function EventRowActions({
                 <>
                   <strong>
                     {registered.toLocaleString("en-IN")}{" "}
-                    {registered === 1 ? "person has" : "people have"} already registered.
+                    {registered === 1 ? "person has" : "people have"} already
+                    registered.
                   </strong>{" "}
-                  They will lose access to this event and their tickets. This cannot be
-                  undone from here.
+                  They will lose access to this event and their tickets. This
+                  cannot be undone from here.
                 </>
               ) : (
                 "This removes the event from the app. It cannot be undone from here."

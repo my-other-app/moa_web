@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "@moa/ui";
+import { Chip, cn } from "@moa/ui";
 
 import { useAudienceCount } from "../queries";
 import {
@@ -15,7 +15,15 @@ import {
   type EmailToken,
   type EmailTrigger,
 } from "../schemas";
-import { ColorField, NumberField, Segmented, SelectField, TemplateField, Toggle, ui } from "./kit";
+import {
+  ColorField,
+  NumberField,
+  Segmented,
+  SelectField,
+  TemplateField,
+  Toggle,
+  ui,
+} from "./kit";
 
 interface TokenProps {
   tokens: EmailToken[];
@@ -35,7 +43,11 @@ export function ThemePanel({
   brandPrimary,
   tokens,
   samples,
-}: { theme: EmailTheme; onChange: (t: EmailTheme) => void; brandPrimary: string } & TokenProps) {
+}: {
+  theme: EmailTheme;
+  onChange: (t: EmailTheme) => void;
+  brandPrimary: string;
+} & TokenProps) {
   const patch = (p: Partial<EmailTheme>) => onChange({ ...theme, ...p });
   const custom = theme.accent !== "brand";
   return (
@@ -51,7 +63,10 @@ export function ThemePanel({
         ]}
         onChange={(font) => patch({ font })}
       />
-      <p className={ui.note}>Email clients draw with the fonts they have, so these are the families they all share.</p>
+      <p className={ui.note}>
+        Email clients draw with the fonts they have, so these are the families
+        they all share.
+      </p>
       <Segmented
         label="Accent"
         value={custom ? "custom" : "brand"}
@@ -59,19 +74,67 @@ export function ThemePanel({
           { value: "brand", label: "Ticket design's" },
           { value: "custom", label: "Pick one" },
         ]}
-        onChange={(v) => patch({ accent: v === "brand" ? "brand" : brandPrimary })}
+        onChange={(v) =>
+          patch({ accent: v === "brand" ? "brand" : brandPrimary })
+        }
       />
       <div className="grid grid-cols-2 gap-2">
-        {custom ? <ColorField id="t-accent" label="Accent colour" value={theme.accent} fallback={brandPrimary} onChange={(v) => patch({ accent: v ?? brandPrimary })} /> : null}
-        <ColorField id="t-accent-text" label="Text on accent" value={theme.accentText} fallback="#FFFFFF" onChange={(v) => patch({ accentText: v ?? "#FFFFFF" })} />
+        {custom ? (
+          <ColorField
+            id="t-accent"
+            label="Accent colour"
+            value={theme.accent}
+            fallback={brandPrimary}
+            onChange={(v) => patch({ accent: v ?? brandPrimary })}
+          />
+        ) : null}
+        <ColorField
+          id="t-accent-text"
+          label="Text on accent"
+          value={theme.accentText}
+          fallback="#FFFFFF"
+          onChange={(v) => patch({ accentText: v ?? "#FFFFFF" })}
+        />
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <ColorField id="t-bg" label="Page" value={theme.background} fallback="#F3F4F1" onChange={(v) => patch({ background: v ?? "#F3F4F1" })} />
-        <ColorField id="t-surface" label="Card" value={theme.surface} fallback="#FFFFFF" onChange={(v) => patch({ surface: v ?? "#FFFFFF" })} />
-        <ColorField id="t-text" label="Text" value={theme.text} fallback="#141614" onChange={(v) => patch({ text: v ?? "#141614" })} />
-        <ColorField id="t-muted" label="Quiet text" value={theme.muted} fallback="#6B716C" onChange={(v) => patch({ muted: v ?? "#6B716C" })} />
+        <ColorField
+          id="t-bg"
+          label="Page"
+          value={theme.background}
+          fallback="#F3F4F1"
+          onChange={(v) => patch({ background: v ?? "#F3F4F1" })}
+        />
+        <ColorField
+          id="t-surface"
+          label="Card"
+          value={theme.surface}
+          fallback="#FFFFFF"
+          onChange={(v) => patch({ surface: v ?? "#FFFFFF" })}
+        />
+        <ColorField
+          id="t-text"
+          label="Text"
+          value={theme.text}
+          fallback="#141614"
+          onChange={(v) => patch({ text: v ?? "#141614" })}
+        />
+        <ColorField
+          id="t-muted"
+          label="Quiet text"
+          value={theme.muted}
+          fallback="#6B716C"
+          onChange={(v) => patch({ muted: v ?? "#6B716C" })}
+        />
       </div>
-      <NumberField id="t-radius" label="Corner radius" value={theme.radius} min={0} max={32} suffix="px" onChange={(radius) => patch({ radius })} />
+      <NumberField
+        id="t-radius"
+        label="Corner radius"
+        value={theme.radius}
+        min={0}
+        max={32}
+        suffix="px"
+        onChange={(radius) => patch({ radius })}
+      />
       <Segmented
         label="Club logo at the top"
         value={theme.logo}
@@ -81,23 +144,65 @@ export function ThemePanel({
         ]}
         onChange={(logo) => patch({ logo })}
       />
-      <TemplateField id="t-footer" label="Footer" value={theme.footer} rows={2} onChange={(footer) => patch({ footer })} tokens={tokens} samples={samples} />
+      <TemplateField
+        id="t-footer"
+        label="Footer"
+        value={theme.footer}
+        rows={2}
+        onChange={(footer) => patch({ footer })}
+        tokens={tokens}
+        samples={samples}
+      />
     </div>
   );
 }
 
-const unitOf = (minutes: number) => (minutes % 1440 === 0 ? "days" : minutes % 60 === 0 ? "hours" : "minutes");
-const PER: Record<"minutes" | "hours" | "days", number> = { minutes: 1, hours: 60, days: 1440 };
+const unitOf = (minutes: number) =>
+  minutes % 1440 === 0 ? "days" : minutes % 60 === 0 ? "hours" : "minutes";
+const PER: Record<"minutes" | "hours" | "days", number> = {
+  minutes: 1,
+  hours: 60,
+  days: 1440,
+};
 
-function TriggerFields({ trigger, onChange, stage }: { trigger: EmailTrigger; onChange: (t: EmailTrigger) => void; stage: EmailStage }) {
+function TriggerFields({
+  trigger,
+  onChange,
+  stage,
+}: {
+  trigger: EmailTrigger;
+  onChange: (t: EmailTrigger) => void;
+  stage: EmailStage;
+}) {
   const timed = trigger.mode === "BEFORE_START" || trigger.mode === "AFTER_END";
   const minutes = trigger.minutes ?? 60;
-  const [unit, setUnit] = React.useState<"minutes" | "hours" | "days">(unitOf(minutes));
-  const modes = TRIGGER_MODES.filter((m) => m.value !== "ON_TICKETS" || stage === "INVITE");
+  const [unit, setUnit] = React.useState<"minutes" | "hours" | "days">(
+    unitOf(minutes),
+  );
+  const modes = TRIGGER_MODES.filter(
+    (m) => m.value !== "ON_TICKETS" || stage === "INVITE",
+  );
   return (
     <div className="space-y-2">
-      <SelectField id="tr-mode" label="When it goes out" value={trigger.mode} options={modes} onChange={(mode) => onChange({ ...trigger, mode, minutes: mode === "BEFORE_START" || mode === "AFTER_END" ? (trigger.minutes ?? 60) : null })} />
-      <p className={ui.note}>{modes.find((m) => m.value === trigger.mode)?.note}</p>
+      <SelectField
+        id="tr-mode"
+        label="When it goes out"
+        value={trigger.mode}
+        options={modes}
+        onChange={(mode) =>
+          onChange({
+            ...trigger,
+            mode,
+            minutes:
+              mode === "BEFORE_START" || mode === "AFTER_END"
+                ? (trigger.minutes ?? 60)
+                : null,
+          })
+        }
+      />
+      <p className={ui.note}>
+        {modes.find((m) => m.value === trigger.mode)?.note}
+      </p>
       {timed ? (
         <div className="grid grid-cols-2 gap-2">
           <NumberField
@@ -119,7 +224,10 @@ function TriggerFields({ trigger, onChange, stage }: { trigger: EmailTrigger; on
             ]}
             onChange={(u) => {
               setUnit(u);
-              onChange({ ...trigger, minutes: Math.max(1, Math.round(minutes / PER[unit])) * PER[u] });
+              onChange({
+                ...trigger,
+                minutes: Math.max(1, Math.round(minutes / PER[unit])) * PER[u],
+              });
             }}
           />
         </div>
@@ -141,22 +249,32 @@ export function AudienceFields({
   const count = useAudienceCount(eventId ?? 0, audience, eventId !== undefined);
   return (
     <div className="space-y-2">
-      <Segmented label="Who" value={audience.who} options={AUDIENCE_WHO.map((w) => ({ value: w.value, label: w.label }))} onChange={(who) => onChange({ ...audience, who })} />
+      <Segmented
+        label="Who"
+        value={audience.who}
+        options={AUDIENCE_WHO.map((w) => ({ value: w.value, label: w.label }))}
+        onChange={(who) => onChange({ ...audience, who })}
+      />
       <div>
         <span className={ui.label}>Roles (none = all)</span>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Roles">
           {ROLES.map((r) => {
             const on = audience.roles.includes(r.value);
             return (
-              <button
+              <Chip
                 key={r.value}
-                type="button"
-                aria-pressed={on}
-                onClick={() => onChange({ ...audience, roles: on ? audience.roles.filter((x) => x !== r.value) : [...audience.roles, r.value] })}
-                className={cn("rounded-full border px-2.5 py-1 text-[12px] transition-colors", on ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted")}
+                active={on}
+                onClick={() =>
+                  onChange({
+                    ...audience,
+                    roles: on
+                      ? audience.roles.filter((x) => x !== r.value)
+                      : [...audience.roles, r.value],
+                  })
+                }
               >
                 {r.label}
-              </button>
+              </Chip>
             );
           })}
         </div>
@@ -180,32 +298,80 @@ export function SendingPanel({
   stage,
   tokens,
   samples,
-}: { fields: EmailTemplateFields; onChange: (f: EmailTemplateFields) => void; scope: EmailScope; stage: EmailStage } & TokenProps) {
-  const patch = (p: Partial<EmailTemplateFields>) => onChange({ ...fields, ...p });
+}: {
+  fields: EmailTemplateFields;
+  onChange: (f: EmailTemplateFields) => void;
+  scope: EmailScope;
+  stage: EmailStage;
+} & TokenProps) {
+  const patch = (p: Partial<EmailTemplateFields>) =>
+    onChange({ ...fields, ...p });
   return (
     <div className="space-y-3">
       <div className="min-w-0">
         <label htmlFor="f-name" className={ui.label}>
           Name (only you see it)
         </label>
-        <input id="f-name" value={fields.name} maxLength={80} onChange={(e) => patch({ name: e.target.value })} className={cn(ui.control, ui.input)} />
+        <input
+          id="f-name"
+          value={fields.name}
+          maxLength={80}
+          onChange={(e) => patch({ name: e.target.value })}
+          className={cn(ui.control, ui.input)}
+        />
       </div>
-      <TemplateField id="f-subject" label="Subject" value={fields.subject} single onChange={(subject) => patch({ subject })} tokens={tokens} samples={samples} />
+      <TemplateField
+        id="f-subject"
+        label="Subject"
+        value={fields.subject}
+        single
+        onChange={(subject) => patch({ subject })}
+        tokens={tokens}
+        samples={samples}
+      />
       <div className="space-y-2 border-t pt-3">
         <p className={ui.heading}>Audience</p>
-        <AudienceFields audience={fields.audience} onChange={(audience) => patch({ audience })} eventId={scope.kind === "event" ? scope.eventId : undefined} />
+        <AudienceFields
+          audience={fields.audience}
+          onChange={(audience) => patch({ audience })}
+          eventId={scope.kind === "event" ? scope.eventId : undefined}
+        />
       </div>
       <div className="space-y-2 border-t pt-3">
         <p className={ui.heading}>Attached files</p>
-        <Toggle id="f-ticket" label="The guest's ticket PDF" checked={fields.attachments.ticketPdf} onChange={(ticketPdf) => patch({ attachments: { ...fields.attachments, ticketPdf } })} note="Skipped for a revoked ticket." />
-        <Toggle id="f-cert" label="The guest's certificate PDF" checked={fields.attachments.certificatePdf} onChange={(certificatePdf) => patch({ attachments: { ...fields.attachments, certificatePdf } })} note="Only guests who hold one get it." />
+        <Toggle
+          id="f-ticket"
+          label="The guest's ticket PDF"
+          checked={fields.attachments.ticketPdf}
+          onChange={(ticketPdf) =>
+            patch({ attachments: { ...fields.attachments, ticketPdf } })
+          }
+          note="Skipped for a revoked ticket."
+        />
+        <Toggle
+          id="f-cert"
+          label="The guest's certificate PDF"
+          checked={fields.attachments.certificatePdf}
+          onChange={(certificatePdf) =>
+            patch({ attachments: { ...fields.attachments, certificatePdf } })
+          }
+          note="Only guests who hold one get it."
+        />
       </div>
       <div className="space-y-2 border-t pt-3">
         <p className={ui.heading}>Timing</p>
         {stage === "INVITE" ? (
-          <p className={ui.note}>The invite is the ticket email. It goes out with every ticket: when a guest registers, when a payment lands, and from Send tickets on the attendees page.</p>
+          <p className={ui.note}>
+            The invite is the ticket email. It goes out with every ticket: when
+            a guest registers, when a payment lands, and from Send tickets on
+            the attendees page.
+          </p>
         ) : (
-          <TriggerFields trigger={fields.trigger} onChange={(trigger) => patch({ trigger })} stage={stage} />
+          <TriggerFields
+            trigger={fields.trigger}
+            onChange={(trigger) => patch({ trigger })}
+            stage={stage}
+          />
         )}
       </div>
       <div className="border-t pt-3">
@@ -214,7 +380,11 @@ export function SendingPanel({
           label="Switched on"
           checked={fields.enabled}
           onChange={(enabled) => patch({ enabled })}
-          note={stage === "INVITE" ? "On: tickets go out in this email. Off: the plain ticket email." : "Off: timers do not fire and it is not sent."}
+          note={
+            stage === "INVITE"
+              ? "On: tickets go out in this email. Off: the plain ticket email."
+              : "Off: timers do not fire and it is not sent."
+          }
         />
       </div>
     </div>

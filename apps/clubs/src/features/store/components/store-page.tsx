@@ -89,10 +89,10 @@ function NewItem({ eventId, onClose }: { eventId: number; onClose: () => void })
           </div>
         </div>
         <div className="mt-3 flex justify-end gap-2">
-          <button type="button" className="btn btn-ghost h-9" onClick={onClose}>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary h-9" disabled={create.isPending}>
+          <button type="submit" className="btn btn-primary" disabled={create.isPending}>
             Add to store
           </button>
         </div>
@@ -142,12 +142,12 @@ function ItemRow({ eventId, item }: { eventId: number; item: StoreItem }) {
       </div>
       <Chip tone={status.tone}>{status.label}</Chip>
       <input type="checkbox" role="switch" aria-label={`${item.name} on sale`} checked={item.on_sale} disabled={update.isPending} onChange={(e) => update.mutate({ id: item.id, patch: { on_sale: e.target.checked } })} className="accent-[var(--brand)] size-4" />
-      <button type="button" className="btn btn-ghost h-8 px-2" aria-label={`Edit ${item.name}`} onClick={() => setEditing(!editing)}>
+      <button type="button" className="btn btn-ghost btn-sm" aria-label={`Edit ${item.name}`} onClick={() => setEditing(!editing)}>
         <PencilIcon className="size-4" />
       </button>
       <button
         type="button"
-        className={cn("btn btn-ghost h-8 px-2", confirm && "text-refuse")}
+        className={cn("btn btn-ghost btn-sm", confirm && "text-refuse")}
         aria-label={confirm ? `Confirm removing ${item.name}` : `Remove ${item.name}`}
         onClick={() => {
           if (confirm) remove.mutate(item.id);
@@ -175,10 +175,10 @@ function ItemRow({ eventId, item }: { eventId: number; item: StoreItem }) {
               </div>
             ))
           )}
-          <button type="button" className="btn btn-primary h-9" onClick={save} disabled={update.isPending}>
+          <button type="button" className="btn btn-primary" onClick={save} disabled={update.isPending}>
             Save
           </button>
-          <button type="button" className="btn btn-ghost h-9 px-2" aria-label="Cancel editing" onClick={() => setEditing(false)}>
+          <button type="button" className="btn btn-ghost" aria-label="Cancel editing" onClick={() => setEditing(false)}>
             <XIcon className="size-4" />
           </button>
         </div>
@@ -239,7 +239,7 @@ function Orders({ eventId }: { eventId: number }) {
                   ✓ Handed over
                 </button>
               ) : (
-                <button type="button" className="btn btn-secondary h-8 text-[12.5px]" onClick={() => hand.mutate({ orderId: o.id })} disabled={hand.isPending}>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => hand.mutate({ orderId: o.id })} disabled={hand.isPending}>
                   Hand over
                 </button>
               )}
@@ -297,7 +297,7 @@ export function StorePage({ eventId }: { eventId: number }) {
                 <span className="text-ink-3 text-[12px]">Buyers pick items when they register and pay once</span>
               </span>
             </label>
-            <button type="button" className="btn btn-secondary text-brand h-9" onClick={() => setAdding(true)}>
+            <button type="button" className="btn btn-secondary text-brand" onClick={() => setAdding(true)}>
               <PlusIcon className="size-4" /> Add item
             </button>
           </div>

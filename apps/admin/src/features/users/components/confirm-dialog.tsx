@@ -110,7 +110,7 @@ export function ConfirmDialog({
           </button>
           <button
             type="button"
-            className="btn btn-primary whitespace-nowrap"
+            className="btn btn-primary"
             disabled={busy}
             onClick={() => void confirm()}
           >

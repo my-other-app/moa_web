@@ -1,4 +1,5 @@
-export { Button, buttonVariants } from "./button";
+export { Button, IconButton, buttonVariants } from "./button";
+export { SearchField, NativeSelect, ChoiceCard, Segmented, Toolbar, ToolbarEnd, type SearchFieldProps, type ChoiceCardProps, type SegmentedProps } from "./controls";
 export { Input } from "./input";
 export { Label } from "./label";
 export { Textarea } from "./textarea";

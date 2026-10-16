@@ -4,7 +4,16 @@ import * as React from "react";
 import Link from "next/link";
 import { DownloadIcon, Loader2Icon } from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
-import { Button, EmptyState, Pager, Skeleton, StatusBadge, cn } from "@moa/ui";
+import {
+  Button,
+  Chip,
+  cn,
+  EmptyState,
+  Pager,
+  Segmented,
+  Skeleton,
+  StatusBadge,
+} from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
 import { useEventDetail } from "@/features/events";
@@ -13,7 +22,8 @@ import { fetchDeliveryLog, type DeliveryLogQuery } from "../api";
 import { useDeliveryLog } from "../queries";
 import { type DeliveryLogRow, verdictOf } from "../schemas";
 
-const csvCell = (v: string | null | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
+const csvCell = (v: string | null | undefined) =>
+  `"${(v ?? "").replace(/"/g, '""')}"`;
 const CELL = "px-4 py-3 text-left align-top";
 const KINDS: { value: DeliveryLogQuery["kind"]; label: string }[] = [
   { value: undefined, label: "Everything" },
@@ -35,7 +45,14 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(50);
   const [downloading, setDownloading] = React.useState(false);
-  const q = { eventId, kind, problem, search: search.trim() || undefined, page, pageSize };
+  const q = {
+    eventId,
+    kind,
+    problem,
+    search: search.trim() || undefined,
+    page,
+    pageSize,
+  };
   const log = useDeliveryLog(q);
 
   const tally = log.data?.tally;
@@ -55,7 +72,16 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
         if (rows.length >= res.total || !res.items.length) break;
       }
       const csv = [
-        ["Guest", "Ticket", "Address", "Channel", "What", "Sent", "Outcome", "Reason"].join(","),
+        [
+          "Guest",
+          "Ticket",
+          "Address",
+          "Channel",
+          "What",
+          "Sent",
+          "Outcome",
+          "Reason",
+        ].join(","),
         ...rows.map((r) =>
           [
             csvCell(r.name),
@@ -66,10 +92,12 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
             csvCell(r.sent_at ? formatDateTime(r.sent_at) : ""),
             csvCell(verdictOf(r).label),
             csvCell(r.reason),
-          ].join(",")
+          ].join(","),
         ),
       ].join("\n");
-      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const url = URL.createObjectURL(
+        new Blob([csv], { type: "text/csv;charset=utf-8" }),
+      );
       const a = document.createElement("a");
       a.href = url;
       a.download = `${event.data?.slug ?? `event-${eventId}`}-delivery-log${problem ? "-problems" : ""}.csv`;
@@ -86,8 +114,19 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
         title="Delivery log"
         description="Every ticket and certificate sent to a guest, with what became of it."
         action={
-          <Button variant="outline" size="sm" className={pressable} disabled={downloading || !total} onClick={download}>
-            {downloading ? <Loader2Icon className="animate-spin" /> : <DownloadIcon />} Download CSV
+          <Button
+            variant="outline"
+            size="sm"
+            className={pressable}
+            disabled={downloading || !total}
+            onClick={download}
+          >
+            {downloading ? (
+              <Loader2Icon className="animate-spin" />
+            ) : (
+              <DownloadIcon />
+            )}{" "}
+            Download CSV
           </Button>
         }
       />
@@ -95,31 +134,38 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs tabular-nums">
           <span>{tally?.sent ?? "…"} sent</span>
-          {tally?.delivered ? <span className="text-emerald-600">{tally.delivered} delivered</span> : null}
+          {tally?.delivered ? (
+            <span className="text-emerald-600">
+              {tally.delivered} delivered
+            </span>
+          ) : null}
           {tally?.pending ? <span>{tally.pending} sending</span> : null}
-          {tally?.bounced ? <span className="text-destructive">{tally.bounced} bounced</span> : null}
-          {tally?.complained ? <span className="text-destructive">{tally.complained} spam</span> : null}
-          {tally?.failed ? <span className="text-destructive">{tally.failed} refused</span> : null}
+          {tally?.bounced ? (
+            <span className="text-destructive">{tally.bounced} bounced</span>
+          ) : null}
+          {tally?.complained ? (
+            <span className="text-destructive">{tally.complained} spam</span>
+          ) : null}
+          {tally?.failed ? (
+            <span className="text-destructive">{tally.failed} refused</span>
+          ) : null}
           {tally?.skipped ? <span>{tally.skipped} skipped</span> : null}
         </div>
         <span className="flex-1" />
-        <div role="radiogroup" aria-label="What was sent" className="flex h-9 overflow-hidden rounded-md border bg-muted/40 p-0.5 text-[12px]">
-          {KINDS.map((k) => (
-            <button
-              key={k.label}
-              type="button"
-              role="radio"
-              aria-checked={kind === k.value}
-              onClick={() => {
-                setKind(k.value);
-                setPage(1);
-              }}
-              className={cn("rounded-[7px] px-2.5 transition-colors", kind === k.value ? "bg-card font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
-            >
-              {k.label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          label="What was sent"
+          value={kind ?? "all"}
+          options={KINDS.map((k) => ({
+            value: k.value ?? "all",
+            label: k.label,
+          }))}
+          onChange={(v) => {
+            setKind(
+              v === "all" ? undefined : (v as Exclude<typeof kind, undefined>),
+            );
+            setPage(1);
+          }}
+        />
         <input
           value={search}
           onChange={(e) => {
@@ -128,22 +174,17 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
           }}
           placeholder="Search name, email or ticket"
           aria-label="Search the delivery log"
-          className="h-9 w-64 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="input w-64"
         />
-        <button
-          type="button"
-          aria-pressed={problem}
+        <Chip
+          active={problem}
           onClick={() => {
             setProblem((p) => !p);
             setPage(1);
           }}
-          className={cn(
-            "rounded-full border px-3 py-1 text-xs transition-colors",
-            problem ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-          )}
         >
           Only problems
-        </button>
+        </Chip>
       </div>
 
       {log.isPending ? (
@@ -152,7 +193,13 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
         <div className="rounded-2xl bg-card ring-1 ring-border/70 shadow-sm p-10">
           <EmptyState
             tone="muted"
-            title={problem ? "Nothing went wrong" : search ? "Nobody matches" : "Nothing sent yet"}
+            title={
+              problem
+                ? "Nothing went wrong"
+                : search
+                  ? "Nobody matches"
+                  : "Nothing sent yet"
+            }
             description={
               problem
                 ? "Every send so far was accepted."
@@ -168,10 +215,18 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
             <table className="w-full min-w-[760px] border-collapse text-sm">
               <thead>
                 <tr className="bg-muted/60 text-[13px] font-medium text-muted-foreground">
-                  <th scope="col" className={cn(CELL, "font-light")}>Guest</th>
-                  <th scope="col" className={cn(CELL, "font-light")}>What</th>
-                  <th scope="col" className={cn(CELL, "font-light")}>Sent</th>
-                  <th scope="col" className={cn(CELL, "font-light")}>Outcome</th>
+                  <th scope="col" className={cn(CELL, "font-light")}>
+                    Guest
+                  </th>
+                  <th scope="col" className={cn(CELL, "font-light")}>
+                    What
+                  </th>
+                  <th scope="col" className={cn(CELL, "font-light")}>
+                    Sent
+                  </th>
+                  <th scope="col" className={cn(CELL, "font-light")}>
+                    Outcome
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -181,21 +236,40 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
                     <tr key={r.id} className="border-t border-border/60">
                       <td className={CELL}>
                         <div className="text-foreground">{r.name}</div>
-                        <div className="text-muted-foreground font-mono text-xs">{r.address || "— no address —"}</div>
+                        <div className="text-muted-foreground font-mono text-xs">
+                          {r.address || "— no address —"}
+                        </div>
                       </td>
                       <td className={CELL}>
-                        <div className={r.kind === "message" ? undefined : "capitalize"}>{r.kind === "message" ? (r.what ?? "Message") : r.kind}</div>
+                        <div
+                          className={
+                            r.kind === "message" ? undefined : "capitalize"
+                          }
+                        >
+                          {r.kind === "message"
+                            ? (r.what ?? "Message")
+                            : r.kind}
+                        </div>
                         <div className="text-muted-foreground font-mono text-xs">
                           {r.ticket_id} · {r.channel}
                           {r.attempts > 1 ? ` · ${r.attempts} attempts` : ""}
                         </div>
                       </td>
-                      <td className={cn(CELL, "text-muted-foreground font-mono text-xs whitespace-nowrap tabular-nums")}>
+                      <td
+                        className={cn(
+                          CELL,
+                          "text-muted-foreground font-mono text-xs whitespace-nowrap tabular-nums",
+                        )}
+                      >
                         {r.sent_at ? formatDateTime(r.sent_at) : "—"}
                       </td>
                       <td className={CELL}>
                         <StatusBadge tone={v.tone} label={v.label} />
-                        {r.reason ? <div className="text-muted-foreground mt-1 max-w-[360px] text-xs leading-snug">{r.reason}</div> : null}
+                        {r.reason ? (
+                          <div className="text-muted-foreground mt-1 max-w-[360px] text-xs leading-snug">
+                            {r.reason}
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   );
@@ -207,7 +281,16 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
       )}
 
       {!log.isPending && total > 0 ? (
-        <Pager page={page} pageCount={pages} total={total} pageSize={pageSize} noun={["send", "sends"]} busy={log.isFetching} onPage={setPage} onPageSize={(n) => (setPageSize(n), setPage(1))} />
+        <Pager
+          page={page}
+          pageCount={pages}
+          total={total}
+          pageSize={pageSize}
+          noun={["send", "sends"]}
+          busy={log.isFetching}
+          onPage={setPage}
+          onPageSize={(n) => (setPageSize(n), setPage(1))}
+        />
       ) : null}
     </div>
   );

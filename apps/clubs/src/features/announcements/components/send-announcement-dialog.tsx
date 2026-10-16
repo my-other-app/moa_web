@@ -73,7 +73,11 @@ export function SendAnnouncementDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4"
+            noValidate
+          >
             <FormField
               control={form.control}
               name="title"
@@ -94,10 +98,14 @@ export function SendAnnouncementDialog({
                 <FormItem>
                   <FormLabel>Message</FormLabel>
                   <FormControl>
-                    <Textarea {...field} rows={4} placeholder="We've moved to Hall B." />
+                    <Textarea
+                      {...field}
+                      rows={4}
+                      placeholder="We've moved to Hall B."
+                    />
                   </FormControl>
                   <FormDescription>
-                    {(field.value?.length ?? 0)} / 1000
+                    {field.value?.length ?? 0} / 1000
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -112,8 +120,16 @@ export function SendAnnouncementDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={send.isPending} className={cn(pressable)}>
-                {send.isPending ? <Loader2Icon className="animate-spin" /> : <SendIcon />}
+              <Button
+                type="submit"
+                disabled={send.isPending}
+                className={cn(pressable)}
+              >
+                {send.isPending ? (
+                  <Loader2Icon className="animate-spin" />
+                ) : (
+                  <SendIcon />
+                )}
                 {send.isPending ? "Sending…" : "Send to everyone"}
               </Button>
             </DialogFooter>

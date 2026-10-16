@@ -151,20 +151,20 @@ function Actions({ mode, isSaving, intent, canDraft, publishable, isDirty, isDra
     <div className="flex flex-wrap items-center gap-2">
       {mode === "create" ? (
         <>
-          <button type="button" className="btn btn-secondary h-9" disabled={isSaving || !canDraft} onClick={() => submitAs("draft")}>
+          <button type="button" className="btn btn-secondary" disabled={isSaving || !canDraft} onClick={() => submitAs("draft")}>
             {isSaving && intent === "draft" ? <Loader2Icon className="size-4 animate-spin" /> : <SaveIcon className="size-4" />} Save as draft
           </button>
-          <button type="button" className="btn btn-primary h-9" disabled={isSaving || !publishable} title={publishable ? undefined : "Fill the four things on the right first"} onClick={() => submitAs("published")}>
+          <button type="button" className="btn btn-primary" disabled={isSaving || !publishable} title={publishable ? undefined : "Fill the four things on the right first"} onClick={() => submitAs("published")}>
             {isSaving && intent === "published" ? <Loader2Icon className="size-4 animate-spin" /> : <CheckIcon className="size-4" />} Publish
           </button>
         </>
       ) : (
         <>
-          <button type="button" className={cn("btn h-9", isDirty ? "btn-primary" : "btn-secondary")} disabled={isSaving || !isDirty} onClick={() => submitAs("published")}>
+          <button type="button" className={cn("btn btn-secondary", isDirty ? "btn-primary" : "btn-secondary")} disabled={isSaving || !isDirty} onClick={() => submitAs("published")}>
             {isSaving ? <Loader2Icon className="size-4 animate-spin" /> : <CheckIcon className="size-4" />} {isSaving ? "Saving…" : isDirty ? "Save changes" : "All changes saved"}
           </button>
           {isDraft ? (
-            <button type="button" className="btn btn-primary h-9" disabled={publishing || isDirty || !publishable} title={isDirty ? "Save your changes first" : undefined} onClick={onPublish}>
+            <button type="button" className="btn btn-primary" disabled={publishing || isDirty || !publishable} title={isDirty ? "Save your changes first" : undefined} onClick={onPublish}>
               {publishing ? <Loader2Icon className="size-4 animate-spin" /> : null} Publish
             </button>
           ) : null}

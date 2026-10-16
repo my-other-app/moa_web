@@ -48,22 +48,39 @@ export function RemoveAttendeeDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Remove {attendee?.name ?? "this guest"} from the list</DialogTitle>
+          <DialogTitle>
+            Remove {attendee?.name ?? "this guest"} from the list
+          </DialogTitle>
           <DialogDescription>
-            This deletes their registration, their ticket and their check-in. It is the right answer to &ldquo;take me off the
-            list&rdquo;, and it cannot be undone.
+            This deletes their registration, their ticket and their check-in. It
+            is the right answer to &ldquo;take me off the list&rdquo;, and it
+            cannot be undone.
           </DialogDescription>
         </DialogHeader>
         {/* The slug is named in the label, not left in a placeholder that vanishes
             the moment anything is typed -- nobody can match a value they cannot see. */}
         <div className="space-y-1.5">
           <Label htmlFor="remove-confirm">
-            Type <code className="bg-muted rounded px-1 font-mono text-xs">{eventSlug}</code> to confirm
+            Type{" "}
+            <code className="bg-muted rounded px-1 font-mono text-xs">
+              {eventSlug}
+            </code>{" "}
+            to confirm
           </Label>
-          <Input id="remove-confirm" autoFocus value={slug} onChange={(e) => setSlug(e.target.value)} className="font-mono" />
+          <Input
+            id="remove-confirm"
+            autoFocus
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            className="font-mono"
+          />
         </div>
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+          >
             Keep them
           </Button>
           <Button
@@ -72,7 +89,10 @@ export function RemoveAttendeeDialog({
             disabled={!matches || remove.isPending || !attendee}
             onClick={() =>
               attendee &&
-              remove.mutate({ registrationId: attendee.id, confirmSlug: slug.trim() }, { onSuccess: () => onOpenChange(false) })
+              remove.mutate(
+                { registrationId: attendee.id, confirmSlug: slug.trim() },
+                { onSuccess: () => onOpenChange(false) },
+              )
             }
           >
             {remove.isPending ? <Loader2Icon className="animate-spin" /> : null}

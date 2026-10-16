@@ -3,7 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CopyIcon, MailIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon } from "lucide-react";
+import {
+  CopyIcon,
+  MailIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  PlusIcon,
+  SendIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { PageHeader, formatDateTime } from "@moa/app-kit";
 import {
   AlertDialog,
@@ -29,16 +37,39 @@ import { pressable } from "@moa/ui/motion";
 
 import { useEventDetail } from "@/features/events";
 
-import { useCreateTemplate, useDeleteTemplate, useDuplicateTemplate, useSaveTemplate, useTemplates } from "../queries";
-import { STAGE_META, audienceSummary, blankTemplate, fieldsOf, triggerSummary, type EmailTemplate, type JourneyStage, type Message } from "../schemas";
+import {
+  useCreateTemplate,
+  useDeleteTemplate,
+  useDuplicateTemplate,
+  useSaveTemplate,
+  useTemplates,
+} from "../queries";
+import {
+  STAGE_META,
+  audienceSummary,
+  blankTemplate,
+  fieldsOf,
+  triggerSummary,
+  type EmailTemplate,
+  type JourneyStage,
+  type Message,
+} from "../schemas";
 import { Busy, ui } from "./kit";
 import { SendTemplateDialog } from "./send-dialog";
 
 const outcome = (m: Message | null | undefined) => {
   if (!m) return null;
-  if (m.status === "SENDING") return <StatusBadge tone="info" label="Sending…" />;
-  if (m.failedCount && !m.sentCount) return <StatusBadge tone="destructive" label={`${m.failedCount} failed`} />;
-  if (m.failedCount) return <StatusBadge tone="warning" label={`${m.sentCount} sent · ${m.failedCount} failed`} />;
+  if (m.status === "SENDING")
+    return <StatusBadge tone="info" label="Sending…" />;
+  if (m.failedCount && !m.sentCount)
+    return <StatusBadge tone="destructive" label={`${m.failedCount} failed`} />;
+  if (m.failedCount)
+    return (
+      <StatusBadge
+        tone="warning"
+        label={`${m.sentCount} sent · ${m.failedCount} failed`}
+      />
+    );
   return <StatusBadge tone="success" label={`${m.sentCount} sent`} />;
 };
 
@@ -48,7 +79,8 @@ function LastLine({ m }: { m: Message | null | undefined }) {
     <p className={cn(ui.note, "flex flex-wrap items-center gap-1.5")}>
       {outcome(m)}
       <span>
-        {m.scheduled ? "by the timer" : "by hand"} · {formatDateTime(m.createdAt)}
+        {m.scheduled ? "by the timer" : "by hand"} ·{" "}
+        {formatDateTime(m.createdAt)}
       </span>
     </p>
   );
@@ -67,7 +99,13 @@ function StageCard({
   const save = useSaveTemplate({ kind: "event", eventId });
   const meta = STAGE_META[t.stage];
   return (
-    <div className={cn(ui.panel, "flex flex-col gap-2 p-4", !t.enabled && "opacity-70")}>
+    <div
+      className={cn(
+        ui.panel,
+        "flex flex-col gap-2 p-4",
+        !t.enabled && "opacity-70",
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className={ui.heading}>{meta.label}</p>
@@ -76,16 +114,34 @@ function StageCard({
         </div>
         <label className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
           {save.isPending ? <Busy on /> : t.enabled ? "On" : "Off"}
-          <Switch checked={t.enabled} aria-label={`${meta.label} switched ${t.enabled ? "on" : "off"}`} onCheckedChange={(enabled) => save.mutate({ templateId: t.id, fields: { ...fieldsOf(t), enabled } })} />
+          <Switch
+            checked={t.enabled}
+            aria-label={`${meta.label} switched ${t.enabled ? "on" : "off"}`}
+            onCheckedChange={(enabled) =>
+              save.mutate({
+                templateId: t.id,
+                fields: { ...fieldsOf(t), enabled },
+              })
+            }
+          />
         </label>
       </div>
       <p className={ui.note}>{meta.note}</p>
       <p className="text-[12px]">
-        <span className="text-muted-foreground">Goes out:</span> {t.stage === "INVITE" ? "With every ticket — at registration, after payment, and from Send tickets" : triggerSummary(t.trigger)}
-        {stage.dueAt ? <span className="text-muted-foreground"> · due {formatDateTime(stage.dueAt)}</span> : null}
+        <span className="text-muted-foreground">Goes out:</span>{" "}
+        {t.stage === "INVITE"
+          ? "With every ticket — at registration, after payment, and from Send tickets"
+          : triggerSummary(t.trigger)}
+        {stage.dueAt ? (
+          <span className="text-muted-foreground">
+            {" "}
+            · due {formatDateTime(stage.dueAt)}
+          </span>
+        ) : null}
       </p>
       <p className="text-[12px]">
-        <span className="text-muted-foreground">To:</span> {audienceSummary(t.audience)}
+        <span className="text-muted-foreground">To:</span>{" "}
+        {audienceSummary(t.audience)}
         {t.attachments.ticketPdf ? " · with the ticket" : ""}
         {t.attachments.certificatePdf ? " · with the certificate" : ""}
       </p>
@@ -103,7 +159,12 @@ function StageCard({
             </Link>
           </Button>
         ) : (
-          <Button variant="outline" size="sm" onClick={() => onSend(t)} className={pressable}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onSend(t)}
+            className={pressable}
+          >
             <SendIcon /> Send now
           </Button>
         )}
@@ -143,7 +204,15 @@ export function EmailsPage({ eventId }: { eventId: number }) {
             <Button
               className={pressable}
               disabled={create.isPending}
-              onClick={() => create.mutate({ fields: blankTemplate() }, { onSuccess: (t) => router.push(`/events/${eventId}/emails/${t.id}`) })}
+              onClick={() =>
+                create.mutate(
+                  { fields: blankTemplate() },
+                  {
+                    onSuccess: (t) =>
+                      router.push(`/events/${eventId}/emails/${t.id}`),
+                  },
+                )
+              }
             >
               <Busy on={create.isPending} />
               {create.isPending ? null : <PlusIcon />} New email
@@ -155,14 +224,23 @@ export function EmailsPage({ eventId }: { eventId: number }) {
       {list.isPending ? (
         <Skeleton className="h-96 w-full" />
       ) : list.isError ? (
-        <EmptyState tone="muted" title="Could not load the emails" description={list.error.message} />
+        <EmptyState
+          tone="muted"
+          title="Could not load the emails"
+          description={list.error.message}
+        />
       ) : (
         <>
           <section className="space-y-3">
             <p className={ui.heading}>The journey</p>
             <div className="grid gap-3 md:grid-cols-2">
               {list.data.journey.map((s) => (
-                <StageCard key={s.stage} eventId={eventId} stage={s} onSend={setSending} />
+                <StageCard
+                  key={s.stage}
+                  eventId={eventId}
+                  stage={s}
+                  onSend={setSending}
+                />
               ))}
             </div>
           </section>
@@ -174,26 +252,41 @@ export function EmailsPage({ eventId }: { eventId: number }) {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
                     <tr>
-                      <th className="px-4 py-2.5 text-left font-medium">Email</th>
+                      <th className="px-4 py-2.5 text-left font-medium">
+                        Email
+                      </th>
                       <th className="px-4 py-2.5 text-left font-medium">To</th>
-                      <th className="px-4 py-2.5 text-left font-medium">Goes out</th>
-                      <th className="px-4 py-2.5 text-left font-medium">Last sent</th>
-                      <th className="px-4 py-2.5 text-right font-medium">Actions</th>
+                      <th className="px-4 py-2.5 text-left font-medium">
+                        Goes out
+                      </th>
+                      <th className="px-4 py-2.5 text-left font-medium">
+                        Last sent
+                      </th>
+                      <th className="px-4 py-2.5 text-right font-medium">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {list.data.custom.map((t) => (
                       <tr key={t.id} className="border-t border-border/60">
                         <td className="px-4 py-3">
-                          <Link href={`/events/${eventId}/emails/${t.id}`} className="font-medium hover:underline">
+                          <Link
+                            href={`/events/${eventId}/emails/${t.id}`}
+                            className="font-medium hover:underline"
+                          >
                             {t.name}
                           </Link>
                           <p className={cn(ui.note, "truncate")}>{t.subject}</p>
                         </td>
-                        <td className="px-4 py-3">{audienceSummary(t.audience)}</td>
+                        <td className="px-4 py-3">
+                          {audienceSummary(t.audience)}
+                        </td>
                         <td className="px-4 py-3">
                           {triggerSummary(t.trigger)}
-                          {!t.enabled ? <StatusBadge tone="default" label="Off" /> : null}
+                          {!t.enabled ? (
+                            <StatusBadge tone="default" label="Off" />
+                          ) : null}
                         </td>
                         <td className="px-4 py-3">
                           <LastLine m={null} />
@@ -201,21 +294,36 @@ export function EmailsPage({ eventId }: { eventId: number }) {
                         <td className="px-4 py-3 text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon-xs" aria-label={`Actions for ${t.name}`}>
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                aria-label={`Actions for ${t.name}`}
+                              >
                                 <MoreHorizontalIcon />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onSelect={() => router.push(`/events/${eventId}/emails/${t.id}`)}>
+                              <DropdownMenuItem
+                                onSelect={() =>
+                                  router.push(
+                                    `/events/${eventId}/emails/${t.id}`,
+                                  )
+                                }
+                              >
                                 <PencilIcon /> Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem onSelect={() => setSending(t)}>
                                 <SendIcon /> Send now…
                               </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => duplicate.mutate(t.id)}>
+                              <DropdownMenuItem
+                                onSelect={() => duplicate.mutate(t.id)}
+                              >
                                 <CopyIcon /> Duplicate
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onSelect={() => setDeleting(t)}>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onSelect={() => setDeleting(t)}
+                              >
                                 <Trash2Icon /> Delete…
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -227,19 +335,33 @@ export function EmailsPage({ eventId }: { eventId: number }) {
                 </table>
               </div>
             ) : (
-              <p className={ui.note}>Nothing beyond the journey yet. A sponsor&apos;s note, a schedule change, a thank-you: write one with New email.</p>
+              <p className={ui.note}>
+                Nothing beyond the journey yet. A sponsor&apos;s note, a
+                schedule change, a thank-you: write one with New email.
+              </p>
             )}
           </section>
         </>
       )}
 
-      <SendTemplateDialog eventId={eventId} template={sending} open={sending !== null} onOpenChange={(o) => !o && setSending(null)} />
+      <SendTemplateDialog
+        eventId={eventId}
+        template={sending}
+        open={sending !== null}
+        onOpenChange={(o) => !o && setSending(null)}
+      />
 
-      <AlertDialog open={deleting !== null} onOpenChange={(o) => !o && setDeleting(null)}>
+      <AlertDialog
+        open={deleting !== null}
+        onOpenChange={(o) => !o && setDeleting(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete “{deleting?.name}”?</AlertDialogTitle>
-            <AlertDialogDescription>Messages already sent from it stay in the history. This cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>
+              Messages already sent from it stay in the history. This cannot be
+              undone.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
@@ -247,7 +369,10 @@ export function EmailsPage({ eventId }: { eventId: number }) {
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={(e) => {
                 e.preventDefault();
-                if (deleting) remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) });
+                if (deleting)
+                  remove.mutate(deleting.id, {
+                    onSuccess: () => setDeleting(null),
+                  });
               }}
             >
               Delete

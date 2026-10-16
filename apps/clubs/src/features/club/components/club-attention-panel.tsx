@@ -23,7 +23,11 @@ import type { ClubEvent } from "@/features/events";
  * housekeeping: every row here is a group of people who turned up and have
  * nothing to show for it. Nothing in the product surfaced it before.
  */
-export function ClubAttentionPanel({ events }: { events: readonly ClubEvent[] }) {
+export function ClubAttentionPanel({
+  events,
+}: {
+  events: readonly ClubEvent[];
+}) {
   return (
     <Card className="rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-14px_rgba(16,24,40,0.12)]">
       <CardHeader>
@@ -52,7 +56,7 @@ export function ClubAttentionPanel({ events }: { events: readonly ClubEvent[] })
                 href={`/events/${event.id}`}
                 style={stagger(i)}
                 className={cn(
-                  "animate-in fade-in-0 slide-in-from-bottom-1 bg-muted/40 hover:bg-muted/70 flex items-center gap-3 rounded-xl p-3.5 transition-colors duration-200 motion-reduce:animate-none motion-reduce:transition-none"
+                  "animate-in fade-in-0 slide-in-from-bottom-1 bg-muted/40 hover:bg-muted/70 flex items-center gap-3 rounded-xl p-3.5 transition-colors duration-200 motion-reduce:animate-none motion-reduce:transition-none",
                 )}
               >
                 <ClipboardCheckIcon className="text-muted-foreground size-4 shrink-0" />

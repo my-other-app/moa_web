@@ -1,13 +1,14 @@
 "use client";
 
-import {
-  BuildingIcon,
-  CircleDotIcon,
-  EyeIcon,
-  UsersIcon,
-} from "lucide-react";
+import { BuildingIcon, CircleDotIcon, EyeIcon, UsersIcon } from "lucide-react";
 import { formatNumber } from "@moa/app-kit";
-import { MetricCard, Skeleton, StatusBadge, cn, type StatusTone } from "@moa/ui";
+import {
+  MetricCard,
+  Skeleton,
+  StatusBadge,
+  cn,
+  type StatusTone,
+} from "@moa/ui";
 import { hoverLift, stagger } from "@moa/ui/motion";
 
 import type { EventDetail, EventLifecycle } from "@/features/events";
@@ -23,12 +24,31 @@ import { useEventAnalytics } from "../queries";
  * dashboards, so colour carries meaning (the event's state) rather than
  * decorating every tile equally.
  */
-const STATUS_COPY: Record<EventLifecycle, { label: string; caption: string; tone: StatusTone }> = {
-  draft: { label: "Draft", caption: "not published; the gate refuses scans", tone: "warning" },
-  published: { label: "Published", caption: "tickets can go out; the door opens at the start", tone: "info" },
+const STATUS_COPY: Record<
+  EventLifecycle,
+  { label: string; caption: string; tone: StatusTone }
+> = {
+  draft: {
+    label: "Draft",
+    caption: "not published; the gate refuses scans",
+    tone: "warning",
+  },
+  published: {
+    label: "Published",
+    caption: "tickets can go out; the door opens at the start",
+    tone: "info",
+  },
   live: { label: "Live", caption: "the door is open", tone: "success" },
-  closed: { label: "Closed", caption: "the door is shut and settings are locked", tone: "default" },
-  archived: { label: "Archived", caption: "hidden from the events list", tone: "default" },
+  closed: {
+    label: "Closed",
+    caption: "the door is shut and settings are locked",
+    tone: "default",
+  },
+  archived: {
+    label: "Archived",
+    caption: "hidden from the events list",
+    tone: "default",
+  },
 };
 
 export function EventStatCards({ event }: { event: EventDetail | undefined }) {

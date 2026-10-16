@@ -28,7 +28,11 @@ import { hoursUntil, isClosingSoon } from "../insights";
  * it a comparison between your own events, which is the honest reading -- and
  * it is labelled that way rather than implying a target nobody set.
  */
-export function UpcomingEventsPanel({ events }: { events: readonly ClubEvent[] }) {
+export function UpcomingEventsPanel({
+  events,
+}: {
+  events: readonly ClubEvent[];
+}) {
   const best = Math.max(1, ...events.map((e) => e.registration_count ?? 0));
 
   return (
@@ -73,12 +77,14 @@ export function UpcomingEventsPanel({ events }: { events: readonly ClubEvent[] }
                   href={`/events/${event.id}`}
                   style={stagger(i)}
                   className={cn(
-                    "animate-in fade-in-0 slide-in-from-bottom-1 bg-muted/40 hover:bg-muted/70 block rounded-xl p-4 transition-colors duration-200 motion-reduce:animate-none motion-reduce:transition-none"
+                    "animate-in fade-in-0 slide-in-from-bottom-1 bg-muted/40 hover:bg-muted/70 block rounded-xl p-4 transition-colors duration-200 motion-reduce:animate-none motion-reduce:transition-none",
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold">{event.name}</p>
+                      <p className="truncate text-[15px] font-semibold">
+                        {event.name}
+                      </p>
                       <p className="text-muted-foreground truncate text-xs">
                         {formatDateTime(event.event_datetime)}
                       </p>

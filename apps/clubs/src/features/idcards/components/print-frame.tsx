@@ -7,7 +7,13 @@ import * as React from "react";
  * and the print dialog opens on it. Same origin through the gateway, so
  * the frame's window is ours to call.
  */
-export function PrintFrame({ url, onDone }: { url: string; onDone?: () => void }) {
+export function PrintFrame({
+  url,
+  onDone,
+}: {
+  url: string;
+  onDone?: () => void;
+}) {
   const ref = React.useRef<HTMLIFrameElement>(null);
   return (
     <iframe

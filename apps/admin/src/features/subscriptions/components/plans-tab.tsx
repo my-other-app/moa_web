@@ -201,7 +201,7 @@ export function PlansTab() {
           {canEdit ? (
             <button
               type="button"
-              className="btn btn-secondary whitespace-nowrap"
+              className="btn btn-secondary"
               onClick={() => {
                 setSelectedId("new");
                 setDraft(BLANK);
@@ -439,7 +439,7 @@ export function PlansTab() {
                 {selected && !selected.billable ? (
                   <button
                     type="button"
-                    className="btn btn-secondary whitespace-nowrap"
+                    className="btn btn-secondary"
                     disabled={sync.isPending}
                     onClick={() => sync.mutate(selected.id)}
                   >
@@ -456,7 +456,7 @@ export function PlansTab() {
                   <>
                     <button
                       type="button"
-                      className="btn btn-ghost whitespace-nowrap"
+                      className="btn btn-ghost"
                       disabled={duplicate.isPending}
                       onClick={() => duplicate.mutate(selected.id)}
                     >
@@ -465,7 +465,7 @@ export function PlansTab() {
                     </button>
                     <button
                       type="button"
-                      className="btn btn-ghost whitespace-nowrap"
+                      className="btn btn-ghost"
                       onClick={() => setConfirmWithdraw(true)}
                     >
                       <Trash2Icon className="size-4" />
@@ -484,7 +484,7 @@ export function PlansTab() {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-primary whitespace-nowrap"
+                  className="btn btn-primary"
                   disabled={!dirty || busy || priceProblem !== null}
                   onClick={() => void save()}
                 >

@@ -4,12 +4,13 @@ import * as React from "react";
 import { parseTicketTemplate } from "@moa/layout";
 import {
   Button,
+  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  cn,
+  Segmented as KitSegmented,
 } from "@moa/ui";
 import { Loader2Icon } from "lucide-react";
 
@@ -17,11 +18,12 @@ import { EMAIL_TOKEN_KEYS, type EmailToken } from "../schemas";
 
 export const ui = {
   panel: "rounded-xl border bg-card",
-  heading: "font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground",
-  label: "mb-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground",
-  control:
-    "w-full min-w-0 rounded-md border bg-muted/40 px-2.5 text-[13px] text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50",
-  input: "h-9",
+  heading:
+    "font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground",
+  label:
+    "mb-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground",
+  control: "input",
+  input: "",
   note: "text-[11.5px] leading-[1.5] text-muted-foreground",
   cautionBox:
     "rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11.5px] leading-[1.5] text-amber-700 dark:text-amber-300",
@@ -29,7 +31,8 @@ export const ui = {
     "grid size-7 shrink-0 place-items-center rounded text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent",
 } as const;
 
-export const Busy = ({ on }: { on: boolean }) => (on ? <Loader2Icon className="animate-spin" /> : null);
+export const Busy = ({ on }: { on: boolean }) =>
+  on ? <Loader2Icon className="animate-spin" /> : null;
 
 /** A value that settles `ms` after it stops changing. */
 export function useDebounced<T>(value: T, ms = 400): T {
@@ -42,10 +45,19 @@ export function useDebounced<T>(value: T, ms = 400): T {
 }
 
 /** The problems the editor shows for a piece of template text. */
-export const problemsOf = (src: string): string[] => parseTicketTemplate(src, EMAIL_TOKEN_KEYS).errors;
+export const problemsOf = (src: string): string[] =>
+  parseTicketTemplate(src, EMAIL_TOKEN_KEYS).errors;
 
-const TOKEN_GROUPS = ["Guest", "Ticket", "Event", "Links", "Club", "Certificate"] as const;
-const groupHeading = "px-2.5 pt-2 pb-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground";
+const TOKEN_GROUPS = [
+  "Guest",
+  "Ticket",
+  "Event",
+  "Links",
+  "Club",
+  "Certificate",
+] as const;
+const groupHeading =
+  "px-2.5 pt-2 pb-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground";
 
 /** Insert a token or a conditional block where the cursor is. */
 export const TokenMenu = ({
@@ -67,7 +79,10 @@ export const TokenMenu = ({
           Insert token ▾
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-h-[420px] w-[300px] overflow-y-auto">
+      <DropdownMenuContent
+        align="end"
+        className="max-h-[420px] w-[300px] overflow-y-auto"
+      >
         {TOKEN_GROUPS.map((g, gi) => {
           const members = tokens.filter((t) => t.group === g);
           if (!members.length) return null;
@@ -76,10 +91,15 @@ export const TokenMenu = ({
               {gi ? <DropdownMenuSeparator /> : null}
               <div className={groupHeading}>{g}</div>
               {members.map((t) => (
-                <DropdownMenuItem key={t.key} onSelect={() => onInsert(`{{${t.key}}}`)}>
+                <DropdownMenuItem
+                  key={t.key}
+                  onSelect={() => onInsert(`{{${t.key}}}`)}
+                >
                   <span className="flex w-full items-baseline justify-between gap-2">
                     <span className="text-[12.5px]">{t.label}</span>
-                    <span className="truncate font-mono text-[10px] text-muted-foreground">{samples[t.key] || t.sample}</span>
+                    <span className="truncate font-mono text-[10px] text-muted-foreground">
+                      {samples[t.key] || t.sample}
+                    </span>
                   </span>
                 </DropdownMenuItem>
               ))}
@@ -91,10 +111,15 @@ export const TokenMenu = ({
             <DropdownMenuSeparator />
             <div className={groupHeading}>Registration form fields</div>
             {fields.map((f) => (
-              <DropdownMenuItem key={f.key} onSelect={() => onInsert(`{{${f.key}}}`)}>
+              <DropdownMenuItem
+                key={f.key}
+                onSelect={() => onInsert(`{{${f.key}}}`)}
+              >
                 <span className="flex w-full items-baseline justify-between gap-2">
                   <span className="text-[12.5px]">{f.label}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">{f.key}</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {f.key}
+                  </span>
                 </span>
               </DropdownMenuItem>
             ))}
@@ -102,12 +127,28 @@ export const TokenMenu = ({
         ) : null}
         <DropdownMenuSeparator />
         <div className={groupHeading}>Blocks</div>
-        <DropdownMenuItem onSelect={() => onInsert("{% if certificate_url %}Your certificate: {{certificate_url}}{% endif %}")}>
+        <DropdownMenuItem
+          onSelect={() =>
+            onInsert(
+              "{% if certificate_url %}Your certificate: {{certificate_url}}{% endif %}",
+            )
+          }
+        >
           Only when they hold a certificate
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onInsert("{% if venue %} at {{venue}}{% endif %}")}>The venue, when there is one</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onInsert("**{{first_name}}**")}>The first name in bold</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onInsert("[Open your ticket]({{ticket_url}})")}>A link to the ticket</DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => onInsert("{% if venue %} at {{venue}}{% endif %}")}
+        >
+          The venue, when there is one
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onInsert("**{{first_name}}**")}>
+          The first name in bold
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => onInsert("[Open your ticket]({{ticket_url}})")}
+        >
+          A link to the ticket
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -179,7 +220,9 @@ export const TemplateField = ({
           className={cn(ui.control, "py-2 leading-[1.5]")}
         />
       )}
-      {problems.length ? <p className="mt-1 text-[11px] text-destructive">{problems[0]}</p> : null}
+      {problems.length ? (
+        <p className="mt-1 text-[11px] text-destructive">{problems[0]}</p>
+      ) : null}
     </div>
   );
 };
@@ -249,7 +292,12 @@ export const SelectField = <T extends string>({
     <label htmlFor={id} className={ui.label}>
       {label}
     </label>
-    <select id={id} value={value} onChange={(e) => onChange(e.target.value as T)} className={cn(ui.control, ui.input)}>
+    <select
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value as T)}
+      className={cn(ui.control, ui.input)}
+    >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
@@ -272,23 +320,13 @@ export const Segmented = <T extends string>({
 }) => (
   <div className="min-w-0">
     <span className={ui.label}>{label}</span>
-    <div role="radiogroup" aria-label={label} className="flex h-9 overflow-hidden rounded-md border bg-muted/40 p-0.5">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={value === o.value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "flex-1 rounded-[7px] text-[12px] transition-colors",
-            value === o.value ? "bg-card font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <KitSegmented
+      label={label}
+      value={value}
+      options={options}
+      onChange={onChange}
+      className="w-full"
+    />
   </div>
 );
 
@@ -359,8 +397,17 @@ export const Toggle = ({
   onChange: (v: boolean) => void;
   note?: string;
 }) => (
-  <label htmlFor={id} className="flex cursor-pointer items-start gap-2.5 rounded-md border px-2.5 py-2 hover:bg-muted/40">
-    <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 size-4 accent-primary" />
+  <label
+    htmlFor={id}
+    className="flex cursor-pointer items-start gap-2.5 rounded-md border px-2.5 py-2 hover:bg-muted/40"
+  >
+    <input
+      id={id}
+      type="checkbox"
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      className="mt-0.5 size-4 accent-primary"
+    />
     <span className="min-w-0">
       <span className="block text-[13px] text-foreground">{label}</span>
       {note ? <span className={ui.note}>{note}</span> : null}
