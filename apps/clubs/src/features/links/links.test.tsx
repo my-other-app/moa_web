@@ -5,6 +5,13 @@ import overviewFixture from "../__fixtures__/links-overview.json";
 import summaryFixture from "../__fixtures__/links-summary.json";
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
+const state = { website: false };
+// The club website's own link, as a server with site tracking sends it.
+const websiteRow = {
+  ...overviewFixture.links[1], id: "bbbbbbbb-0000-0000-0000-00000000000w", name: "Your website", code: "webs1te9",
+  url: "https://api.myotherapp.in/l/webs1te9", kind: "website", target: { kind: "website", id: null, name: "Website", starts_at: null },
+  conversion_noun: "sign-up", clicks: 120, uniques: 96, conversions: 9, clicks_ever: 400,
+};
 
 const detail = {
   id: "aaaaaaaa-0000-0000-0000-000000000001", name: "Freshers fair QR", code: "x7k2m9pq", url: "https://api.myotherapp.in/l/x7k2m9pq", destination: "https://events.myotherapp.in/37?utm_source=poster_qr&utm_medium=print&ref=x7k2m9pq",
@@ -25,7 +32,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     api: {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
-        if (path.endsWith("/clubs/links/overview")) return overviewFixture;
+        if (path.endsWith("/clubs/links/overview")) return state.website ? { ...overviewFixture, links: [websiteRow, ...overviewFixture.links] } : overviewFixture;
+        if (path.endsWith("/links/bbbbbbbb-0000-0000-0000-00000000000w/detail")) return { ...detail, id: websiteRow.id, name: websiteRow.name, code: websiteRow.code, url: websiteRow.url };
         if (path.endsWith("/events/37/links/overview")) return { ...overviewFixture, scope: "event", links: overviewFixture.links.filter((l) => l.target.kind === "event"), totals: { ...overviewFixture.totals, links: 2 } };
         if (path.endsWith("/links/aaaaaaaa-0000-0000-0000-000000000001/detail")) return detail;
         if (path.endsWith("/clubs/events/list")) return { items: [{ id: 37, name: "Hack Night 04", event_datetime: "2099-06-20T13:30:00+00:00" }], total: 1, limit: 100, offset: 0 };
@@ -50,6 +58,7 @@ const { linksOverviewSchema, linksSummarySchema } = await import("./schemas");
 
 beforeEach(() => {
   calls.length = 0;
+  state.website = false;
   Object.assign(navigator, { clipboard: { writeText: vi.fn(async () => undefined) } });
 });
 
@@ -150,5 +159,26 @@ describe("tracking links", () => {
     expect(screen.getByText("Registrations from links")).toBeInTheDocument();
     expect(screen.getByText("158 of them checked in")).toBeInTheDocument();
     expect(calls.some((c) => c.method === "GET" && c.path === "/api/v1/events/37/links/overview")).toBe(true);
+  });
+
+  it("shows the club website's own link as an automatic row that cannot be retired", async () => {
+    state.website = true;
+    render(<LinksPage scope={{ kind: "club" }} />);
+    const name = await screen.findByText("Your website");
+    const row = name.closest("li") ?? name.parentElement!.parentElement!;
+    expect(within(row as HTMLElement).getByText("Automatic")).toBeInTheDocument();
+    expect(within(row as HTMLElement).getByRole("link", { name: "Website" })).toHaveAttribute("href", "/website");
+    // The Website chip narrows the list to it.
+    fireEvent.click(screen.getByRole("button", { name: /^Website/ }));
+    expect(screen.getByText("Your website")).toBeInTheDocument();
+    fireEvent.click(name);
+    expect(await screen.findByText(/Your website's own link, made when the site was published/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Retire this link/ })).not.toBeInTheDocument();
+  });
+
+  it("reads a target kind it does not know as the club page instead of failing", () => {
+    const o = linksOverviewSchema.parse({ ...overviewFixture, links: [{ ...overviewFixture.links[1], target: { ...overviewFixture.links[1]!.target, kind: "newsletter" } }] });
+    expect(o.links[0]?.target.kind).toBe("club");
+    expect(o.links[0]?.kind).toBe("custom");
   });
 });

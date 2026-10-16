@@ -19,6 +19,8 @@ export const linkSchema = z.object({
   rate: z.number(),
   second: z.number(),
   created_at: z.string(),
+  /** "website": the club website's own link, made when the site is published — kept, never retired. */
+  kind: z.enum(["custom", "website"]).catch("custom"),
 });
 
 export const linksSummarySchema = z.object({
@@ -82,7 +84,8 @@ export function sourceLabel(source: string): string {
 
 // ─── The Tracking links page ──────────────────────────────────────────────
 
-export const linkTargetSchema = z.object({ kind: z.enum(["club", "event"]), id: z.number().nullable(), name: z.string(), starts_at: z.string().nullable() });
+// "website" is the club website's own link; an unknown kind reads as the club page rather than failing the page.
+export const linkTargetSchema = z.object({ kind: z.enum(["club", "event", "website"]).catch("club"), id: z.number().nullable(), name: z.string(), starts_at: z.string().nullable() });
 
 export const linkRowSchema = linkSchema.extend({
   target: linkTargetSchema,
@@ -148,9 +151,9 @@ export type LinkTarget = z.infer<typeof linkTargetSchema>;
 export type LinksOverview = z.infer<typeof linksOverviewSchema>;
 export type LinkDetail = z.infer<typeof linkDetailSchema>;
 
-export const TARGETS = ["all", "club", "event"] as const;
+export const TARGETS = ["all", "website", "club", "event"] as const;
 export type TargetFilter = (typeof TARGETS)[number];
-export const TARGET_LABEL: Record<TargetFilter, string> = { all: "All", club: "Club page", event: "Events" };
+export const TARGET_LABEL: Record<TargetFilter, string> = { all: "All", website: "Website", club: "Club page", event: "Events" };
 
 export const LINK_SORTS = ["clicks", "conversions", "rate", "newest"] as const;
 export type LinkSort = (typeof LINK_SORTS)[number];
