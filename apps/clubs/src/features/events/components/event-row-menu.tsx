@@ -29,6 +29,7 @@ import {
   toast,
 } from "@moa/ui";
 
+import { useAccess } from "@/features/access";
 import { useDeleteEvent } from "@/features/event-form";
 
 import type { ClubEvent } from "../schemas";
@@ -52,6 +53,7 @@ export function EventRowMenu({
 }) {
   const router = useRouter();
   const remove = useDeleteEvent();
+  const { can } = useAccess();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [dupOpen, setDupOpen] = React.useState(false);
   const registered = event.registration_count ?? 0;
@@ -97,13 +99,17 @@ export function EventRowMenu({
           <DropdownMenuItem onClick={copyLink}>
             <CopyIcon className="size-4" /> Copy public link
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() => setConfirmOpen(true)}
-          >
-            <Trash2Icon className="size-4" /> Delete event
-          </DropdownMenuItem>
+          {can.delete_events ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => setConfirmOpen(true)}
+              >
+                <Trash2Icon className="size-4" /> Delete event
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 

@@ -53,7 +53,7 @@ describe("security", () => {
   it("reads the tiles, this device, every session, the places and the history", async () => {
     render(<SecurityPage />);
     expect(await screen.findByText("Devices signed in right now")).toBeInTheDocument();
-    expect(screen.getByText(/Shared login · circuit-society/)).toBeInTheDocument();
+    expect(screen.getByText(/Club account · circuit-society/)).toBeInTheDocument();
     expect(screen.getByText("37")).toBeInTheDocument();
     expect(screen.getByText(/\+18%/)).toBeInTheDocument();
     expect(screen.getByText("Frankfurt, Germany was blocked after 5 tries")).toBeInTheDocument();

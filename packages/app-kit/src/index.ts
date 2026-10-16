@@ -43,4 +43,5 @@ export {
   useSession,
   LoginForm,
   UserMenu,
+  setLoginScope,
 } from "./auth";

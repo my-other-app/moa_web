@@ -20,12 +20,25 @@ export interface TokenResponse {
  * same form is sent again with `totp_code`: the authenticator's six digits,
  * or one of the account's recovery codes.
  */
+let loginScope: string | undefined;
+
+/**
+ * The OAuth scope an app signs in with. The clubs dashboard sets "club":
+ * there, and only there, a club team member's own email and password open
+ * the club's dashboard. The same address may be someone's app account, which
+ * must keep signing them in as themselves everywhere else.
+ */
+export function setLoginScope(scope: string | undefined) {
+  loginScope = scope;
+}
+
 export async function login(input: LoginInput & { totp_code?: string }): Promise<TokenResponse> {
   const body = new URLSearchParams({
     username: input.username,
     password: input.password,
   });
   if (input.totp_code) body.set("totp_code", input.totp_code);
+  if (loginScope) body.set("scope", loginScope);
   return api.post<TokenResponse>("/api/v1/auth/token", body);
 }
 

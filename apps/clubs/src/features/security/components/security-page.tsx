@@ -8,6 +8,7 @@ import { CopyIcon, KeyRoundIcon, Loader2Icon, LogOutIcon, MonitorIcon, Smartphon
 import { formatDateTime, relativeTime } from "@moa/app-kit";
 import { CardLabel, Chip, EmptyState, FigurePanel, ProgressBar, Skeleton, StatTile, cn, toast } from "@moa/ui";
 
+import { MemberAccount, useMyAccess } from "@/features/access";
 import { changePasswordSchema, useChangePassword, type ChangePasswordForm } from "@/features/club";
 
 import { useDisableTwoFactor, useEnableTwoFactor, useNotifyNewDevice, useRevokeSession, useSecurity, useSignOutOthers, useStartTwoFactor } from "../queries";
@@ -16,10 +17,11 @@ import { METHODS, resultOf, type ActiveSession, type SecurityOverview } from "..
 /**
  * Security: who is signed in, from where, and what happened at the door.
  *
- * The login is shared by a committee, so every device shows here with its
- * place and when it was last seen, and any of them can be ended from this
- * page — at once, not at its next refresh. Under it, the password, the
- * authenticator switch, where sign-ins come from, and the full history.
+ * Every device signed in to the club account shows here — the club's own
+ * login and each team member's (named) — with its place and when it was
+ * last seen, and any of them can be ended from this page, at once. Under it,
+ * the password, the authenticator switch, where sign-ins come from, and the
+ * full history. A team member sees their own account instead (Access).
  */
 const field = "input h-10 w-full";
 const label = "eyebrow mb-1.5 block";
@@ -45,7 +47,7 @@ function SessionsPanel({ s }: { s: SecurityOverview }) {
   const [confirm, setConfirm] = React.useState<string | null>(null);
   return (
     <FigurePanel className="p-4">
-      <CardLabel right={<span className="text-ink-3 text-[11px]">Shared login — every committee device shows here</span>}>Active sessions</CardLabel>
+      <CardLabel right={<span className="text-ink-3 text-[11px]">The club account and its team, on every device</span>}>Active sessions</CardLabel>
       <ul className="mt-3 flex flex-col">
         {s.sessions.map((x) => {
           const Icon = KIND_ICON[x.kind];
@@ -58,6 +60,7 @@ function SessionsPanel({ s }: { s: SecurityOverview }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-ink text-[14px] font-medium">{x.device}</span>
+                  <span className="tag">{x.who ?? "Club account"}</span>
                   {x.current && <Chip tone="admit">This device</Chip>}
                 </div>
                 <div className="text-ink-3 mt-0.5 text-[12.5px]">
@@ -168,7 +171,7 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
   return (
     <FigurePanel className="p-4">
       <CardLabel right={<Chip tone={on ? "admit" : undefined}>{on ? "On" : "Off"}</Chip>}>Two-factor sign-in</CardLabel>
-      <p className="text-ink-3 mt-1 text-[12.5px]">Ask for a 6-digit code from an authenticator app at sign-in. On a shared login, add it to the committee&apos;s shared authenticator so nobody gets locked out.</p>
+      <p className="text-ink-3 mt-1 text-[12.5px]">Ask for a 6-digit code from an authenticator app at sign-in. It protects the club account&apos;s own login; team members sign in with their own passwords from Access.</p>
       {codes ? (
         <div className="bg-sunken mt-3 rounded-xl p-3">
           <p className="text-ink text-[13px] font-medium">Recovery codes — shown once. Keep them somewhere safe.</p>
@@ -336,6 +339,12 @@ function HistoryPanel({ s }: { s: SecurityOverview }) {
 // ─── The page ────────────────────────────────────────────────────────────
 
 export function SecurityPage() {
+  const me = useMyAccess().data;
+  if (me?.member) return <MemberAccount me={{ ...me, member: me.member }} />;
+  return <ClubSecurity />;
+}
+
+function ClubSecurity() {
   const q = useSecurity();
   const s = q.data;
   const others = useSignOutOthers();
@@ -347,7 +356,7 @@ export function SecurityPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <h2 className="page-title m-0 font-semibold tracking-[-0.02em]">Security</h2>
-          <p className="text-ink-2 mt-1 text-[13px]">{s ? `Shared login · ${s.account}` : "Who is signed in, and what happened at the door"}</p>
+          <p className="text-ink-2 mt-1 text-[13px]">{s ? `Club account · ${s.account}` : "Who is signed in, and what happened at the door"}</p>
         </div>
         <button
           type="button"

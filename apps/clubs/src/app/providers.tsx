@@ -6,7 +6,10 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ThemeProvider } from "next-themes";
 import { Toaster, TooltipProvider } from "@moa/ui";
 
-import { getQueryClient } from "@moa/app-kit";
+import { getQueryClient, setLoginScope } from "@moa/app-kit";
+
+// Sign-ins from this app are for a club, so a team member's own password works here.
+setLoginScope("club");
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Not useState(() => new QueryClient()): getQueryClient already returns a
