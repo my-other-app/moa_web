@@ -109,6 +109,9 @@ export const clubSelfSchema = z.object({
   socials: clubSocialsSchema,
   interests: z.array(clubInterestSchema).catch([]).default([]),
   org: clubOrgSchema,
+  /** The plan picked at sign-up, which Plan & billing offers first until the club subscribes. */
+  requested_plan: z.string().nullish().catch(null),
+  requested_cycle: z.enum(["monthly", "yearly"]).nullish().catch(null),
 });
 
 export type ClubSelf = z.infer<typeof clubSelfSchema>;
