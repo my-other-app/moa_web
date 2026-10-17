@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { BanIcon, HourglassIcon, Loader2Icon, MoreHorizontalIcon, RefreshCwIcon } from "lucide-react";
+import { BanIcon, GiftIcon, HourglassIcon, Loader2Icon, MoreHorizontalIcon, RefreshCwIcon } from "lucide-react";
 import { formatDate } from "@moa/app-kit";
 import {
   Button,
@@ -21,7 +21,8 @@ import {
 } from "@moa/ui";
 
 import { useCancelSubscription, useExtendGrace, useRetryCharge } from "../queries";
-import { GRACE_DAYS, graceDaysProblem, inGrace, type Subscription } from "../schemas";
+import { GRACE_DAYS, freeBadgeText, freePlanNote, graceDaysProblem, inGrace, type Subscription } from "../schemas";
+import { GivePlanDialog } from "./give-plan-dialog";
 
 /**
  * What an admin can do to one subscription: ask Razorpay to retry a failed
@@ -37,18 +38,24 @@ export function canExtendGrace(row: Subscription): boolean {
   return row.status === "past_due";
 }
 
+/** Cancelling at Razorpay is for a plan that is paid for; a free one is ended instead. */
 export function canCancel(row: Subscription): boolean {
-  return row.status !== "cancelled";
+  return row.status !== "cancelled" && !row.complimentary;
+}
+
+/** A free plan still running: "End free plan" moves the club to Free now (the same cancel underneath). */
+export function canEndFree(row: Subscription): boolean {
+  return row.complimentary && row.status !== "cancelled";
 }
 
 const DAY_MS = 86_400_000;
 
 export function SubscriptionActions({ row }: { row: Subscription }) {
   const retry = useRetryCharge();
-  const [dialog, setDialog] = React.useState<"grace" | "cancel" | null>(null);
+  const [dialog, setDialog] = React.useState<"grace" | "cancel" | "end_free" | "give" | null>(null);
   const club = row.club?.name ?? "this club";
-  const actions = { retry: canRetry(row), grace: canExtendGrace(row), cancel: canCancel(row) };
-  if (!actions.retry && !actions.grace && !actions.cancel) return null;
+  const actions = { give: Boolean(row.club), retry: canRetry(row), grace: canExtendGrace(row), cancel: canCancel(row), endFree: canEndFree(row) };
+  if (!actions.give && !actions.retry && !actions.grace && !actions.cancel && !actions.endFree) return null;
 
   return (
     <>
@@ -63,6 +70,11 @@ export function SubscriptionActions({ row }: { row: Subscription }) {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
+          {actions.give ? (
+            <DropdownMenuItem onClick={() => setDialog("give")}>
+              <GiftIcon className="size-4" /> {row.status === "cancelled" ? "Give plan" : "Change plan"}
+            </DropdownMenuItem>
+          ) : null}
           {actions.retry ? (
             <DropdownMenuItem disabled={retry.isPending} onClick={() => retry.mutate(row.id)}>
               <RefreshCwIcon className="size-4" /> Retry charge
@@ -73,19 +85,27 @@ export function SubscriptionActions({ row }: { row: Subscription }) {
               <HourglassIcon className="size-4" /> Extend grace
             </DropdownMenuItem>
           ) : null}
-          {actions.cancel ? (
+          {actions.cancel || actions.endFree ? (
             <>
-              {actions.retry || actions.grace ? <DropdownMenuSeparator /> : null}
-              <DropdownMenuItem variant="destructive" onClick={() => setDialog("cancel")}>
-                <BanIcon className="size-4" /> Cancel
-              </DropdownMenuItem>
+              {actions.give || actions.retry || actions.grace ? <DropdownMenuSeparator /> : null}
+              {actions.endFree ? (
+                <DropdownMenuItem variant="destructive" onClick={() => setDialog("end_free")}>
+                  <BanIcon className="size-4" /> End free plan
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem variant="destructive" onClick={() => setDialog("cancel")}>
+                  <BanIcon className="size-4" /> Cancel
+                </DropdownMenuItem>
+              )}
             </>
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {dialog === "give" && row.club ? <GivePlanDialog club={{ id: row.club.id, name: row.club.name }} current={row} onClose={() => setDialog(null)} /> : null}
       {dialog === "grace" ? <ExtendGraceDialog row={row} onClose={() => setDialog(null)} /> : null}
       {dialog === "cancel" ? <CancelDialog row={row} onClose={() => setDialog(null)} /> : null}
+      {dialog === "end_free" ? <EndFreePlanDialog row={row} onClose={() => setDialog(null)} /> : null}
     </>
   );
 }
@@ -195,6 +215,47 @@ function CancelDialog({ row, onClose }: { row: Subscription; onClose: () => void
             onClick={() => cancel.mutate({ subscriptionId: row.id, atPeriodEnd: when === "period_end" }, { onSuccess: onClose })}
           >
             {cancel.isPending ? <Loader2Icon className="size-4 animate-spin" /> : null} {when === "now" ? "Cancel now" : "Cancel at period end"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * End a free plan now: the club moves to Free. The same cancel as a paid
+ * plan's, ended at once, since there is no paid period to run out.
+ */
+export function EndFreePlanDialog({ row, onClose }: { row: Subscription; onClose: () => void }) {
+  const cancel = useCancelSubscription();
+  const club = row.club?.name ?? "The club";
+  const plan = row.plan?.name ?? "its plan";
+  const badge = freeBadgeText(row);
+  const note = freePlanNote(row);
+  const refused = cancel.error instanceof Error ? cancel.error.message : null;
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>End {club}&apos;s free plan?</DialogTitle>
+          <DialogDescription>
+            {club} has {plan} free{badge && row.comp_ends_at ? ` (${badge.replace(/^Free · /, "")})` : ""}. Ending it moves the club to Free now; to give it again, use Give plan.
+          </DialogDescription>
+        </DialogHeader>
+        {note ? <p className="text-ink-2 m-0 text-[12.5px]">{note}</p> : null}
+        {refused ? <Notice tone="refuse">{refused.replace(/\.$/, "")}. Nothing was changed.</Notice> : null}
+        <DialogFooter>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Keep it
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={cancel.isPending}
+            onClick={() => cancel.mutate({ subscriptionId: row.id, atPeriodEnd: false, free: true }, { onSuccess: onClose })}
+          >
+            {cancel.isPending ? <Loader2Icon className="size-4 animate-spin" /> : null} End free plan
           </Button>
         </DialogFooter>
       </DialogContent>
