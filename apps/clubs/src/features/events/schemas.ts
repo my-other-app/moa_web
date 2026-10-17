@@ -114,6 +114,12 @@ export const eventDetailSchema = z
      * an older server: not grandfathered.
      */
     plan_grandfathered: z.boolean().catch(false),
+    /**
+     * Whose Razorpay this event's ticket payments land in: the club's own
+     * account, or MyOtherApp's. Absent on an older server (null): the edit
+     * form then works it out from the club's gateway.
+     */
+    payments_to: z.enum(["club", "platform"]).nullish().catch(null),
   })
   .passthrough();
 
