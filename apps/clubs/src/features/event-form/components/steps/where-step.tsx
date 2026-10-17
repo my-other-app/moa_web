@@ -1,16 +1,50 @@
 "use client";
 
-import { useFormContext } from "react-hook-form";
+import { useFormContext, useFormState, useWatch } from "react-hook-form";
 import { GlobeIcon, MapPinIcon } from "lucide-react";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, cn } from "@moa/ui";
 
+import { PinPreview, VenuePicker, pinAt, pinFieldsOf, pinOf, type PinState } from "@/features/venue";
 import { PUBLIC_SITE_HOST } from "@/lib/public-site";
 
 import type { EventFormValues } from "../../schemas";
 
+/** Writes a pin into the form's four flat fields, as one change. */
+function usePinSetter() {
+  const form = useFormContext<EventFormValues>();
+  return (pin: PinState) => {
+    const v = pinFieldsOf(pin);
+    form.setValue("lat", v.lat, { shouldDirty: true });
+    form.setValue("lng", v.lng, { shouldDirty: true });
+    form.setValue("geo_source", v.geo_source, { shouldDirty: true });
+    form.setValue("clear_point", v.clear_point, { shouldDirty: true });
+  };
+}
+
+/** The map under the venue: the pin, where it came from, and the map link. */
+function VenuePin() {
+  const form = useFormContext<EventFormValues>();
+  const setPin = usePinSetter();
+  const [lat, lng, geoSource, clearPoint, mapLink, venue] = useWatch({ control: form.control, name: ["lat", "lng", "geo_source", "clear_point", "location_link", "location_name"] });
+  const { errors } = useFormState({ control: form.control, name: "location_link" });
+  return (
+    <PinPreview
+      pin={pinOf({ lat, lng, geo_source: geoSource, clear_point: clearPoint })}
+      onChange={setPin}
+      mapLink={mapLink ?? ""}
+      // Checked as it was as a field of its own: once left, then on every change while wrong.
+      onMapLinkChange={(link) => form.setValue("location_link", link, { shouldDirty: true, shouldValidate: Boolean(errors.location_link) })}
+      onMapLinkBlur={() => void form.trigger("location_link")}
+      linkError={errors.location_link?.message}
+      venue={venue ?? ""}
+    />
+  );
+}
+
 /** Where: one choice, then the one field it needs. */
 export function WhereStep() {
   const form = useFormContext<EventFormValues>();
+  const setPin = usePinSetter();
   const isOnline = form.watch("is_online");
   const pick = (online: boolean) => form.setValue("is_online", online, { shouldDirty: true, shouldValidate: true });
   return (
@@ -55,7 +89,7 @@ export function WhereStep() {
           )}
         />
       ) : (
-        <>
+        <div className="grid gap-3">
           <FormField
             control={form.control}
             name="location_name"
@@ -63,28 +97,15 @@ export function WhereStep() {
               <FormItem>
                 <FormLabel>Venue</FormLabel>
                 <FormControl>
-                  <Input {...field} value={field.value ?? ""} placeholder="Main Auditorium, Block C" />
+                  <VenuePicker {...field} value={field.value ?? ""} onPick={(place) => setPin(pinAt(place.point))} placeholder="Search for the venue, or type it" />
                 </FormControl>
-                <FormDescription>As people would say it to a friend. The block and the room help more than the full address.</FormDescription>
+                <FormDescription>Pick it from the suggestions to pin it on the map, so people nearby find it on {PUBLIC_SITE_HOST}. Then say it as you would to a friend: the block and the room help more than the full address.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="location_link"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Map link · optional</FormLabel>
-                <FormControl>
-                  <Input {...field} value={field.value ?? ""} type="url" inputMode="url" placeholder="https://maps.app.goo.gl/…" />
-                </FormControl>
-                <FormDescription>Paste the venue&apos;s Google Maps link. It puts the event on the map, so people nearby find it on {PUBLIC_SITE_HOST}.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </>
+          <VenuePin />
+        </div>
       )}
     </div>
   );

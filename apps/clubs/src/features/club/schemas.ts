@@ -1,6 +1,8 @@
 import { imageFieldSchema } from "@moa/app-kit";
 import { z } from "zod";
 
+import { pinDetailShape, pinFormShape, refinePin } from "@/features/venue";
+
 export const clubSocialsSchema = z
   .object({
     instagram: z.string().nullish(),
@@ -85,6 +87,8 @@ export const clubSelfSchema = z.object({
   logo: imageFieldSchema,
   location_name: z.string().nullish(),
   location_link: z.string().nullish(),
+  /** lat, lng and geo_source: the club's pin, and where it came from. */
+  ...pinDetailShape,
   about: z.string().nullish(),
   /** One line under the name; the about is the long form. */
   tagline: z.string().nullish(),
@@ -120,8 +124,13 @@ const optionalUrl = z.string().trim().url("Enter a full URL").or(z.literal(""));
  * ids it was given. A partial payload therefore does not leave the omitted
  * fields alone -- it clears them. The design's edit screen (node 368:282)
  * covers all of them except the two contact fields and the location link; the
- * contacts are kept as visible fields and the link is round-tripped hidden,
- * so saving the profile cannot silently drop data a club entered elsewhere.
+ * contacts are kept as visible fields and the link lives under the location's
+ * "Adjust pin", so saving the profile cannot silently drop data a club
+ * entered elsewhere.
+ *
+ * The pin (lat, lng, clear_point) is the exception to "send everything": the
+ * server keeps deriving a pin from the link or the location's name, so only
+ * one the club set, or the removal of it, is sent.
  */
 export const clubProfileFormSchema = z.object({
   // 3..20 matches the Form(...) constraint on the endpoint; a longer name is
@@ -136,6 +145,8 @@ export const clubProfileFormSchema = z.object({
   org_id: z.number().int().nullable().default(null),
   location_name: z.string().trim().max(200).optional(),
   location_link: z.string().trim().max(500).optional(),
+  /** The pin. Not columns the handler overwrites: sent only when the club set or removed it. */
+  ...pinFormShape,
   contact_email: z.string().trim().email("Enter a valid email").or(z.literal("")).optional(),
   contact_phone: z
     .string()
@@ -150,7 +161,7 @@ export const clubProfileFormSchema = z.object({
   linkedin: optionalUrl.optional(),
   website: optionalUrl.optional(),
   interest_ids: z.array(z.number().int()).default([]),
-});
+}).superRefine(refinePin);
 
 export type ClubProfileForm = z.infer<typeof clubProfileFormSchema>;
 

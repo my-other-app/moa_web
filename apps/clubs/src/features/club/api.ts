@@ -1,6 +1,8 @@
 import { api } from "@moa/app-kit";
 import { z } from "zod";
 
+import { pinWireFields } from "@/features/venue";
+
 import {
   clubSelfSchema,
   interestCategorySchema,
@@ -57,7 +59,7 @@ export async function fetchOrganizations(): Promise<Organization[]> {
  * assigns whatever it receives -- omitting a field clears it rather than
  * leaving it alone. `org_id` is the exception: it is typed `int | None`, so an
  * empty string is a 422 and "no organization" has to be expressed by leaving
- * the part out entirely.
+ * the part out entirely. The pin is the other: see pinWireFields.
  */
 export async function updateMyClub(input: ClubProfileForm): Promise<void> {
   const form = new FormData();
@@ -81,6 +83,8 @@ export async function updateMyClub(input: ClubProfileForm): Promise<void> {
 
   if (input.org_id != null) form.append("org_id", String(input.org_id));
   form.append("interest_ids", input.interest_ids.join(","));
+  // lat/lng for a pin the club set, clear_point for one it removed; nothing otherwise.
+  for (const [key, value] of pinWireFields(input)) form.append(key, value);
 
   await api.put<void>("/api/v1/clubs/update", form);
 }

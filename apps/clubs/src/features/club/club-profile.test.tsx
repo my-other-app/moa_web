@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 
 import clubInfoFixture from "../__fixtures__/club-info.json";
@@ -6,7 +6,7 @@ import interestsFixture from "../__fixtures__/interests.json";
 import orgsFixture from "../__fixtures__/orgs.json";
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
-const club = {
+let club = {
   ...clubInfoFixture,
   tagline: "Trivandrum's maker collective",
   partners: [
@@ -48,9 +48,19 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 const { render } = await import("@/test/render");
 const { ClubProfilePage } = await import("./components/club-profile-page");
 
+const baseClub = club;
 beforeEach(() => {
   calls.length = 0;
+  club = baseClub;
 });
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+const putBody = async () => {
+  await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
+  return calls.find((c) => c.method === "PUT")!.body as FormData;
+};
 
 describe("club profile", () => {
   it("shows the club, its handle read-only, its partners, and nothing about follower counts", async () => {
@@ -116,5 +126,45 @@ describe("club profile", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm removing COEP Makerspace" }));
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE")).toBe(true));
     expect(calls.find((c) => c.method === "DELETE")).toMatchObject({ path: "/api/v1/clubs/partners/2" });
+  });
+  it("searches for the club's location, pins the place picked, and saves the pin as the club's own", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ features: [{ type: "Feature", geometry: { coordinates: [76.9063, 8.5459] }, properties: { osm_type: "W", osm_id: 9, name: "College of Engineering Trivandrum", city: "Thiruvananthapuram" } }] }),
+      })),
+    );
+    render(<ClubProfilePage />);
+    await screen.findByTestId("club-name");
+    const location = screen.getByRole("combobox", { name: "Location" });
+    expect(location).toHaveValue("Technopark,Tvm");
+    fireEvent.change(location, { target: { value: "College of Engineering" } });
+    fireEvent.click(await screen.findByRole("option", { name: /College of Engineering Trivandrum/ }));
+    expect(location).toHaveValue("College of Engineering Trivandrum");
+    expect(screen.getByText("Set by you")).toBeInTheDocument();
+    expect(screen.getByTitle("Map of College of Engineering Trivandrum")).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Save changes" }));
+    const form = await putBody();
+    expect(form.get("location_name")).toBe("College of Engineering Trivandrum");
+    expect(form.get("lat")).toBe("8.5459");
+    expect(form.get("lng")).toBe("76.9063");
+    expect(form.get("clear_point")).toBeNull();
+    // The link the club saved earlier still goes, as it always has.
+    expect(form.get("location_link")).toBe("Test Person");
+  });
+
+  it("shows where a saved pin came from, and removing it sends clear_point", async () => {
+    club = { ...baseClub, lat: 8.5581, lng: 76.8816, geo_source: "geocoded" } as typeof baseClub;
+    render(<ClubProfilePage />);
+    await screen.findByTestId("club-name");
+    expect(screen.getByText("Found from the venue name")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remove pin" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Save changes" }));
+    const form = await putBody();
+    expect(form.get("clear_point")).toBe("true");
+    expect(form.get("lat")).toBeNull();
   });
 });

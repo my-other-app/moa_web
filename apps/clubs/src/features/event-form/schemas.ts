@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { pinFormShape, refinePin } from "@/features/venue";
+
 /** Mirrors the backend's FieldTypes enum (app/api/events/schemas.py). */
 export const FIELD_TYPES = [
   "text",
@@ -84,6 +86,12 @@ export const eventFormSchema = z
     location_name: z.string().trim().max(200).optional(),
     /** The venue on Google Maps; it puts the event on the map for "near you" on the events site. */
     location_link: z.string().trim().url("Paste the full map link").or(z.literal("")).optional(),
+    /**
+     * The venue's pin: lat/lng, where it came from, and whether to drop one
+     * the club set. Picked from the venue search or set by hand; see
+     * pinWireFields for what a save sends.
+     */
+    ...pinFormShape,
     url: z.string().trim().url("Enter a full URL").or(z.literal("")).optional(),
 
     // --- entry
@@ -107,6 +115,7 @@ export const eventFormSchema = z
     speakers: z.array(speakerSchema).default([]),
   })
   .superRefine((value, ctx) => {
+    refinePin(value, ctx);
     // An online event with no joining link, or a physical one with no venue,
     // is unusable for the attendee even though the API accepts both.
     if (value.is_online && !value.url) {

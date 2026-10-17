@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { pinDetailShape, pinFromDetail } from "@/features/venue";
+
 import { FIELD_TYPES, type EventFormValues, type FieldType } from "./schemas";
 
 /**
@@ -21,6 +23,8 @@ const detailSchema = z
     reg_enddate: z.string().nullish(),
     location_name: z.string().nullish(),
     location_link: z.string().nullish(),
+    // lat, lng and geo_source: the pin, and where it came from.
+    ...pinDetailShape,
     url: z.string().nullish(),
     is_online: z.boolean().nullish(),
     has_fee: z.boolean().nullish(),
@@ -110,6 +114,8 @@ export function eventDetailToFormValues(raw: unknown): EventFormValues {
     is_online: d.is_online ?? false,
     location_name: d.location_name ?? "",
     location_link: d.location_link ?? "",
+    // No pin, or half of one, reads as none; clear_point starts false.
+    ...pinFromDetail(d),
     url: d.url ?? "",
 
     has_fee: d.has_fee ?? false,
