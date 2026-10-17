@@ -116,6 +116,10 @@ export const subscriptionSchema = z.object({
   grace_ends_at: z.string().nullish().catch(null),
   /** The server's own word on whether the club is in grace (worked out from `grace_ends_at` when absent). */
   in_grace: z.boolean().nullish().catch(null),
+  /** MyOtherApp gave the club this plan free: nothing to pay, nothing to cancel. */
+  complimentary: z.boolean().catch(false),
+  /** When the free plan ends; null is no end date. */
+  comp_ends_at: z.string().nullish().catch(null),
 });
 export type Subscription = z.infer<typeof subscriptionSchema>;
 
@@ -161,8 +165,21 @@ export const entitlementsSchema = z.object({
    * the event detail), and the dashboard never works it out from this.
    */
   grandfathered_before: z.string().nullish().catch(null),
+  /** The plan is a gift from MyOtherApp: it cannot be bought, changed or cancelled here. */
+  complimentary: z.boolean().catch(false),
+  comp_ends_at: z.string().nullish().catch(null),
 });
 export type Entitlements = z.infer<typeof entitlementsSchema>;
+
+/**
+ * Whether the club's plan was given free by MyOtherApp. Either source says
+ * so: the entitlements (what grants the plan) or the subscription row.
+ */
+export function complimentaryPlan(ent: Pick<Entitlements, "complimentary" | "comp_ends_at"> | null | undefined, sub: Pick<Subscription, "complimentary" | "comp_ends_at" | "status"> | null | undefined): { endsAt: string | null } | null {
+  if (ent?.complimentary) return { endsAt: ent.comp_ends_at ?? sub?.comp_ends_at ?? null };
+  if (sub?.complimentary && sub.status !== "cancelled") return { endsAt: sub.comp_ends_at ?? null };
+  return null;
+}
 
 /** StartSubscriptionOut. It carries no public key: that is this build's NEXT_PUBLIC_RAZORPAY_KEY_ID. */
 export const startSubscriptionSchema = z.object({

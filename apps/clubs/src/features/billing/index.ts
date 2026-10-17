@@ -1,5 +1,5 @@
 export { BillingPage } from "./components/billing-page";
-export { usePlans, useSubscription, useEntitlements, useStartSubscription, useCancelSubscription, billingErrorMessage, NOT_FOR_SALE } from "./queries";
+export { usePlans, useSubscription, useEntitlements, useStartSubscription, useCancelSubscription, billingErrorMessage, isComplimentaryRefusal, NOT_FOR_SALE } from "./queries";
 export { fetchPlans, fetchSubscription, fetchEntitlements, startSubscription, cancelSubscription } from "./api";
 export { checkoutKey, loadCheckout, openSubscriptionCheckout, CHECKOUT_SRC, type CheckoutOutcome } from "./razorpay";
 export {
@@ -23,6 +23,7 @@ export {
   billedByRazorpay,
   blocksCheckout,
   cancellable,
+  complimentaryPlan,
   SUBSCRIPTION_STATUSES,
   type Catalog,
   type CatalogPlan,

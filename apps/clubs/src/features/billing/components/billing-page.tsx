@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, CreditCardIcon, Loader2Icon, MailIcon, SparklesIcon } from "lucide-react";
+import { CheckIcon, CreditCardIcon, GiftIcon, Loader2Icon, MailIcon, SparklesIcon } from "lucide-react";
 import { formatDate, formatDateTime } from "@moa/app-kit";
 import {
   AlertDialog,
@@ -28,7 +28,7 @@ import {
 import { useAccess } from "@/features/access";
 import { useMyClub } from "@/features/club";
 
-import { billingErrorMessage, useCancelSubscription, useEntitlements, usePlans, useRefreshBilling, useStartSubscription, useSubscription } from "../queries";
+import { billingErrorMessage, isComplimentaryRefusal, useCancelSubscription, useEntitlements, usePlans, useRefreshBilling, useStartSubscription, useSubscription } from "../queries";
 import { checkoutKey, openSubscriptionCheckout } from "../razorpay";
 import {
   FREE_PLAN,
@@ -38,6 +38,7 @@ import {
   STATUS_TONE,
   blocksCheckout,
   cancellable,
+  complimentaryPlan,
   formatPaise,
   inGrace,
   isFree,
@@ -87,10 +88,19 @@ interface Ctx {
   currentCycle: Cycle | null;
   currentMonthly: number;
   cycle: Cycle;
+  /** MyOtherApp gave the club its plan free: nothing on sale here applies. */
+  complimentary?: boolean;
 }
+
+/** What every other plan's card says to a club on a plan given free. */
+export const COMP_CHANGE = "Talk to us to change your plan.";
 
 /** What a plan's card offers the owner. */
 function actionFor(plan: CatalogPlan, ctx: Ctx): Action {
+  if (ctx.complimentary) {
+    // No checkout and no cancel: the server refuses both (409 COMPLIMENTARY_PLAN).
+    return plan.key === ctx.currentKey ? { kind: "current" } : { kind: "note", text: COMP_CHANGE };
+  }
   const pending = ctx.sub?.status === "pending" ? ctx.sub : null;
   if (pending && pending.plan?.key === plan.key && pending.cycle === ctx.cycle) return { kind: "pending" };
   const sameCycle = isFree(plan) || plan.contact_sales || ctx.currentCycle === null || ctx.currentCycle === ctx.cycle;
@@ -177,10 +187,11 @@ export function BillingPage() {
   const currentCycle = ent?.status && ent.cycle && !(currentPlan && isFree(currentPlan)) ? ent.cycle : null;
   // Until the club subscribes, the plan it picked at sign-up is the one offered first.
   const unsubscribed = !sub || (!sub.entitled && sub.status !== "pending");
-  const requested = unsubscribed && ent?.requested_plan && ent.requested_plan !== currentKey ? ent.requested_plan : null;
+  const comp = complimentaryPlan(ent, sub);
+  const requested = !comp && unsubscribed && ent?.requested_plan && ent.requested_plan !== currentKey ? ent.requested_plan : null;
   const requestedCycle = requested ? (ent?.requested_cycle ?? null) : null;
   const cycle: Cycle = cycleChoice ?? currentCycle ?? requestedCycle ?? "monthly";
-  const ctx: Ctx = { sub, currentKey, currentCycle, currentMonthly: currentPlan?.price_monthly_paise ?? 0, cycle };
+  const ctx: Ctx = { sub, currentKey, currentCycle, currentMonthly: currentPlan?.price_monthly_paise ?? 0, cycle, complimentary: comp !== null };
 
   const authorise = async (subscriptionId: string, description: string, link: string | null | undefined, expires: string | null | undefined) => {
     const key = checkoutKey();
@@ -216,6 +227,8 @@ export function BillingPage() {
       await authorise(started.razorpay_subscription_id, `${plan.name} · ${started.cycle}`, link, started.expires_at);
     } catch (error) {
       setOutcome({ tone: "refuse", text: billingErrorMessage(error) });
+      // The plan was given free since this page loaded: read it again so the page says so.
+      if (isComplimentaryRefusal(error)) void refresh();
     } finally {
       setBusy(null);
     }
@@ -300,16 +313,20 @@ export function BillingPage() {
         </div>
       ) : (
         <div className="grid gap-3.5 lg:grid-cols-[1fr_1.4fr]">
-          <CurrentPlan
-            sub={sub}
-            ent={ent}
-            plan={currentPlan}
-            canManage={canManage}
-            busy={busy}
-            canOpenCheckout={Boolean(checkoutKey() || (sub?.razorpay_subscription_id && links[sub.razorpay_subscription_id]))}
-            onFinish={finish}
-            onCancel={() => setConfirming(true)}
-          />
+          {comp ? (
+            <ComplimentaryPlan name={ent.plan_name ?? currentPlan?.name ?? "Your plan"} endsAt={comp.endsAt} canManage={canManage} />
+          ) : (
+            <CurrentPlan
+              sub={sub}
+              ent={ent}
+              plan={currentPlan}
+              canManage={canManage}
+              busy={busy}
+              canOpenCheckout={Boolean(checkoutKey() || (sub?.razorpay_subscription_id && links[sub.razorpay_subscription_id]))}
+              onFinish={finish}
+              onCancel={() => setConfirming(true)}
+            />
+          )}
           <Usage ent={ent} />
         </div>
       )}
@@ -410,6 +427,44 @@ export function GraceBanner({ sub, email, canManage }: { sub: Subscription; emai
         : `Razorpay retries the charge on its own until then, and ${plan} stays on meanwhile. `}
       To pay with another card or UPI, open the link in Razorpay&apos;s email{email ? ` to ${email}` : ""} and update the payment method; the retry uses it. If the email is gone, write to {SALES_EMAIL}.
     </Notice>
+  );
+}
+
+// ─── A plan given free ───────────────────────────────────────────────────
+
+/**
+ * "Growth — provided free by MyOtherApp until 31 Mar 2027": a sponsored or
+ * privileged club. Nothing to pay, so no checkout and nothing to cancel; a
+ * change of plan goes through us.
+ */
+export function ComplimentaryPlan({ name, endsAt, canManage }: { name: string; endsAt: string | null; canManage: boolean }) {
+  const until = endsAt ? `until ${formatDate(endsAt)}` : "with no end date";
+  return (
+    <FigurePanel className="flex flex-col gap-3 p-4" role="region" aria-label="Current plan">
+      <CardLabel right={<StatusBadge label="Free from MyOtherApp" tone="success" />}>Current plan</CardLabel>
+      <div className="flex items-start gap-3">
+        <span className="bg-brand-soft text-brand grid size-10 shrink-0 place-items-center rounded-xl" aria-hidden="true">
+          <GiftIcon className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <div className="text-ink text-[17px] leading-[1.3] font-semibold tracking-[-0.01em]">
+            {name} — provided free by MyOtherApp {until}
+          </div>
+          <div className="text-ink-3 mt-0.5 text-[12.5px]">
+            Nothing to pay{endsAt ? `. After ${formatDate(endsAt)} the club moves to Free unless we extend it.` : "."}
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {canManage ? (
+          <a className="btn btn-secondary btn-sm" href={mailto(`Our ${name} plan`, "We'd like to change our club's plan.")}>
+            <MailIcon className="size-3.5" /> Talk to us to change your plan
+          </a>
+        ) : (
+          <span className="text-ink-3 text-[12.5px]">{COMP_CHANGE}</span>
+        )}
+      </div>
+    </FigurePanel>
   );
 }
 
