@@ -5,7 +5,7 @@ import { toast } from "@moa/ui";
 
 import { fetchNotifications, fetchUnreadCount, markAllRead, markRead, type NotificationQuery } from "./api";
 
-const KEY = ["admin-notifications"] as const;
+const KEY = ["admin-alerts"] as const;
 
 /** How often the bell asks: often enough to notice a failed charge the same hour, cheap enough to leave on. */
 export const UNREAD_POLL_MS = 60_000;
@@ -42,12 +42,13 @@ export function useMarkRead() {
   });
 }
 
+/** Marks all read, or only one kind's when the list is filtered to it. */
 export function useMarkAllRead() {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: markAllRead,
-    onSuccess: async () => {
-      toast.success("All caught up");
+    mutationFn: (kind?: string | null) => markAllRead(kind),
+    onSuccess: async (result) => {
+      toast.success(result.unread ? `${result.updated} marked read · ${result.unread} still unread` : "All caught up");
       await invalidate();
     },
     onError: (error: Error) => toast.error(error.message || "Could not mark them read"),

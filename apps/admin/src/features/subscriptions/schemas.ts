@@ -157,12 +157,19 @@ export const subscriptionSchema = z.object({
   /* A failed charge keeps the plan on until this moment; then the club moves
      to Free unless a payment lands. Null when nothing is owed. */
   grace_ends_at: z.string().nullish().catch(null),
+  /* The server's own word on whether the row is in grace. */
+  in_grace: z.boolean().nullish().catch(null),
 });
 
 export type Subscription = z.infer<typeof subscriptionSchema>;
 
-/** Whether a row is in its grace period: a failed charge, the plan still on, the clock running. */
-export function inGrace(row: Pick<Subscription, "grace_ends_at" | "status">): boolean {
+/**
+ * Whether a row is in its grace period: a failed charge, the plan still on,
+ * the clock running. The server says so in `in_grace`; worked out from
+ * `grace_ends_at` only for a server that does not.
+ */
+export function inGrace(row: Pick<Subscription, "grace_ends_at" | "status" | "in_grace">): boolean {
+  if (typeof row.in_grace === "boolean") return row.in_grace;
   return Boolean(row.grace_ends_at) && row.status !== "cancelled";
 }
 
@@ -186,7 +193,8 @@ export const totalsSchema = z.object({
   /* Checkouts opened and not paid: they grant nothing. */
   pending: z.number().default(0),
   paused: z.number().default(0),
-  /* A failed charge, the plan kept on until its grace ends. */
+  /* A failed charge, the plan kept on until its grace ends. These are also
+     counted in past_due: never add the two. */
   in_grace: z.number().default(0),
 });
 

@@ -175,7 +175,7 @@ export function useExtendGrace() {
       );
       await invalidate();
     },
-    onError: (error: Error) => toast.error(error.message || "Could not extend the grace period"),
+    // The dialog shows the server's refusal itself, where the admin is looking.
   });
 }
 
@@ -189,6 +189,6 @@ export function useCancelSubscription() {
       toast.success(atPeriodEnd ? `${club}'s subscription ends with its period` : `${club}'s subscription is cancelled`);
       await invalidate();
     },
-    onError: (error: Error) => toast.error(error.message || "Could not cancel the subscription"),
+    // The dialog shows the server's refusal itself, where the admin is looking.
   });
 }

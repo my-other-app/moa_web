@@ -32,8 +32,9 @@ export function canRetry(row: Subscription): boolean {
   return Boolean(row.razorpay_subscription_id) && (row.status === "past_due" || inGrace(row));
 }
 
+/** Only a past-due row: the server refuses any other (422 NOT_PAST_DUE, or NEVER_PAID for one never paid). */
 export function canExtendGrace(row: Subscription): boolean {
-  return row.status === "past_due" || inGrace(row);
+  return row.status === "past_due";
 }
 
 export function canCancel(row: Subscription): boolean {
@@ -106,6 +107,7 @@ function ExtendGraceDialog({ row, onClose }: { row: Subscription; onClose: () =>
     if (problem) return;
     extend.mutate({ subscriptionId: row.id, days: n }, { onSuccess: onClose });
   };
+  const refused = extend.error instanceof Error ? extend.error.message : null;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -136,6 +138,8 @@ function ExtendGraceDialog({ row, onClose }: { row: Subscription; onClose: () =>
               {touched && problem ? problem : until ? `Grace would run until ${formatDate(until)}.` : `${GRACE_DAYS.min} to ${GRACE_DAYS.max} days.`}
             </span>
           </label>
+          {/* The server's words (NOT_PAST_DUE, NEVER_PAID): nothing was changed. */}
+          {refused ? <Notice tone="refuse">{refused.replace(/\.$/, "")}. Nothing was changed.</Notice> : null}
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={onClose}>
               Keep as is
@@ -158,6 +162,8 @@ function CancelDialog({ row, onClose }: { row: Subscription; onClose: () => void
   const club = row.club?.name ?? "The club";
   const plan = row.plan?.name ?? "its plan";
   const end = row.current_period_end ? formatDate(row.current_period_end) : null;
+  // The server's words (NOTHING_TO_CANCEL, RAZORPAY_ERROR): nothing was changed.
+  const refused = cancel.error instanceof Error ? cancel.error.message : null;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -176,6 +182,7 @@ function CancelDialog({ row, onClose }: { row: Subscription; onClose: () => void
           />
           <ChoiceCard checked={when === "now"} onClick={() => setWhen("now")} title="Now" hint={`${club} moves to Free at once. Nothing more is charged.`} />
         </div>
+        {refused ? <Notice tone="refuse">{refused.replace(/\.$/, "")}. Nothing was changed.</Notice> : null}
         {when === "now" && row.status === "active" ? <Notice tone="caution">They have paid{end ? ` until ${end}` : " for this period"}. Ending it now takes away what they paid for; any refund is done in Razorpay.</Notice> : null}
         <DialogFooter>
           <Button type="button" variant="secondary" onClick={onClose}>

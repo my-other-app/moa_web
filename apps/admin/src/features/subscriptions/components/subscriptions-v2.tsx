@@ -154,7 +154,7 @@ export function SubscriptionsV2() {
             <Kpi
               label="In grace"
               value={formatNumber(data?.in_grace ?? 0)}
-              note="Charge failed, plan kept on until grace ends"
+              note="Plan kept on until grace ends · also in Past due"
               icon={<HourglassIcon className="size-4" />}
               accent={(data?.in_grace ?? 0) > 0}
             />

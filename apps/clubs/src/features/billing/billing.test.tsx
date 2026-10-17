@@ -479,6 +479,16 @@ describe("a failed charge in its grace period", () => {
     expect(await screen.findByText(/Razorpay has stopped retrying the charge, so Growth ends on 24 Oct 2026 unless a payment goes through/)).toBeInTheDocument();
   });
 
+  it("takes the server's in_grace over the grace end", async () => {
+    state.sub = { ...PAST_DUE, in_grace: false };
+    state.ent = { ...GROWTH_ENTITLEMENTS, status: "past_due", subscription_status: "past_due" };
+    render(<BillingPage />);
+    await currentPanel();
+    expect(screen.queryByText(/Payment failed — update by/)).not.toBeInTheDocument();
+    // Not in grace, still past due: the plain past-due line says so.
+    expect(screen.getByText(/The last charge did not go through/)).toBeInTheDocument();
+  });
+
   it("shows nothing about grace when nothing is owed", async () => {
     state.sub = GROWTH_ACTIVE;
     state.ent = GROWTH_ENTITLEMENTS;

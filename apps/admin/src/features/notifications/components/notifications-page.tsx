@@ -44,8 +44,9 @@ export function NotificationsPage() {
           </span>
         </div>
         {canMark && unread > 0 ? (
-          <button type="button" className="btn btn-secondary" disabled={markAll.isPending} onClick={() => markAll.mutate()}>
-            <CheckCheckIcon className="size-4" /> Mark all read
+          <button type="button" className="btn btn-secondary" disabled={markAll.isPending} onClick={() => markAll.mutate(kind || null)}>
+            {/* Filtered to a kind, it marks only those. */}
+            <CheckCheckIcon className="size-4" /> {kind ? `Mark all ${kindLabel(kind).toLowerCase()} read` : "Mark all read"}
           </button>
         ) : null}
       </header>

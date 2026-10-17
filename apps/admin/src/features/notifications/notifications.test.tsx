@@ -2,16 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 /**
- * Admin notifications against the backend's contract:
- * GET /admin/notifications?unread=&kind=&offset=&limit= → {items, total, unread},
- * GET /admin/notifications/unread-count → {unread},
- * POST /admin/notifications/{id}/read and /read-all.
+ * Admin alerts against the backend's contract (the UI calls them
+ * notifications; the API is /admin/alerts, since /admin/notifications is the
+ * audit router's list of club announcements):
+ * GET /admin/alerts?unread=&kind=&offset=&limit= → {items, total, unread},
+ * GET /admin/alerts/unread-count → {unread},
+ * POST /admin/alerts/{id}/read → the item, POST /admin/alerts/read-all?kind= → {updated, unread}.
  */
 let role: string | null = "owner";
 let search = "";
 const pushes: string[] = [];
 const gets: Array<{ path: string; query?: Record<string, unknown> }> = [];
 const posts: string[] = [];
+const postQueries: Array<Record<string, unknown> | undefined> = [];
 let unread = 3;
 let total = 3;
 
@@ -35,7 +38,7 @@ function item(over: Record<string, unknown> = {}) {
 
 const ITEMS = [
   item(),
-  item({ id: 2, kind: "club_applied", title: "Robotics applied to join", body: "Picked Growth at sign-up.", club: { id: 6, name: "Robotics", slug: "robotics" }, subscription_id: null, created_at: iso(3 * 3_600_000) }),
+  item({ id: 2, kind: "club_applied", title: "Robotics applied to join", body: "Picked Growth at sign-up.", club: { id: 6, name: "Robotics", slug: "robotics" }, subscription_id: null, data: { requested_plan: "growth", requested_cycle: "yearly", contact_email: "hi@robotics.in" }, created_at: iso(3 * 3_600_000) }),
   item({ id: 3, kind: "payment_received", title: "₹999 from Drama", body: null, club: { id: 7, name: "Drama", slug: "drama" }, subscription_id: 12, read_at: iso(60_000) }),
   item({ id: 4, kind: "grace_ending", title: "Grace ends tomorrow for Circuit", subscription_id: 11 }),
 ];
@@ -54,18 +57,24 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     api: {
       get: vi.fn(async (path: string, init?: { query?: Record<string, unknown> }) => {
         gets.push({ path, query: init?.query });
-        if (path === "/api/v1/admin/notifications/unread-count") return { unread };
-        if (path === "/api/v1/admin/notifications") {
+        if (path === "/api/v1/admin/alerts/unread-count") return { unread };
+        if (path === "/api/v1/admin/alerts") {
           const limit = Number(init?.query?.limit ?? 20);
           return { items: ITEMS.slice(0, limit), total, unread };
         }
         throw new Error(`unstubbed GET ${path}`);
       }),
-      post: vi.fn(async (path: string) => {
+      post: vi.fn(async (path: string, _body?: unknown, opts?: { query?: Record<string, unknown> }) => {
         posts.push(path);
-        if (path.endsWith("/read-all")) unread = 0;
-        else if (path.endsWith("/read")) unread = Math.max(0, unread - 1);
-        return {};
+        postQueries.push(opts?.query);
+        if (path.endsWith("/read-all")) {
+          const updated = unread;
+          unread = 0;
+          return { updated, unread };
+        }
+        const id = path.split("/").at(-2);
+        unread = Math.max(0, unread - 1);
+        return { ...ITEMS.find((i) => String(i.id) === id), read_at: new Date().toISOString() };
       }),
       put: vi.fn(),
       del: vi.fn(),
@@ -74,7 +83,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
-const { NotificationBell, NotificationsPage, notificationHref, kindLabel, kindTone, notificationPageSchema, UNREAD_POLL_MS, BELL_LIMIT } = await import("./index");
+const { NotificationBell, NotificationsPage, notificationHref, kindLabel, kindTone, alertLabel, notificationPageSchema, UNREAD_POLL_MS, BELL_LIMIT } = await import("./index");
 
 /** jsdom cannot navigate; following a link here is only about what it marks read. */
 const stayPut = (e: MouseEvent) => {
@@ -88,6 +97,7 @@ beforeEach(() => {
   pushes.length = 0;
   gets.length = 0;
   posts.length = 0;
+  postQueries.length = 0;
   unread = 3;
   total = 3;
 });
@@ -98,7 +108,7 @@ afterEach(() => {
 });
 
 const countCalls = () => gets.filter((g) => g.path.endsWith("/unread-count")).length;
-const listCalls = () => gets.filter((g) => g.path === "/api/v1/admin/notifications");
+const listCalls = () => gets.filter((g) => g.path === "/api/v1/admin/alerts");
 
 describe("the shapes", () => {
   it("reads a page, keeps an unknown kind as the server says it, and leads each to its record", () => {
@@ -114,6 +124,18 @@ describe("the shapes", () => {
     expect(notificationHref(item())).toBe("/subscriptions?q=Circuit");
     expect(notificationHref(item({ kind: "club_applied", subscription_id: null, club: { id: 6, name: "Robotics" } }))).toBe("/clubs/6");
     expect(notificationHref(item({ club: null }))).toBeNull();
+  });
+
+  it("says what the alert's data adds: the plan applied for, who cancelled, grace given", () => {
+    expect(alertLabel(item({ kind: "club_applied", data: { requested_plan: "growth", requested_cycle: "yearly", contact_email: "hi@robotics.in" } }))).toBe("Club applied · wants Growth (yearly)");
+    expect(alertLabel(item({ kind: "club_applied", data: {} }))).toBe("Club applied");
+    expect(alertLabel(item({ kind: "subscription_cancelled", data: { by: "club" } }))).toBe("Cancelled by the club");
+    expect(alertLabel(item({ kind: "subscription_cancelled", data: { by: "admin" } }))).toBe("Cancelled by an admin");
+    expect(alertLabel(item({ kind: "subscription_cancelled", data: { by: "razorpay" } }))).toBe("Cancelled by Razorpay");
+    expect(alertLabel(item({ kind: "subscription_cancelled", data: { by: "razorpay_completed" } }))).toBe("Cancelled by Razorpay, its billing cycles done");
+    expect(alertLabel(item({ kind: "subscription_cancelled", data: null }))).toBe("Cancelled");
+    expect(alertLabel(item({ kind: "plan_assigned", data: { action: "extend_grace" } }))).toBe("Grace extended");
+    expect(alertLabel(item({ kind: "plan_assigned", data: {} }))).toBe("Plan assigned");
   });
 });
 
@@ -157,6 +179,10 @@ describe("the bell", () => {
     expect(within(list).getByRole("img", { name: "Club applied" })).toHaveAttribute("data-tone", "application");
     expect(within(list).getByRole("link", { name: "Drama" })).toHaveAttribute("href", "/clubs/7");
     expect(screen.getByRole("link", { name: "See all" })).toHaveAttribute("href", "/notifications");
+    // The plan a club applied for, from the alert's data.
+    expect(within(list).getByText("Club applied · wants Growth (yearly)")).toBeInTheDocument();
+    // Alerts are /admin/alerts; /admin/notifications is the audit list of club announcements.
+    expect(gets.some((g) => g.path.startsWith("/api/v1/admin/notifications"))).toBe(false);
   });
 
   it("marks one read, and all of them, then counts again", async () => {
@@ -165,20 +191,20 @@ describe("the bell", () => {
     await screen.findByRole("list", { name: "Latest notifications" });
 
     fireEvent.click(screen.getByRole("button", { name: "Mark read: Circuit's payment failed" }));
-    await waitFor(() => expect(posts).toEqual(["/api/v1/admin/notifications/1/read"]));
+    await waitFor(() => expect(posts).toEqual(["/api/v1/admin/alerts/1/read"]));
     // A read one has nothing to mark.
     expect(screen.queryByRole("button", { name: "Mark read: ₹999 from Drama" })).not.toBeInTheDocument();
     await waitFor(() => expect(countCalls()).toBeGreaterThanOrEqual(2));
 
     fireEvent.click(screen.getByRole("button", { name: /Mark all read/ }));
-    await waitFor(() => expect(posts).toContain("/api/v1/admin/notifications/read-all"));
+    await waitFor(() => expect(posts).toContain("/api/v1/admin/alerts/read-all"));
   });
 
   it("marks it read when it is followed", async () => {
     render(<NotificationBell />);
     fireEvent.click(await screen.findByRole("button", { name: /Notifications: 3 unread/ }));
     fireEvent.click(await screen.findByRole("link", { name: "Robotics applied to join" }));
-    await waitFor(() => expect(posts).toEqual(["/api/v1/admin/notifications/2/read"]));
+    await waitFor(() => expect(posts).toEqual(["/api/v1/admin/alerts/2/read"]));
   });
 
   it("lets a viewer read them but not mark them, since that clears them for everyone", async () => {
@@ -190,6 +216,14 @@ describe("the bell", () => {
     expect(screen.queryByRole("button", { name: /Mark all read/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Robotics applied to join" }));
     expect(posts).toHaveLength(0);
+  });
+
+  it("lets support mark them, as with the other moderation writes", async () => {
+    role = "support";
+    render(<NotificationBell />);
+    fireEvent.click(await screen.findByRole("button", { name: /Notifications: 3 unread/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Mark read: Circuit's payment failed" }));
+    await waitFor(() => expect(posts).toEqual(["/api/v1/admin/alerts/1/read"]));
   });
 });
 
@@ -228,7 +262,16 @@ describe("the notifications page", () => {
   it("marks everything read", async () => {
     render(<NotificationsPage />);
     fireEvent.click(await screen.findByRole("button", { name: /Mark all read/ }));
-    await waitFor(() => expect(posts).toEqual(["/api/v1/admin/notifications/read-all"]));
+    await waitFor(() => expect(posts).toEqual(["/api/v1/admin/alerts/read-all"]));
+    expect(postQueries[0]).toEqual({ kind: undefined });
+  });
+
+  it("marks only the kind it is filtered to", async () => {
+    search = "kind=payment_failed";
+    render(<NotificationsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Mark all payment failed read" }));
+    await waitFor(() => expect(posts).toEqual(["/api/v1/admin/alerts/read-all"]));
+    expect(postQueries[0]).toEqual({ kind: "payment_failed" });
   });
 
   it("says when a filter matches nothing", async () => {

@@ -114,8 +114,17 @@ export const subscriptionSchema = z.object({
    * moves to Free unless a payment lands. Null when nothing is owed.
    */
   grace_ends_at: z.string().nullish().catch(null),
+  /** The server's own word on whether the club is in grace (worked out from `grace_ends_at` when absent). */
+  in_grace: z.boolean().nullish().catch(null),
 });
 export type Subscription = z.infer<typeof subscriptionSchema>;
+
+/** In grace: the server's `in_grace`, or, from a server that does not send it, a grace end on a live subscription. */
+export function inGrace(sub: Pick<Subscription, "in_grace" | "grace_ends_at" | "status"> | null | undefined): boolean {
+  if (!sub) return false;
+  if (typeof sub.in_grace === "boolean") return sub.in_grace;
+  return Boolean(sub.grace_ends_at) && sub.status !== "cancelled";
+}
 
 /** EntitlementsOut: what grants the club its plan right now, and how much of it is used. */
 export const entitlementsSchema = z.object({

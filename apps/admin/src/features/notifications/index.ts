@@ -9,6 +9,8 @@ export {
   kindLabel,
   kindTone,
   notificationHref,
+  alertLabel,
+  readAllSchema,
   notificationSchema,
   notificationPageSchema,
   unreadCountSchema,

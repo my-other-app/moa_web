@@ -39,6 +39,7 @@ import {
   blocksCheckout,
   cancellable,
   formatPaise,
+  inGrace,
   isFree,
   limitText,
   mailto,
@@ -288,7 +289,7 @@ export function BillingPage() {
         </Notice>
       ) : null}
 
-      {sub?.grace_ends_at ? <GraceBanner sub={sub} email={club?.contact_email} canManage={canManage} /> : null}
+      {sub && inGrace(sub) ? <GraceBanner sub={sub} email={club?.contact_email} canManage={canManage} /> : null}
 
       {subQ.isError || entQ.isError ? (
         <EmptyState tone="muted" title="Could not load your plan" description="Try reloading the page." />
@@ -388,7 +389,7 @@ export function BillingPage() {
  * card or UPI it charges is changed through the link in Razorpay's email.
  */
 export function GraceBanner({ sub, email, canManage }: { sub: Subscription; email?: string | null; canManage: boolean }) {
-  const by = sub.grace_ends_at ? formatDate(sub.grace_ends_at) : null;
+  const by = sub.grace_ends_at ? formatDate(sub.grace_ends_at) : "the end of your grace period";
   const plan = sub.plan?.name ?? "your plan";
   return (
     <Notice
@@ -502,7 +503,7 @@ function CurrentPlan({
         </Notice>
       ) : null}
 
-      {sub?.status === "past_due" && !sub.grace_ends_at ? (
+      {sub?.status === "past_due" && !inGrace(sub) ? (
         <Notice tone="caution" tag="Payment">
           The last charge did not go through{sub.last_failure_reason ? ` (${sub.last_failure_reason})` : ""}. Razorpay tries again on its own{sub.entitled ? "; your plan stays on meanwhile" : ""}.
         </Notice>

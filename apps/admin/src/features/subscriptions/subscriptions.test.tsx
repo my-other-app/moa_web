@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { ApiError } from "@moa/api";
 
 /**
  * The Subscriptions screen.
@@ -15,6 +16,8 @@ let subscriptionRows: unknown[] = [];
 const statusQueries: Array<unknown> = [];
 const puts: Array<{ path: string; body: Record<string, unknown> }> = [];
 const posts: Array<{ path: string; body?: Record<string, unknown> }> = [];
+/** When set, the next subscription action is refused with it. */
+let refuse: ApiError | null = null;
 
 const FEATURE_GROUPS = {
   every_event: ["tickets", "certificates", "checkin", "reviews", "threads", "regform", "waitlist"],
@@ -81,6 +84,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       }),
       post: vi.fn(async (path: string, body?: Record<string, unknown>) => {
         posts.push({ path, body });
+        if (refuse) throw refuse;
         if (path.endsWith("/retry")) return { message: "Razorpay will try the charge again" };
         const id = Number(path.split("/").at(-2));
         const current = (subscriptionRows as Array<Record<string, unknown>>).find((r) => r.id === id) ?? {};
@@ -99,7 +103,7 @@ const { render } = await import("@/test/render");
 const { SubscriptionsV2 } = await import("./components/subscriptions-v2");
 const { SubscribersTab } = await import("./components/subscribers-tab");
 const { PlansTab } = await import("./components/plans-tab");
-const { toForm, toPayload, rupees, paise, yearlyPriceProblem, planSchema, subscriptionSchema, statusLabel } =
+const { toForm, toPayload, rupees, paise, yearlyPriceProblem, planSchema, subscriptionSchema, statusLabel, inGrace } =
   await import("./schemas");
 
 function row(overrides: Record<string, unknown> = {}) {
@@ -130,6 +134,7 @@ beforeEach(() => {
   statusQueries.length = 0;
   puts.length = 0;
   posts.length = 0;
+  refuse = null;
 });
 
 describe("money conversion", () => {
@@ -290,7 +295,7 @@ describe("pricing-page flags", () => {
 });
 
 describe("grace, and what an admin can do about a failed charge", () => {
-  const GRACE = { status: "past_due", last_failure_reason: "Card declined", grace_ends_at: "2026-10-24T10:00:00+05:30", halted_at: null };
+  const GRACE = { status: "past_due", last_failure_reason: "Card declined", grace_ends_at: "2026-10-24T10:00:00+05:30", halted_at: null, in_grace: true };
 
   it("counts pending, paused and in-grace subscriptions on the headline", async () => {
     render(<SubscriptionsV2 />);
@@ -372,6 +377,48 @@ describe("grace, and what an admin can do about a failed charge", () => {
     fireEvent.keyDown(await screen.findByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
     fireEvent.click(await screen.findByRole("menuitem", { name: /Retry charge/ }));
     await waitFor(() => expect(posts).toEqual([{ path: "/api/v1/admin/subscriptions/1/retry", body: undefined }]));
+  });
+
+  it("takes the server's in_grace over the grace end, and works it out only when it is absent", async () => {
+    expect(inGrace(subscriptionSchema.parse(row({ ...GRACE, in_grace: false })))).toBe(false);
+    expect(inGrace(subscriptionSchema.parse(row({ ...GRACE, in_grace: undefined })))).toBe(true);
+    expect(inGrace(subscriptionSchema.parse(row({ status: "past_due", grace_ends_at: null, in_grace: true })))).toBe(true);
+    subscriptionRows = [row({ id: 1, ...GRACE, in_grace: false })];
+    render(<SubscribersTab />);
+    await screen.findAllByText("Circuit");
+    expect(screen.queryByText("Grace until 24 Oct")).not.toBeInTheDocument();
+  });
+
+  it("offers Extend grace on a past-due row only", async () => {
+    // In grace by the server's word, but not past due: the server would refuse it (NOT_PAST_DUE).
+    subscriptionRows = [row({ id: 1, ...GRACE, status: "active" })];
+    render(<SubscribersTab />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
+    expect(await screen.findByRole("menuitem", { name: /Cancel/ })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Extend grace/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the server's refusal to extend grace, and keeps the dialog", async () => {
+    refuse = new ApiError({ status: 422, message: "This club has never paid, so there is no grace to extend.", errorCode: "NEVER_PAID" });
+    subscriptionRows = [row({ id: 1, ...GRACE })];
+    render(<SubscribersTab />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Extend grace/ }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Extend grace" }));
+    expect(await within(dialog).findByText("This club has never paid, so there is no grace to extend. Nothing was changed.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("shows the server's refusal to cancel", async () => {
+    refuse = new ApiError({ status: 502, message: "Razorpay did not answer. Try again in a minute.", errorCode: "RAZORPAY_ERROR" });
+    subscriptionRows = [row({ id: 1 })];
+    render(<SubscribersTab />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Cancel/ }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel at period end" }));
+    expect(await within(dialog).findByText("Razorpay did not answer. Try again in a minute. Nothing was changed.")).toBeInTheDocument();
   });
 
   it("offers none of it to a role that does not handle money", async () => {

@@ -76,6 +76,43 @@ export type NotificationPage = z.infer<typeof notificationPageSchema>;
 
 export const unreadCountSchema = z.object({ unread: z.number().catch(0) });
 
+/** POST /admin/alerts/read-all: how many it marked, and how many are still unread. */
+export const readAllSchema = z.object({ updated: z.number().catch(0), unread: z.number().catch(0) });
+
+/** "growth" → "Growth", "pro_2025" → "Pro 2025": a plan key, readable, when the alert carries no name. */
+function planWords(key: string): string {
+  const words = key.replace(/_/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+const CANCELLED_BY: Record<string, string> = {
+  club: "by the club",
+  admin: "by an admin",
+  razorpay: "by Razorpay",
+  razorpay_completed: "by Razorpay, its billing cycles done",
+};
+
+const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+
+/**
+ * What the alert's kind says, with what its `data` adds: the plan a club
+ * applied for, who cancelled, a plan change that was really more grace.
+ */
+export function alertLabel(n: Pick<AdminNotification, "kind" | "data">): string {
+  const data = n.data ?? {};
+  if (n.kind === "club_applied") {
+    const plan = text(data.requested_plan);
+    const cycle = text(data.requested_cycle);
+    return plan ? `Club applied · wants ${planWords(plan)}${cycle ? ` (${cycle})` : ""}` : kindLabel(n.kind);
+  }
+  if (n.kind === "subscription_cancelled") {
+    const by = text(data.by);
+    return by ? `Cancelled ${CANCELLED_BY[by] ?? `by ${by.replace(/_/g, " ")}`}` : kindLabel(n.kind);
+  }
+  if (n.kind === "plan_assigned" && data.action === "extend_grace") return "Grace extended";
+  return kindLabel(n.kind);
+}
+
 /** Kinds about a club's subscription rather than the club itself. */
 const SUBSCRIPTION_KINDS = new Set<string>(NOTIFICATION_KINDS.filter((k) => k !== "club_applied"));
 

@@ -16,8 +16,9 @@ export const BELL_LIMIT = 10;
 /**
  * The bell in the top bar: how many notifications are unread (asked for
  * every minute), and the latest ten a click away, each with its way to the
- * club or the subscription. A viewer reads them; marking them read is for
- * the roles that act on them, since it clears them for every admin.
+ * club or the subscription. Any admin reads them; marking them read needs
+ * `moderate` (support and up), like the other moderation writes, since it
+ * clears them for every admin.
  */
 export function NotificationBell() {
   const [open, setOpen] = React.useState(false);
@@ -56,7 +57,7 @@ export function NotificationBell() {
         <div className="border-line-soft flex items-center justify-between gap-2 border-b px-3 py-2.5">
           <span className="text-ink text-[14px] font-semibold">Notifications</span>
           {canMark && unread > 0 ? (
-            <button type="button" className="text-brand hover:text-ink flex items-center gap-1 text-[12px] font-medium" disabled={markAll.isPending} onClick={() => markAll.mutate()}>
+            <button type="button" className="text-brand hover:text-ink flex items-center gap-1 text-[12px] font-medium" disabled={markAll.isPending} onClick={() => markAll.mutate(null)}>
               <CheckCheckIcon className="size-3.5" aria-hidden="true" /> Mark all read
             </button>
           ) : null}

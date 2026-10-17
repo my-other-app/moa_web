@@ -21,7 +21,7 @@ import {
 import { relativeTime } from "@moa/app-kit";
 import { cn } from "@moa/ui";
 
-import { kindLabel, kindTone, notificationHref, type AdminNotification, type KindTone } from "../schemas";
+import { alertLabel, kindLabel, kindTone, notificationHref, type AdminNotification, type KindTone } from "../schemas";
 
 const ICON: Record<string, LucideIcon> = {
   club_applied: Building2Icon,
@@ -100,7 +100,7 @@ export function NotificationRow({
         </div>
         {n.body ? <p className={cn("text-ink-2 mt-0.5 text-[12.5px] leading-[1.45]", compact && "line-clamp-2")}>{n.body}</p> : null}
         <div className="text-ink-3 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px]">
-          <span>{kindLabel(n.kind)}</span>
+          <span>{alertLabel(n)}</span>
           {n.club ? (
             <>
               <span aria-hidden="true">·</span>
