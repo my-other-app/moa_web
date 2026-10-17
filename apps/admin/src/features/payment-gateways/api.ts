@@ -26,3 +26,12 @@ export async function fetchGateways(query: GatewayQuery): Promise<Paginated<Gate
 export async function disableGateway(clubId: number) {
   return gatewayRowSchema.parse(await api.post<unknown>(`${BASE}/${clubId}/disable`));
 }
+
+/**
+ * Turns a disabled one back on. The server checks the stored keys with
+ * Razorpay: the row comes back active if they still work, or failed with
+ * `last_error` if not.
+ */
+export async function enableGateway(clubId: number) {
+  return gatewayRowSchema.parse(await api.post<unknown>(`${BASE}/${clubId}/enable`));
+}

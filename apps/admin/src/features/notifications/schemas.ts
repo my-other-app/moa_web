@@ -117,6 +117,7 @@ export function alertLabel(n: Pick<AdminNotification, "kind" | "data">): string 
     return by ? `Cancelled ${CANCELLED_BY[by] ?? `by ${by.replace(/_/g, " ")}`}` : kindLabel(n.kind);
   }
   if (n.kind === "plan_assigned" && data.action === "extend_grace") return "Grace extended";
+  if (n.kind === "payment_gateway_connected" && text(data.by) === "admin") return "Razorpay re-enabled by an admin";
   if (n.kind === "payment_gateway_disconnected") {
     // Who took it off, when the alert says: the club itself, or an admin disabling it.
     const by = text(data.by);

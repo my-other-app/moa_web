@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useForm } from "react-hook-form";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { ApiError } from "@moa/api";
-import { Form } from "@moa/ui";
+import { Form, toast } from "@moa/ui";
 
 import eventDetail from "../__fixtures__/event-detail.json";
 
@@ -100,7 +100,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
-const { PaymentsPage, gatewaySchema, hasAccount, paymentsToOf } = await import("./index");
+const { PaymentsPage, gatewaySchema, hasAccount, paymentsToOf, gatewayErrorMessage } = await import("./index");
 const { EntryStep } = await import("@/features/event-form/components/steps/entry-step");
 const { emptyEventForm } = await import("@/features/event-form/components/event-form");
 const { navItems } = await import("@/components/nav-items");
@@ -108,6 +108,7 @@ const { navItems } = await import("@/components/nav-items");
 const writeText = vi.fn(async () => {});
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   calls.length = 0;
   writeText.mockClear();
   Object.assign(state, {
@@ -336,16 +337,69 @@ describe("the Payments page", () => {
     expect(screen.queryByRole("region", { name: "Step 2: payment notices" })).not.toBeInTheDocument();
   });
 
-  it("shows an account MyOtherApp turned off, with no way to switch it back on from here", async () => {
+  it("shows an account MyOtherApp turned off: its status, why, and Talk to us — nothing else", async () => {
     state.gateway = DISABLED;
     render(<PaymentsPage />);
     const panel = await account();
     expect(within(panel).getByText("Disabled by MyOtherApp")).toBeInTheDocument();
+    expect(within(panel).getByText("rzp_live_AbC123xyz")).toBeInTheDocument();
     expect(within(panel).getByText(/MyOtherApp has turned off this connection/)).toBeInTheDocument();
-    expect(within(panel).queryByRole("button", { name: "Check again" })).not.toBeInTheDocument();
-    expect(within(panel).queryByRole("button", { name: "Replace keys" })).not.toBeInTheDocument();
-    expect(within(panel).getByRole("button", { name: "Disconnect" })).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: /Talk to us/ })).toHaveAttribute("href", expect.stringMatching(/^mailto:support@myotherapp\.in\?/));
+    // The server refuses all three while it is off (409 GATEWAY_DISABLED), so none is offered.
+    expect(within(panel).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByLabelText("Key ID")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Step 2: payment notices" })).not.toBeInTheDocument();
+  });
+
+  describe("turned off by MyOtherApp while the page was open (409 GATEWAY_DISABLED)", () => {
+    const SAID = "MyOtherApp has turned off your own Razorpay. Talk to us.";
+    const refusal = () => {
+      // The server has it off now: the next read says so.
+      state.gateway = DISABLED;
+      return new ApiError({ message: SAID, status: 409, errorCode: "GATEWAY_DISABLED" });
+    };
+
+    it("reads the code as the server's own words", () => {
+      expect(gatewayErrorMessage(new ApiError({ message: SAID, status: 409, errorCode: "GATEWAY_DISABLED" }))).toEqual({ field: null, text: SAID });
+      expect(gatewayErrorMessage(new ApiError({ message: "", status: 409, errorCode: "GATEWAY_DISABLED" })).text).toBe(SAID);
+    });
+
+    it("says so when saving keys, once, and shows the account off", async () => {
+      const said = vi.spyOn(toast, "error");
+      state.put = refusal;
+      render(<PaymentsPage />);
+      await account();
+      fillKeys("rzp_live_AbC123xyz", "secret");
+      fireEvent.click(screen.getByRole("button", { name: /Connect Razorpay/ }));
+      await waitFor(() => expect(said).toHaveBeenCalledWith(SAID));
+      await waitFor(() => expect(screen.getByRole("region", { name: "Your Razorpay" })).toHaveTextContent("Disabled by MyOtherApp"));
+      expect(said).toHaveBeenCalledTimes(1);
+      expect(screen.queryByLabelText("Key ID")).not.toBeInTheDocument();
+    });
+
+    it("says so when checking again, once, and shows the account off", async () => {
+      const said = vi.spyOn(toast, "error");
+      state.gateway = CONNECTED;
+      state.verify = refusal;
+      render(<PaymentsPage />);
+      fireEvent.click(within(await account()).getByRole("button", { name: "Check again" }));
+      await waitFor(() => expect(said).toHaveBeenCalledWith(SAID));
+      await waitFor(() => expect(screen.getByRole("region", { name: "Your Razorpay" })).toHaveTextContent("Disabled by MyOtherApp"));
+      expect(said).toHaveBeenCalledTimes(1);
+    });
+
+    it("says so when disconnecting, once, and shows the account off", async () => {
+      const said = vi.spyOn(toast, "error");
+      state.gateway = CONNECTED;
+      state.del = refusal;
+      render(<PaymentsPage />);
+      fireEvent.click(within(await account()).getByRole("button", { name: "Disconnect" }));
+      fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Disconnect" }));
+      await waitFor(() => expect(said).toHaveBeenCalledWith(SAID));
+      await waitFor(() => expect(screen.getByRole("region", { name: "Your Razorpay" })).toHaveTextContent("Disabled by MyOtherApp"));
+      expect(said).toHaveBeenCalledTimes(1);
+      expect(writes()).toEqual([{ method: "DELETE", path: "/api/v1/clubs/payments/gateway" }]);
+    });
   });
 
   it("is read-only for a team member: the status, and none of the buttons", async () => {

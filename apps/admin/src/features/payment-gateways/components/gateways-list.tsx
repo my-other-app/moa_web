@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { BanIcon, Loader2Icon } from "lucide-react";
+import { BanIcon, Loader2Icon, PlugZapIcon } from "lucide-react";
 import { ListFilters, ResourceList, formatDateTime, relativeTime, useListParams } from "@moa/app-kit";
 import {
   AlertDialog,
@@ -23,15 +23,16 @@ import { pressable } from "@moa/ui/motion";
 
 import { useCan } from "@/hooks/use-can";
 
-import { useDisableGateway, useGateways } from "../queries";
-import { GATEWAY_STATUSES, STATUS_LABEL, canDisable, statusLabel, statusTone, type GatewayRow } from "../schemas";
+import { useDisableGateway, useEnableGateway, useGateways } from "../queries";
+import { GATEWAY_STATUSES, STATUS_LABEL, canDisable, canEnable, statusLabel, statusTone, type GatewayRow } from "../schemas";
 
 /**
  * Clubs that take ticket payments in their own Razorpay account, and the
- * switch that sends a club's new payments back to MyOtherApp's.
+ * switch that sends a club's new payments back to MyOtherApp's — and, once
+ * off, back to the club's (if Razorpay still takes its stored keys).
  *
- * Disabling moves money, so it is for roles that handle money; support and
- * viewers see the list without it. The server checks the same.
+ * Both move money, so they are for roles that handle money; support and
+ * viewers see the list without them. The server checks the same.
  */
 function DisableButton({ row }: { row: GatewayRow }) {
   const disable = useDisableGateway();
@@ -70,10 +71,48 @@ function DisableButton({ row }: { row: GatewayRow }) {
   );
 }
 
+/** Back on: the server checks the stored keys, and says (in the toast) whether Razorpay still takes them. */
+function EnableButton({ row }: { row: GatewayRow }) {
+  const enable = useEnableGateway();
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <>
+      <Button size="xs" variant="outline" className={pressable} disabled={enable.isPending} onClick={() => setOpen(true)} aria-label={`Enable Razorpay for ${row.club.name}`}>
+        {enable.isPending ? <Loader2Icon className="animate-spin" /> : <PlugZapIcon />}
+        Enable
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Enable {row.club.name}&apos;s Razorpay again?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Its stored keys are checked with Razorpay first. If they still work, the club&apos;s new payments go to its own account; if not, they stay with MyOtherApp&apos;s until the club replaces them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={enable.isPending}>Keep it off</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={enable.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                enable.mutate(row.club.id, { onSuccess: () => setOpen(false) });
+              }}
+            >
+              Enable
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
 function Actions({ row }: { row: GatewayRow }) {
   const allowed = useCan("manage_money");
-  if (!allowed || !canDisable(row)) return <span className="text-muted-foreground text-xs">--</span>;
-  return <DisableButton row={row} />;
+  if (allowed && canDisable(row)) return <DisableButton row={row} />;
+  if (allowed && canEnable(row)) return <EnableButton row={row} />;
+  return <span className="text-muted-foreground text-xs">--</span>;
 }
 
 function Ago({ iso }: { iso: string }) {

@@ -56,3 +56,8 @@ export function statusTone(status: string) {
 export function canDisable(row: Pick<GatewayRow, "status">): boolean {
   return row.status === "active" || row.status === "failed";
 }
+
+/** Only one an admin turned off can be turned back on here; a club that disconnected connects again itself. */
+export function canEnable(row: Pick<GatewayRow, "status">): boolean {
+  return row.status === "disabled";
+}

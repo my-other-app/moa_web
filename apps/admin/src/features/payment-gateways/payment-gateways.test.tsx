@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { toast } from "@moa/ui";
 
 /**
  * Club gateways against the backend's contract:
  * GET /admin/payment-gateways?status=&q=&offset=&limit= → {items: [{club,
  * status, key_id, verified_at, last_webhook_at, last_error, created_at}],
- * total}, and POST /admin/payment-gateways/{club_id}/disable → the item.
- * Disabling is for roles that handle money.
+ * total}, POST /admin/payment-gateways/{club_id}/disable → the item, and
+ * POST …/enable → the item, active if the stored keys still work or failed
+ * with last_error if not. Both are for roles that handle money.
  */
 let role: string | null = "owner";
 let search = "";
@@ -25,13 +27,15 @@ function row(over: Record<string, unknown> = {}) {
     key_id: "rzp_live_Circ1",
     verified_at: ago(120 * MIN),
     last_webhook_at: ago(10 * MIN),
-    last_error: null,
+    last_error: null as string | null,
     created_at: ago(5 * 1440 * MIN),
     ...over,
   };
 }
 
 let ROWS: Array<ReturnType<typeof row>> = [];
+/** What Razorpay makes of the stored keys when one is enabled again. */
+let enableGives: { status: string; last_error: string | null } = { status: "active", last_error: null };
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: (url: string) => pushes.push(url), replace: (url: string) => pushes.push(url), refresh: vi.fn(), prefetch: vi.fn() }),
@@ -53,9 +57,9 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       post: vi.fn(async (path: string) => {
         posts.push(path);
         const id = Number(path.split("/").at(-2));
-        const found = ROWS.find((r) => r.club.id === id)!;
-        ROWS = ROWS.map((r) => (r.club.id === id ? { ...r, status: "disabled" } : r));
-        return { ...found, status: "disabled" };
+        const next = path.endsWith("/enable") ? enableGives : { status: "disabled" };
+        ROWS = ROWS.map((r) => (r.club.id === id ? { ...r, ...next } : r));
+        return ROWS.find((r) => r.club.id === id)!;
       }),
       put: vi.fn(),
       del: vi.fn(),
@@ -64,10 +68,12 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
-const { GatewaysList, gatewayPageSchema, canDisable, statusLabel } = await import("./index");
+const { GatewaysList, gatewayPageSchema, canDisable, canEnable, statusLabel, enabledMessage } = await import("./index");
 const { navItems } = await import("@/components/nav-items");
 
 beforeEach(() => {
+  vi.restoreAllMocks();
+  enableGives = { status: "active", last_error: null };
   role = "owner";
   search = "";
   pushes.length = 0;
@@ -94,6 +100,17 @@ describe("the shapes", () => {
     expect(canDisable({ status: "failed" })).toBe(true);
     expect(canDisable({ status: "disabled" })).toBe(false);
     expect(canDisable({ status: "disconnected" })).toBe(false);
+    expect(canEnable({ status: "disabled" })).toBe(true);
+    for (const status of ["active", "failed", "disconnected"]) expect(canEnable({ status })).toBe(false);
+  });
+
+  it("words what enabling came to: the keys still work, or Razorpay's refusal", () => {
+    const parsed = (over: Record<string, unknown>) => gatewayPageSchema.parse({ items: [row(over)], total: 1 }).items[0]!;
+    expect(enabledMessage(parsed({ status: "active" }))).toEqual({ ok: true, text: "Enabled. Razorpay accepted Circuit's keys, so its new payments go to its own account again." });
+    expect(enabledMessage(parsed({ status: "failed", last_error: "Authentication failed." }))).toEqual({
+      ok: false,
+      text: "Enabled, but Razorpay refused Circuit's stored keys: Authentication failed. Its payments stay with MyOtherApp until the club replaces them.",
+    });
   });
 });
 
@@ -156,12 +173,43 @@ describe("club gateways", () => {
     expect(screen.queryByRole("button", { name: "Disable Razorpay for Circuit" })).not.toBeInTheDocument();
   });
 
-  it("offers support and viewers the list without Disable", async () => {
+  it("enables a disabled one after saying what happens, and says Razorpay took the keys", async () => {
+    const ok = vi.spyOn(toast, "success");
+    render(<GatewaysList />);
+    await screen.findByRole("link", { name: "Drama" });
+    // Only the one an admin turned off; a club that disconnected connects again itself.
+    expect(screen.getAllByRole("button", { name: /^Enable Razorpay for / }).map((b) => b.getAttribute("aria-label"))).toEqual(["Enable Razorpay for Drama"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Enable Razorpay for Drama" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Enable Drama's Razorpay again?")).toBeInTheDocument();
+    expect(within(dialog).getByText(/stored keys are checked with Razorpay first/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Enable" }));
+    await waitFor(() => expect(posts).toEqual(["/api/v1/admin/payment-gateways/7/enable"]));
+    await waitFor(() => expect(ok).toHaveBeenCalledWith("Enabled. Razorpay accepted Drama's keys, so its new payments go to its own account again."));
+    await waitFor(() => expect(within(rowOf("Drama")).getByText("Active")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Disable Razorpay for Drama" })).toBeInTheDocument();
+  });
+
+  it("says so when Razorpay no longer takes the stored keys", async () => {
+    enableGives = { status: "failed", last_error: "Authentication failed" };
+    const warned = vi.spyOn(toast, "warning");
+    const ok = vi.spyOn(toast, "success");
+    render(<GatewaysList />);
+    fireEvent.click(await screen.findByRole("button", { name: "Enable Razorpay for Drama" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Enable" }));
+    await waitFor(() => expect(warned).toHaveBeenCalledWith("Enabled, but Razorpay refused Drama's stored keys: Authentication failed. Its payments stay with MyOtherApp until the club replaces them."));
+    expect(ok).not.toHaveBeenCalled();
+    await waitFor(() => expect(within(rowOf("Drama")).getByText("Failed")).toBeInTheDocument());
+  });
+
+  it("offers support and viewers the list without Disable or Enable", async () => {
     for (const r of ["support", "viewer"]) {
       role = r;
       const { unmount } = render(<GatewaysList />);
       await screen.findByRole("link", { name: "Circuit" });
       expect(screen.queryByRole("button", { name: /^Disable Razorpay for / })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^Enable Razorpay for / })).not.toBeInTheDocument();
       unmount();
     }
   });

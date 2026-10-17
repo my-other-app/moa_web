@@ -27,7 +27,7 @@ import {
 
 import { SALES_EMAIL, mailto } from "@/features/billing/schemas";
 
-import { gatewayErrorMessage, useDisconnectGateway, useGateway, useSaveGateway, useVerifyGateway, type KeysProblem } from "../queries";
+import { gatewayErrorMessage, isGatewayDisabled, useDisconnectGateway, useGateway, useSaveGateway, useVerifyGateway, type KeysProblem } from "../queries";
 import { KEY_STEPS, STATUS_LABEL, STATUS_TONE, WEBHOOK_STEPS, gatewayKeysSchema, hasAccount, type Gateway, type GatewayKeys } from "../schemas";
 
 /**
@@ -41,7 +41,9 @@ import { KEY_STEPS, STATUS_LABEL, STATUS_TONE, WEBHOOK_STEPS, gatewayKeysSchema,
  *
  * Only the club's own account may connect, check, replace or disconnect
  * (the server's `can_manage`, and 403 OWNER_ONLY behind it). Team members
- * see the same page without its buttons.
+ * see the same page without its buttons. While MyOtherApp has the account
+ * turned off, nobody may: the server refuses every write with 409
+ * GATEWAY_DISABLED, so the page offers none, only the way to talk to us.
  */
 export function PaymentsPage() {
   const q = useGateway();
@@ -135,7 +137,8 @@ function KeysForm({ replacing = false, onDone }: { replacing?: boolean; onDone?:
       toast.success(next.status === "active" ? "Razorpay connected. New ticket payments go to your account." : "Keys saved.");
       onDone?.();
     } catch (error) {
-      setProblem(gatewayErrorMessage(error));
+      // Turned off by MyOtherApp meanwhile: the server's words are toasted and the page re-reads it, which takes this form away.
+      if (!isGatewayDisabled(error)) setProblem(gatewayErrorMessage(error));
     }
   };
 
@@ -204,6 +207,11 @@ function KeysForm({ replacing = false, onDone }: { replacing?: boolean; onDone?:
 
 // ─── Connected ───────────────────────────────────────────────────────────
 
+/** A refusal in a toast; GATEWAY_DISABLED is toasted already, with the server's own words. */
+function toastUnlessDisabled(error: unknown) {
+  if (!isGatewayDisabled(error)) toast.error(gatewayErrorMessage(error).text);
+}
+
 function When({ iso }: { iso: string }) {
   const [now] = React.useState(() => new Date());
   return (
@@ -228,14 +236,14 @@ function Connected({ g }: { g: Gateway }) {
         if (next.status === "active") toast.success(next.last_webhook_at ? "Checked. Razorpay accepts the keys and its notices are arriving." : "Checked. Razorpay accepts the keys; no payment notice has arrived yet.");
         else toast.error("Razorpay refused the keys. See what it said on the page.");
       },
-      onError: (error) => toast.error(gatewayErrorMessage(error).text),
+      onError: toastUnlessDisabled,
     });
 
   const confirmDisconnect = () => {
     setConfirming(false);
     disconnect.mutate(undefined, {
       onSuccess: () => toast.success("Disconnected. New payments go to MyOtherApp's account."),
-      onError: (error) => toast.error(gatewayErrorMessage(error).text),
+      onError: toastUnlessDisabled,
     });
   };
 
@@ -291,25 +299,22 @@ function Connected({ g }: { g: Gateway }) {
         </Notice>
       ) : null}
 
-      {g.can_manage && replacing ? (
+      {g.can_manage && replacing && !disabled ? (
         <div className="border-line-soft border-t pt-3">
           <p className="text-ink-2 m-0 mb-2.5 text-[12.5px]">Paste the new live keys. The current ones keep working until Razorpay accepts these.</p>
           <KeysForm replacing onDone={() => setReplacing(false)} />
         </div>
       ) : null}
 
-      {g.can_manage && !replacing ? (
+      {/* Turned off by MyOtherApp, the server refuses all three (409 GATEWAY_DISABLED): only "Talk to us" is left. */}
+      {g.can_manage && !replacing && !disabled ? (
         <div className="flex flex-wrap items-center gap-2">
-          {!disabled ? (
-            <>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={checkAgain} disabled={busy}>
-                {verify.isPending ? <Loader2Icon className="size-3.5 animate-spin" /> : <RefreshCwIcon className="size-3.5" />} Check again
-              </button>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setReplacing(true)} disabled={busy}>
-                <KeyRoundIcon className="size-3.5" /> Replace keys
-              </button>
-            </>
-          ) : null}
+          <button type="button" className="btn btn-secondary btn-sm" onClick={checkAgain} disabled={busy}>
+            {verify.isPending ? <Loader2Icon className="size-3.5 animate-spin" /> : <RefreshCwIcon className="size-3.5" />} Check again
+          </button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setReplacing(true)} disabled={busy}>
+            <KeyRoundIcon className="size-3.5" /> Replace keys
+          </button>
           <button type="button" className="btn btn-ghost btn-sm text-refuse" onClick={() => setConfirming(true)} disabled={busy}>
             {disconnect.isPending ? <Loader2Icon className="size-3.5 animate-spin" /> : <UnplugIcon className="size-3.5" />} Disconnect
           </button>
@@ -421,7 +426,7 @@ function WebhookSetup({ g }: { g: Gateway }) {
                   next.last_webhook_at
                     ? toast.success("Razorpay's notices are arriving.")
                     : toast.info("No notice from Razorpay yet. Check the webhook is saved and active; Razorpay sends one with the next payment."),
-                onError: (error) => toast.error(gatewayErrorMessage(error).text),
+                onError: toastUnlessDisabled,
               })
             }
           >

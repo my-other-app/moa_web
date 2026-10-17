@@ -11,6 +11,9 @@ import { z } from "zod";
  */
 
 /**
+ * `connected` is true while active or failed, false once disconnected or
+ * disabled; a disabled one still carries its `key_id`.
+ *
  * active        the keys work; new payments go to the club's account
  * failed        Razorpay refused the keys on the last check
  * disconnected  the club took its keys off
@@ -87,11 +90,14 @@ export const INVALID_KEYS = "INVALID_KEYS";
 export const TEST_KEYS_NOT_ALLOWED = "TEST_KEYS_NOT_ALLOWED";
 export const GATEWAY_UNAVAILABLE = "GATEWAY_UNAVAILABLE";
 export const OWNER_ONLY = "OWNER_ONLY";
+/** 409 to PUT, verify and DELETE while MyOtherApp has the account turned off. */
+export const GATEWAY_DISABLED = "GATEWAY_DISABLED";
 
 export const TEST_KEYS_MESSAGE =
   "These are test mode keys. Switch the Razorpay Dashboard to Live mode and generate keys there — a live Key ID starts with rzp_live_.";
 export const UNAVAILABLE_MESSAGE = "Connecting your own Razorpay isn't available right now. Your ticket payments still go through MyOtherApp. Try again later.";
 export const OWNER_ONLY_MESSAGE = "Only the club's own account can change where payments go.";
+export const DISABLED_MESSAGE = "MyOtherApp has turned off your own Razorpay. Talk to us.";
 
 // ─── Words ──────────────────────────────────────────────────────────────
 

@@ -2,9 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, qk } from "@moa/api";
+import { toast } from "@moa/ui";
 
 import { disconnectGateway, fetchGateway, saveGateway, verifyGateway } from "./api";
 import {
+  DISABLED_MESSAGE,
+  GATEWAY_DISABLED,
   GATEWAY_UNAVAILABLE,
   INVALID_KEYS,
   OWNER_ONLY,
@@ -48,32 +51,45 @@ export function useGateway() {
   return useQuery({ queryKey: GATEWAY_KEY, queryFn: readGateway, staleTime: 30_000, retry: false });
 }
 
+/** MyOtherApp turned the account off (409 GATEWAY_DISABLED): nothing the club sends is taken until it is on again. */
+export function isGatewayDisabled(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.errorCode === GATEWAY_DISABLED;
+}
+
 /**
  * Every write answers with the gateway as it now is, so the page takes that
  * rather than asking again. Events are re-read too: where their payments go
  * (`payments_to`) follows the account.
+ *
+ * A write refused because MyOtherApp turned the account off means the page
+ * was out of date: the server's words are toasted (the form or button that
+ * asked is about to go), and the gateway is read again, which shows it off.
  */
 function useSettle() {
   const queryClient = useQueryClient();
-  return (next: Gateway) => {
-    queryClient.setQueryData(GATEWAY_KEY, next);
-    void queryClient.invalidateQueries({ queryKey: qk.events.all });
+  return {
+    onSuccess: (next: Gateway) => {
+      queryClient.setQueryData(GATEWAY_KEY, next);
+      void queryClient.invalidateQueries({ queryKey: qk.events.all });
+    },
+    onError: (error: unknown) => {
+      if (!isGatewayDisabled(error)) return;
+      toast.error(error.message?.trim() || DISABLED_MESSAGE);
+      void queryClient.invalidateQueries({ queryKey: GATEWAY_KEY });
+    },
   };
 }
 
 export function useSaveGateway() {
-  const settle = useSettle();
-  return useMutation({ mutationFn: (keys: GatewayKeys) => saveGateway(keys), onSuccess: settle });
+  return useMutation({ mutationFn: (keys: GatewayKeys) => saveGateway(keys), ...useSettle() });
 }
 
 export function useVerifyGateway() {
-  const settle = useSettle();
-  return useMutation({ mutationFn: verifyGateway, onSuccess: settle });
+  return useMutation({ mutationFn: verifyGateway, ...useSettle() });
 }
 
 export function useDisconnectGateway() {
-  const settle = useSettle();
-  return useMutation({ mutationFn: disconnectGateway, onSuccess: settle });
+  return useMutation({ mutationFn: disconnectGateway, ...useSettle() });
 }
 
 /** Which field a refusal is about, so the form can mark it. */
@@ -81,6 +97,7 @@ export type KeysProblem = { field: "keys" | "key_id" | null; text: string };
 
 /** A refusal from saving, checking or disconnecting, in words for the club. */
 export function gatewayErrorMessage(error: unknown): KeysProblem {
+  if (isGatewayDisabled(error)) return { field: null, text: error.message?.trim() || DISABLED_MESSAGE };
   if (error instanceof ApiError) {
     if (error.errorCode === INVALID_KEYS) {
       const why = error.message?.trim().replace(/\.$/, "");

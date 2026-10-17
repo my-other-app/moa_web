@@ -312,6 +312,12 @@ describe("alerts about a club's own Razorpay", () => {
     expect(notificationHref(item({ kind: "payment_gateway_failed", club: null }))).toBeNull();
   });
 
+  it("say an admin turned one back on, when the alert does", () => {
+    expect(alertLabel(item({ kind: "payment_gateway_connected", data: { by: "admin" } }))).toBe("Razorpay re-enabled by an admin");
+    expect(alertLabel(item({ kind: "payment_gateway_connected", data: { by: "club" } }))).toBe("Razorpay connected");
+    expect(alertLabel(item({ kind: "payment_gateway_connected", data: null }))).toBe("Razorpay connected");
+  });
+
   it("say who took the account off, when the alert does", () => {
     expect(alertLabel(item({ kind: "payment_gateway_disconnected", data: { by: "admin" } }))).toBe("Razorpay disabled by an admin");
     expect(alertLabel(item({ kind: "payment_gateway_disconnected", data: { by: "club" } }))).toBe("Razorpay disconnected by the club");
