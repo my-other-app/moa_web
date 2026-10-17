@@ -20,6 +20,7 @@ export {
   adminClubSchema,
   adminClubDetailSchema,
   clubEditSchema,
+  requestedPlanText,
   type AdminClub,
   type AdminClubDetail,
   type ClubEditInput,

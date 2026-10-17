@@ -64,7 +64,7 @@ import {
   useClubLifetime,
   useDeleteClub,
 } from "../queries";
-import type { ClubEvent, ClubFollower } from "../schemas";
+import { requestedPlanText, type ClubEvent, type ClubFollower } from "../schemas";
 import { ClubEditForm } from "./club-edit-form";
 
 /**
@@ -416,6 +416,11 @@ export function ClubDetail({ clubId }: { clubId: number }) {
                     />
                     {club?.org?.name ? (
                       <Badge variant="outline">{club.org.name}</Badge>
+                    ) : null}
+                    {club?.requested_plan ? (
+                      <Badge variant="outline" title="Picked on the sign-up form; nothing is granted by it">
+                        Requested plan: {requestedPlanText(club.requested_plan, club.requested_cycle)}
+                      </Badge>
                     ) : null}
                   </div>
                   <p className="text-muted-foreground text-sm">

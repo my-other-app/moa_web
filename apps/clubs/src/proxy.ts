@@ -27,7 +27,8 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   /**
-   * Everything except the sign-in page, the invite link a new team member
+   * Everything except the sign-in page, the application a new club fills
+   * in before it has an account (/signup), the invite link a new team member
    * opens before they have a password (/join), the admin impersonation hand-off
    * (which arrives with no session -- exchanging its token is what creates
    * one), the gateway (which must stay reachable so the login POST itself can
@@ -36,5 +37,5 @@ export const config = {
    * session: a volunteer or guest has no account here), Next internals and
    * static files.
    */
-  matcher: ["/((?!login|join|impersonate|api/gateway|gate/|kiosk|s/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
+  matcher: ["/((?!login|signup|join|impersonate|api/gateway|gate/|kiosk|s/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
 };

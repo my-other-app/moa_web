@@ -21,11 +21,16 @@ import { loginSchema, type LoginInput } from "../schemas";
 /**
  * The codes /auth/token refuses with when the answer is not "wrong
  * password": the account wants its authenticator code, the code was wrong,
- * or this door is locked after too many tries.
+ * this door is locked after too many tries, or (scope "club" only) the
+ * club's application has not been approved yet.
  */
 const TOTP_REQUIRED = "TOTP_REQUIRED";
 const TOTP_INVALID = "TOTP_INVALID";
 const LOGIN_LOCKED = "LOGIN_LOCKED";
+const CLUB_NOT_VERIFIED = "CLUB_NOT_VERIFIED";
+
+/** An applicant whose password is right, told where it stands rather than "refused". */
+const CLUB_UNDER_REVIEW = "Your club is still under review — we'll email you when it's approved.";
 
 type Problem = { tone: "refuse" | "caution"; text: string };
 
@@ -86,6 +91,10 @@ export function LoginForm({
         return;
       }
       if (error.errorCode === TOTP_INVALID) setCode("");
+      if (error.errorCode === CLUB_NOT_VERIFIED) {
+        setProblem({ tone: "caution", text: CLUB_UNDER_REVIEW });
+        return;
+      }
       setProblem({
         tone: error.errorCode === LOGIN_LOCKED || error.status === 429 ? "caution" : "refuse",
         text: error.message,

@@ -1,0 +1,105 @@
+{
+  "currency": "INR",
+  "yearly_months_free": 2,
+  "plans": [
+    {
+      "id": 1,
+      "key": "free",
+      "name": "Free",
+      "tagline": "Run your first events",
+      "price_monthly_paise": 0,
+      "price_yearly_paise": 0,
+      "trial_days": 0,
+      "contact_sales": false,
+      "featured": false,
+      "limits": { "events_per_month": 2, "registrations_per_month": 200, "registrations_per_event": 100, "ticket_types_per_event": 1, "coupons_per_event": 0, "merch_items_per_event": 0, "committee_seats": 1, "storage_gb": 1, "announcements_per_month": 4, "website_templates": 1 },
+      "features": [
+        { "key": "tickets", "label": "Tickets", "included": true },
+        { "key": "checkin", "label": "Door check-in", "included": true },
+        { "key": "certificates", "label": "Certificates", "included": false }
+      ]
+    },
+    {
+      "id": 2,
+      "key": "starter",
+      "name": "Starter",
+      "tagline": "A club that meets every month",
+      "price_monthly_paise": 49900,
+      "price_yearly_paise": 499000,
+      "trial_days": 0,
+      "contact_sales": false,
+      "featured": false,
+      "limits": { "events_per_month": 6, "registrations_per_month": 1000, "registrations_per_event": 300, "ticket_types_per_event": 3, "coupons_per_event": 2, "merch_items_per_event": 0, "committee_seats": 3, "storage_gb": 5, "announcements_per_month": 12, "website_templates": 2 },
+      "features": [
+        { "key": "tickets", "label": "Tickets", "included": true },
+        { "key": "checkin", "label": "Door check-in", "included": true },
+        { "key": "certificates", "label": "Certificates", "included": true }
+      ]
+    },
+    {
+      "id": 3,
+      "key": "growth",
+      "name": "Growth",
+      "tagline": "For clubs running something every week",
+      "price_monthly_paise": 99900,
+      "price_yearly_paise": 999000,
+      "trial_days": 14,
+      "contact_sales": false,
+      "featured": true,
+      "limits": { "events_per_month": 20, "registrations_per_month": 5000, "registrations_per_event": 1000, "ticket_types_per_event": 10, "coupons_per_event": 10, "merch_items_per_event": 10, "committee_seats": 10, "storage_gb": 25, "announcements_per_month": null, "website_templates": 5 },
+      "features": [
+        { "key": "tickets", "label": "Tickets", "included": true },
+        { "key": "checkin", "label": "Door check-in", "included": true },
+        { "key": "certificates", "label": "Certificates", "included": true },
+        { "key": "coupons", "label": "Coupons", "included": true },
+        { "key": "links", "label": "Tracking links", "included": true },
+        { "key": "merch", "label": "Merchandise", "included": true },
+        { "key": "quiz", "label": "Live quiz", "included": true },
+        { "key": "website", "label": "Website", "included": true },
+        { "key": "domain", "label": "Custom domain", "included": false }
+      ]
+    },
+    {
+      "id": 4,
+      "key": "pro",
+      "name": "Pro",
+      "tagline": "Fests, competitions and a full committee",
+      "price_monthly_paise": 249900,
+      "price_yearly_paise": 2499000,
+      "trial_days": 14,
+      "contact_sales": false,
+      "featured": false,
+      "limits": { "events_per_month": null, "registrations_per_month": null, "registrations_per_event": null, "ticket_types_per_event": null, "coupons_per_event": null, "merch_items_per_event": null, "committee_seats": 25, "storage_gb": 100, "announcements_per_month": null, "website_templates": null },
+      "features": [
+        { "key": "tickets", "label": "Tickets", "included": true },
+        { "key": "domain", "label": "Custom domain", "included": true }
+      ]
+    },
+    {
+      "id": 5,
+      "key": "campus",
+      "name": "Campus",
+      "tagline": "Every club at one college",
+      "price_monthly_paise": 499900,
+      "price_yearly_paise": 4999000,
+      "trial_days": 0,
+      "contact_sales": false,
+      "featured": false,
+      "limits": { "events_per_month": null, "registrations_per_month": null, "registrations_per_event": null, "ticket_types_per_event": null, "coupons_per_event": null, "merch_items_per_event": null, "committee_seats": null, "storage_gb": 500, "announcements_per_month": null, "website_templates": null },
+      "features": [{ "key": "sso", "label": "Student SSO", "included": true }]
+    },
+    {
+      "id": 6,
+      "key": "enterprise",
+      "name": "Enterprise",
+      "tagline": "A university, or a network of them",
+      "price_monthly_paise": 0,
+      "price_yearly_paise": 0,
+      "trial_days": 0,
+      "contact_sales": true,
+      "featured": false,
+      "limits": { "events_per_month": null, "registrations_per_month": null, "registrations_per_event": null, "ticket_types_per_event": null, "coupons_per_event": null, "merch_items_per_event": null, "committee_seats": null, "storage_gb": null, "announcements_per_month": null, "website_templates": null },
+      "features": [{ "key": "api", "label": "API access", "included": true }]
+    }
+  ]
+}

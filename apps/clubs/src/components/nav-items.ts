@@ -4,6 +4,7 @@ import {
   KeyRoundIcon,
   BuildingIcon,
   CalendarDaysIcon,
+  CreditCardIcon,
   LayoutDashboardIcon,
   LinkIcon,
   MailIcon,
@@ -61,6 +62,8 @@ export const navItems: NavItem[] = [
   { href: "/finance", label: "Finance", icon: WalletIcon, group: "manage", needs: "money" },
   { href: "/access", label: "Access", icon: KeyRoundIcon, group: "manage", needs: "see_access" },
   { href: "/security", label: "Security", icon: ShieldCheckIcon, group: "manage" },
+  // Every role may look; only the club's own account can change the plan (the page says so).
+  { href: "/billing", label: "Plan & billing", icon: CreditCardIcon, group: "manage" },
   { href: "/profile", label: "Club profile", icon: BuildingIcon, group: "manage", needs: "club_profile" },
 ];
 

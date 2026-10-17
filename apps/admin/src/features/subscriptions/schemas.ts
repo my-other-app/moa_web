@@ -86,6 +86,11 @@ export const planSchema = z.object({
   trial_days: z.number().default(0),
   visibility: z.enum(["public", "hidden", "legacy"]).catch("hidden"),
   sort_order: z.number().default(0),
+  /* "Most popular" on the pricing page. */
+  featured: z.boolean().default(false),
+  /* Priced on request: the pricing page says "Talk to us" instead of a price,
+     and a club cannot check out on it. */
+  contact_sales: z.boolean().default(false),
   /* False when a paid plan has no Razorpay plan behind it. The editor says so
      rather than letting someone publish it and find out at checkout. */
   billable: z.boolean().default(false),
@@ -103,16 +108,50 @@ export type Plan = z.infer<typeof planSchema>;
 
 export const planListSchema = z.array(planSchema);
 
+/**
+ * pending   checkout opened, Razorpay has not confirmed it: grants nothing
+ * trial     mandate confirmed, on the plan's trial
+ * active    paid
+ * past_due  a charge failed; kept on while Razorpay retries, if it was ever paid
+ * paused    paused at Razorpay: not charged, not granted
+ * cancelled ended, or ending at `current_period_end`
+ */
+export const SUBSCRIPTION_STATUSES = ["pending", "trial", "active", "past_due", "paused", "cancelled"] as const;
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+
+export const STATUS_LABEL: Record<SubscriptionStatus, string> = {
+  pending: "Pending",
+  trial: "Trial",
+  active: "Active",
+  past_due: "Past due",
+  paused: "Paused",
+  cancelled: "Cancelled",
+};
+
+/** A status this build has a word for, else the server's own, never a guess at "active". */
+export function statusLabel(status: string): string {
+  return (STATUS_LABEL as Record<string, string>)[status] ?? status.replace(/_/g, " ");
+}
+
 export const subscriptionSchema = z.object({
   id: z.coerce.number(),
   club: z.object({ id: z.coerce.number(), name: z.string() }).nullish(),
   plan: planSchema.nullish(),
   cycle: z.enum(["monthly", "yearly"]).catch("monthly"),
-  status: z.enum(["trial", "active", "past_due", "cancelled"]).catch("active"),
+  /* Kept as the server says it. Falling back to "active" made a pending
+     checkout, which grants nothing, read as a paying club. */
+  status: z.string(),
   current_period_end: z.string().nullish(),
   mrr_paise: z.number().default(0),
   last_failure_reason: z.string().nullish(),
   razorpay_subscription_id: z.string().nullish(),
+  /* Whether the row grants its plan right now (a pending checkout does not). */
+  entitled: z.boolean().default(false),
+  cancel_at_period_end: z.boolean().default(false),
+  cancel_requested_at: z.string().nullish(),
+  trial_ends_at: z.string().nullish(),
+  pending_since: z.string().nullish(),
+  checkout_expires_at: z.string().nullish(),
 });
 
 export type Subscription = z.infer<typeof subscriptionSchema>;
@@ -150,6 +189,8 @@ export const planFormSchema = z.object({
   trial_days: z.number().int().min(0).max(365),
   visibility: z.enum(["public", "hidden", "legacy"]),
   sort_order: z.number().int().min(0).default(0),
+  featured: z.boolean(),
+  contact_sales: z.boolean(),
   limits: z.record(z.string(), z.number().nullable()),
   features: z.record(z.string(), z.boolean()),
 });
@@ -166,6 +207,8 @@ export function toForm(plan: Plan): PlanFormInput {
     trial_days: plan.trial_days,
     visibility: plan.visibility,
     sort_order: plan.sort_order,
+    featured: plan.featured,
+    contact_sales: plan.contact_sales,
     limits: { ...plan.limits },
     features: { ...plan.features },
   };
@@ -181,6 +224,8 @@ export function toPayload(form: PlanFormInput) {
     trial_days: form.trial_days,
     visibility: form.visibility,
     sort_order: form.sort_order,
+    featured: form.featured,
+    contact_sales: form.contact_sales,
     limits: form.limits,
     features: form.features,
   };

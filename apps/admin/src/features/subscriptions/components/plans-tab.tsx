@@ -55,6 +55,8 @@ const BLANK: PlanFormInput = {
   // Hidden, so a half-finished plan cannot be bought off the pricing page.
   visibility: "hidden",
   sort_order: 0,
+  featured: false,
+  contact_sales: false,
   limits: Object.fromEntries(LIMIT_FIELDS.map((f) => [f.key, null])),
   features: {},
 };
@@ -184,8 +186,11 @@ export function PlansTab() {
                   </span>
                 </span>
                 <span className="text-[13px] text-ink-2">
-                  {priceLabel(plan)}
+                  {plan.contact_sales ? "Talk to us" : priceLabel(plan)}
                 </span>
+                {plan.featured ? (
+                  <span className="text-[12px] text-brand">Most popular</span>
+                ) : null}
                 <span className="flex items-center gap-2 text-[12px] text-ink-3">
                   {plan.subscriber_count} clubs subscribed
                   {/* A paid plan with no Razorpay plan behind it cannot be
@@ -309,6 +314,42 @@ export function PlansTab() {
                   <option value="hidden">Hidden — by invite only</option>
                   <option value="legacy">Legacy — no new signups</option>
                 </select>
+              </div>
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className="micro">On the pricing page</span>
+                <div className="flex flex-wrap gap-x-5 gap-y-2">
+                  {(
+                    [
+                      ["featured", "Most popular", "Highlighted as the plan to pick"],
+                      ["contact_sales", "Talk to us", "Shown instead of a price; clubs cannot check out on it"],
+                    ] as const
+                  ).map(([name, text, hint]) => {
+                    const on = form[name];
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        aria-pressed={on}
+                        disabled={!canEdit}
+                        onClick={() => patch({ [name]: !on })}
+                        className={cn(
+                          "flex items-start gap-2 text-left",
+                          on ? "text-brand" : "text-ink-2"
+                        )}
+                      >
+                        {on ? (
+                          <SquareCheckIcon className="mt-px size-4 shrink-0" />
+                        ) : (
+                          <SquareIcon className="mt-px size-4 shrink-0" />
+                        )}
+                        <span className="flex flex-col">
+                          <span className="text-[13px]">{text}</span>
+                          <span className="text-[11.5px] text-ink-3">{hint}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div className="field sm:col-span-2">
                 <label htmlFor="plan-tagline">Tagline</label>

@@ -24,6 +24,10 @@ export const adminClubSchema = z.object({
   /* The club's sign-in address, which is not contact_email -- that one is
      published on the club's page and is usually a committee alias. */
   owner_email: z.string().nullish(),
+  /* The plan and cycle picked on the sign-up form: what the applicant
+     expects to be on. A request only; nothing is granted by it. */
+  requested_plan: z.string().nullish(),
+  requested_cycle: z.string().nullish(),
 });
 
 export const adminClubPageSchema = paginatedSchema(adminClubSchema);
@@ -76,6 +80,8 @@ export const adminClubDetailSchema = z.object({
       email: z.string().nullish(),
     })
     .nullish(),
+  requested_plan: z.string().nullish(),
+  requested_cycle: z.string().nullish(),
   admin_stats: z
     .object({
       total_registrations: z.number().default(0),
@@ -142,3 +148,14 @@ export type AdminClubDetail = z.infer<typeof adminClubDetailSchema>;
 export type ClubFollower = z.infer<typeof clubFollowerSchema>;
 export type ClubEvent = z.infer<typeof clubEventSchema>;
 export type ClubEditInput = z.infer<typeof clubEditSchema>;
+
+/**
+ * "Growth · yearly": the plan an applicant picked, from its key. Plan keys
+ * are the plan's name in lower case (free, starter, growth, pro, campus,
+ * enterprise), so the key reads as the name without a second request.
+ */
+export function requestedPlanText(plan: string | null | undefined, cycle: string | null | undefined): string | null {
+  if (!plan) return null;
+  const name = plan.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+  return cycle ? `${name} · ${cycle}` : name;
+}
