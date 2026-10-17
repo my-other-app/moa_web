@@ -15,8 +15,10 @@ import {
   StatTile,
 } from "@moa/ui";
 
+import { LimitMeter, openUpgrade, usePlan } from "@/features/plan";
+
 import { useAccessList, useChangeRole, useRemoveMember, useResendInvite } from "../queries";
-import type { AccessList, MemberRole, MemberRow } from "../schemas";
+import { DEFAULT_MEMBER_ROLE, type AccessList, type MemberRole, type MemberRow } from "../schemas";
 import { InviteDialog, InviteLink } from "./invite-dialog";
 
 /**
@@ -47,6 +49,8 @@ function MemberLine({ m, roles, canManage, now }: { m: MemberRow; roles: AccessL
   const changeRole = useChangeRole();
   const remove = useRemoveMember();
   const resend = useResendInvite();
+  // Any role but the default is the plan's `roles`; a member who already has one keeps it.
+  const rolesLock = usePlan().featureLock("roles");
   const [asking, setAsking] = React.useState(false);
   const [link, setLink] = React.useState<string | null>(null);
   const name = m.full_name ?? m.email;
@@ -78,12 +82,17 @@ function MemberLine({ m, roles, canManage, now }: { m: MemberRow; roles: AccessL
               aria-label={`Role for ${name}`}
               value={m.role}
               disabled={changeRole.isPending}
-              onChange={(e) => changeRole.mutate({ id: m.id, role: e.target.value as MemberRole })}
+              onChange={(e) => {
+                const role = e.target.value as MemberRole;
+                if (rolesLock && role !== DEFAULT_MEMBER_ROLE) return openUpgrade(rolesLock);
+                changeRole.mutate({ id: m.id, role });
+              }}
               className="w-[120px]"
             >
               {roles.map((r) => (
                 <option key={r.key} value={r.key}>
                   {r.label}
+                  {rolesLock && r.key !== DEFAULT_MEMBER_ROLE && r.key !== m.role ? ` · ${rolesLock.requiredPlanName ?? "locked"}` : ""}
                 </option>
               ))}
             </NativeSelect>
@@ -132,6 +141,9 @@ export function AccessPage() {
   const waiting = members.filter((m) => m.status === "invited" && !m.invite_expired);
   const expired = members.filter((m) => m.status === "invited" && m.invite_expired);
   const recent = active.filter((m) => m.last_seen_at && now - new Date(m.last_seen_at).getTime() < WEEK);
+  // The server's own count when it sends one; else everyone holding or offered a seat.
+  const plan = usePlan();
+  const seatsUsed = plan.used("committee_seats") ?? active.length + waiting.length;
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -140,7 +152,11 @@ export function AccessPage() {
           <h2 className="page-title m-0 font-semibold tracking-[-0.02em]">Access</h2>
           <p className="text-ink-2 mt-1 text-[13px]">Who can sign in to the club&apos;s dashboard, and what each person may do.</p>
         </div>
-        {a?.can_manage ? <InviteDialog roles={a.roles} /> : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Seats are the people who can sign in besides the club's own account. */}
+          {a ? <LimitMeter limitKey="committee_seats" used={seatsUsed} /> : null}
+          {a?.can_manage ? <InviteDialog roles={a.roles} seatsUsed={seatsUsed} /> : null}
+        </div>
       </header>
 
       {q.isError ? (

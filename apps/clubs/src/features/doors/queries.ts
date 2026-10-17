@@ -4,6 +4,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { createDoor, deleteDoor, fetchCheckInLog, fetchTeam, issueGateLink, revokeGateLink, undoCheckIn, updateDoor, updateGateSettings, updateTeamVolunteer, type CheckInLogQuery } from "./api";
 import type { DoorKind, GateSettings } from "./schemas";
 
@@ -31,7 +33,7 @@ export function useCreateDoor(eventId: number) {
       toast.success(`${d.name} added`, { description: "It is on the console picker now." });
       refresh();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: toastError,
   });
 }
 
@@ -40,7 +42,7 @@ export function useUpdateDoor(eventId: number) {
   return useMutation({
     mutationFn: ({ doorId, ...body }: { doorId: string; name?: string; kind?: DoorKind; active?: boolean; sort_order?: number; link_can_walkup?: boolean }) => updateDoor(eventId, doorId, body),
     onSuccess: refresh,
-    onError: (e: Error) => toast.error(e.message),
+    onError: toastError,
   });
 }
 
@@ -52,7 +54,7 @@ export function useDeleteDoor(eventId: number) {
       toast.success("Door deleted");
       refresh();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: toastError,
   });
 }
 
@@ -61,7 +63,7 @@ export function useIssueGateLink(eventId: number) {
   return useMutation({
     mutationFn: ({ doorId, ...body }: { doorId: string; can_walkup: boolean; days?: number }) => issueGateLink(eventId, doorId, body),
     onSuccess: refresh,
-    onError: (e: Error) => toast.error(e.message),
+    onError: toastError,
   });
 }
 
@@ -73,7 +75,7 @@ export function useRevokeGateLink(eventId: number) {
       toast.success("Gate link switched off");
       refresh();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: toastError,
   });
 }
 
@@ -82,7 +84,7 @@ export function useUpdateTeamVolunteer(eventId: number) {
   return useMutation({
     mutationFn: ({ volunteerId, ...body }: { volunteerId: number; can_check_in?: boolean; can_walkup?: boolean; can_merch?: boolean; door_id?: string | null; clear_door?: boolean }) => updateTeamVolunteer(eventId, volunteerId, body),
     onSuccess: (team) => qc.setQueryData(teamKey(eventId), team),
-    onError: (e: Error) => toast.error(e.message),
+    onError: toastError,
   });
 }
 
@@ -94,7 +96,7 @@ export function useUpdateGateSettings(eventId: number) {
       toast.success("Door settings saved");
       refresh();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: toastError,
   });
 }
 
@@ -117,6 +119,6 @@ export function useUndoCheckIn(eventId: number) {
       void qc.invalidateQueries({ queryKey: qk.events.registrations(eventId) });
       void qc.invalidateQueries({ queryKey: teamKey(eventId) });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: toastError,
   });
 }

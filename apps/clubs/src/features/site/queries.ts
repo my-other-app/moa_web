@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { fetchSite, fetchSiteAnalytics, patchSite, previewSite, publishSite } from "./api";
 import type { SitePatch } from "./schemas";
 
@@ -27,7 +29,7 @@ export function usePatchSite() {
   return useMutation({
     mutationFn: (patch: SitePatch) => patchSite(patch),
     onSuccess: (data) => queryClient.setQueryData(KEY, data),
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -40,6 +42,6 @@ export function usePublishSite() {
       void queryClient.invalidateQueries({ queryKey: [...KEY, "analytics"] });
       toast.success("Site updated");
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }

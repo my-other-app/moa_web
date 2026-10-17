@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, CopyIcon, ExternalLinkIcon, GlobeIcon, Loader2Icon, MonitorIcon, MoonIcon, RefreshCwIcon, SmartphoneIcon, SunIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, ExternalLinkIcon, GlobeIcon, Loader2Icon, LockIcon, MonitorIcon, MoonIcon, RefreshCwIcon, SmartphoneIcon, SunIcon } from "lucide-react";
 import { formatDateTime } from "@moa/app-kit";
 import { CardLabel, ChoiceCard, EmptyState, FigurePanel, NativeSelect, Notice, Segmented, Skeleton, Switch, cn, toast } from "@moa/ui";
+
+import { LockBadge, LockedNotice, openUpgrade, useFeatureGate, usePlan } from "@/features/plan";
 
 import { usePatchSite, usePreview, usePublishSite, useSite } from "../queries";
 import { SECTIONS, SECTION_EMPTY, SECTION_LABEL, type Site, type SitePatch, type Template, type Theme } from "../schemas";
@@ -76,14 +78,35 @@ function TemplateMini({ k }: { k: Template }) {
 
 function Editor({ site, draft, setDraft }: { site: Site; draft: SitePatch; setDraft: (next: SitePatch) => void }) {
   const theme = draft.theme ?? site.theme;
+  const plan = usePlan();
+  // The plan includes the first N templates; the one the site already uses stays, whatever its place.
+  const cap = plan.limit("website_templates");
+  const templateLock = cap === null ? null : plan.limitLock("website_templates", Math.max(cap, 1));
   return (
     <div className="grid gap-4">
       <FigurePanel className="p-4">
         <CardLabel>Template</CardLabel>
         <div className="mt-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Template">
-          {site.templates.map((t) => (
-            <ChoiceCard key={t.key} checked={(draft.template ?? site.template) === t.key} onClick={() => setDraft({ ...draft, template: t.key as Template })} title={<span className="flex flex-col gap-2"><TemplateMini k={t.key as Template} />{t.name}</span>} hint={t.blurb} />
-          ))}
+          {site.templates.map((t, i) => {
+            const lock = cap !== null && i >= cap && t.key !== site.template ? templateLock : null;
+            return (
+              <ChoiceCard
+                key={t.key}
+                checked={(draft.template ?? site.template) === t.key}
+                onClick={() => (lock ? openUpgrade(lock) : setDraft({ ...draft, template: t.key as Template }))}
+                title={
+                  <span className="flex flex-col gap-2">
+                    <TemplateMini k={t.key as Template} />
+                    <span className="flex items-center gap-1.5">
+                      {t.name}
+                      <LockBadge lock={lock} />
+                    </span>
+                  </span>
+                }
+                hint={t.blurb}
+              />
+            );
+          })}
         </div>
       </FigurePanel>
       <FigurePanel className="p-4">
@@ -148,6 +171,8 @@ export function SitePage() {
   const q = useSite();
   const patch = usePatchSite();
   const publish = usePublishSite();
+  // Publishing (and updating) the site is the plan's `website`; editing the draft is not.
+  const web = useFeatureGate("website");
   const [draft, setDraft] = React.useState<SitePatch>({});
   const [device, setDevice] = React.useState<"desktop" | "mobile">("desktop");
   const debounced = useDebounced(draft, 400);
@@ -198,11 +223,13 @@ export function SitePage() {
               {patch.isPending ? <Loader2Icon className="animate-spin" /> : <CheckIcon />} Save
             </button>
           ) : null}
-          <button type="button" className="btn btn-primary" onClick={() => void update()} disabled={!site || publish.isPending || patch.isPending}>
-            {publish.isPending ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />} {site?.published_at ? "Update site" : "Publish site"}
+          <button type="button" className="btn btn-primary" onClick={web.guard(() => void update())} disabled={!site || publish.isPending || patch.isPending}>
+            {publish.isPending ? <Loader2Icon className="animate-spin" /> : web.locked ? <LockIcon /> : <RefreshCwIcon />} {site?.published_at ? "Update site" : "Publish site"}
           </button>
         </div>
       </div>
+
+      <LockedNotice feature="website" />
 
       {!site ? (
         <Skeleton className="h-[72px]" />

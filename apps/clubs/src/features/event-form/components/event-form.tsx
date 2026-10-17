@@ -9,9 +9,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckIcon, CircleIcon, Loader2Icon, MapPinIcon, SaveIcon } from "lucide-react";
 import { ApiError } from "@moa/api";
 import { useObjectUrl } from "@moa/ui/hooks";
-import { Form, InlineAlert, ProgressBar, cn } from "@moa/ui";
+import { Form, InlineAlert, Notice, ProgressBar, cn } from "@moa/ui";
 
 import { useMyClub } from "@/features/club";
+import { LimitMeter, isPlanLockError, lockCopy, useLimitGate } from "@/features/plan";
 
 import { useCreateEvent, usePublishEvent, useUpdateEvent } from "../queries";
 import { readiness, spanLabel } from "../readiness";
@@ -39,6 +40,8 @@ export interface EventFormContext {
   posterUrl?: string | null;
   status?: "draft" | "published" | "live" | "closed" | "archived";
   registered?: number;
+  /** When the event was made (the plan's grandfather rule reads it). */
+  createdAt?: string | null;
 }
 
 export const emptyEventForm: EventFormValues = {
@@ -194,6 +197,10 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
   const isSaving = create.isPending || update.isPending || form.formState.isSubmitting;
   const ready = readiness(values);
   const isDraft = mode === "edit" && context?.status === "draft";
+  // A new event counts against the month's events; at the cap, saving opens the upgrade dialog instead.
+  const monthly = useLimitGate("events_per_month");
+  const capped = mode === "create" && monthly.locked;
+  const cappedCopy = capped && monthly.lock ? lockCopy(monthly.lock) : null;
 
   // The contact comes from the club; an organiser only types it when someone else is running this one.
   React.useEffect(() => {
@@ -218,6 +225,8 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
       }
       router.refresh();
     } catch (error) {
+      // The plan said no: the upgrade dialog has it, and its `errors` are not field errors.
+      if (isPlanLockError(error)) return;
       if (error instanceof ApiError && error.fieldErrors) {
         for (const [field, messages] of Object.entries(error.fieldErrors)) form.setError(field as never, { message: messages.join(", ") });
       }
@@ -231,6 +240,7 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
   };
 
   const submitAs = (as: "draft" | "published") => {
+    if (capped) return monthly.prompt();
     setIntent(as);
     void form.handleSubmit(onSubmit, onInvalid)();
   };
@@ -241,7 +251,7 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
     event: <EventStep posterUrl={context?.posterUrl} />,
     when: <WhenStep />,
     where: <WhereStep />,
-    entry: <EntryStep />,
+    entry: <EntryStep createdAt={context?.createdAt} />,
     people: <PeopleStep />,
     reach: <ReachStep />,
     questions: <QuestionsStep />,
@@ -257,8 +267,25 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
               {mode === "create" ? "Four things make it publishable; the rest makes it a page people sign up from. Save a draft any time." : isDraft ? "A draft. Nobody sees it until you publish." : context?.status === "published" || context?.status === "live" ? "Live. Changes show the moment you save." : "Changes show the moment you save."}
             </p>
           </div>
-          <Actions {...actionProps} />
+          <div className="flex flex-wrap items-center gap-2">
+            {mode === "create" ? <LimitMeter limitKey="events_per_month" /> : null}
+            <Actions {...actionProps} />
+          </div>
         </header>
+
+        {cappedCopy ? (
+          <Notice
+            tone="caution"
+            tag="Plan"
+            action={
+              <Link href="/billing" className="btn btn-secondary btn-sm">
+                See plans
+              </Link>
+            }
+          >
+            <strong className="font-semibold">{cappedCopy.title}.</strong> {cappedCopy.body}
+          </Notice>
+        ) : null}
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
           <div className="flex min-w-0 flex-col gap-4">

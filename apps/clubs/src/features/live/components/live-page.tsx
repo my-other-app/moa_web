@@ -3,12 +3,15 @@
 import * as React from "react";
 import {
   BarChart3Icon,
+  LockIcon,
   MessageCircleQuestionIcon,
   RadioIcon,
   StarIcon,
   ZapIcon,
 } from "lucide-react";
 import { Chip, cn } from "@moa/ui";
+
+import { LockedNotice, usePlan } from "@/features/plan";
 
 import {
   useFeedback,
@@ -31,6 +34,9 @@ import { UpdatesPanel } from "./updates-panel";
 export const VIEWS = ["quiz", "qa", "polls", "feedback", "updates"] as const;
 export type View = (typeof VIEWS)[number];
 
+/** The rooms that are plan features; feedback and live updates come with every plan. */
+const VIEW_FEATURE: Partial<Record<View, string>> = { quiz: "quiz", qa: "qa", polls: "polls" };
+
 const readView = (): View => {
   if (typeof window === "undefined") return "quiz";
   const v = new URLSearchParams(window.location.search).get("view");
@@ -44,6 +50,7 @@ function Pill({
   label,
   badge,
   tone,
+  locked,
 }: {
   active: boolean;
   onClick: () => void;
@@ -51,6 +58,8 @@ function Pill({
   label: string;
   badge?: string | null;
   tone?: "live" | "attention";
+  /** Not on the plan: still opens, to read what is there. */
+  locked?: boolean;
 }) {
   return (
     <Chip active={active} onClick={onClick}>
@@ -79,6 +88,7 @@ function Pill({
           {badge}
         </span>
       ) : null}
+      {locked ? <LockIcon role="img" aria-label="Locked" className={cn("size-3", active ? "text-brand-foreground/80" : "text-ink-3")} /> : null}
     </Chip>
   );
 }
@@ -90,6 +100,8 @@ export function LivePage({ eventId }: { eventId: number }) {
   const polls = usePolls(eventId);
   const feedback = useFeedback(eventId);
   const updates = useUpdates(eventId);
+  const plan = usePlan();
+  const locked = (v: View) => Boolean(VIEW_FEATURE[v]) && !plan.can(VIEW_FEATURE[v]!);
   const go = (v: View) => {
     setView(v);
     const url = new URL(window.location.href);
@@ -107,6 +119,7 @@ export function LivePage({ eventId }: { eventId: number }) {
         <Pill
           active={view === "quiz"}
           onClick={() => go("quiz")}
+          locked={locked("quiz")}
           icon={<ZapIcon className="size-4" />}
           label="Quiz"
           badge={quiz.data?.status === "live" ? "live" : nQ ? `${nQ} Qs` : null}
@@ -115,6 +128,7 @@ export function LivePage({ eventId }: { eventId: number }) {
         <Pill
           active={view === "qa"}
           onClick={() => go("qa")}
+          locked={locked("qa")}
           icon={<MessageCircleQuestionIcon className="size-4" />}
           label="Q&A"
           badge={review ? `${review} to review` : null}
@@ -123,6 +137,7 @@ export function LivePage({ eventId }: { eventId: number }) {
         <Pill
           active={view === "polls"}
           onClick={() => go("polls")}
+          locked={locked("polls")}
           icon={<BarChart3Icon className="size-4" />}
           label="Polls"
           badge={
@@ -145,6 +160,7 @@ export function LivePage({ eventId }: { eventId: number }) {
           badge={sent ? `${sent} sent` : null}
         />
       </div>
+      {VIEW_FEATURE[view] ? <LockedNotice feature={VIEW_FEATURE[view]!} /> : null}
       {view === "quiz" ? (
         <QuizPanel eventId={eventId} />
       ) : view === "qa" ? (

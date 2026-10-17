@@ -34,6 +34,8 @@ import {
   type PushScope,
   type PushSend,
 } from "../schemas";
+import { LimitMeter } from "@/features/plan";
+
 import { NewAnnouncementDialog } from "./new-announcement-dialog";
 
 /**
@@ -279,7 +281,10 @@ export function AnnouncementsPage() {
               : "Push notifications to the phones of people registered for an event."}
           </p>
         </div>
-        <NewAnnouncementDialog />
+        <div className="flex flex-wrap items-center gap-2">
+          <LimitMeter limitKey="announcements_per_month" />
+          <NewAnnouncementDialog />
+        </div>
       </div>
 
       {insights.isPending ? (

@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { fetchCloseoutSettings, fetchFigures, fetchReports, fetchRetention, generateReport, runRetention, updateCloseoutSettings } from "./api";
 import type { SettingsPatch } from "./schemas";
 
@@ -30,11 +32,11 @@ function useRefresh(eventId: number) {
 }
 export function useGenerateReport(eventId: number) {
   const refresh = useRefresh(eventId);
-  return useMutation({ mutationFn: () => generateReport(eventId), onSuccess: (r) => (toast.success("Report generated", { description: r.filename }), refresh()), onError: (e: Error) => toast.error(e.message) });
+  return useMutation({ mutationFn: () => generateReport(eventId), onSuccess: (r) => (toast.success("Report generated", { description: r.filename }), refresh()), onError: toastError });
 }
 export function useUpdateCloseoutSettings(eventId: number) {
   const refresh = useRefresh(eventId);
-  return useMutation({ mutationFn: (body: SettingsPatch) => updateCloseoutSettings(eventId, body), onSuccess: refresh, onError: (e: Error) => toast.error(e.message) });
+  return useMutation({ mutationFn: (body: SettingsPatch) => updateCloseoutSettings(eventId, body), onSuccess: refresh, onError: toastError });
 }
 export function useRunRetention(eventId: number) {
   const refresh = useRefresh(eventId);

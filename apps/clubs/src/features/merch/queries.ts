@@ -4,6 +4,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { addMerchVariant, collectMerch, createMerchItem, deleteMerchItem, deleteMerchVariant, fetchAttendeeMerch, fetchMerchAnalytics, fetchMerchFields, fetchMerchItems, fetchMerchLog, handOutByHand, updateMerchItem, updateMerchVariant, type MerchLogQuery } from "./api";
 import type { MerchItemInput } from "./schemas";
 
@@ -25,7 +27,7 @@ function useRefresh(eventId: number) {
   const qc = useQueryClient();
   return () => void qc.invalidateQueries({ queryKey: key(eventId) });
 }
-const fail = (e: Error) => toast.error(e.message);
+const fail = toastError;
 
 export function useCreateMerchItem(eventId: number) {
   const refresh = useRefresh(eventId);
@@ -71,6 +73,6 @@ export function useHandOutByHand(eventId: number) {
   return useMutation({
     mutationFn: ({ itemId, undo }: { itemId: string; undo?: boolean }) => handOutByHand(eventId, itemId, undo),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: key(eventId) }),
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }

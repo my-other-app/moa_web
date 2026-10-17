@@ -6,6 +6,7 @@ import {
   CheckCircle2Icon,
   CircleIcon,
   ExternalLinkIcon,
+  LockIcon,
   PlayIcon,
   PlusIcon,
   Trash2Icon,
@@ -20,6 +21,8 @@ import {
   Skeleton,
   cn,
 } from "@moa/ui";
+
+import { useFeatureGate } from "@/features/plan";
 
 import { useHostState, useQuiz, useQuizMutations } from "../queries";
 import { OPTION_KEYS, SECONDS, type QuizQuestion } from "../schemas";
@@ -286,6 +289,7 @@ function NewQuestion({
 
 function HostConsole({ eventId }: { eventId: number }) {
   const { host } = useQuizMutations(eventId);
+  const gate = useFeatureGate("quiz");
   const state = useHostState(eventId, true);
   const s = state.data;
   if (!s) return <Skeleton className="h-64" />;
@@ -301,7 +305,7 @@ function HostConsole({ eventId }: { eventId: number }) {
               That is the quiz. The board on the right stands.
             </p>
             <div className="mt-4 flex gap-2">
-              <Button onClick={() => host.mutate("start")}>Run it again</Button>
+              <Button onClick={gate.guard(() => host.mutate("start"))}>Run it again</Button>
               <Button variant="outline" onClick={() => host.mutate("reset")}>
                 Back to editing
               </Button>
@@ -447,6 +451,8 @@ export function QuizPanel({ eventId }: { eventId: number }) {
   const { host, rename } = useQuizMutations(eventId);
   const [adding, setAdding] = React.useState(false);
   const [title, setTitle] = React.useState<string | null>(null);
+  // Not on the plan: what was written stays readable; writing and hosting open the upgrade dialog.
+  const gate = useFeatureGate("quiz");
   if (quiz.isPending) return <Skeleton className="h-72" />;
   if (quiz.isError || !quiz.data)
     return (
@@ -487,16 +493,16 @@ export function QuizPanel({ eventId }: { eventId: number }) {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => setAdding(true)}
+              onClick={gate.guard(() => setAdding(true))}
               disabled={adding}
             >
-              <PlusIcon className="size-4" /> Add question
+              {gate.locked ? <LockIcon className="size-4" /> : <PlusIcon className="size-4" />} Add question
             </Button>
             <Button
-              onClick={() => host.mutate("start")}
+              onClick={gate.guard(() => host.mutate("start"))}
               disabled={q.questions.length === 0 || host.isPending}
             >
-              <ZapIcon className="size-4" /> Host live
+              {gate.locked ? <LockIcon className="size-4" /> : <ZapIcon className="size-4" />} Host live
             </Button>
           </div>
         ) : null}
@@ -527,7 +533,7 @@ export function QuizPanel({ eventId }: { eventId: number }) {
               title="No questions yet"
               description="Four to six quick ones work best — twenty seconds each, one right answer."
               action={
-                <Button onClick={() => setAdding(true)}>Write the first</Button>
+                <Button onClick={gate.guard(() => setAdding(true))}>Write the first</Button>
               }
             />
           ) : null}

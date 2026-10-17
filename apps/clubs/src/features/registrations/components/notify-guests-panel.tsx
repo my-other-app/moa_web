@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Loader2Icon, SendIcon } from "lucide-react";
+import { Loader2Icon, LockIcon, SendIcon } from "lucide-react";
 import { formatNumber } from "@moa/app-kit";
 import {
   AlertDialog,
@@ -21,6 +21,7 @@ import {
 } from "@moa/ui";
 
 import { usePushAudience, useSendAnnouncement } from "@/features/announcements";
+import { useLimitGate } from "@/features/plan";
 
 const MAX_BODY = 1000;
 
@@ -61,6 +62,7 @@ export function NotifyGuestsPanel({
   const [audience, setAudience] = React.useState<Audience>("all");
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const send = useSendAnnouncement();
+  const monthly = useLimitGate("announcements_per_month");
   const reach = usePushAudience(eventId);
   const r = reach.data?.by_audience[audience];
 
@@ -122,8 +124,8 @@ export function NotifyGuestsPanel({
         </span>
       </div>
       <div className="mt-3 flex justify-end">
-        <Button variant="secondary" size="sm" disabled={!canSend} onClick={() => setConfirmOpen(true)}>
-          {send.isPending ? <Loader2Icon className="animate-spin" /> : <SendIcon />}
+        <Button variant="secondary" size="sm" disabled={!canSend} onClick={monthly.guard(() => setConfirmOpen(true))}>
+          {send.isPending ? <Loader2Icon className="animate-spin" /> : monthly.locked ? <LockIcon /> : <SendIcon />}
           {send.isPending ? "Sending…" : r ? `Send to ${phones(r.reachable)}` : "Send"}
         </Button>
       </div>

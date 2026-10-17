@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { PackageIcon, PencilIcon, PlusIcon, ShirtIcon, Trash2Icon, XIcon } from "lucide-react";
+import { LockIcon, PackageIcon, PencilIcon, PlusIcon, ShirtIcon, Trash2Icon, XIcon } from "lucide-react";
 import { formatNumber } from "@moa/app-kit";
 import { CardLabel, Chip, EmptyState, FigurePanel, Pager, ProgressBar, Skeleton, StatTile, cn } from "@moa/ui";
 
 import { useEventDetail } from "@/features/events";
+import { LimitMeter, LockedNotice, useFeatureGate, useLimitGate } from "@/features/plan";
 
 import { useCreateStoreItem, useDeleteStoreItem, useHandOver, useStoreItems, useStoreOrders, useStoreSettings, useStoreSummary, useUpdateStoreItem } from "../queries";
 import { ROLES, audienceLine, itemFormSchema, type StoreItem, type StoreSummary } from "../schemas";
@@ -264,6 +265,11 @@ export function StorePage({ eventId }: { eventId: number }) {
   const [adding, setAdding] = React.useState(false);
   const s = summary.data;
   const enabled = s?.enabled ?? Boolean(event.data?.merch_enabled);
+  // The store is the plan's `merch`, and the plan caps the items one event sells.
+  const merch = useFeatureGate("merch");
+  const itemCount = items.data?.length ?? s?.items_total ?? null;
+  const itemsCap = useLimitGate("merch_items_per_event", itemCount);
+  const add = merch.locked ? merch.prompt : itemsCap.guard(() => setAdding(true));
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -272,7 +278,9 @@ export function StorePage({ eventId }: { eventId: number }) {
           <h2 className="m-0 text-[17px] font-semibold tracking-[-0.02em]">Merchandise</h2>
           <p className="text-ink-2 mt-1 text-[13px]">What this event sells with its tickets · paid once, handed over at the door</p>
         </div>
+        {itemCount !== null && !merch.locked ? <LimitMeter limitKey="merch_items_per_event" used={itemCount} /> : null}
       </header>
+      <LockedNotice feature="merch" />
       {summary.isError ? (
         <EmptyState tone="muted" title="Could not load the store" description="Try reloading the page." />
       ) : !s ? (
@@ -291,14 +299,14 @@ export function StorePage({ eventId }: { eventId: number }) {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <label className="flex cursor-pointer items-center gap-3">
-              <input type="checkbox" role="switch" aria-label="Offer merchandise during registration" checked={enabled} disabled={settings.isPending} onChange={(e) => settings.mutate({ merch_enabled: e.target.checked })} className="accent-[var(--brand)] size-5" />
+              <input type="checkbox" role="switch" aria-label="Offer merchandise during registration" checked={enabled} disabled={settings.isPending} onChange={(e) => (e.target.checked && merch.locked ? merch.prompt() : settings.mutate({ merch_enabled: e.target.checked }))} className="accent-[var(--brand)] size-5" />
               <span>
                 <span className="text-ink block text-[13.5px] font-medium">Offer merchandise during registration</span>
                 <span className="text-ink-3 text-[12px]">Buyers pick items when they register and pay once</span>
               </span>
             </label>
-            <button type="button" className="btn btn-secondary text-brand" onClick={() => setAdding(true)}>
-              <PlusIcon className="size-4" /> Add item
+            <button type="button" className="btn btn-secondary text-brand" onClick={add}>
+              {merch.locked || itemsCap.locked ? <LockIcon className="size-4" /> : <PlusIcon className="size-4" />} Add item
             </button>
           </div>
           {adding && <NewItem eventId={eventId} onClose={() => setAdding(false)} />}

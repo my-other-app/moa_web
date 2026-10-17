@@ -38,6 +38,8 @@ import {
 } from "@moa/ui";
 import { useDebouncedValue } from "@moa/ui/hooks";
 
+import { LockedNotice } from "@/features/plan";
+
 import { fetchMerchLog } from "../api";
 import {
   useAddMerchVariant,
@@ -752,6 +754,7 @@ export function MerchPage({ eventId }: { eventId: number }) {
   const [editing, setEditing] = React.useState<MerchItem | null>(null);
   return (
     <div className="grid gap-5">
+      <LockedNotice feature="swag" />
       <SwagTop
         eventId={eventId}
         items={items.data ?? []}

@@ -449,3 +449,51 @@ describe("who can change it", () => {
     expect(screen.getByRole("region", { name: "Current plan" })).toHaveTextContent("Free");
   });
 });
+
+describe("a failed charge in its grace period", () => {
+  const PAST_DUE = {
+    ...GROWTH_ACTIVE,
+    status: "past_due",
+    last_failure_reason: "Card declined by the bank.",
+    grace_ends_at: "2026-10-24T10:00:00+05:30",
+    halted_at: null,
+  };
+
+  it("says by when to pay or the club moves to Free, that Razorpay retries, and how to change the card", async () => {
+    state.sub = PAST_DUE;
+    state.ent = { ...GROWTH_ENTITLEMENTS, status: "past_due", subscription_status: "past_due" };
+    render(<BillingPage />);
+    const banner = (await screen.findByText(/Payment failed — update by 24 Oct 2026 or your club moves to Free\./)).closest<HTMLElement>("[role=alert]")!;
+    expect(banner).toHaveTextContent("Razorpay said: Card declined by the bank.");
+    expect(banner).toHaveTextContent(/Razorpay retries the charge on its own until then, and Growth stays on meanwhile/);
+    expect(banner).toHaveTextContent(/open the link in Razorpay's email to .+ and update the payment method; the retry uses it/);
+    expect(within(banner).getByRole("link", { name: /Talk to us/ })).toHaveAttribute("href", expect.stringContaining("mailto:support@myotherapp.in"));
+    // The banner says it; the older past-due line would only repeat it.
+    expect(screen.queryByText(/The last charge did not go through/)).not.toBeInTheDocument();
+  });
+
+  it("says Razorpay has stopped retrying once the subscription is halted", async () => {
+    state.sub = { ...PAST_DUE, halted_at: "2026-10-20T10:00:00+05:30" };
+    state.ent = { ...GROWTH_ENTITLEMENTS, status: "past_due", subscription_status: "past_due" };
+    render(<BillingPage />);
+    expect(await screen.findByText(/Razorpay has stopped retrying the charge, so Growth ends on 24 Oct 2026 unless a payment goes through/)).toBeInTheDocument();
+  });
+
+  it("shows nothing about grace when nothing is owed", async () => {
+    state.sub = GROWTH_ACTIVE;
+    state.ent = GROWTH_ENTITLEMENTS;
+    render(<BillingPage />);
+    await currentPanel();
+    expect(screen.queryByText(/Payment failed — update by/)).not.toBeInTheDocument();
+  });
+
+  it("reads the new fields, and a server without them", () => {
+    expect(subscriptionSchema.parse(PAST_DUE)).toMatchObject({ grace_ends_at: PAST_DUE.grace_ends_at, halted_at: null });
+    expect(subscriptionSchema.parse(GROWTH_ACTIVE).grace_ends_at ?? null).toBeNull();
+    // No `enforced` from the server is the kill switch: nothing is locked.
+    const old = entitlementsSchema.parse(FREE_ENTITLEMENTS);
+    expect(old.enforced).toBe(false);
+    expect(old.grandfathered_before ?? null).toBeNull();
+    expect(entitlementsSchema.parse({ ...FREE_ENTITLEMENTS, enforced: true, grandfathered_before: "2026-10-01T00:00:00+05:30" })).toMatchObject({ enforced: true, grandfathered_before: "2026-10-01T00:00:00+05:30" });
+  });
+});

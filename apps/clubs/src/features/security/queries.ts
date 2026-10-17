@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { disableTwoFactor, enableTwoFactor, fetchSecurity, revokeSession, setNotifyNewDevice, signOutOthers, startTwoFactor } from "./api";
 
 const KEY = ["security"] as const;
@@ -24,7 +26,7 @@ export function useRevokeSession() {
       toast.success("Session signed out");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -36,7 +38,7 @@ export function useSignOutOthers() {
       toast.success(n === 0 ? "No other sessions were open" : `Signed out ${n} other ${n === 1 ? "session" : "sessions"}`);
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -45,12 +47,12 @@ export function useNotifyNewDevice() {
   return useMutation({
     mutationFn: (on: boolean) => setNotifyNewDevice(on),
     onSuccess: refresh,
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
 export function useStartTwoFactor() {
-  return useMutation({ mutationFn: () => startTwoFactor(), onError: (error: Error) => toast.error(error.message) });
+  return useMutation({ mutationFn: () => startTwoFactor(), onError: toastError });
 }
 
 export function useEnableTwoFactor() {
@@ -61,7 +63,7 @@ export function useEnableTwoFactor() {
       toast.success("Two-factor sign-in is on");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -73,6 +75,6 @@ export function useDisableTwoFactor() {
       toast.success("Two-factor sign-in is off");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }

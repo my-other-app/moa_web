@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PlayIcon, PlusIcon, SquareIcon, Trash2Icon } from "lucide-react";
+import { LockIcon, PlayIcon, PlusIcon, SquareIcon, Trash2Icon } from "lucide-react";
 import {
   Button,
   CardLabel,
@@ -14,6 +14,8 @@ import {
   cn,
   type StatusTone,
 } from "@moa/ui";
+
+import { useFeatureGate } from "@/features/plan";
 
 import { usePollMutations, usePolls } from "../queries";
 import { POLL_KINDS, type Poll } from "../schemas";
@@ -135,6 +137,7 @@ const STATUS: Record<Poll["status"], string> = {
 
 function PollCard({ eventId, poll }: { eventId: number; poll: Poll }) {
   const { status, remove } = usePollMutations(eventId);
+  const gate = useFeatureGate("polls");
   const kind =
     POLL_KINDS.find((k) => k.value === poll.kind)?.label ?? poll.kind;
   return (
@@ -169,7 +172,7 @@ function PollCard({ eventId, poll }: { eventId: number; poll: Poll }) {
           <Button
             size="sm"
             variant={poll.status === "draft" ? "default" : "outline"}
-            onClick={() => status.mutate({ id: poll.id, status: "live" })}
+            onClick={gate.guard(() => status.mutate({ id: poll.id, status: "live" }))}
             disabled={status.isPending}
           >
             <PlayIcon className="size-3.5" />{" "}
@@ -284,6 +287,7 @@ function NewPoll({ eventId, onDone }: { eventId: number; onDone: () => void }) {
 export function PollsPanel({ eventId }: { eventId: number }) {
   const polls = usePolls(eventId);
   const [adding, setAdding] = React.useState(false);
+  const gate = useFeatureGate("polls");
   if (polls.isPending) return <Skeleton className="h-72" />;
   if (polls.isError || !polls.data)
     return (
@@ -304,8 +308,8 @@ export function PollsPanel({ eventId }: { eventId: number }) {
             on the host screen.
           </p>
         </div>
-        <Button onClick={() => setAdding(true)} disabled={adding}>
-          <PlusIcon className="size-4" /> New poll
+        <Button onClick={gate.guard(() => setAdding(true))} disabled={adding}>
+          {gate.locked ? <LockIcon className="size-4" /> : <PlusIcon className="size-4" />} New poll
         </Button>
       </div>
       {adding ? (
@@ -317,7 +321,7 @@ export function PollsPanel({ eventId }: { eventId: number }) {
           title="No polls yet"
           description="A word cloud to open the night, a multiple choice to take the room's pulse, a rating after each talk."
           action={
-            <Button onClick={() => setAdding(true)}>Write the first</Button>
+            <Button onClick={gate.guard(() => setAdding(true))}>Write the first</Button>
           }
         />
       ) : (

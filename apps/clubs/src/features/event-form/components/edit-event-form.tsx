@@ -15,7 +15,9 @@ function contextOf(raw: unknown): EventFormContext {
   const posterUrl = poster ? (["medium", "large", "original", "thumbnail"].map((k) => poster[k]).find((v) => typeof v === "string" && v) as string | undefined) : undefined;
   const status = typeof d.status === "string" ? (d.status as EventFormContext["status"]) : undefined;
   const registered = typeof d.registration_count === "number" ? d.registration_count : typeof d.registrations_count === "number" ? d.registrations_count : 0;
-  return { posterUrl: posterUrl ?? null, status, registered };
+  // When the event was made: one made before plans were enforced keeps paid entry.
+  const createdAt = typeof d.created_at === "string" ? d.created_at : null;
+  return { posterUrl: posterUrl ?? null, status, registered, createdAt };
 }
 
 export function EditEventForm({ eventId }: { eventId: number }) {

@@ -6,6 +6,7 @@ import {
   DoorOpenIcon,
   GiftIcon,
   HandshakeIcon,
+  LockIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
@@ -37,6 +38,8 @@ import {
   toast,
   type StatusTone,
 } from "@moa/ui";
+
+import { useFeatureGate } from "@/features/plan";
 
 import {
   useCreateMerchItem,
@@ -478,6 +481,8 @@ export function SwagTop({
   error?: React.ReactNode;
 }) {
   const [adding, setAdding] = React.useState(false);
+  // Swag is a plan feature: what is set up stays readable, adding more opens the upgrade dialog.
+  const gate = useFeatureGate("swag");
   const stock = items.reduce((n, i) => n + i.total, 0);
   const out = items.reduce((n, i) => n + i.handed_out, 0);
   const sponsored = items.filter((i) => i.sponsor).length;
@@ -504,8 +509,8 @@ export function SwagTop({
           >
             <DoorOpenIcon /> Open the gate
           </Link>
-          <Button onClick={() => setAdding(true)} disabled={adding}>
-            <PlusIcon /> Add swag
+          <Button onClick={gate.guard(() => setAdding(true))} disabled={adding}>
+            {gate.locked ? <LockIcon /> : <PlusIcon />} Add swag
           </Button>
         </div>
       </div>

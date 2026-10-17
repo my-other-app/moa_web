@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { createAgendaItem, deleteAgendaItem, fetchAgenda, updateAgendaItem } from "./api";
 import type { AgendaItemInput } from "./schemas";
 
@@ -18,13 +20,13 @@ function useRefresh(eventId: number) {
 }
 export function useCreateAgendaItem(eventId: number) {
   const refresh = useRefresh(eventId);
-  return useMutation({ mutationFn: (body: AgendaItemInput) => createAgendaItem(eventId, body), onSuccess: refresh, onError: (e: Error) => toast.error(e.message) });
+  return useMutation({ mutationFn: (body: AgendaItemInput) => createAgendaItem(eventId, body), onSuccess: refresh, onError: toastError });
 }
 export function useUpdateAgendaItem(eventId: number) {
   const refresh = useRefresh(eventId);
-  return useMutation({ mutationFn: ({ id, body }: { id: string; body: Partial<AgendaItemInput> }) => updateAgendaItem(eventId, id, body), onSuccess: refresh, onError: (e: Error) => toast.error(e.message) });
+  return useMutation({ mutationFn: ({ id, body }: { id: string; body: Partial<AgendaItemInput> }) => updateAgendaItem(eventId, id, body), onSuccess: refresh, onError: toastError });
 }
 export function useDeleteAgendaItem(eventId: number) {
   const refresh = useRefresh(eventId);
-  return useMutation({ mutationFn: (id: string) => deleteAgendaItem(eventId, id), onSuccess: () => (toast.success("Block removed"), refresh()), onError: (e: Error) => toast.error(e.message) });
+  return useMutation({ mutationFn: (id: string) => deleteAgendaItem(eventId, id), onSuccess: () => (toast.success("Block removed"), refresh()), onError: toastError });
 }

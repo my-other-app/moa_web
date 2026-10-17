@@ -9,8 +9,11 @@ import { SALES_EMAIL, type CatalogPlan, type Cycle } from "./schemas";
 
 export const BILLING_KEY = ["billing"] as const;
 
-export function usePlans() {
-  return useQuery({ queryKey: [...BILLING_KEY, "plans"], queryFn: fetchPlans, staleTime: staleTimes.reference, retry: false });
+/** The entitlements' cache key: Plan & billing and every lock in the dashboard read the same entry. */
+export const ENTITLEMENTS_KEY = [...BILLING_KEY, "entitlements"] as const;
+
+export function usePlans(enabled = true) {
+  return useQuery({ queryKey: [...BILLING_KEY, "plans"], queryFn: fetchPlans, staleTime: staleTimes.reference, retry: false, enabled });
 }
 
 /**
@@ -23,7 +26,7 @@ export function useSubscription(watch = false) {
 }
 
 export function useEntitlements(watch = false) {
-  return useQuery({ queryKey: [...BILLING_KEY, "entitlements"], queryFn: fetchEntitlements, refetchInterval: watch ? 5_000 : false });
+  return useQuery({ queryKey: ENTITLEMENTS_KEY, queryFn: fetchEntitlements, refetchInterval: watch ? 5_000 : false });
 }
 
 export function useRefreshBilling() {

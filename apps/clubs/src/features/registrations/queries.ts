@@ -4,6 +4,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import {
   addAttendee,
   fetchEventAnalytics,
@@ -53,7 +55,7 @@ export function useSetRegistrationRole(eventId: number) {
       // registrations list has to show the new one.
       await queryClient.invalidateQueries({ queryKey: qk.events.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -67,7 +69,7 @@ export function useMarkAttendance(eventId: number) {
       // move, so invalidate the whole event subtree rather than one query.
       await queryClient.invalidateQueries({ queryKey: qk.events.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -96,7 +98,7 @@ export function useUpdateRegistration(eventId: number) {
       toast.success("Details corrected");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -109,7 +111,7 @@ export function useRemoveRegistration(eventId: number) {
       toast.success("Removed from the list", { description: "Their record, ticket and check-in are gone." });
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -121,7 +123,7 @@ export function useAddAttendee(eventId: number) {
       toast.success(`${r.full_name ?? "They"} added to the list`, { description: "Send tickets delivers theirs." });
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -144,6 +146,6 @@ export function useImportRegistrations(eventId: number) {
       toast.success("Import started", { description: "Rows appear on the list as they are processed; the record below says what happened to each." });
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }

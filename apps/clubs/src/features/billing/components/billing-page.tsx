@@ -288,6 +288,8 @@ export function BillingPage() {
         </Notice>
       ) : null}
 
+      {sub?.grace_ends_at ? <GraceBanner sub={sub} email={club?.contact_email} canManage={canManage} /> : null}
+
       {subQ.isError || entQ.isError ? (
         <EmptyState tone="muted" title="Could not load your plan" description="Try reloading the page." />
       ) : !ent || subQ.isPending ? (
@@ -374,6 +376,39 @@ export function BillingPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+// ─── A failed charge, and the time left to fix it ───────────────────────
+
+/**
+ * After a charge fails the club keeps its plan for a grace period; when it
+ * ends with nothing paid, the club moves to Free. Said at the top of the
+ * page, with what the club can do: Razorpay retries on its own, and the
+ * card or UPI it charges is changed through the link in Razorpay's email.
+ */
+export function GraceBanner({ sub, email, canManage }: { sub: Subscription; email?: string | null; canManage: boolean }) {
+  const by = sub.grace_ends_at ? formatDate(sub.grace_ends_at) : null;
+  const plan = sub.plan?.name ?? "your plan";
+  return (
+    <Notice
+      tone="refuse"
+      tag="Payment"
+      action={
+        canManage ? (
+          <a className="btn btn-secondary btn-sm" href={mailto(`Payment for ${plan}`, "Our last payment failed and we'd like to fix it.")}>
+            <MailIcon className="size-3.5" /> Talk to us
+          </a>
+        ) : null
+      }
+    >
+      <strong className="font-semibold">Payment failed — update by {by} or your club moves to Free.</strong>{" "}
+      {sub.last_failure_reason ? `Razorpay said: ${sub.last_failure_reason.replace(/\.$/, "")}. ` : ""}
+      {sub.halted_at
+        ? `Razorpay has stopped retrying the charge, so ${plan} ends on ${by} unless a payment goes through. `
+        : `Razorpay retries the charge on its own until then, and ${plan} stays on meanwhile. `}
+      To pay with another card or UPI, open the link in Razorpay&apos;s email{email ? ` to ${email}` : ""} and update the payment method; the retry uses it. If the email is gone, write to {SALES_EMAIL}.
+    </Notice>
   );
 }
 
@@ -467,7 +502,7 @@ function CurrentPlan({
         </Notice>
       ) : null}
 
-      {sub?.status === "past_due" ? (
+      {sub?.status === "past_due" && !sub.grace_ends_at ? (
         <Notice tone="caution" tag="Payment">
           The last charge did not go through{sub.last_failure_reason ? ` (${sub.last_failure_reason})` : ""}. Razorpay tries again on its own{sub.entitled ? "; your plan stays on meanwhile" : ""}.
         </Notice>

@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import * as api from "./api";
 import type { Competition } from "./schemas";
 
@@ -24,7 +26,7 @@ function useWrite<TArgs>(eventId: number, run: (args: TArgs) => Promise<Competit
       queryClient.setQueryData(key(eventId), data);
       if (done) toast.success(typeof done === "function" ? done(args) : done);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 

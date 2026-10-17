@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LockIcon } from "lucide-react";
 import { cn } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
+import { usePlan } from "@/features/plan";
 
 import { NAV_GROUPS, isActive, navItems, type NavItem } from "./nav-items";
 
@@ -23,6 +25,7 @@ import { NAV_GROUPS, isActive, navItems, type NavItem } from "./nav-items";
 export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   const { can } = useAccess();
+  const plan = usePlan();
   // A role sees only what it can open; the club's own account sees everything.
   const visible = navItems.filter((i) => !i.needs || can[i.needs]);
   const sections: { key: string; label: string; items: NavItem[] }[] = [
@@ -39,6 +42,8 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
           <ul className="flex flex-col gap-0.5">
             {section.items.map((item) => {
               const on = isActive(pathname, item);
+              const lock = item.feature ? plan.featureLock(item.feature) : null;
+              const hint = lock ? `${item.label} · part of ${lock.requiredPlanName ?? "a bigger plan"} and up` : item.label;
               return (
                 <li key={item.href} className="relative">
                   <span
@@ -49,7 +54,7 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
                     href={item.href}
                     onClick={onNavigate}
                     aria-current={on ? "page" : undefined}
-                    title={item.label}
+                    title={hint}
                     className={cn(
                       "flex w-full items-center gap-3 rounded-[14px] px-2.5 py-[8px] text-left text-[13.5px] transition-colors duration-150",
                       on ? "bg-brand-soft text-brand font-semibold" : "text-ink-2 hover:bg-sunken hover:text-ink",
@@ -60,6 +65,13 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
                       <item.icon className="size-[17px]" />
                     </span>
                     <span className={cn("flex-1 truncate", collapsed && "hidden")}>{item.label}</span>
+                    {lock ? (
+                      <LockIcon
+                        role="img"
+                        aria-label={`Locked: part of ${lock.requiredPlanName ?? "a bigger plan"} and up`}
+                        className={cn("text-ink-3 size-3.5 shrink-0", collapsed && "hidden")}
+                      />
+                    ) : null}
                   </Link>
                 </li>
               );

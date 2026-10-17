@@ -4,7 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarDaysIcon, ChevronDownIcon, PaletteIcon, ScanLineIcon } from "lucide-react";
+import { CalendarDaysIcon, ChevronDownIcon, LockIcon, PaletteIcon, ScanLineIcon } from "lucide-react";
 import { formatWindow, pickImage } from "@moa/app-kit";
 import {
   Button,
@@ -22,8 +22,9 @@ import { enter } from "@moa/ui/motion";
 
 import { useAccess } from "@/features/access";
 import { EventRowMenu, EventStatusBadge, useEventDetail } from "@/features/events";
+import { usePlan } from "@/features/plan";
 import { useEventSummary } from "../queries";
-import { DESIGN_LINKS, EVENT_TABS, STATUS_ACTION, STATUS_NOTICE, clockNotices, tabFor } from "../schemas";
+import { DESIGN_LINKS, EVENT_TABS, STATUS_ACTION, STATUS_NOTICE, TAB_FEATURE, clockNotices, tabFor } from "../schemas";
 
 /**
  * The operational heart of an event: its name and status, the one-line
@@ -37,6 +38,17 @@ import { DESIGN_LINKS, EVENT_TABS, STATUS_ACTION, STATUS_NOTICE, clockNotices, t
  * acts on the event as a whole sits behind the one "More" menu the events
  * list uses, so a row and its page offer the same verbs.
  */
+/** A section's name, with a lock when the plan does not include it. */
+function TabLabel({ label, lock }: { label: string; lock: { requiredPlanName: string | null } | null }) {
+  if (!lock) return <>{label}</>;
+  return (
+    <span className="inline-flex items-center gap-1" title={`Part of ${lock.requiredPlanName ?? "a bigger plan"} and up`}>
+      {label}
+      <LockIcon role="img" aria-label="Locked" className="text-ink-3 size-3" />
+    </span>
+  );
+}
+
 export function EventConsole({ eventId, children }: { eventId: number; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -46,6 +58,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   const event = useEventDetail(eventId);
   const { can } = useAccess();
   const summary = useEventSummary(eventId);
+  const plan = usePlan();
   // A clock read once per navigation is enough for a "has it started" notice.
   const now = React.useMemo(() => new Date(), [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -161,7 +174,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
         value={tab}
         items={EVENT_TABS.filter((t) => (!("when" in t) || event.data?.[t.when] !== false) && (t.key !== "finance" || can.money)).map((t) => ({
           key: t.key,
-          label: t.label,
+          label: <TabLabel label={t.label} lock={TAB_FEATURE[t.key] ? plan.featureLock(TAB_FEATURE[t.key]!) : null} />,
           href: `${base}${t.path}`,
           count: t.key === "attendees" ? (s?.registered ?? null) : t.key === "check-ins" ? (s?.checked_in ?? null) : null,
         }))}

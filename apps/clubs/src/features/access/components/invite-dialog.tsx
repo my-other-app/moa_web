@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CopyIcon, UserPlusIcon } from "lucide-react";
+import { CopyIcon, LockIcon, UserPlusIcon } from "lucide-react";
 import {
   Button,
   ChoiceCard,
@@ -16,8 +16,10 @@ import {
   toast,
 } from "@moa/ui";
 
+import { LockBadge, isPlanLockError, openUpgrade, useFeatureGate, useLimitGate } from "@/features/plan";
+
 import { useInvite } from "../queries";
-import type { InviteResponse, MemberRole, RoleOption } from "../schemas";
+import { DEFAULT_MEMBER_ROLE, type InviteResponse, type MemberRole, type RoleOption } from "../schemas";
 
 const label = "eyebrow mb-1.5 block";
 
@@ -47,11 +49,14 @@ export function InviteLink({ url }: { url: string }) {
  * They get a mail with a link to set their own password; the link is also
  * shown here once, so it can be sent another way.
  */
-export function InviteDialog({ roles }: { roles: RoleOption[] }) {
+export function InviteDialog({ roles, seatsUsed }: { roles: RoleOption[]; seatsUsed?: number | null }) {
+  // Every seat taken: the button opens the upgrade dialog. Roles but the default need the plan's `roles`.
+  const seats = useLimitGate("committee_seats", seatsUsed);
+  const rolesGate = useFeatureGate("roles");
   const [open, setOpen] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [name, setName] = React.useState("");
-  const [role, setRole] = React.useState<MemberRole>("editor");
+  const [role, setRole] = React.useState<MemberRole>(DEFAULT_MEMBER_ROLE);
   const [error, setError] = React.useState<string | null>(null);
   const [sent, setSent] = React.useState<InviteResponse | null>(null);
   const invite = useInvite();
@@ -59,7 +64,7 @@ export function InviteDialog({ roles }: { roles: RoleOption[] }) {
   const reset = () => {
     setEmail("");
     setName("");
-    setRole("editor");
+    setRole(DEFAULT_MEMBER_ROLE);
     setError(null);
     setSent(null);
   };
@@ -74,9 +79,19 @@ export function InviteDialog({ roles }: { roles: RoleOption[] }) {
     try {
       setSent(await invite.mutateAsync({ email: email.trim(), full_name: name.trim() || undefined, role }));
     } catch (err) {
+      // A plan refusal opens the upgrade dialog; it is not a mistake in the form.
+      if (isPlanLockError(err)) return setOpen(false);
       setError(err instanceof Error ? err.message : "Could not send the invite.");
     }
   };
+
+  if (seats.locked) {
+    return (
+      <Button onClick={seats.prompt}>
+        <LockIcon className="size-4" /> Invite someone
+      </Button>
+    );
+  }
 
   return (
     <Dialog
@@ -132,9 +147,23 @@ export function InviteDialog({ roles }: { roles: RoleOption[] }) {
             <div>
               <span className={label}>Role</span>
               <div role="radiogroup" aria-label="Role" className="flex flex-col gap-2">
-                {roles.map((r) => (
-                  <ChoiceCard key={r.key} checked={role === r.key} onClick={() => setRole(r.key)} title={r.label} hint={r.description} />
-                ))}
+                {roles.map((r) => {
+                  const lock = r.key === DEFAULT_MEMBER_ROLE ? null : rolesGate.lock;
+                  return (
+                    <ChoiceCard
+                      key={r.key}
+                      checked={role === r.key}
+                      onClick={() => (lock ? openUpgrade(lock) : setRole(r.key))}
+                      title={
+                        <span className="flex items-center gap-1.5">
+                          {r.label}
+                          <LockBadge lock={lock} />
+                        </span>
+                      }
+                      hint={r.description}
+                    />
+                  );
+                })}
               </div>
             </div>
             {error ? <Notice tone="refuse">{error}</Notice> : null}

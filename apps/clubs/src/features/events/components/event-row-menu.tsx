@@ -31,6 +31,7 @@ import {
 
 import { useAccess } from "@/features/access";
 import { useDeleteEvent } from "@/features/event-form";
+import { useLimitGate } from "@/features/plan";
 import { PUBLIC_SITE, eventPublicUrl } from "@/lib/public-site";
 
 import type { ClubEvent } from "../schemas";
@@ -62,6 +63,8 @@ export function EventRowMenu({
   const { can } = useAccess();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [dupOpen, setDupOpen] = React.useState(false);
+  // A copy is a new event: at the month's cap it opens the upgrade dialog instead.
+  const monthly = useLimitGate("events_per_month");
   const registered = event.registration_count ?? 0;
 
   async function copyLink() {
@@ -91,7 +94,7 @@ export function EventRowMenu({
           >
             <PencilIcon className="size-4" /> Edit details
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setDupOpen(true)}>
+          <DropdownMenuItem onClick={monthly.guard(() => setDupOpen(true))}>
             <CopyPlusIcon className="size-4" /> Duplicate
           </DropdownMenuItem>
           <DropdownMenuSeparator />

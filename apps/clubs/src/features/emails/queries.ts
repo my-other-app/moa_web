@@ -6,6 +6,8 @@ import { toast } from "@moa/ui";
 
 import { useRefreshDeliveries } from "@/features/deliveries";
 
+import { toastError } from "@/features/plan/errors";
+
 import {
   countAudience,
   createTemplate,
@@ -89,7 +91,7 @@ export function useSaveTemplate(scope: EmailScope) {
       queryClient.setQueryData([...emailsKey(scope), "template", data.id], data);
       void queryClient.invalidateQueries({ queryKey: [...emailsKey(scope), "list"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -98,7 +100,7 @@ export function useCreateTemplate(scope: EmailScope) {
   return useMutation({
     mutationFn: ({ fields, stage }: { fields: EmailTemplateFields; stage?: EmailStage }) => createTemplate(scope, fields, stage),
     onSuccess: refresh,
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -110,7 +112,7 @@ export function useDeleteTemplate(scope: EmailScope) {
       toast.success("Email deleted");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -122,7 +124,7 @@ export function useDuplicateTemplate(scope: EmailScope) {
       toast.success(`${t.name} made`);
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -136,7 +138,7 @@ export function useSaveToLibrary(eventId: number) {
       refreshLibrary();
       refreshEvent();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -150,7 +152,7 @@ export function useResetTemplate(eventId: number) {
       void queryClient.invalidateQueries({ queryKey: [...emailsKey(scope), "list"] });
       toast.success("Back to the club's version");
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -166,7 +168,7 @@ export function useSendTemplate(eventId: number) {
       refresh();
       refreshDeliveries();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -185,7 +187,7 @@ export function useSendTest(eventId: number) {
   return useMutation({
     mutationFn: (body: PreviewBody & { to: string; attachments: EmailAttachments }) => sendTestEmail(eventId, body),
     onSuccess: (r) => toast.success(`Test sent to ${r.to}`, { description: `Subject: ${r.subject}` }),
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -219,7 +221,7 @@ export function useSendMessage(eventId: number) {
       refresh();
       refreshDeliveries();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 

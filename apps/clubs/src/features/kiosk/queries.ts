@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { fetchKioskContext, fetchKioskSettings, fetchKiosks, fetchSelfQr, pairKiosk, rotateKiosk, unpairKiosk, updateKioskSettings } from "./api";
 import type { KioskSettings } from "./schemas";
 
@@ -30,17 +32,17 @@ function useRefresh(eventId: number) {
 }
 export function usePairKiosk(eventId: number) {
   const refresh = useRefresh(eventId);
-  return useMutation({ mutationFn: (body: { name: string; door_id?: string | null; shift_hours?: number }) => pairKiosk(eventId, body), onSuccess: refresh, onError: (e: Error) => toast.error(e.message) });
+  return useMutation({ mutationFn: (body: { name: string; door_id?: string | null; shift_hours?: number }) => pairKiosk(eventId, body), onSuccess: refresh, onError: toastError });
 }
 export function useRotateKiosk(eventId: number) {
   const refresh = useRefresh(eventId);
-  return useMutation({ mutationFn: ({ deviceId, shiftHours }: { deviceId: string; shiftHours?: number }) => rotateKiosk(eventId, deviceId, shiftHours), onSuccess: refresh, onError: (e: Error) => toast.error(e.message) });
+  return useMutation({ mutationFn: ({ deviceId, shiftHours }: { deviceId: string; shiftHours?: number }) => rotateKiosk(eventId, deviceId, shiftHours), onSuccess: refresh, onError: toastError });
 }
 export function useUnpairKiosk(eventId: number) {
   const refresh = useRefresh(eventId);
-  return useMutation({ mutationFn: (deviceId: string) => unpairKiosk(eventId, deviceId), onSuccess: () => (toast.success("Kiosk unpaired"), refresh()), onError: (e: Error) => toast.error(e.message) });
+  return useMutation({ mutationFn: (deviceId: string) => unpairKiosk(eventId, deviceId), onSuccess: () => (toast.success("Kiosk unpaired"), refresh()), onError: toastError });
 }
 export function useUpdateKioskSettings(eventId: number) {
   const refresh = useRefresh(eventId);
-  return useMutation({ mutationFn: (body: Partial<KioskSettings> & { kiosk_pin?: string | null }) => updateKioskSettings(eventId, body), onSuccess: () => (toast.success("Kiosk settings saved"), refresh()), onError: (e: Error) => toast.error(e.message) });
+  return useMutation({ mutationFn: (body: Partial<KioskSettings> & { kiosk_pin?: string | null }) => updateKioskSettings(eventId, body), onSuccess: () => (toast.success("Kiosk settings saved"), refresh()), onError: toastError });
 }

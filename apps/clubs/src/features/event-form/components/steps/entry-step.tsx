@@ -4,14 +4,21 @@ import { useFormContext } from "react-hook-form";
 import { GiftIcon, IndianRupeeIcon, ShoppingBagIcon, TrophyIcon } from "lucide-react";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, Switch, cn } from "@moa/ui";
 
+import { LockBadge, openUpgrade, usePlan, type PlanLock } from "@/features/plan";
+
 import type { EventFormValues } from "../../schemas";
 
 /**
  * Places and money: how many, what it costs, what is on offer. The two
  * modules (merchandise, swag) are named as what they add — a tab on the
  * event — so switching one on is a known cost, not a mystery.
+ *
+ * Paid entry, merchandise and swag are plan features. Locked, a switch that
+ * is off opens the upgrade dialog instead of turning on; one already on can
+ * still be turned off. An event made before plans were enforced keeps paid
+ * entry as it was made (`createdAt` before the cutoff), fee and all.
  */
-function Offer({ name, icon, title, hint, children }: { name: "has_fee" | "has_prize" | "merch_enabled" | "swag_enabled"; icon: React.ReactNode; title: string; hint: string; children?: React.ReactNode }) {
+function Offer({ name, icon, title, hint, lock, children }: { name: "has_fee" | "has_prize" | "merch_enabled" | "swag_enabled"; icon: React.ReactNode; title: string; hint: string; lock?: PlanLock | null; children?: React.ReactNode }) {
   const form = useFormContext<EventFormValues>();
   const on = form.watch(name);
   return (
@@ -24,12 +31,15 @@ function Offer({ name, icon, title, hint, children }: { name: "has_fee" | "has_p
             <div className="flex items-start gap-3">
               <span className={cn("mt-0.5", on ? "text-brand" : "text-ink-3")}>{icon}</span>
               <div>
-                <FormLabel className="text-[13.5px]">{title}</FormLabel>
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <FormLabel className="text-[13.5px]">{title}</FormLabel>
+                  <LockBadge lock={lock ?? null} />
+                </span>
                 <FormDescription className="mt-0.5">{hint}</FormDescription>
               </div>
             </div>
             <FormControl>
-              <Switch checked={field.value} onCheckedChange={field.onChange} aria-label={title} />
+              <Switch checked={field.value} onCheckedChange={(next) => (next && lock ? openUpgrade(lock) : field.onChange(next))} aria-label={title} />
             </FormControl>
           </div>
           {on && children ? <div className="mt-3 pl-7">{children}</div> : null}
@@ -39,8 +49,11 @@ function Offer({ name, icon, title, hint, children }: { name: "has_fee" | "has_p
   );
 }
 
-export function EntryStep() {
+export function EntryStep({ createdAt }: { createdAt?: string | null } = {}) {
   const form = useFormContext<EventFormValues>();
+  const plan = usePlan();
+  // A paid event made before the cutoff stays editable as paid; anything newer needs the plan.
+  const feeLock = plan.grandfathered(createdAt) ? null : plan.featureLock("tickets");
   return (
     <div className="grid gap-5">
       <FormField
@@ -59,7 +72,7 @@ export function EntryStep() {
       />
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <Offer name="has_fee" icon={<IndianRupeeIcon className="size-4" />} title="Paid entry" hint="People pay through Razorpay before their ticket is issued.">
+        <Offer name="has_fee" icon={<IndianRupeeIcon className="size-4" />} title="Paid entry" hint="People pay through Razorpay before their ticket is issued." lock={feeLock}>
           <FormField
             control={form.control}
             name="reg_fee"
@@ -67,7 +80,7 @@ export function EntryStep() {
               <FormItem>
                 <FormLabel>Fee per person (₹)</FormLabel>
                 <FormControl>
-                  <Input {...field} value={field.value ?? ""} type="number" min="1" step="1" inputMode="decimal" className="max-w-[160px]" />
+                  <Input {...field} value={field.value ?? ""} type="number" min="1" step="1" inputMode="decimal" className="max-w-[160px]" disabled={feeLock !== null} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -89,8 +102,8 @@ export function EntryStep() {
             )}
           />
         </Offer>
-        <Offer name="merch_enabled" icon={<ShoppingBagIcon className="size-4" />} title="Merchandise for sale" hint="People pick items when they sign up and pay once with the ticket. Adds a Merchandise tab." />
-        <Offer name="swag_enabled" icon={<GiftIcon className="size-4" />} title="Swag to hand out" hint="Free things, counted out at the door by who gets what. Adds a Swag tab." />
+        <Offer name="merch_enabled" icon={<ShoppingBagIcon className="size-4" />} title="Merchandise for sale" hint="People pick items when they sign up and pay once with the ticket. Adds a Merchandise tab." lock={plan.featureLock("merch")} />
+        <Offer name="swag_enabled" icon={<GiftIcon className="size-4" />} title="Swag to hand out" hint="Free things, counted out at the door by who gets what. Adds a Swag tab." lock={plan.featureLock("swag")} />
       </div>
     </div>
   );
