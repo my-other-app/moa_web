@@ -96,8 +96,9 @@ function ActionButton({
   icon: React.ReactNode;
   tone?: "refuse";
 }) {
-  const { moderate } = useQAMutations(useEventIdFromContext());
-  const gate = useFeatureGate("qa");
+  const eventId = useEventIdFromContext();
+  const { moderate } = useQAMutations(eventId);
+  const gate = useFeatureGate("qa", { eventId });
   return (
     <Button
       size="xs"

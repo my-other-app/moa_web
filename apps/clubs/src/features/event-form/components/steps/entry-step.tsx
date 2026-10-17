@@ -4,7 +4,7 @@ import { useFormContext } from "react-hook-form";
 import { GiftIcon, IndianRupeeIcon, ShoppingBagIcon, TrophyIcon } from "lucide-react";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, Switch, cn } from "@moa/ui";
 
-import { LockBadge, openUpgrade, usePlan, type PlanLock } from "@/features/plan";
+import { LockBadge, openUpgrade, useEventPlan, type PlanLock } from "@/features/plan";
 
 import type { EventFormValues } from "../../schemas";
 
@@ -15,8 +15,8 @@ import type { EventFormValues } from "../../schemas";
  *
  * Paid entry, merchandise and swag are plan features. Locked, a switch that
  * is off opens the upgrade dialog instead of turning on; one already on can
- * still be turned off. An event made before plans were enforced keeps paid
- * entry as it was made (`createdAt` before the cutoff), fee and all.
+ * still be turned off. An event the server grandfathers (`plan_grandfathered`
+ * on its detail) has none of these locks: it keeps what it was made with.
  */
 function Offer({ name, icon, title, hint, lock, children }: { name: "has_fee" | "has_prize" | "merch_enabled" | "swag_enabled"; icon: React.ReactNode; title: string; hint: string; lock?: PlanLock | null; children?: React.ReactNode }) {
   const form = useFormContext<EventFormValues>();
@@ -49,11 +49,11 @@ function Offer({ name, icon, title, hint, lock, children }: { name: "has_fee" | 
   );
 }
 
-export function EntryStep({ createdAt }: { createdAt?: string | null } = {}) {
+export function EntryStep({ eventId }: { eventId?: number } = {}) {
   const form = useFormContext<EventFormValues>();
-  const plan = usePlan();
-  // A paid event made before the cutoff stays editable as paid; anything newer needs the plan.
-  const feeLock = plan.grandfathered(createdAt) ? null : plan.featureLock("tickets");
+  // While editing, the event's own view of the plan: a grandfathered event is exempt.
+  const plan = useEventPlan(eventId);
+  const feeLock = plan.featureLock("tickets");
   return (
     <div className="grid gap-5">
       <FormField

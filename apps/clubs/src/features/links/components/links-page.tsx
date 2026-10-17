@@ -422,7 +422,7 @@ export function LinksPage({ scope }: { scope: LinkScope }) {
         </div>
       </div>
 
-      <LockedNotice feature="links" />
+      <LockedNotice feature="links" eventId={scope.kind === "event" ? scope.eventId : null} />
 
       {q.isError ? (
         <EmptyState

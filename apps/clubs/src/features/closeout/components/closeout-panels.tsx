@@ -97,7 +97,7 @@ export function ReportsPanel({ eventId }: { eventId: number }) {
   const reports = useReports(eventId);
   const generate = useGenerateReport(eventId);
   // Reports already made stay downloadable; making one is the plan's `report`.
-  const gate = useFeatureGate("report");
+  const gate = useFeatureGate("report", { eventId });
   return (
     <FigurePanel className="overflow-hidden p-0">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">

@@ -289,7 +289,7 @@ function NewQuestion({
 
 function HostConsole({ eventId }: { eventId: number }) {
   const { host } = useQuizMutations(eventId);
-  const gate = useFeatureGate("quiz");
+  const gate = useFeatureGate("quiz", { eventId });
   const state = useHostState(eventId, true);
   const s = state.data;
   if (!s) return <Skeleton className="h-64" />;
@@ -452,7 +452,7 @@ export function QuizPanel({ eventId }: { eventId: number }) {
   const [adding, setAdding] = React.useState(false);
   const [title, setTitle] = React.useState<string | null>(null);
   // Not on the plan: what was written stays readable; writing and hosting open the upgrade dialog.
-  const gate = useFeatureGate("quiz");
+  const gate = useFeatureGate("quiz", { eventId });
   if (quiz.isPending) return <Skeleton className="h-72" />;
   if (quiz.isError || !quiz.data)
     return (

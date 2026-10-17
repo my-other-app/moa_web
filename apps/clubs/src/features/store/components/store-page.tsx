@@ -265,10 +265,11 @@ export function StorePage({ eventId }: { eventId: number }) {
   const [adding, setAdding] = React.useState(false);
   const s = summary.data;
   const enabled = s?.enabled ?? Boolean(event.data?.merch_enabled);
-  // The store is the plan's `merch`, and the plan caps the items one event sells.
-  const merch = useFeatureGate("merch");
+  // The store is the plan's `merch`, and the plan caps the items one event sells;
+  // a grandfathered event keeps both, and its meter shows the count without the lock.
+  const merch = useFeatureGate("merch", { eventId });
   const itemCount = items.data?.length ?? s?.items_total ?? null;
-  const itemsCap = useLimitGate("merch_items_per_event", itemCount);
+  const itemsCap = useLimitGate("merch_items_per_event", itemCount, { eventId });
   const add = merch.locked ? merch.prompt : itemsCap.guard(() => setAdding(true));
 
   return (
@@ -278,9 +279,9 @@ export function StorePage({ eventId }: { eventId: number }) {
           <h2 className="m-0 text-[17px] font-semibold tracking-[-0.02em]">Merchandise</h2>
           <p className="text-ink-2 mt-1 text-[13px]">What this event sells with its tickets · paid once, handed over at the door</p>
         </div>
-        {itemCount !== null && !merch.locked ? <LimitMeter limitKey="merch_items_per_event" used={itemCount} /> : null}
+        {itemCount !== null && !merch.locked ? <LimitMeter limitKey="merch_items_per_event" used={itemCount} eventId={eventId} /> : null}
       </header>
-      <LockedNotice feature="merch" />
+      <LockedNotice feature="merch" eventId={eventId} />
       {summary.isError ? (
         <EmptyState tone="muted" title="Could not load the store" description="Try reloading the page." />
       ) : !s ? (

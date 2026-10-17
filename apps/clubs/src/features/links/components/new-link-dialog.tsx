@@ -75,7 +75,8 @@ export function NewLinkDialog({
   const [made, setMade] = React.useState<TrackingLink | null>(null);
   const create = useCreateLink(scope);
   // Not on the plan: the button opens the upgrade dialog instead; the links already made keep working.
-  const gate = useFeatureGate("links");
+  // On an event's own tab a grandfathered event is exempt; the club's page is club-wide.
+  const gate = useFeatureGate("links", { eventId: scope.kind === "event" ? scope.eventId : null });
   const events = useClubEvents({ offset: 0, limit: 100 });
   const list = events.data?.items ?? [];
   const picked = list.find((e) => String(e.id) === eventId);

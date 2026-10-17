@@ -754,7 +754,7 @@ export function MerchPage({ eventId }: { eventId: number }) {
   const [editing, setEditing] = React.useState<MerchItem | null>(null);
   return (
     <div className="grid gap-5">
-      <LockedNotice feature="swag" />
+      <LockedNotice feature="swag" eventId={eventId} />
       <SwagTop
         eventId={eventId}
         items={items.data ?? []}

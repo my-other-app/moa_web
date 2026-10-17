@@ -5,7 +5,7 @@ import { AwardIcon, CalendarClockIcon, FlagIcon, GavelIcon, ListOrderedIcon, Loc
 import { formatNumber } from "@moa/app-kit";
 import { Chip, EmptyState, FigurePanel, Notice, Skeleton, Switch, cn } from "@moa/ui";
 
-import { LockBadge, LockedNotice, openUpgrade, usePlan } from "@/features/plan";
+import { LockBadge, LockedNotice, openUpgrade, useEventPlan } from "@/features/plan";
 
 import { useCompetition, usePatchSettings } from "../queries";
 import { VIEWS, VIEW_LABEL, type Competition, type View } from "../schemas";
@@ -78,7 +78,8 @@ export function CompetitionPage({ eventId }: { eventId: number }) {
   const [view, setView] = React.useState<View>(readView);
   const q = useCompetition(eventId);
   const settings = usePatchSettings(eventId);
-  const plan = usePlan();
+  // The event's own view of the plan: a grandfathered event keeps its competition.
+  const plan = useEventPlan(eventId);
   // Turning a competition on is the plan's `teams`; turning it off is always allowed.
   const teamsLock = plan.featureLock("teams");
   const c = q.data;
@@ -142,7 +143,7 @@ export function CompetitionPage({ eventId }: { eventId: number }) {
         })}
       </div>
 
-      <LockedNotice feature={VIEW_FEATURE[view]} />
+      <LockedNotice feature={VIEW_FEATURE[view]} eventId={eventId} />
 
       {view === "tracks" ? <TracksPanel eventId={eventId} c={c} /> : null}
       {view === "teams" ? <TeamsPanel eventId={eventId} c={c} /> : null}

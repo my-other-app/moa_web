@@ -4,6 +4,8 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { ApiError, toApiError } from "@moa/api";
 import { Form, toast } from "@moa/ui";
 
+import eventDetail from "../__fixtures__/event-detail.json";
+
 /**
  * The plan in the dashboard, against the backend's contract for plan
  * enforcement: GET /clubs/entitlements with `enforced` and
@@ -92,6 +94,14 @@ const ACCESS_LIST = {
   can_manage: true,
 };
 
+/** The event detail, three ways: grandfathered by the server, not, and from a server that does not say. */
+const DETAIL = { ...eventDetail, created_at: "2026-09-01T10:00:00+05:30" };
+const DETAILS: Record<string, Record<string, unknown>> = {
+  "37": { ...DETAIL, id: 37, plan_grandfathered: true },
+  "38": { ...DETAIL, id: 38, plan_grandfathered: false },
+  "39": { ...eventDetail, id: 39 },
+};
+
 const FIGURES = { upcoming: 0, next_event: null, registered: 0, capacity: 0, collected: 0, outstanding: 0, attention: { closing_soon: [], doors_open: [], unmarked: [], stale_drafts: [] }, past: 0, drafts: 0, generated_at: iso(0) };
 
 type Post = (path: string, body: unknown) => unknown;
@@ -110,6 +120,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path === "/api/v1/clubs/access") return ACCESS_LIST;
         if (path.endsWith("/events/figures")) return FIGURES;
         if (path.endsWith("/events/list")) return { items: [], total: 0, limit: 20, offset: 0, next: null };
+        const detail = /^\/api\/v1\/events\/info\/(\d+)$/.exec(path);
+        if (detail && DETAILS[detail[1]!]) return DETAILS[detail[1]!];
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(async (path: string, body: unknown) => {
@@ -135,6 +147,11 @@ const { ClubEventsList } = await import("@/features/events/components/events-lis
 const { AccessPage } = await import("@/features/access/components/access-page");
 const { NewAnnouncementDialog } = await import("@/features/announcements/components/new-announcement-dialog");
 const { usePublishSite } = await import("@/features/site/queries");
+const { useDuplicateEvent } = await import("@/features/event-form/queries");
+const { useFeatureGate, useLimitGate, useEventGrandfathered, exemptState, skippedNotice } = await import("./index");
+const { NewLinkDialog } = await import("@/features/links/components/new-link-dialog");
+const { EventConsole } = await import("@/features/console/components/event-console");
+const { LivePage } = await import("@/features/live/components/live-page");
 const { useSendAnnouncement } = await import("@/features/announcements/queries");
 const { SidebarNav } = await import("@/components/sidebar-nav");
 
@@ -212,12 +229,17 @@ describe("usePlan's rules (planState)", () => {
     expect(p.limitLock("announcements_per_month")).toBeNull();
   });
 
-  it("keeps an event made before the cutoff as it was made", () => {
-    const p = planState(ent(), catalog);
-    expect(p.grandfathered(iso(-400 * DAY))).toBe(true);
-    expect(p.grandfathered(iso(DAY))).toBe(false);
-    expect(p.grandfathered(null)).toBe(false);
-    expect(planState(ent({ grandfathered_before: null }), catalog).grandfathered(iso(-400 * DAY))).toBe(false);
+  it("exempts a grandfathered event from every event-scoped lock, and keeps its counts", () => {
+    const p = exemptState(planState(ent(), catalog));
+    for (const f of ["tickets", "merch", "swag", "quiz", "polls", "qa", "links", "report", "badges", "teams", "judging", "rounds"]) {
+      expect(p.can(f)).toBe(true);
+      expect(p.featureLock(f)).toBeNull();
+    }
+    expect(p.limitLock("merch_items_per_event", 5)).toBeNull();
+    expect(p.atLimit("merch_items_per_event", 5)).toBe(false);
+    // The meter still has its figures.
+    expect(p.limit("merch_items_per_event")).toBe(5);
+    expect(p.used("events_per_month")).toBe(2);
   });
 
   it("locks nothing while enforcement is off, plans are not configured, or nothing has loaded", () => {
@@ -356,13 +378,13 @@ describe("the upgrade dialog from a refusal (global interception)", () => {
 
 // ─── The fee toggle and the grandfather rule ─────────────────────────────
 
-function Entry({ createdAt, hasFee = false }: { createdAt?: string | null; hasFee?: boolean }) {
+function Entry({ eventId, hasFee = false }: { eventId?: number; hasFee?: boolean }) {
   const form = useForm({ defaultValues: { ...emptyEventForm, has_fee: hasFee, reg_fee: hasFee ? 100 : undefined } });
   const fee = useWatch({ control: form.control, name: "has_fee" });
   return (
     <Form {...form}>
       <form>
-        <EntryStep createdAt={createdAt} />
+        <EntryStep eventId={eventId} />
         <output aria-label="has fee">{String(fee)}</output>
       </form>
     </Form>
@@ -390,29 +412,31 @@ describe("the fee toggle", () => {
     expect(screen.getAllByLabelText(/^Locked: part of/).length).toBeGreaterThanOrEqual(3);
   });
 
-  it("is not locked for an event made before the cutoff", async () => {
+  it("is not locked for an event the server grandfathers, and neither are merchandise and swag", async () => {
     render(
       <>
         <PlanLockHost />
-        <Entry createdAt="2026-09-15T10:00:00+05:30" hasFee />
+        <Entry eventId={37} hasFee />
       </>,
     );
     await waitForPlan();
-    // Merchandise and swag still are; paid entry is not.
-    await waitFor(() => expect(screen.getAllByLabelText(/^Locked: part of/)).toHaveLength(2));
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/info/37")).toBe(true));
+    await waitFor(() => expect(screen.queryAllByLabelText(/^Locked: part of/)).toHaveLength(0));
     expect(screen.getByRole("spinbutton", { name: /Fee per person/ })).not.toBeDisabled();
     fireEvent.click(feeSwitch());
     expect(screen.getByLabelText("has fee")).toHaveTextContent("false");
     fireEvent.click(feeSwitch());
     expect(screen.getByLabelText("has fee")).toHaveTextContent("true");
+    fireEvent.click(screen.getByRole("switch", { name: "Merchandise for sale" }));
+    expect(screen.getByRole("switch", { name: "Merchandise for sale" })).toBeChecked();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("is locked for a paid event made after the cutoff: it can be turned off, not back on, and its fee is fixed", async () => {
+  it("is locked for a paid event the server does not grandfather: it can be turned off, not back on, and its fee is fixed", async () => {
     render(
       <>
         <PlanLockHost />
-        <Entry createdAt="2026-10-10T10:00:00+05:30" hasFee />
+        <Entry eventId={38} hasFee />
       </>,
     );
     await waitForPlan();
@@ -422,6 +446,17 @@ describe("the fee toggle", () => {
     fireEvent.click(feeSwitch());
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByLabelText("has fee")).toHaveTextContent("false");
+  });
+
+  it("is locked for an event from a server that does not say, whatever its age", async () => {
+    render(
+      <>
+        <PlanLockHost />
+        <Entry eventId={39} hasFee />
+      </>,
+    );
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/info/39")).toBe(true));
+    expect(await screen.findByRole("spinbutton", { name: /Fee per person/ })).toBeDisabled();
   });
 
   it("is plain when the plan has paid tickets", async () => {
@@ -436,6 +471,196 @@ describe("the fee toggle", () => {
     fireEvent.click(feeSwitch());
     expect(screen.getByLabelText("has fee")).toHaveTextContent("true");
     expect(screen.queryByLabelText("Locked: part of Basic and up")).not.toBeInTheDocument();
+  });
+});
+
+// ─── Grandfathered events: exempt from every event-scoped lock ──────────
+
+const EVENT_FEATURES = ["quiz", "polls", "qa", "links", "report", "merch", "swag", "badges", "teams", "judging", "rounds"];
+
+function Probe({ eventId }: { eventId?: number }) {
+  const gates = {
+    quiz: useFeatureGate("quiz", { eventId }),
+    polls: useFeatureGate("polls", { eventId }),
+    qa: useFeatureGate("qa", { eventId }),
+    links: useFeatureGate("links", { eventId }),
+    report: useFeatureGate("report", { eventId }),
+    merch: useFeatureGate("merch", { eventId }),
+    swag: useFeatureGate("swag", { eventId }),
+    badges: useFeatureGate("badges", { eventId }),
+    teams: useFeatureGate("teams", { eventId }),
+    judging: useFeatureGate("judging", { eventId }),
+    rounds: useFeatureGate("rounds", { eventId }),
+  };
+  const items = useLimitGate("merch_items_per_event", 5, { eventId });
+  const grandfathered = useEventGrandfathered(eventId);
+  // Club-wide, whatever the event.
+  const website = useFeatureGate("website");
+  const finance = useFeatureGate("finance");
+  return (
+    <ul>
+      {Object.entries(gates).map(([k, g]) => (
+        <li key={k} aria-label={k}>
+          {g.locked ? "locked" : "open"}
+        </li>
+      ))}
+      <li aria-label="items">{items.locked ? "locked" : "open"}</li>
+      <li aria-label="grandfathered">{String(grandfathered)}</li>
+      <li aria-label="website">{website.locked ? "locked" : "open"}</li>
+      <li aria-label="finance">{finance.locked ? "locked" : "open"}</li>
+    </ul>
+  );
+}
+
+/** Waits until both the plan and event 37's grandfathering are known, so a missing lock means exempt, not "not loaded yet". */
+async function known37() {
+  await waitFor(() => expect(screen.getByLabelText("website")).toHaveTextContent("locked"));
+  await waitFor(() => expect(screen.getByLabelText("grandfathered")).toHaveTextContent("true"));
+}
+
+describe("a grandfathered event", () => {
+  it("has no event-scoped lock; the club-wide ones stay", async () => {
+    render(<Probe eventId={37} />);
+    // Both known: the plan (website locks) and the event (the server grandfathers it).
+    await waitFor(() => expect(screen.getByLabelText("website")).toHaveTextContent("locked"));
+    await waitFor(() => expect(screen.getByLabelText("grandfathered")).toHaveTextContent("true"));
+    for (const f of EVENT_FEATURES) expect(screen.getByLabelText(f)).toHaveTextContent("open");
+    expect(screen.getByLabelText("items")).toHaveTextContent("open");
+    expect(screen.getByLabelText("website")).toHaveTextContent("locked");
+    expect(screen.getByLabelText("finance")).toHaveTextContent("locked");
+  });
+
+  it("is told apart from one the server does not grandfather", async () => {
+    render(<Probe eventId={38} />);
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/info/38")).toBe(true));
+    await waitFor(() => expect(screen.getByLabelText("quiz")).toHaveTextContent("locked"));
+    expect(screen.getByLabelText("grandfathered")).toHaveTextContent("false");
+    for (const f of EVENT_FEATURES) expect(screen.getByLabelText(f)).toHaveTextContent("locked");
+    expect(screen.getByLabelText("items")).toHaveTextContent("locked");
+  });
+
+  it("shows its store items' count without the lock", async () => {
+    render(
+      <>
+        <LimitMeter limitKey="merch_items_per_event" used={5} eventId={37} />
+        <LimitMeter limitKey="merch_items_per_event" used={5} eventId={38} />
+      </>,
+    );
+    await waitFor(() => expect(calls.filter((c) => c.path.startsWith("/api/v1/events/info/")).length).toBe(2));
+    await waitFor(() => expect(screen.getAllByText("5 of 5 items · Free")).toHaveLength(2));
+    const [mine, theirs] = screen.getAllByRole("status");
+    await waitFor(() => expect(mine).not.toHaveAttribute("data-full"));
+    expect(theirs).toHaveAttribute("data-full", "true");
+  });
+
+  it("keeps its live quiz, polls and Q&A", async () => {
+    render(
+      <>
+        <Probe eventId={37} />
+        <LivePage eventId={37} />
+      </>,
+    );
+    await known37();
+    expect(screen.getByRole("button", { name: /Quiz/ })).toBeInTheDocument();
+    expect(screen.queryAllByLabelText("Locked")).toHaveLength(0);
+    expect(screen.queryByText(/is part of/)).not.toBeInTheDocument();
+  });
+
+  it("locks them for an event that is not", async () => {
+    render(<LivePage eventId={38} />);
+    await waitFor(() => expect(screen.getAllByLabelText("Locked")).toHaveLength(3));
+    expect(await screen.findByText(/is part of Growth and up\./)).toBeInTheDocument();
+  });
+
+  it("makes tracking links on its own tab; the club's page stays locked", async () => {
+    render(
+      <>
+        <PlanLockHost />
+        <Probe eventId={37} />
+        <NewLinkDialog scope={{ kind: "event", eventId: 37 }} label="Event link" />
+        <NewLinkDialog scope={{ kind: "club" }} label="Club link" />
+      </>,
+    );
+    await known37();
+    fireEvent.click(await screen.findByRole("button", { name: /Event link/ }));
+    const made = await screen.findByRole("dialog");
+    expect(within(made).queryByText(/is part of/)).not.toBeInTheDocument();
+    fireEvent.keyDown(made, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /Club link/ }));
+    expect(within(await screen.findByRole("dialog")).getByText("Tracking links is part of Growth and up")).toBeInTheDocument();
+  });
+
+  it("carries no lock on its event-scoped tabs; Finance stays locked, being the club's ledger", async () => {
+    render(
+      <>
+        <Probe eventId={37} />
+        <EventConsole eventId={37}>
+          <p>Body</p>
+        </EventConsole>
+      </>,
+    );
+    const nav = await screen.findByRole("navigation", { name: "Event sections" });
+    await known37();
+    await waitFor(() => expect(within(within(nav).getByRole("link", { name: /Finance/ })).getByLabelText("Locked")).toBeInTheDocument());
+    for (const tab of ["Links", "Competition", "Merchandise", "Swag", "ID cards"]) {
+      expect(within(within(nav).getByRole("link", { name: new RegExp(`^${tab}`) })).queryByLabelText("Locked")).not.toBeInTheDocument();
+    }
+  });
+
+  it("is not on the tabs of an event that is not grandfathered", async () => {
+    render(
+      <EventConsole eventId={38}>
+        <p>Body</p>
+      </EventConsole>,
+    );
+    const nav = await screen.findByRole("navigation", { name: "Event sections" });
+    for (const tab of ["Links", "Finance", "Competition", "Merchandise", "Swag", "ID cards"]) {
+      await waitFor(() => expect(within(within(nav).getByRole("link", { name: new RegExp(`^${tab}`) })).getByLabelText("Locked")).toBeInTheDocument());
+    }
+  });
+});
+
+// ─── What a copy left out ────────────────────────────────────────────────
+
+function Duplicate() {
+  const dup = useDuplicateEvent(37);
+  return (
+    <button type="button" onClick={() => dup.mutate({ name: "Hack Night 05", event_datetime: iso(7 * DAY), copy_merch: true, copy_doors: true, copy_team: false, copy_agenda: false })}>
+      Duplicate
+    </button>
+  );
+}
+
+describe("duplicating on a smaller plan", () => {
+  it("words what was left out", () => {
+    expect(skippedNotice(["swag", "badges"])).toBe("Copied. Swag items and badge designs weren't copied on your plan.");
+    expect(skippedNotice(["report"])).toBe("Copied. Report settings weren't copied on your plan.");
+    expect(skippedNotice(["quiz"])).toBe("Copied. The quiz wasn't copied on your plan.");
+    expect(skippedNotice(["teams", "judging", "rounds", "merch_items_per_event"])).toBe("Copied. The competition setup and merchandise items past your plan's limit weren't copied on your plan.");
+    expect(skippedNotice(["swag", "badges", "report"])).toBe("Copied. Swag items, badge designs and report settings weren't copied on your plan.");
+    expect(skippedNotice([])).toBeNull();
+    expect(skippedNotice(undefined)).toBeNull();
+  });
+
+  it("says so after the copy is made, and says nothing when all of it was copied", async () => {
+    const info = vi.spyOn(toast, "info");
+    state.post = () => ({ id: 70, slug: "hack-night-05", name: "Hack Night 05", copied: { doors: 2 }, skipped: ["swag", "badges"] });
+    const { unmount } = render(<Duplicate />);
+    fireEvent.click(screen.getByRole("button", { name: "Duplicate" }));
+    await waitFor(() => expect(info).toHaveBeenCalledWith("Copied. Swag items and badge designs weren't copied on your plan."));
+    expect(calls.find((c) => c.method === "POST")?.path).toBe("/api/v1/events/37/duplicate");
+    unmount();
+
+    info.mockClear();
+    const success = vi.spyOn(toast, "success");
+    // An older server sends no `skipped` at all.
+    state.post = () => ({ id: 71, slug: "hack-night-06", name: "Hack Night 06", copied: {} });
+    render(<Duplicate />);
+    fireEvent.click(screen.getByRole("button", { name: "Duplicate" }));
+    await waitFor(() => expect(success).toHaveBeenCalledWith("Hack Night 06 created as a draft", expect.anything()));
+    expect(info).not.toHaveBeenCalled();
   });
 });
 

@@ -39,6 +39,8 @@ export type EventTabKey = (typeof EVENT_TABS)[number]["key"];
  * Sections that are one plan feature through and through. Without it the
  * tab carries a lock but still opens, so what is already there stays
  * readable (Live and Closeout hold free things too, so they lock inside).
+ * All but Finance are event-scoped, so a grandfathered event shows no lock
+ * on them; Finance writes the club's ledger and stays club-wide.
  */
 export const TAB_FEATURE: Partial<Record<EventTabKey, string>> = {
   links: "links",

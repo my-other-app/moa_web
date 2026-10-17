@@ -7,6 +7,7 @@ import { toast } from "@moa/ui";
 
 import { ENTITLEMENTS_KEY } from "@/features/billing/queries";
 import { toastError } from "@/features/plan/errors";
+import { skippedNotice } from "@/features/plan/schemas";
 
 import { createEvent, deleteEvent, fetchCategories, fetchEvent, fetchInterests, publishEvent, updateEvent, duplicateEvent, type DuplicateInput } from "./api";
 import type { EventFormParsed } from "./schemas";
@@ -95,6 +96,9 @@ export function useDuplicateEvent(eventId: number) {
     mutationFn: (body: DuplicateInput) => duplicateEvent(eventId, body),
     onSuccess: async (made) => {
       toast.success(`${made.name} created as a draft`, { description: "Set its venue and dates, then publish it." });
+      // What the plan kept out of the copy, said once, so nobody hunts for it later.
+      const left = skippedNotice(made.skipped);
+      if (left) toast.info(left);
       void queryClient.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
       await queryClient.invalidateQueries({ queryKey: qk.events.all });
     },

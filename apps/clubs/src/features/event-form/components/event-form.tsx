@@ -40,8 +40,6 @@ export interface EventFormContext {
   posterUrl?: string | null;
   status?: "draft" | "published" | "live" | "closed" | "archived";
   registered?: number;
-  /** When the event was made (the plan's grandfather rule reads it). */
-  createdAt?: string | null;
 }
 
 export const emptyEventForm: EventFormValues = {
@@ -251,7 +249,7 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
     event: <EventStep posterUrl={context?.posterUrl} />,
     when: <WhenStep />,
     where: <WhereStep />,
-    entry: <EntryStep createdAt={context?.createdAt} />,
+    entry: <EntryStep eventId={mode === "edit" ? eventId : undefined} />,
     people: <PeopleStep />,
     reach: <ReachStep />,
     questions: <QuestionsStep />,

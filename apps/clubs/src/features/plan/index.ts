@@ -1,6 +1,6 @@
 export { UpgradeDialog, PlanLockHost } from "./components/upgrade-dialog";
 export { LockBadge, LockedNotice, LimitMeter } from "./components/lock";
-export { usePlan, useRefreshPlan, useFeatureGate, useLimitGate, type Gate } from "./queries";
+export { usePlan, useEventPlan, useEventGrandfathered, useRefreshPlan, useFeatureGate, useLimitGate, type Gate, type GateScope } from "./queries";
 export { planLockFromError, isPlanLockError, openUpgrade, onUpgrade, reportPlanError, toastError } from "./errors";
 export {
   ALWAYS_ON,
@@ -16,6 +16,8 @@ export {
   lockCopy,
   meterText,
   planState,
+  exemptState,
+  skippedNotice,
   type EnforcedLimit,
   type GatedFeature,
   type PlanFeature,

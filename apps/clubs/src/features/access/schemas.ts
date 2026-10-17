@@ -5,10 +5,7 @@ export const MEMBER_ROLES = ["admin", "editor", "door"] as const;
 export type MemberRole = (typeof MEMBER_ROLES)[number];
 export type Role = MemberRole | "owner";
 
-/**
- * The role every plan may give. Any other is the plan's `roles` feature
- * (an assumption until the server says which: the invite form's default).
- */
+/** The role every plan may give. Admin and door are the plan's `roles` feature (as the server enforces it). */
 export const DEFAULT_MEMBER_ROLE: MemberRole = "editor";
 
 export const memberRowSchema = z.object({

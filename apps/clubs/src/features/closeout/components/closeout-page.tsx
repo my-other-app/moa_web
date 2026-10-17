@@ -131,7 +131,7 @@ function Checklist({
   const retention = useRetention(eventId);
   const update = useUpdateCloseoutSettings(eventId);
   const generate = useGenerateReport(eventId);
-  const reportGate = useFeatureGate("report");
+  const reportGate = useFeatureGate("report", { eventId });
   const base = `/events/${eventId}`;
   const ended = now >= new Date(s.ends_at).getTime();
   const closed = s.status === "closed" || s.status === "archived";

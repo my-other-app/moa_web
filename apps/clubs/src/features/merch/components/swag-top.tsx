@@ -482,7 +482,7 @@ export function SwagTop({
 }) {
   const [adding, setAdding] = React.useState(false);
   // Swag is a plan feature: what is set up stays readable, adding more opens the upgrade dialog.
-  const gate = useFeatureGate("swag");
+  const gate = useFeatureGate("swag", { eventId });
   const stock = items.reduce((n, i) => n + i.total, 0);
   const out = items.reduce((n, i) => n + i.handed_out, 0);
   const sponsored = items.filter((i) => i.sponsor).length;

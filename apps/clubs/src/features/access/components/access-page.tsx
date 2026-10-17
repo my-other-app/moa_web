@@ -141,7 +141,8 @@ export function AccessPage() {
   const waiting = members.filter((m) => m.status === "invited" && !m.invite_expired);
   const expired = members.filter((m) => m.status === "invited" && m.invite_expired);
   const recent = active.filter((m) => m.last_seen_at && now - new Date(m.last_seen_at).getTime() < WEEK);
-  // The server's own count when it sends one; else everyone holding or offered a seat.
+  // The server's count is the one that holds (members not removed, the club's own account not
+  // counted); the list's own count is only for a server that does not send it.
   const plan = usePlan();
   const seatsUsed = plan.used("committee_seats") ?? active.length + waiting.length;
 

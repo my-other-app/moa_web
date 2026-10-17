@@ -213,7 +213,6 @@ export interface PlanState {
   enforced: boolean;
   planKey: string | null;
   planName: string | null;
-  grandfatheredBefore: string | null;
   /** Whether a gated write is open to the club. */
   can(feature: string): boolean;
   /** The cap, or null for unlimited (and for anything while not enforced). */
@@ -226,14 +225,6 @@ export interface PlanState {
   featureLock(feature: string): PlanLock | null;
   /** The lock for a limit, or null while under it. */
   limitLock(key: string, used?: number | null): PlanLock | null;
-  /** Made before the cutoff, so it keeps what it was made with. */
-  grandfathered(createdAt: string | null | undefined): boolean;
-}
-
-function time(iso: string | null | undefined): number | null {
-  if (!iso) return null;
-  const t = new Date(iso).getTime();
-  return Number.isNaN(t) ? null : t;
 }
 
 /**
@@ -321,24 +312,62 @@ export function planState(ent: Entitlements | null | undefined, catalog?: Catalo
     };
   };
 
-  const cutoff = time(ent?.grandfathered_before);
-  const grandfathered = (createdAt: string | null | undefined) => {
-    const made = time(createdAt);
-    return cutoff !== null && made !== null && made < cutoff;
-  };
-
   return {
     ready: Boolean(ent),
     enforced,
     planKey,
     planName,
-    grandfatheredBefore: ent?.grandfathered_before ?? null,
     can,
     limit,
     used,
     atLimit,
     featureLock,
     limitLock,
-    grandfathered,
   };
+}
+
+/**
+ * The plan as one grandfathered event sees it: no event-scoped lock applies
+ * (the server says which events, in `plan_grandfathered`). Counts still
+ * read, so a meter still shows; nothing is ever at its limit.
+ */
+export function exemptState(plan: PlanState): PlanState {
+  return { ...plan, can: () => true, atLimit: () => false, featureLock: () => null, limitLock: () => null };
+}
+
+// ─── What a copy left behind ─────────────────────────────────────────────
+
+/** The parts of an event a copy can leave out on a plan without them, by the flag or limit that left them out. */
+const SKIPPED_WORDS: Record<string, { text: string; plural: boolean }> = {
+  swag: { text: "swag items", plural: true },
+  merch: { text: "merchandise", plural: false },
+  merch_items_per_event: { text: "merchandise items past your plan's limit", plural: true },
+  badges: { text: "badge designs", plural: true },
+  report: { text: "report settings", plural: true },
+  quiz: { text: "the quiz", plural: false },
+  polls: { text: "polls", plural: true },
+  qa: { text: "Q&A settings", plural: true },
+  teams: { text: "the competition setup", plural: false },
+  judging: { text: "the competition setup", plural: false },
+  rounds: { text: "the competition setup", plural: false },
+  links: { text: "tracking links", plural: true },
+  tickets: { text: "paid entry", plural: false },
+  networking: { text: "networking", plural: false },
+};
+
+/**
+ * "Copied. Swag items and badge designs weren't copied on your plan." Null
+ * when nothing was left out.
+ */
+export function skippedNotice(skipped: readonly string[] | null | undefined): string | null {
+  const parts: { text: string; plural: boolean }[] = [];
+  for (const key of skipped ?? []) {
+    const w = SKIPPED_WORDS[key] ?? { text: key.replace(/_/g, " "), plural: true };
+    if (!parts.some((p) => p.text === w.text)) parts.push(w);
+  }
+  if (parts.length === 0) return null;
+  const words = parts.map((p) => p.text);
+  const list = words.length === 1 ? words[0]! : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
+  const verb = parts.length === 1 && !parts[0]!.plural ? "wasn't" : "weren't";
+  return `Copied. ${list.charAt(0).toUpperCase()}${list.slice(1)} ${verb} copied on your plan.`;
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { LockIcon } from "lucide-react";
 import { Notice, ProgressBar, cn } from "@moa/ui";
 
-import { usePlan, useFeatureGate } from "../queries";
+import { useEventPlan, useFeatureGate } from "../queries";
 import { UPGRADE_PATH, meterText, type PlanLock } from "../schemas";
 
 /**
@@ -35,8 +35,8 @@ export function LockBadge({ lock, className }: { lock: PlanLock | null; classNam
  * Over an area the plan does not include: what it is, the plan that has it,
  * and that what is already here stays. The area itself stays readable.
  */
-export function LockedNotice({ feature, className }: { feature: string; className?: string }) {
-  const gate = useFeatureGate(feature);
+export function LockedNotice({ feature, eventId, className }: { feature: string; eventId?: number | null; className?: string }) {
+  const gate = useFeatureGate(feature, { eventId });
   if (!gate.lock) return null;
   const { label, requiredPlanName } = gate.lock;
   return (
@@ -61,9 +61,12 @@ export function LockedNotice({ feature, className }: { feature: string; classNam
 /**
  * How much of a limit is used: "2 of 2 events this month · Free", with a
  * thin bar that turns amber at the cap. Nothing for an unlimited plan.
+ * With `eventId`, an event-scoped limit: a grandfathered event shows the
+ * count but is never at the cap.
  */
-export function LimitMeter({ limitKey, used: override, showPlan = true, className }: { limitKey: string; used?: number | null; showPlan?: boolean; className?: string }) {
-  const plan = usePlan();
+export function LimitMeter({ limitKey, used: override, eventId, showPlan = true, className }: { limitKey: string; used?: number | null; eventId?: number | null; showPlan?: boolean; className?: string }) {
+  // A grandfathered event still sees its count, never the lock.
+  const plan = useEventPlan(eventId);
   const cap = plan.limit(limitKey);
   const used = override ?? plan.used(limitKey);
   if (cap === null || used === null) return null;
@@ -72,6 +75,7 @@ export function LimitMeter({ limitKey, used: override, showPlan = true, classNam
   return (
     <span
       data-slot="limit-meter"
+      data-full={full || undefined}
       role="status"
       className={cn(
         "inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-1 text-[12px] tabular-nums",

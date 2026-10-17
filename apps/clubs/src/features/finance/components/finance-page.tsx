@@ -963,6 +963,7 @@ export function FinancePage({ scope }: { scope: FinanceScope }) {
     kind: EntryKind;
   }>({ open: false, editing: null, kind: "expense" });
   // The ledger is the plan's `finance`: the figures stay readable, writing to it opens the upgrade dialog.
+  // Club-wide even on an event's tab: entries go to the club's ledger (/clubs/finance/expenses).
   const gate = useFeatureGate("finance");
   const openEntry = (next: { editing: Expense | null; kind: EntryKind }) => (gate.locked ? gate.prompt() : setDialog({ open: true, ...next }));
   const range = scope.kind === "club" ? periodRange(period, today) : {};

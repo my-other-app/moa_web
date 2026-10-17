@@ -106,6 +106,14 @@ export const eventDetailSchema = z
     has_fee: z.boolean().nullish(),
     reg_fee: z.coerce.number().nullish(),
     about: z.string().nullish(),
+    created_at: z.string().nullish(),
+    /**
+     * The server's word on whether this event keeps what it was made with
+     * under plan enforcement (made before the cutoff, within its date
+     * window). Grandfathered, no event-scoped lock applies to it. Absent on
+     * an older server: not grandfathered.
+     */
+    plan_grandfathered: z.boolean().catch(false),
   })
   .passthrough();
 

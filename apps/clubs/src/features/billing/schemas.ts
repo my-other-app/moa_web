@@ -146,7 +146,11 @@ export const entitlementsSchema = z.object({
    * "locked" while it is off.
    */
   enforced: z.boolean().catch(false),
-  /** Events created before this moment keep what they were made with (a paid event stays editable as paid). */
+  /**
+   * The enforcement cutoff, for reference only: which events keep what they
+   * were made with is the server's call, per event (`plan_grandfathered` on
+   * the event detail), and the dashboard never works it out from this.
+   */
   grandfathered_before: z.string().nullish().catch(null),
 });
 export type Entitlements = z.infer<typeof entitlementsSchema>;

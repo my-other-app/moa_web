@@ -485,7 +485,7 @@ export function IdCardsPage({ eventId }: { eventId: number }) {
   const todo = s ? Math.max(0, s.registered - s.printed) : 0;
   const designHref = `/events/${eventId}/design?kind=badge`;
   // Printing cards is the plan's `badges`; the record of what was printed stays readable.
-  const badges = useFeatureGate("badges");
+  const badges = useFeatureGate("badges", { eventId });
   const print: Print = (scope, role) => {
     if (badges.locked) return badges.prompt();
     openPdf(batchPdfUrl(eventId, { scope, role, record }));
@@ -523,7 +523,7 @@ export function IdCardsPage({ eventId }: { eventId: number }) {
         </div>
       </header>
 
-      <LockedNotice feature="badges" />
+      <LockedNotice feature="badges" eventId={eventId} />
 
       {summary.isError ? (
         <EmptyState

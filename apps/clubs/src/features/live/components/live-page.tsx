@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Chip, cn } from "@moa/ui";
 
-import { LockedNotice, usePlan } from "@/features/plan";
+import { LockedNotice, useEventPlan } from "@/features/plan";
 
 import {
   useFeedback,
@@ -100,7 +100,8 @@ export function LivePage({ eventId }: { eventId: number }) {
   const polls = usePolls(eventId);
   const feedback = useFeedback(eventId);
   const updates = useUpdates(eventId);
-  const plan = usePlan();
+  // A grandfathered event keeps its live tools whatever the plan.
+  const plan = useEventPlan(eventId);
   const locked = (v: View) => Boolean(VIEW_FEATURE[v]) && !plan.can(VIEW_FEATURE[v]!);
   const go = (v: View) => {
     setView(v);
@@ -160,7 +161,7 @@ export function LivePage({ eventId }: { eventId: number }) {
           badge={sent ? `${sent} sent` : null}
         />
       </div>
-      {VIEW_FEATURE[view] ? <LockedNotice feature={VIEW_FEATURE[view]!} /> : null}
+      {VIEW_FEATURE[view] ? <LockedNotice feature={VIEW_FEATURE[view]!} eventId={eventId} /> : null}
       {view === "quiz" ? (
         <QuizPanel eventId={eventId} />
       ) : view === "qa" ? (

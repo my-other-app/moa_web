@@ -137,7 +137,7 @@ const STATUS: Record<Poll["status"], string> = {
 
 function PollCard({ eventId, poll }: { eventId: number; poll: Poll }) {
   const { status, remove } = usePollMutations(eventId);
-  const gate = useFeatureGate("polls");
+  const gate = useFeatureGate("polls", { eventId });
   const kind =
     POLL_KINDS.find((k) => k.value === poll.kind)?.label ?? poll.kind;
   return (
@@ -287,7 +287,7 @@ function NewPoll({ eventId, onDone }: { eventId: number; onDone: () => void }) {
 export function PollsPanel({ eventId }: { eventId: number }) {
   const polls = usePolls(eventId);
   const [adding, setAdding] = React.useState(false);
-  const gate = useFeatureGate("polls");
+  const gate = useFeatureGate("polls", { eventId });
   if (polls.isPending) return <Skeleton className="h-72" />;
   if (polls.isError || !polls.data)
     return (
