@@ -10,6 +10,8 @@ export {
   kindTone,
   notificationHref,
   alertLabel,
+  displayKind,
+  FREE_PLAN_GIVEN,
   readAllSchema,
   notificationSchema,
   notificationPageSchema,
