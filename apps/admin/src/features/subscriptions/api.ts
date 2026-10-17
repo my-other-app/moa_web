@@ -107,3 +107,20 @@ export async function assignPlan(input: {
 export async function retryCharge(subscriptionId: number): Promise<{ message: string }> {
   return api.post(`/api/v1/admin/subscriptions/${subscriptionId}/retry`);
 }
+
+/** Give a club in grace more days to pay (1 to 30), from when its grace now ends. */
+export async function extendGrace(subscriptionId: number, days: number) {
+  return subscriptionSchema.parse(
+    await api.post(`/api/v1/admin/subscriptions/${subscriptionId}/extend-grace`, { days })
+  );
+}
+
+/**
+ * Cancel at Razorpay: now, or when the paid period ends. Either way the club
+ * moves to Free when what it has paid for runs out.
+ */
+export async function cancelSubscription(subscriptionId: number, atPeriodEnd: boolean) {
+  return subscriptionSchema.parse(
+    await api.post(`/api/v1/admin/subscriptions/${subscriptionId}/cancel`, { at_period_end: atPeriodEnd })
+  );
+}

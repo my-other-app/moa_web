@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, CopyIcon, Loader2Icon, PlusIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, Loader2Icon, LockIcon, PlusIcon } from "lucide-react";
 import { formatDate } from "@moa/app-kit";
 import {
   ChoiceCard,
@@ -18,6 +18,7 @@ import {
 } from "@moa/ui";
 
 import { useClubEvents } from "@/features/events";
+import { useFeatureGate } from "@/features/plan";
 
 import { useCreateLink } from "../queries";
 import {
@@ -73,6 +74,9 @@ export function NewLinkDialog({
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [made, setMade] = React.useState<TrackingLink | null>(null);
   const create = useCreateLink(scope);
+  // Not on the plan: the button opens the upgrade dialog instead; the links already made keep working.
+  // On an event's own tab a grandfathered event is exempt; the club's page is club-wide.
+  const gate = useFeatureGate("links", { eventId: scope.kind === "event" ? scope.eventId : null });
   const events = useClubEvents({ offset: 0, limit: 100 });
   const list = events.data?.items ?? [];
   const picked = list.find((e) => String(e.id) === eventId);
@@ -128,6 +132,21 @@ export function NewLinkDialog({
     setMade(link);
     void copyText(link.url, "Short link");
   };
+
+  if (gate.locked) {
+    return (
+      <button
+        type="button"
+        onClick={gate.prompt}
+        className={cn(
+          "btn btn-primary",
+          size === "sm" ? "h-8 px-2.5 text-[12px]" : "h-9",
+        )}
+      >
+        <LockIcon className="size-4" /> {buttonLabel}
+      </button>
+    );
+  }
 
   return (
     <Dialog

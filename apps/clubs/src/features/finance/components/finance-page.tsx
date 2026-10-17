@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import {
   DownloadIcon,
+  LockIcon,
   PencilIcon,
   PlusIcon,
   ReceiptIcon,
@@ -25,6 +26,8 @@ import {
   Skeleton,
   StatTile,
 } from "@moa/ui";
+
+import { LockedNotice, useFeatureGate } from "@/features/plan";
 
 import { statementUrl } from "../api";
 import { useDeleteExpense, useFinance } from "../queries";
@@ -959,6 +962,10 @@ export function FinancePage({ scope }: { scope: FinanceScope }) {
     editing: Expense | null;
     kind: EntryKind;
   }>({ open: false, editing: null, kind: "expense" });
+  // The ledger is the plan's `finance`: the figures stay readable, writing to it opens the upgrade dialog.
+  // Club-wide even on an event's tab: entries go to the club's ledger (/clubs/finance/expenses).
+  const gate = useFeatureGate("finance");
+  const openEntry = (next: { editing: Expense | null; kind: EntryKind }) => (gate.locked ? gate.prompt() : setDialog({ open: true, ...next }));
   const range = scope.kind === "club" ? periodRange(period, today) : {};
   const q = useFinance(scope, range);
   const s = q.data;
@@ -1025,14 +1032,14 @@ export function FinancePage({ scope }: { scope: FinanceScope }) {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={() =>
-              setDialog({ open: true, editing: null, kind: "expense" })
-            }
+            onClick={() => openEntry({ editing: null, kind: "expense" })}
           >
-            <PlusIcon className="size-4" /> Add to ledger
+            {gate.locked ? <LockIcon className="size-4" /> : <PlusIcon className="size-4" />} Add to ledger
           </button>
         </div>
       </div>
+
+      <LockedNotice feature="finance" />
 
       {q.isError ? (
         <EmptyState
@@ -1140,9 +1147,7 @@ export function FinancePage({ scope }: { scope: FinanceScope }) {
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  onClick={() =>
-                    setDialog({ open: true, editing: null, kind: "expense" })
-                  }
+                  onClick={() => openEntry({ editing: null, kind: "expense" })}
                 >
                   Log expense
                 </button>
@@ -1183,8 +1188,8 @@ export function FinancePage({ scope }: { scope: FinanceScope }) {
           <Ledger
             scope={scope}
             s={s}
-            onEdit={(x) => setDialog({ open: true, editing: x, kind: x.kind })}
-            onNew={(kind) => setDialog({ open: true, editing: null, kind })}
+            onEdit={(x) => openEntry({ editing: x, kind: x.kind })}
+            onNew={(kind) => openEntry({ editing: null, kind })}
           />
           <ExpenseDialog
             scope={scope}

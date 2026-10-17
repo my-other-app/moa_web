@@ -29,6 +29,12 @@ export interface NavItem {
   group?: NavGroup;
   /** What the signed-in role needs to see it at all (see features/access). */
   needs?: Cap;
+  /**
+   * The plan flag the whole area is for. Without it the item carries a lock
+   * but still opens: a club should see what it is missing, and what it
+   * already made there stays readable.
+   */
+  feature?: string;
 }
 
 export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
@@ -56,10 +62,10 @@ export const navItems: NavItem[] = [
   { href: "/threads", label: "Threads", icon: MessagesSquareIcon, needs: "edit_events" },
   { href: "/announcements", label: "Announcements", icon: BellIcon, needs: "edit_events" },
   { href: "/emails", label: "Emails", icon: MailIcon, needs: "edit_events" },
-  { href: "/links", label: "Tracking links", icon: LinkIcon, group: "grow", needs: "edit_events" },
-  { href: "/website", label: "Website", icon: GlobeIcon, group: "grow", needs: "edit_events" },
+  { href: "/links", label: "Tracking links", icon: LinkIcon, group: "grow", needs: "edit_events", feature: "links" },
+  { href: "/website", label: "Website", icon: GlobeIcon, group: "grow", needs: "edit_events", feature: "website" },
   { href: "/templates", label: "Templates", icon: PaletteIcon, group: "grow", needs: "edit_events" },
-  { href: "/finance", label: "Finance", icon: WalletIcon, group: "manage", needs: "money" },
+  { href: "/finance", label: "Finance", icon: WalletIcon, group: "manage", needs: "money", feature: "finance" },
   { href: "/access", label: "Access", icon: KeyRoundIcon, group: "manage", needs: "see_access" },
   { href: "/security", label: "Security", icon: ShieldCheckIcon, group: "manage" },
   // Every role may look; only the club's own account can change the plan (the page says so).

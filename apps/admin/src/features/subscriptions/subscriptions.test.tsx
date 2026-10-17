@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { ApiError } from "@moa/api";
 
 /**
  * The Subscriptions screen.
@@ -14,6 +15,9 @@ let plansResponse: unknown[] = [];
 let subscriptionRows: unknown[] = [];
 const statusQueries: Array<unknown> = [];
 const puts: Array<{ path: string; body: Record<string, unknown> }> = [];
+const posts: Array<{ path: string; body?: Record<string, unknown> }> = [];
+/** When set, the next subscription action is refused with it. */
+let refuse: ApiError | null = null;
 
 const FEATURE_GROUPS = {
   every_event: ["tickets", "certificates", "checkin", "reviews", "threads", "regform", "waitlist"],
@@ -66,6 +70,9 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
             trialing: 2,
             past_due: 3,
             cancelled: 1,
+            pending: 4,
+            paused: 1,
+            in_grace: 2,
           };
         }
         if (path.includes("/admin/plans")) return plansResponse;
@@ -75,7 +82,14 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         }
         throw new Error(`unstubbed GET ${path}`);
       }),
-      post: vi.fn(async () => ({})),
+      post: vi.fn(async (path: string, body?: Record<string, unknown>) => {
+        posts.push({ path, body });
+        if (refuse) throw refuse;
+        if (path.endsWith("/retry")) return { message: "Razorpay will try the charge again" };
+        const id = Number(path.split("/").at(-2));
+        const current = (subscriptionRows as Array<Record<string, unknown>>).find((r) => r.id === id) ?? {};
+        return { ...current, status: path.endsWith("/cancel") && body?.at_period_end === false ? "cancelled" : current.status };
+      }),
       put: vi.fn(async (path: string, body: Record<string, unknown>) => {
         puts.push({ path, body });
         return plan(body);
@@ -89,7 +103,7 @@ const { render } = await import("@/test/render");
 const { SubscriptionsV2 } = await import("./components/subscriptions-v2");
 const { SubscribersTab } = await import("./components/subscribers-tab");
 const { PlansTab } = await import("./components/plans-tab");
-const { toForm, toPayload, rupees, paise, yearlyPriceProblem, planSchema, subscriptionSchema, statusLabel } =
+const { toForm, toPayload, rupees, paise, yearlyPriceProblem, planSchema, subscriptionSchema, statusLabel, inGrace } =
   await import("./schemas");
 
 function row(overrides: Record<string, unknown> = {}) {
@@ -119,6 +133,8 @@ beforeEach(() => {
   subscriptionRows = [];
   statusQueries.length = 0;
   puts.length = 0;
+  posts.length = 0;
+  refuse = null;
 });
 
 describe("money conversion", () => {
@@ -275,5 +291,154 @@ describe("pricing-page flags", () => {
     await waitFor(() => expect(puts).toHaveLength(1));
     expect(puts[0]!.path).toBe("/api/v1/admin/plans/1");
     expect(puts[0]!.body).toMatchObject({ featured: true, contact_sales: true });
+  });
+});
+
+describe("grace, and what an admin can do about a failed charge", () => {
+  const GRACE = { status: "past_due", last_failure_reason: "Card declined", grace_ends_at: "2026-10-24T10:00:00+05:30", halted_at: null, in_grace: true };
+
+  it("counts pending, paused and in-grace subscriptions on the headline", async () => {
+    render(<SubscriptionsV2 />);
+    await screen.findByText("₹25,000");
+    expect(within(screen.getByRole("group", { name: "In grace" })).getByText("2")).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Pending" })).getByText("4")).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Paused" })).getByText("1")).toBeInTheDocument();
+  });
+
+  it("badges a row in grace with when it ends, and lists it under needs attention", async () => {
+    subscriptionRows = [row({ id: 1, ...GRACE })];
+    render(<SubscribersTab />);
+    const r = (await screen.findAllByText("Circuit")).map((el) => el.closest<HTMLElement>("div.rule-fade")).find(Boolean)!;
+    expect(within(r).getByText("Grace until 24 Oct")).toBeInTheDocument();
+    expect(screen.getByText("Grace until 24 Oct · Card declined")).toBeInTheDocument();
+    expect(subscriptionSchema.parse(row(GRACE))).toMatchObject({ grace_ends_at: GRACE.grace_ends_at, halted_at: null });
+  });
+
+  it("extends grace by 1 to 30 days, and refuses anything else before asking", async () => {
+    subscriptionRows = [row({ id: 1, ...GRACE })];
+    render(<SubscribersTab />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Extend grace/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/Grace runs until 24 Oct 2026/)).toBeInTheDocument();
+    const days = within(dialog).getByRole("spinbutton");
+
+    fireEvent.change(days, { target: { value: "45" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Extend grace" }));
+    expect(await within(dialog).findByText("Between 1 and 30 days.")).toBeInTheDocument();
+    fireEvent.change(days, { target: { value: "0" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Extend grace" }));
+    expect(posts).toHaveLength(0);
+
+    fireEvent.change(days, { target: { value: "10" } });
+    expect(within(dialog).getByText("Grace would run until 03 Nov 2026.")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Extend grace" }));
+    await waitFor(() => expect(posts).toEqual([{ path: "/api/v1/admin/subscriptions/1/extend-grace", body: { days: 10 } }]));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("cancels at the period end by default, or now when asked", async () => {
+    subscriptionRows = [row({ id: 1 })];
+    render(<SubscribersTab />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
+    // Nothing failed on this one, so there is nothing to retry or extend.
+    expect(screen.queryByRole("menuitem", { name: /Retry charge/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Extend grace/ })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Cancel/ }));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("radio", { name: /At the end of the period/ })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel at period end" }));
+    await waitFor(() => expect(posts).toEqual([{ path: "/api/v1/admin/subscriptions/1/cancel", body: { at_period_end: true } }]));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Cancel/ }));
+    dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("radio", { name: /Now/ }));
+    // A paid period taken away is said before it happens.
+    expect(within(dialog).getByText(/Ending it now takes away what they paid for/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel now" }));
+    await waitFor(() => expect(posts.at(-1)).toEqual({ path: "/api/v1/admin/subscriptions/1/cancel", body: { at_period_end: false } }));
+  });
+
+  it("only offers cancelling now once a subscription is already set to end", async () => {
+    subscriptionRows = [row({ id: 1, cancel_at_period_end: true })];
+    render(<SubscribersTab />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Cancel/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("radio", { name: /At the end of the period/ })).toBeDisabled();
+    expect(within(dialog).getByRole("radio", { name: /Now/ })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("asks Razorpay to retry a failed charge", async () => {
+    subscriptionRows = [row({ id: 1, ...GRACE })];
+    render(<SubscribersTab />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Retry charge/ }));
+    await waitFor(() => expect(posts).toEqual([{ path: "/api/v1/admin/subscriptions/1/retry", body: undefined }]));
+  });
+
+  it("takes the server's in_grace over the grace end, and works it out only when it is absent", async () => {
+    expect(inGrace(subscriptionSchema.parse(row({ ...GRACE, in_grace: false })))).toBe(false);
+    expect(inGrace(subscriptionSchema.parse(row({ ...GRACE, in_grace: undefined })))).toBe(true);
+    expect(inGrace(subscriptionSchema.parse(row({ status: "past_due", grace_ends_at: null, in_grace: true })))).toBe(true);
+    subscriptionRows = [row({ id: 1, ...GRACE, in_grace: false })];
+    render(<SubscribersTab />);
+    await screen.findAllByText("Circuit");
+    expect(screen.queryByText("Grace until 24 Oct")).not.toBeInTheDocument();
+  });
+
+  it("offers Extend grace on a past-due row only", async () => {
+    // In grace by the server's word, but not past due: the server would refuse it (NOT_PAST_DUE).
+    subscriptionRows = [row({ id: 1, ...GRACE, status: "active" })];
+    render(<SubscribersTab />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
+    expect(await screen.findByRole("menuitem", { name: /Cancel/ })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Extend grace/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the server's refusal to extend grace, and keeps the dialog", async () => {
+    refuse = new ApiError({ status: 422, message: "This club has never paid, so there is no grace to extend.", errorCode: "NEVER_PAID" });
+    subscriptionRows = [row({ id: 1, ...GRACE })];
+    render(<SubscribersTab />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Extend grace/ }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Extend grace" }));
+    expect(await within(dialog).findByText("This club has never paid, so there is no grace to extend. Nothing was changed.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("shows the server's refusal to cancel", async () => {
+    refuse = new ApiError({ status: 502, message: "Razorpay did not answer. Try again in a minute.", errorCode: "RAZORPAY_ERROR" });
+    subscriptionRows = [row({ id: 1 })];
+    render(<SubscribersTab />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Actions for Circuit" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Cancel/ }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel at period end" }));
+    expect(await within(dialog).findByText("Razorpay did not answer. Try again in a minute. Nothing was changed.")).toBeInTheDocument();
+  });
+
+  it("offers none of it to a role that does not handle money", async () => {
+    for (const r of ["support", "viewer"]) {
+      role = r;
+      subscriptionRows = [row({ id: 1, ...GRACE })];
+      const { unmount } = render(<SubscribersTab />);
+      expect(await screen.findByText("Grace until 24 Oct")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Actions for/ })).not.toBeInTheDocument();
+      unmount();
+    }
+    expect(posts).toHaveLength(0);
+  });
+
+  it("opens on the club a notification linked to", async () => {
+    const nav = await import("next/navigation");
+    const spy = vi.spyOn(nav, "useSearchParams").mockReturnValue(new URLSearchParams("q=Circuit") as ReturnType<typeof nav.useSearchParams>);
+    subscriptionRows = [row({ id: 1 })];
+    render(<SubscribersTab />);
+    expect(await screen.findByRole("searchbox", { name: "Search clubs" })).toHaveValue("Circuit");
+    spy.mockRestore();
   });
 });

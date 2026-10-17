@@ -18,6 +18,8 @@ import {
   StatTile,
 } from "@moa/ui";
 
+import { LockedNotice } from "@/features/plan";
+
 import { useLinksOverview } from "../queries";
 import {
   LINK_SORTS,
@@ -419,6 +421,8 @@ export function LinksPage({ scope }: { scope: LinkScope }) {
           <NewLinkDialog scope={scope} />
         </div>
       </div>
+
+      <LockedNotice feature="links" eventId={scope.kind === "event" ? scope.eventId : null} />
 
       {q.isError ? (
         <EmptyState

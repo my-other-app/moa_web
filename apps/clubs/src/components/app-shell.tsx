@@ -27,6 +27,7 @@ import {
 } from "@moa/ui";
 
 import { RouteGate, useAccess } from "@/features/access";
+import { PlanLockHost } from "@/features/plan";
 
 import { Breadcrumbs } from "./breadcrumbs";
 import { GateCard } from "./gate-card";
@@ -207,6 +208,10 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           </main>
         </div>
       </div>
+
+      {/* The one upgrade dialog: a locked control and a plan refusal from
+          the server both open it, whichever page they came from. */}
+      <PlanLockHost />
 
       {/* The rail is behind the menu on a phone, so this is the only route
           back to the dashboard for a keyboard or screen reader. */}

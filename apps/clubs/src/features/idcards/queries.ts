@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { fetchCardSummary, fetchPrintJobs, updateCardSettings } from "./api";
 import type { CardSettings } from "./schemas";
 
@@ -30,6 +32,6 @@ export function useUpdateCardSettings(eventId: number) {
       toast.success("Card settings saved");
       refresh();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: toastError,
   });
 }

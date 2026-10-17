@@ -107,8 +107,24 @@ export const subscriptionSchema = z.object({
   /** While pending: when checkout opened, and when it falls back unpaid. */
   pending_since: z.string().nullish(),
   checkout_expires_at: z.string().nullish(),
+  /** When Razorpay gave up retrying a failed charge (its "halted"). */
+  halted_at: z.string().nullish().catch(null),
+  /**
+   * After a failed charge the club keeps its plan until this moment, then
+   * moves to Free unless a payment lands. Null when nothing is owed.
+   */
+  grace_ends_at: z.string().nullish().catch(null),
+  /** The server's own word on whether the club is in grace (worked out from `grace_ends_at` when absent). */
+  in_grace: z.boolean().nullish().catch(null),
 });
 export type Subscription = z.infer<typeof subscriptionSchema>;
+
+/** In grace: the server's `in_grace`, or, from a server that does not send it, a grace end on a live subscription. */
+export function inGrace(sub: Pick<Subscription, "in_grace" | "grace_ends_at" | "status"> | null | undefined): boolean {
+  if (!sub) return false;
+  if (typeof sub.in_grace === "boolean") return sub.in_grace;
+  return Boolean(sub.grace_ends_at) && sub.status !== "cancelled";
+}
 
 /** EntitlementsOut: what grants the club its plan right now, and how much of it is used. */
 export const entitlementsSchema = z.object({
@@ -133,6 +149,18 @@ export const entitlementsSchema = z.object({
    * other limits have no count, so the page shows them as caps alone.
    */
   usage: z.record(z.string(), z.number()).catch({}),
+  /**
+   * Whether the server holds the club to its plan. False (or a server from
+   * before enforcement) is the kill switch: nothing in the dashboard says
+   * "locked" while it is off.
+   */
+  enforced: z.boolean().catch(false),
+  /**
+   * The enforcement cutoff, for reference only: which events keep what they
+   * were made with is the server's call, per event (`plan_grandfathered` on
+   * the event detail), and the dashboard never works it out from this.
+   */
+  grandfathered_before: z.string().nullish().catch(null),
 });
 export type Entitlements = z.infer<typeof entitlementsSchema>;
 

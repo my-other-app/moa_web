@@ -3,6 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
+import { ENTITLEMENTS_KEY } from "@/features/billing/queries";
+import { toastError } from "@/features/plan/errors";
+
 import {
   acceptInvite,
   changeMyPassword,
@@ -49,7 +52,11 @@ export function useAccess(): Access {
 
 function useRefresh() {
   const queryClient = useQueryClient();
-  return () => void queryClient.invalidateQueries({ queryKey: KEY });
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: KEY });
+    // Seats used are part of the plan's counts.
+    void queryClient.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
+  };
 }
 
 export function useInvite() {
@@ -71,7 +78,7 @@ export function useResendInvite() {
       toast.success(`A new invite is on its way to ${r.member.email}`);
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -83,7 +90,7 @@ export function useChangeRole() {
       toast.success(`${m.full_name ?? m.email} is now ${m.role_label}`);
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -95,7 +102,7 @@ export function useRemoveMember() {
       toast.success("Access removed. Their sessions have ended.");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 

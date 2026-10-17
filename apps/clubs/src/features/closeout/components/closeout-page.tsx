@@ -28,6 +28,7 @@ import { useEventDetail } from "@/features/events";
 import { useFinance } from "@/features/finance";
 import { openPdf } from "@/features/idcards";
 import { useFeedback } from "@/features/live";
+import { useFeatureGate } from "@/features/plan";
 
 import { reportPdfUrl } from "../api";
 import {
@@ -130,6 +131,7 @@ function Checklist({
   const retention = useRetention(eventId);
   const update = useUpdateCloseoutSettings(eventId);
   const generate = useGenerateReport(eventId);
+  const reportGate = useFeatureGate("report", { eventId });
   const base = `/events/${eventId}`;
   const ended = now >= new Date(s.ends_at).getTime();
   const closed = s.status === "closed" || s.status === "archived";
@@ -326,9 +328,9 @@ function Checklist({
           type="button"
           className="btn btn-secondary btn-xs"
           disabled={generate.isPending}
-          onClick={() => generate.mutate()}
+          onClick={reportGate.guard(() => generate.mutate())}
         >
-          <FileTextIcon /> Generate
+          {reportGate.locked ? <LockIcon /> : <FileTextIcon />} Generate
         </button>
       ),
     });

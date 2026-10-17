@@ -19,6 +19,8 @@ import {
   cn,
 } from "@moa/ui";
 
+import { useFeatureGate } from "@/features/plan";
+
 import { useQAMutations, useQuestions } from "../queries";
 import type { ModerateAction, Question } from "../schemas";
 
@@ -94,13 +96,15 @@ function ActionButton({
   icon: React.ReactNode;
   tone?: "refuse";
 }) {
-  const { moderate } = useQAMutations(useEventIdFromContext());
+  const eventId = useEventIdFromContext();
+  const { moderate } = useQAMutations(eventId);
+  const gate = useFeatureGate("qa", { eventId });
   return (
     <Button
       size="xs"
       variant="outline"
       className={cn(tone === "refuse" && "text-refuse")}
-      onClick={() => moderate.mutate({ id: q.id, action })}
+      onClick={gate.guard(() => moderate.mutate({ id: q.id, action }))}
       disabled={moderate.isPending}
     >
       {icon} {label}

@@ -11,8 +11,10 @@ import { toast } from "@moa/ui";
 import {
   archivePlan,
   assignPlan,
+  cancelSubscription,
   createPlan,
   duplicatePlan,
+  extendGrace,
   fetchPlan,
   fetchPlans,
   fetchSubscriptions,
@@ -159,5 +161,34 @@ export function useRetryCharge() {
       await invalidate();
     },
     onError: (error: Error) => toast.error(error.message || "Could not ask for a retry"),
+  });
+}
+
+export function useExtendGrace() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ subscriptionId, days }: { subscriptionId: number; days: number }) =>
+      extendGrace(subscriptionId, days),
+    onSuccess: async (subscription, { days }) => {
+      toast.success(
+        `${subscription.club?.name ?? "The club"} has ${days} more ${days === 1 ? "day" : "days"} to pay`
+      );
+      await invalidate();
+    },
+    // The dialog shows the server's refusal itself, where the admin is looking.
+  });
+}
+
+export function useCancelSubscription() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ subscriptionId, atPeriodEnd }: { subscriptionId: number; atPeriodEnd: boolean }) =>
+      cancelSubscription(subscriptionId, atPeriodEnd),
+    onSuccess: async (subscription, { atPeriodEnd }) => {
+      const club = subscription.club?.name ?? "The club";
+      toast.success(atPeriodEnd ? `${club}'s subscription ends with its period` : `${club}'s subscription is cancelled`);
+      await invalidate();
+    },
+    // The dialog shows the server's refusal itself, where the admin is looking.
   });
 }

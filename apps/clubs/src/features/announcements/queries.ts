@@ -4,6 +4,9 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { ENTITLEMENTS_KEY } from "@/features/billing/queries";
+import { toastError } from "@/features/plan/errors";
+
 import { fetchAnnouncementHistory, fetchPushAudience, fetchPushHistory, fetchPushInsights, sendAnnouncement } from "./api";
 import type { PushScope, SendAnnouncementInput } from "./schemas";
 
@@ -22,9 +25,11 @@ export function useSendAnnouncement() {
       sendAnnouncement(eventId, input),
     onSuccess: async (sent) => {
       toast.success(sent > 0 ? `Announcement sent to ${sent.toLocaleString("en-IN")} ${sent === 1 ? "phone" : "phones"}` : "Announcement sent");
+      // The month's count of announcements moved.
+      void queryClient.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
       await queryClient.invalidateQueries({ queryKey: qk.notifications.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 

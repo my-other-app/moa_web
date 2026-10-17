@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { createLink, deleteLink, fetchLinkDetail, fetchLinks, fetchLinksOverview, updateLink } from "./api";
 import type { LinkForm, LinkScope } from "./schemas";
 
@@ -39,7 +41,7 @@ export function useCreateLink(scope: LinkScope) {
   return useMutation({
     mutationFn: ({ form, target }: { form: LinkForm; target?: LinkScope }) => createLink(target ?? scope, form),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["links"] }),
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -48,7 +50,7 @@ export function useUpdateLink(scope: LinkScope) {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Partial<LinkForm> }) => updateLink(scope, id, patch),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["links"] }),
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -60,6 +62,6 @@ export function useDeleteLink(scope: LinkScope) {
       toast.success("Link retired. What it already brought stays counted.");
       void queryClient.invalidateQueries({ queryKey: ["links"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }

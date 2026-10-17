@@ -5,6 +5,8 @@ import { qk } from "@moa/api";
 import { staleTimes } from "@moa/app-kit";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import {
   changePassword,
   fetchClubDashboard,
@@ -75,7 +77,7 @@ export function useUpdateMyClub() {
       toast.success("Club profile updated");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -87,7 +89,7 @@ export function useUpdateClubLogo() {
       toast.success("Logo updated");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -101,7 +103,7 @@ export function useUpdateClubLogo() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: (input: ChangePasswordForm) => changePassword(input),
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -113,7 +115,7 @@ export function useUpdateClubCover() {
       toast.success("Cover updated");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -125,7 +127,7 @@ export function useCreatePartner() {
       toast.success("Partner added");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -136,7 +138,7 @@ export function useUpdatePartner() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -148,7 +150,7 @@ export function useCreateTeamMember() {
       toast.success("Added to the team");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -159,7 +161,7 @@ export function useUpdateTeamMember() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -171,7 +173,7 @@ export function useDeleteTeamMember() {
       toast.success("Removed from the team");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -182,7 +184,7 @@ export function useUpdateTeamMemberPhoto() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -194,7 +196,7 @@ export function useDeletePartner() {
       toast.success("Partner removed");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -206,6 +208,6 @@ export function useUpdatePartnerLogo() {
       toast.success("Logo updated");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }

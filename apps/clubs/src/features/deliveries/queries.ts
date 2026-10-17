@@ -4,6 +4,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import {
   fetchDeliveryLog,
   fetchDeliverySummary,
@@ -98,7 +100,7 @@ export function useSendDocuments(eventId: number, kind: DocumentKind) {
       });
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -114,7 +116,7 @@ export function useSendOneDocument(eventId: number, kind: DocumentKind) {
       });
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -133,6 +135,6 @@ export function useRevokeTicket(eventId: number) {
       });
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }

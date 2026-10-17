@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { addVolunteer, fetchVolunteers, removeVolunteer } from "./api";
 import type { AddVolunteerInput } from "./schemas";
 
@@ -22,7 +24,7 @@ export function useAddVolunteer(eventId: number) {
       toast.success("Volunteer added");
       await queryClient.invalidateQueries({ queryKey: qk.events.volunteers(eventId) });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -34,6 +36,6 @@ export function useRemoveVolunteer(eventId: number) {
       toast.success("Volunteer removed");
       await queryClient.invalidateQueries({ queryKey: qk.events.volunteers(eventId) });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }

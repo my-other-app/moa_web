@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2Icon, MegaphoneIcon, SendIcon } from "lucide-react";
+import { Loader2Icon, LockIcon, MegaphoneIcon, SendIcon } from "lucide-react";
 import { formatDate, formatNumber } from "@moa/app-kit";
 import {
   ChoiceCard,
@@ -16,6 +16,7 @@ import {
 } from "@moa/ui";
 
 import { useClubEvents } from "@/features/events";
+import { useLimitGate } from "@/features/plan";
 
 import { usePushAudience, useSendAnnouncement } from "../queries";
 import { AUDIENCES, sendAnnouncementSchema } from "../schemas";
@@ -41,6 +42,8 @@ export function NewAnnouncementDialog() {
   const events = useClubEvents({ offset: 0, limit: 100 });
   const reach = usePushAudience(eventId ? Number(eventId) : null);
   const send = useSendAnnouncement();
+  // The month's announcements are counted: at the cap the button opens the upgrade dialog.
+  const monthly = useLimitGate("announcements_per_month");
   const list = events.data?.items ?? [];
   const picked = list.find((e) => String(e.id) === eventId);
   const r = reach.data?.by_audience[audience];
@@ -67,6 +70,14 @@ export function NewAnnouncementDialog() {
     reset();
     setOpen(false);
   };
+
+  if (monthly.locked) {
+    return (
+      <button type="button" className="btn btn-primary" onClick={monthly.prompt}>
+        <LockIcon className="size-4" /> New announcement
+      </button>
+    );
+  }
 
   return (
     <Dialog

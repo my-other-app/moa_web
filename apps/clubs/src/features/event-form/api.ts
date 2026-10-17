@@ -190,7 +190,14 @@ export async function fetchInterests() {
   return interestListSchema.parse(await api.get<unknown>("/api/v1/interests/list"));
 }
 
-const duplicatedSchema = z.object({ id: z.number(), slug: z.string(), name: z.string(), copied: z.record(z.number()) });
+const duplicatedSchema = z.object({
+  id: z.number(),
+  slug: z.string(),
+  name: z.string(),
+  copied: z.record(z.number()),
+  /** What the club's plan kept out of the copy, by flag or limit key ("swag", "badges", "merch_items_per_event"). */
+  skipped: z.array(z.string()).catch([]),
+});
 export type Duplicated = z.infer<typeof duplicatedSchema>;
 export interface DuplicateInput {
   name: string;

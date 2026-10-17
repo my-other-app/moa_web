@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { AwardIcon, CalendarClockIcon, FlagIcon, GavelIcon, ListOrderedIcon, TrophyIcon, UploadIcon, UsersIcon } from "lucide-react";
+import { AwardIcon, CalendarClockIcon, FlagIcon, GavelIcon, ListOrderedIcon, LockIcon, TrophyIcon, UploadIcon, UsersIcon } from "lucide-react";
 import { formatNumber } from "@moa/app-kit";
 import { Chip, EmptyState, FigurePanel, Notice, Skeleton, Switch, cn } from "@moa/ui";
+
+import { LockBadge, LockedNotice, openUpgrade, useEventPlan } from "@/features/plan";
 
 import { useCompetition, usePatchSettings } from "../queries";
 import { VIEWS, VIEW_LABEL, type Competition, type View } from "../schemas";
@@ -30,6 +32,20 @@ const ICONS: Record<View, React.ReactNode> = {
   rounds: <ListOrderedIcon className="size-4" />,
   leaderboard: <TrophyIcon className="size-4" />,
   hours: <CalendarClockIcon className="size-4" />,
+};
+
+/**
+ * The plan flag behind each room: teams (and what hangs off them), judging,
+ * and rounds with their board. Locked, a room still opens to read.
+ */
+const VIEW_FEATURE: Record<View, string> = {
+  tracks: "teams",
+  teams: "teams",
+  submissions: "teams",
+  judging: "judging",
+  rounds: "rounds",
+  leaderboard: "rounds",
+  hours: "teams",
 };
 
 const readView = (): View => {
@@ -62,6 +78,10 @@ export function CompetitionPage({ eventId }: { eventId: number }) {
   const [view, setView] = React.useState<View>(readView);
   const q = useCompetition(eventId);
   const settings = usePatchSettings(eventId);
+  // The event's own view of the plan: a grandfathered event keeps its competition.
+  const plan = useEventPlan(eventId);
+  // Turning a competition on is the plan's `teams`; turning it off is always allowed.
+  const teamsLock = plan.featureLock("teams");
   const c = q.data;
   const go = (v: View) => {
     setView(v);
@@ -91,12 +111,15 @@ export function CompetitionPage({ eventId }: { eventId: number }) {
           <AwardIcon className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-ink text-[14px] font-semibold">{c.settings.enabled ? "This event is a competition" : "Run this event as a competition"}</p>
+          <p className="text-ink flex flex-wrap items-center gap-1.5 text-[14px] font-semibold">
+            {c.settings.enabled ? "This event is a competition" : "Run this event as a competition"}
+            <LockBadge lock={teamsLock} />
+          </p>
           <p className="text-ink-3 text-[12.5px]">{line}</p>
         </div>
         <label className="flex items-center gap-2 text-[13px]">
           <span className={cn(c.settings.enabled ? "text-ink" : "text-ink-3")}>{c.settings.enabled ? "On" : "Off"}</span>
-          <Switch checked={c.settings.enabled} onCheckedChange={(on) => settings.mutate({ enabled: on })} disabled={settings.isPending} aria-label="Run as a competition" />
+          <Switch checked={c.settings.enabled} onCheckedChange={(on) => (on && teamsLock ? openUpgrade(teamsLock) : settings.mutate({ enabled: on }))} disabled={settings.isPending} aria-label="Run as a competition" />
         </label>
       </FigurePanel>
 
@@ -113,11 +136,14 @@ export function CompetitionPage({ eventId }: { eventId: number }) {
             <Chip key={v} active={view === v} onClick={() => go(v)}>
               <span className={cn(view === v ? "text-brand-foreground" : "text-ink-3")}>{ICONS[v]}</span>
               {VIEW_LABEL[v]}
+              {!plan.can(VIEW_FEATURE[v]) ? <LockIcon role="img" aria-label="Locked" className={cn("size-3", view === v ? "text-brand-foreground/80" : "text-ink-3")} /> : null}
               {b.text ? <span className={cn("font-mono text-[10.5px]", view === v ? "text-brand-foreground/80" : b.tone === "live" ? "text-admit" : b.tone === "attention" ? "text-caution" : "text-ink-3")}>{b.text}</span> : null}
             </Chip>
           );
         })}
       </div>
+
+      <LockedNotice feature={VIEW_FEATURE[view]} eventId={eventId} />
 
       {view === "tracks" ? <TracksPanel eventId={eventId} c={c} /> : null}
       {view === "teams" ? <TeamsPanel eventId={eventId} c={c} /> : null}

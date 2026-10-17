@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   CalendarPlusIcon,
   DoorOpenIcon,
+  LockIcon,
   MapPinIcon,
   PlusIcon,
 } from "lucide-react";
@@ -23,6 +24,8 @@ import {
   Skeleton,
   StatTile,
 } from "@moa/ui";
+
+import { LimitMeter, useLimitGate } from "@/features/plan";
 
 import { useClubEvents, useEventsFigures } from "../queries";
 import {
@@ -517,6 +520,9 @@ export function ClubEventsList() {
   const [now] = React.useState(() => Date.now());
 
   const figures = useEventsFigures();
+  // At the month's cap, "New event" opens the upgrade dialog rather than a form that cannot be saved.
+  const monthly = useLimitGate("events_per_month");
+  const newEvent = monthly.guard(() => router.push("/events/new"));
   const events = useClubEvents({
     search: params.search || undefined,
     scope,
@@ -560,9 +566,18 @@ export function ClubEventsList() {
               : "Everything your club runs, past and next."}
           </p>
         </div>
-        <Link href="/events/new" className="btn btn-primary">
-          <PlusIcon className="size-4" /> New event
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <LimitMeter limitKey="events_per_month" />
+          {monthly.locked ? (
+            <button type="button" className="btn btn-primary" onClick={monthly.prompt}>
+              <LockIcon className="size-4" /> New event
+            </button>
+          ) : (
+            <Link href="/events/new" className="btn btn-primary">
+              <PlusIcon className="size-4" /> New event
+            </Link>
+          )}
+        </div>
       </div>
 
       {figures.isPending ? (
@@ -664,7 +679,7 @@ export function ClubEventsList() {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  onClick={() => router.push("/events/new")}
+                  onClick={newEvent}
                 >
                   Create an event
                 </button>

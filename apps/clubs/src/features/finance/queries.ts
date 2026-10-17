@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { createExpense, deleteExpense, fetchFinance, updateExpense } from "./api";
 import type { ExpenseForm, FinanceScope } from "./schemas";
 
@@ -30,7 +32,7 @@ export function useCreateExpense() {
       toast.success("Expense logged");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -42,7 +44,7 @@ export function useUpdateExpense() {
       toast.success("Expense updated");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -54,6 +56,6 @@ export function useDeleteExpense() {
       toast.success("Expense removed");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }

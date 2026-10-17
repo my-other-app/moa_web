@@ -1,6 +1,6 @@
 "use client";
 
-import { DownloadIcon, FileTextIcon } from "lucide-react";
+import { DownloadIcon, FileTextIcon, LockIcon } from "lucide-react";
 import { formatDateTime, formatNumber } from "@moa/app-kit";
 import {
   CardLabel,
@@ -15,6 +15,7 @@ import {
 } from "@moa/ui";
 
 import { openPdf } from "@/features/idcards";
+import { LockBadge, useFeatureGate } from "@/features/plan";
 
 import { reportPdfUrl } from "../api";
 import {
@@ -95,17 +96,19 @@ export function StatusPanel({
 export function ReportsPanel({ eventId }: { eventId: number }) {
   const reports = useReports(eventId);
   const generate = useGenerateReport(eventId);
+  // Reports already made stay downloadable; making one is the plan's `report`.
+  const gate = useFeatureGate("report", { eventId });
   return (
     <FigurePanel className="overflow-hidden p-0">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
-        <CardLabel>Closeout reports</CardLabel>
+        <CardLabel right={<LockBadge lock={gate.lock} />}>Closeout reports</CardLabel>
         <button
           type="button"
           className="btn btn-secondary btn-sm"
           disabled={generate.isPending}
-          onClick={() => generate.mutate()}
+          onClick={gate.guard(() => generate.mutate())}
         >
-          <FileTextIcon /> {generate.isPending ? "Generating…" : "Generate now"}
+          {gate.locked ? <LockIcon /> : <FileTextIcon />} {generate.isPending ? "Generating…" : "Generate now"}
         </button>
       </div>
       <p className="text-ink-3 px-4 pt-1 pb-3 text-[12.5px] leading-[1.5]">

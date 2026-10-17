@@ -6,6 +6,8 @@ import { toast } from "@moa/ui";
 
 import { useRefreshDeliveries } from "@/features/deliveries";
 
+import { toastError } from "@/features/plan/errors";
+
 import {
   fetchCertificateSummary,
   fetchCertificates,
@@ -55,7 +57,7 @@ export function useIssueCertificates(eventId: number) {
       );
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -70,6 +72,6 @@ export function useRevokeCertificate(eventId: number) {
       });
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }

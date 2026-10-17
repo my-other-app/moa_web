@@ -96,7 +96,8 @@ describe("finance", () => {
     expect(screen.getAllByText("Closed")).toHaveLength(2);
     expect(screen.getByRole("link", { name: /Export statement/ })).toHaveAttribute("href", expect.stringContaining("/api/v1/clubs/finance/statement.csv"));
     expect(screen.getByText("Midnight pizza")).toBeInTheDocument();
-    expect(calls[0]).toMatchObject({ method: "GET", path: "/api/v1/clubs/finance" });
+    // The plan's entitlements are read beside it (for the ledger's lock); the page's own read is the finance one.
+    expect(calls.find((c) => c.path !== "/api/v1/clubs/entitlements")).toMatchObject({ method: "GET", path: "/api/v1/clubs/finance" });
 
     // The chips narrow the events to the ones held.
     fireEvent.click(screen.getByRole("button", { name: "Held 2" }));
@@ -194,6 +195,6 @@ describe("finance", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add to ledger" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).queryByLabelText("Against")).not.toBeInTheDocument();
-    expect(calls[0]).toMatchObject({ method: "GET", path: "/api/v1/events/37/finance" });
+    expect(calls.find((c) => c.path !== "/api/v1/clubs/entitlements")).toMatchObject({ method: "GET", path: "/api/v1/events/37/finance" });
   });
 });

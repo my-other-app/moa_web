@@ -1,18 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { Loader2Icon, RefreshCwIcon, SearchIcon } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { SearchIcon } from "lucide-react";
 import { formatNumber } from "@moa/app-kit";
-import { InlineAlert, Skeleton, cn } from "@moa/ui";
+import { InlineAlert, Skeleton, StatusBadge, cn } from "@moa/ui";
 
 import { useCan } from "@/hooks/use-can";
 import {
   usePlans,
-  useRetryCharge,
   useSubscriptions,
   useAssignPlan,
 } from "../queries";
-import { SUBSCRIPTION_STATUSES, STATUS_LABEL, rupees, statusLabel, type Plan, type Subscription } from "../schemas";
+import { SUBSCRIPTION_STATUSES, STATUS_LABEL, inGrace, rupees, statusLabel, type Plan, type Subscription } from "../schemas";
+import { SubscriptionActions } from "./subscription-actions";
 
 /**
  * Who is on what, and who has stopped paying.
@@ -24,7 +25,7 @@ import { SUBSCRIPTION_STATUSES, STATUS_LABEL, rupees, statusLabel, type Plan, ty
 const PAGE_SIZE = 25;
 
 const GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto] gap-3 md:grid-cols-[minmax(200px,1.6fr)_140px_100px_120px_110px_100px_170px]";
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-3 md:grid-cols-[minmax(200px,1.6fr)_140px_100px_110px_150px_100px_48px]";
 
 const WIDE_ONLY = "hidden md:block";
 
@@ -38,8 +39,9 @@ const STATUS_TAG: Record<string, string> = {
   cancelled: "tag tag-neutral",
 };
 
-/** Rows that want an admin's eye: a failed charge, or Razorpay holding the subscription. */
+/** Rows that want an admin's eye: a failed charge, a grace period running, or Razorpay holding the subscription. */
 const ATTENTION = new Set(["past_due", "paused"]);
+const needsAttention = (row: Subscription) => ATTENTION.has(row.status) || inGrace(row);
 
 function inr(paiseValue: number): string {
   return `₹${formatNumber(Math.round(rupees(paiseValue)))}`;
@@ -116,13 +118,22 @@ function PlanMix({ plans, rows }: { plans: Plan[]; rows: Subscription[] }) {
 export function SubscribersTab() {
   const canMoney = useCan("manage_money");
   const plans = usePlans();
-  const retry = useRetryCharge();
   const assign = useAssignPlan();
+  // A notification links here with ?q=<club>, so the row it is about is the one shown.
+  const linked = useSearchParams().get("q") ?? "";
 
   const [status, setStatus] = React.useState<string>("");
-  const [search, setSearch] = React.useState("");
-  const [committed, setCommitted] = React.useState("");
+  const [search, setSearch] = React.useState(linked);
+  const [committed, setCommitted] = React.useState(linked);
   const [page, setPage] = React.useState(0);
+  // Following another notification here changes ?q=; the search follows it.
+  const [seen, setSeen] = React.useState(linked);
+  if (seen !== linked) {
+    setSeen(linked);
+    setSearch(linked);
+    setCommitted(linked);
+    setPage(0);
+  }
 
   const { data, isPending, isError, error, isPlaceholderData } = useSubscriptions({
     status: status || undefined,
@@ -147,13 +158,13 @@ export function SubscribersTab() {
 
         <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-2.5 rounded-[var(--radius-card)] bg-surface p-[18px] shadow-card">
           <span className="text-[17px]">Needs attention</span>
-          {rows.filter((row) => ATTENTION.has(row.status)).length === 0 ? (
+          {rows.filter(needsAttention).length === 0 ? (
             <span className="text-[13px] text-ink-3">
               Every charge has gone through. Nothing to chase.
             </span>
           ) : (
             rows
-              .filter((row) => ATTENTION.has(row.status))
+              .filter(needsAttention)
               .slice(0, 5)
               .map((row) => (
                 <div key={row.id} className="flex items-center gap-2.5 py-1 text-[13px]">
@@ -161,7 +172,11 @@ export function SubscribersTab() {
                   <span className="shrink-0 truncate text-[12px] text-ink-3">
                     {/* Razorpay's own words. A generic "payment failed" would
                         send the admin to Razorpay to find out why. */}
-                    {row.status === "paused" ? "Paused at Razorpay" : row.last_failure_reason || "Charge failed"}
+                    {row.status === "paused"
+                      ? "Paused at Razorpay"
+                      : inGrace(row)
+                        ? `Grace until ${renewsText(row.grace_ends_at)}${row.last_failure_reason ? ` · ${row.last_failure_reason}` : ""}`
+                        : row.last_failure_reason || "Charge failed"}
                   </span>
                   <span className="shrink-0 text-brand">
                     {inr(row.mrr_paise)}
@@ -315,6 +330,9 @@ export function SubscribersTab() {
                         <span className={STATUS_TAG[row.status] ?? "tag tag-neutral"}>
                           {statusLabel(row.status)}
                         </span>
+                        {inGrace(row) ? (
+                          <StatusBadge label={`Grace until ${renewsText(row.grace_ends_at)}`} tone="warning" />
+                        ) : null}
                         {row.cancel_at_period_end && row.status !== "cancelled" ? (
                           <span className="text-[11px] text-ink-3">
                             Cancels {renewsText(row.current_period_end)}
@@ -330,21 +348,8 @@ export function SubscribersTab() {
                       </span>
 
                       <span className="flex justify-end">
-                        {row.status === "past_due" && canMoney && row.razorpay_subscription_id ? (
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            disabled={retry.isPending}
-                            onClick={() => retry.mutate(row.id)}
-                          >
-                            {retry.isPending ? (
-                              <Loader2Icon className="size-3.5 animate-spin" />
-                            ) : (
-                              <RefreshCwIcon className="size-3.5" />
-                            )}
-                            Retry charge
-                          </button>
-                        ) : null}
+                        {/* Money is the owner's: support and viewers see the row, not its actions. */}
+                        {canMoney ? <SubscriptionActions row={row} /> : null}
                       </span>
                     </div>
                   ))}

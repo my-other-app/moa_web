@@ -18,6 +18,8 @@ import {
   toast,
 } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import {
   useRetention,
   useRunRetention,
@@ -64,7 +66,7 @@ function RetentionDialog({
         else toast.warning(r.error ?? r.refusal ?? "Retention did not finish");
         onClose();
       },
-      onError: (e: Error) => toast.error(e.message),
+      onError: toastError,
     });
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>

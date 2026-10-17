@@ -27,6 +27,8 @@ import {
   cn,
 } from "@moa/ui";
 
+import { NotificationBell } from "@/features/notifications";
+
 import { Breadcrumbs } from "./breadcrumbs";
 import { CommandPalette } from "./command-palette";
 import { SidebarNav } from "./sidebar-nav";
@@ -197,6 +199,7 @@ export function AppShell({ user, badges, children }: { user: SessionUser; badges
               <Breadcrumbs />
             </div>
             <CommandPalette />
+            <NotificationBell />
           </div>
           <main ref={mainRef} className="scroll-thin min-h-0 flex-1 overflow-auto">
             <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-6 pt-5 pb-16 max-sm:px-4">{children}</div>

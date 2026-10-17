@@ -3,6 +3,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { createThread, deleteComment, deleteThread, fetchComments, fetchThreadInsights, fetchThreads, fetchThreadsPage, replyAsClub, setPinned } from "./api";
 import type { ComposeInput, ThreadScope, ThreadSort } from "./schemas";
 
@@ -33,7 +35,7 @@ export function useCreateThread() {
       toast.success(t.notify_followers ? "Posted, and your followers were told" : "Posted");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -45,7 +47,7 @@ export function useSetPinned() {
       toast.success(t.pinned ? "Pinned to the top of your page" : "Unpinned");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -57,7 +59,7 @@ export function useDeleteThread() {
       toast.success("Post removed");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -73,7 +75,7 @@ export function useDeleteComment(id: string) {
       toast.success("Comment removed");
       void queryClient.invalidateQueries({ queryKey: KEY });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -82,6 +84,6 @@ export function useReplyAsClub(id: string) {
   return useMutation({
     mutationFn: (body: string) => replyAsClub(id, body),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: KEY }),
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }

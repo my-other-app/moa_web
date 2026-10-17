@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { IdCardIcon, PaletteIcon, PrinterIcon } from "lucide-react";
+import { IdCardIcon, LockIcon, PaletteIcon, PrinterIcon } from "lucide-react";
 import { formatDateTime, formatNumber } from "@moa/app-kit";
 import {
   CardLabel,
@@ -25,6 +25,7 @@ import {
 } from "@moa/ui";
 
 import { AdmissionPanel } from "@/features/admission";
+import { LockedNotice, useFeatureGate } from "@/features/plan";
 
 import { batchPdfUrl } from "../api";
 import {
@@ -483,7 +484,10 @@ export function IdCardsPage({ eventId }: { eventId: number }) {
   const s = summary.data;
   const todo = s ? Math.max(0, s.registered - s.printed) : 0;
   const designHref = `/events/${eventId}/design?kind=badge`;
+  // Printing cards is the plan's `badges`; the record of what was printed stays readable.
+  const badges = useFeatureGate("badges", { eventId });
   const print: Print = (scope, role) => {
+    if (badges.locked) return badges.prompt();
     openPdf(batchPdfUrl(eventId, { scope, role, record }));
     // The batch marks cards as printed on the server; the numbers follow once the tab has fetched it.
     if (record) setTimeout(refresh, 2500);
@@ -512,12 +516,14 @@ export function IdCardsPage({ eventId }: { eventId: number }) {
               className="btn btn-primary"
               onClick={() => print("not_printed")}
             >
-              <PrinterIcon /> {record ? "Print" : "Preview"}{" "}
+              {badges.locked ? <LockIcon /> : <PrinterIcon />} {record ? "Print" : "Preview"}{" "}
               {formatNumber(todo)} not yet printed
             </button>
           ) : null}
         </div>
       </header>
+
+      <LockedNotice feature="badges" eventId={eventId} />
 
       {summary.isError ? (
         <EmptyState

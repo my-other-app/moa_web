@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import { createStoreItem, deleteStoreItem, fetchStoreItems, fetchStoreOrders, fetchStoreSummary, handOverOrder, setStoreSettings, updateStoreItem } from "./api";
 import type { ItemForm } from "./schemas";
 
@@ -38,7 +40,7 @@ export function useStoreSettings(eventId: number) {
       if (patch.swag_enabled !== undefined) toast.success(r.swag_enabled ? "Swag is on for this event" : "Swag is off for this event");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -50,7 +52,7 @@ export function useCreateStoreItem(eventId: number) {
       toast.success(`${item.name} is on the shelf`);
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -59,7 +61,7 @@ export function useUpdateStoreItem(eventId: number) {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) => updateStoreItem(eventId, id, patch),
     onSuccess: refresh,
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -71,7 +73,7 @@ export function useDeleteStoreItem(eventId: number) {
       toast.success("Taken off the shelf");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
 
@@ -83,6 +85,6 @@ export function useHandOver(eventId: number) {
       toast.success(o.handed_over_at ? `Handed over to ${o.guest}` : "Handover taken back");
       refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: toastError,
   });
 }
