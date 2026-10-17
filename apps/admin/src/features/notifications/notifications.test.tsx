@@ -17,6 +17,8 @@ const posts: string[] = [];
 const postQueries: Array<Record<string, unknown> | undefined> = [];
 let unread = 3;
 let total = 3;
+/** What the list answers with, when a test needs other alerts than ITEMS. */
+let listItems: unknown[] | null = null;
 
 const NOW = Date.now();
 const iso = (ms: number) => new Date(NOW - ms).toISOString();
@@ -60,7 +62,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path === "/api/v1/admin/alerts/unread-count") return { unread };
         if (path === "/api/v1/admin/alerts") {
           const limit = Number(init?.query?.limit ?? 20);
-          return { items: ITEMS.slice(0, limit), total, unread };
+          return { items: (listItems ?? ITEMS).slice(0, limit), total, unread };
         }
         throw new Error(`unstubbed GET ${path}`);
       }),
@@ -83,7 +85,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
-const { NotificationBell, NotificationsPage, notificationHref, kindLabel, kindTone, alertLabel, notificationPageSchema, UNREAD_POLL_MS, BELL_LIMIT } = await import("./index");
+const { NotificationBell, NotificationsPage, notificationHref, kindLabel, kindTone, alertLabel, notificationPageSchema, UNREAD_POLL_MS, BELL_LIMIT, NOTIFICATION_KINDS } = await import("./index");
 
 /** jsdom cannot navigate; following a link here is only about what it marks read. */
 const stayPut = (e: MouseEvent) => {
@@ -100,6 +102,7 @@ beforeEach(() => {
   postQueries.length = 0;
   unread = 3;
   total = 3;
+  listItems = null;
 });
 
 afterEach(() => {
@@ -284,5 +287,61 @@ describe("the notifications page", () => {
     });
     render(<NotificationsPage />);
     expect(await screen.findByText("Nothing matches")).toBeInTheDocument();
+  });
+});
+
+// ─── A club's own Razorpay ───────────────────────────────────────────────
+
+const GATEWAY_ITEMS = [
+  item({ id: 21, kind: "payment_gateway_connected", title: "Circuit connected its own Razorpay", body: "New ticket payments go to rzp_live_Circ1.", subscription_id: null, data: { key_id: "rzp_live_Circ1" } }),
+  item({ id: 22, kind: "payment_gateway_failed", title: "Robotics' Razorpay keys stopped working", body: "Authentication failed.", club: { id: 6, name: "Robotics", slug: "robotics" }, subscription_id: null, data: {} }),
+  item({ id: 23, kind: "payment_gateway_disconnected", title: "Drama's Razorpay is off", body: null, club: { id: 7, name: "Drama", slug: "drama" }, subscription_id: null, data: { by: "admin" }, read_at: iso(60_000) }),
+];
+
+describe("alerts about a club's own Razorpay", () => {
+  it("have their own words and colours, and lead to the club rather than its subscription", () => {
+    expect(kindLabel("payment_gateway_connected")).toBe("Razorpay connected");
+    expect(kindLabel("payment_gateway_failed")).toBe("Razorpay check failed");
+    expect(kindLabel("payment_gateway_disconnected")).toBe("Razorpay disconnected");
+    expect(kindTone("payment_gateway_connected")).toBe("money");
+    expect(kindTone("payment_gateway_failed")).toBe("failure");
+    expect(kindTone("payment_gateway_disconnected")).toBe("ended");
+    for (const n of GATEWAY_ITEMS) expect(notificationHref(n)).toBe(`/clubs/${n.club.id}`);
+    // Even one that names a subscription: it is about the club's account, not its plan.
+    expect(notificationHref(item({ kind: "payment_gateway_failed", subscription_id: 11 }))).toBe("/clubs/5");
+    expect(notificationHref(item({ kind: "payment_gateway_failed", club: null }))).toBeNull();
+  });
+
+  it("say who took the account off, when the alert does", () => {
+    expect(alertLabel(item({ kind: "payment_gateway_disconnected", data: { by: "admin" } }))).toBe("Razorpay disabled by an admin");
+    expect(alertLabel(item({ kind: "payment_gateway_disconnected", data: { by: "club" } }))).toBe("Razorpay disconnected by the club");
+    expect(alertLabel(item({ kind: "payment_gateway_disconnected", data: null }))).toBe("Razorpay disconnected");
+  });
+
+  it("show in the bell with their icon, colour and the club", async () => {
+    listItems = GATEWAY_ITEMS;
+    render(<NotificationBell />);
+    fireEvent.click(await screen.findByRole("button", { name: /Notifications: 3 unread/ }));
+    const list = await screen.findByRole("list", { name: "Latest notifications" });
+    expect(within(list).getByRole("img", { name: "Razorpay connected" })).toHaveAttribute("data-tone", "money");
+    expect(within(list).getByRole("img", { name: "Razorpay check failed" })).toHaveAttribute("data-tone", "failure");
+    expect(within(list).getByRole("img", { name: "Razorpay disconnected" })).toHaveAttribute("data-tone", "ended");
+    expect(within(list).getByRole("link", { name: "Circuit connected its own Razorpay" })).toHaveAttribute("href", "/clubs/5");
+    expect(within(list).getByRole("link", { name: "Robotics' Razorpay keys stopped working" })).toHaveAttribute("href", "/clubs/6");
+    expect(within(list).getByText("Razorpay disabled by an admin")).toBeInTheDocument();
+  });
+
+  it("can be picked out on the Notifications page", async () => {
+    listItems = GATEWAY_ITEMS;
+    render(<NotificationsPage />);
+    const page = await screen.findByRole("list", { name: "Notifications" });
+    expect(within(page).getAllByRole("img").map((i) => i.getAttribute("aria-label"))).toEqual(["Razorpay connected", "Razorpay check failed", "Razorpay disconnected"]);
+    const kinds = screen.getByRole("combobox", { name: "Kind" });
+    for (const label of ["Razorpay connected", "Razorpay check failed", "Razorpay disconnected"]) {
+      expect(within(kinds).getByRole("option", { name: label })).toBeInTheDocument();
+    }
+    expect(NOTIFICATION_KINDS).toEqual(expect.arrayContaining(["payment_gateway_connected", "payment_gateway_failed", "payment_gateway_disconnected"]));
+    fireEvent.change(kinds, { target: { value: "payment_gateway_failed" } });
+    expect(pushes.at(-1)).toBe("/notifications?kind=payment_gateway_failed");
   });
 });

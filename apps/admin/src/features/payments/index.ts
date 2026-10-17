@@ -5,6 +5,8 @@ export {
   paymentSchema,
   paymentTotalsSchema,
   PAYMENT_STATUSES,
+  PAYMENT_GATEWAYS,
+  gatewayLabel,
   type Payment,
   type PaymentTotals,
 } from "./schemas";

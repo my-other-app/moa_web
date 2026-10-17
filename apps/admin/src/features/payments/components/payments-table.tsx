@@ -36,7 +36,7 @@ import { useCan } from "@/hooks/use-can";
 import { SavedViews } from "@/components/saved-views";
 import { fetchPayments } from "../api";
 import { usePaymentTotals, usePayments, useRefundPayment } from "../queries";
-import { PAYMENT_STATUSES, type Payment } from "../schemas";
+import { PAYMENT_GATEWAYS, PAYMENT_STATUSES, gatewayLabel, type Payment } from "../schemas";
 
 /**
  * Every payment the platform has taken.
@@ -154,6 +154,16 @@ const columns: DataTableColumn<Payment>[] = [
     ),
   },
   {
+    // Whose Razorpay took it. A club's own account: refunds and disputes are the club's, in its Razorpay.
+    key: "gateway",
+    header: "Goes to",
+    cell: (row) => {
+      const label = gatewayLabel(row.gateway);
+      if (!label) return <span className="text-muted-foreground text-xs">--</span>;
+      return <StatusBadge tone={row.gateway === "club" ? "info" : "default"} label={label} />;
+    },
+  },
+  {
     key: "reference",
     header: "Reference",
     className: "hidden lg:table-cell",
@@ -200,6 +210,7 @@ const PAYMENT_CSV = [
   { header: "Email", value: (p: Payment) => p.user?.email ?? "" },
   { header: "Amount", value: (p: Payment) => p.amount },
   { header: "Status", value: (p: Payment) => p.status },
+  { header: "Goes to", value: (p: Payment) => gatewayLabel(p.gateway) ?? "" },
   { header: "Method", value: (p: Payment) => p.payment_method ?? "" },
   { header: "When", value: (p: Payment) => p.created_at },
 ] as const;
@@ -258,9 +269,11 @@ function Totals() {
 export function PaymentsTable() {
   const params = useListParams();
   const status = params.param("status");
+  const gateway = params.param("gateway");
 
   const { data, isPending, isError } = usePayments({
     status,
+    gateway,
     search: params.search || undefined,
     offset: params.offset,
     limit: params.pageSize,
@@ -290,6 +303,12 @@ export function PaymentsTable() {
                   label: "Status",
                   options: PAYMENT_STATUSES.map((s) => ({ value: s, label: s })),
                 },
+                {
+                  key: "gateway",
+                  label: "Goes to",
+                  allLabel: "Club or MyOtherApp",
+                  options: PAYMENT_GATEWAYS,
+                },
               ]}
             />
             <SavedViews
@@ -308,6 +327,7 @@ export function PaymentsTable() {
             fetchPage={(offset, limit) =>
               fetchPayments({
                 status,
+                gateway,
                 search: params.search || undefined,
                 offset,
                 limit,

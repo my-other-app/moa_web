@@ -9,6 +9,7 @@ export {
   kindLabel,
   kindTone,
   notificationHref,
+  GATEWAY_KINDS,
   alertLabel,
   readAllSchema,
   notificationSchema,

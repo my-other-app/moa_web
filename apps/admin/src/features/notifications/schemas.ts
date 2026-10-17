@@ -19,6 +19,9 @@ export const NOTIFICATION_KINDS = [
   "subscription_resumed",
   "subscription_cancelled",
   "plan_assigned",
+  "payment_gateway_connected",
+  "payment_gateway_failed",
+  "payment_gateway_disconnected",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -42,6 +45,10 @@ export const KIND_META: Record<NotificationKind, { label: string; tone: KindTone
   subscription_resumed: { label: "Resumed", tone: "money" },
   subscription_cancelled: { label: "Cancelled", tone: "ended" },
   plan_assigned: { label: "Plan assigned", tone: "change" },
+  // A club's own Razorpay: its ticket money now goes to the club, its keys stopped working, or it went back to ours.
+  payment_gateway_connected: { label: "Razorpay connected", tone: "money" },
+  payment_gateway_failed: { label: "Razorpay check failed", tone: "failure" },
+  payment_gateway_disconnected: { label: "Razorpay disconnected", tone: "ended" },
 };
 
 /** A kind this build has a word for, else the server's own, readable. */
@@ -110,18 +117,28 @@ export function alertLabel(n: Pick<AdminNotification, "kind" | "data">): string 
     return by ? `Cancelled ${CANCELLED_BY[by] ?? `by ${by.replace(/_/g, " ")}`}` : kindLabel(n.kind);
   }
   if (n.kind === "plan_assigned" && data.action === "extend_grace") return "Grace extended";
+  if (n.kind === "payment_gateway_disconnected") {
+    // Who took it off, when the alert says: the club itself, or an admin disabling it.
+    const by = text(data.by);
+    if (by === "admin") return "Razorpay disabled by an admin";
+    if (by === "club") return "Razorpay disconnected by the club";
+  }
   return kindLabel(n.kind);
 }
 
+/** Kinds about a club's own Razorpay account: they lead to the club. */
+export const GATEWAY_KINDS = new Set<string>(["payment_gateway_connected", "payment_gateway_failed", "payment_gateway_disconnected"]);
+
 /** Kinds about a club's subscription rather than the club itself. */
-const SUBSCRIPTION_KINDS = new Set<string>(NOTIFICATION_KINDS.filter((k) => k !== "club_applied"));
+const SUBSCRIPTION_KINDS = new Set<string>(NOTIFICATION_KINDS.filter((k) => k !== "club_applied" && !GATEWAY_KINDS.has(k)));
 
 /**
  * Where a notification leads: the subscription (the Subscribers tab, found
  * by the club's name) for anything about billing, the club for an
- * application, nowhere when it names neither.
+ * application or its own Razorpay account, nowhere when it names neither.
  */
 export function notificationHref(n: Pick<AdminNotification, "kind" | "club" | "subscription_id">): string | null {
+  if (n.club && GATEWAY_KINDS.has(n.kind)) return `/clubs/${n.club.id}`;
   if (n.club && (n.subscription_id != null || SUBSCRIPTION_KINDS.has(n.kind))) {
     return `/subscriptions?q=${encodeURIComponent(n.club.name)}`;
   }

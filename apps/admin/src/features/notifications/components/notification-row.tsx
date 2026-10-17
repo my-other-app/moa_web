@@ -13,9 +13,12 @@ import {
   CrownIcon,
   HourglassIcon,
   IndianRupeeIcon,
+  PlugZapIcon,
+  ShieldAlertIcon,
   SparklesIcon,
   TrendingDownIcon,
   TriangleAlertIcon,
+  UnplugIcon,
   type LucideIcon,
 } from "lucide-react";
 import { relativeTime } from "@moa/app-kit";
@@ -37,6 +40,9 @@ const ICON: Record<string, LucideIcon> = {
   subscription_resumed: CirclePlayIcon,
   subscription_cancelled: BanIcon,
   plan_assigned: CrownIcon,
+  payment_gateway_connected: PlugZapIcon,
+  payment_gateway_failed: ShieldAlertIcon,
+  payment_gateway_disconnected: UnplugIcon,
 };
 
 const TONE: Record<KindTone, string> = {

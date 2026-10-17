@@ -23,6 +23,9 @@ export const paymentSchema = z.object({
   /* Computed server-side: only a captured payment can be refunded, and the
      UI should not re-derive a rule the service owns. */
   is_refundable: z.boolean().default(false),
+  /* Whose Razorpay took it: the club's own account, or MyOtherApp's. Null
+     from a server that does not say (every payment then was MyOtherApp's). */
+  gateway: z.enum(["club", "platform"]).nullish().catch(null),
 });
 
 export const paymentPageSchema = paginatedSchema(paymentSchema);
@@ -44,6 +47,16 @@ export const PAYMENT_STATUSES = [
   "created",
   "disputed",
 ] as const;
+
+/** Where a payment went, as the "Goes to" column and filter word it. */
+export const PAYMENT_GATEWAYS = [
+  { value: "club", label: "Club" },
+  { value: "platform", label: "MyOtherApp" },
+] as const;
+
+export function gatewayLabel(gateway: string | null | undefined): string | null {
+  return PAYMENT_GATEWAYS.find((g) => g.value === gateway)?.label ?? null;
+}
 
 export type Payment = z.infer<typeof paymentSchema>;
 export type PaymentTotals = z.infer<typeof paymentTotalsSchema>;
