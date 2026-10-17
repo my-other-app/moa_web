@@ -123,6 +123,13 @@ describe("club detail page", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the plan a club asked for on its application", async () => {
+    detail = pendingFixture;
+    render(<ClubDetail clubId={14} />);
+    expect(await screen.findByText("Requested plan: Pro · monthly")).toBeInTheDocument();
+    expect(adminClubDetailSchema.parse(pendingFixture)).toMatchObject({ requested_plan: "pro", requested_cycle: "monthly" });
+  });
+
   it("shows the three sub-tabs", async () => {
     render(<ClubDetail clubId={5} />);
     for (const tab of ["Events", "Followers", "Edit"]) {

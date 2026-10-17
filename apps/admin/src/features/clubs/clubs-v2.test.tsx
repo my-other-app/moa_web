@@ -124,6 +124,15 @@ describe("clubs screen", () => {
     expect(within(awaitingRow).getByText("Awaiting")).toBeInTheDocument();
   });
 
+  it("shows the plan an awaiting club applied for", async () => {
+    render(<ClubsV2 />);
+    await screen.findByText("LetMeGoo");
+    const awaitingRow = screen.getByText("DOTSLASH 25").closest<HTMLElement>("div.rule-fade")!;
+    const verifiedRow = screen.getByText("LetMeGoo").closest<HTMLElement>("div.rule-fade")!;
+    expect(within(awaitingRow).getByText("Wants Growth · yearly")).toBeInTheDocument();
+    expect(within(verifiedRow).queryByText(/^Wants/)).not.toBeInTheDocument();
+  });
+
   it("counts each verification segment from the list filtered the same way", async () => {
     render(<ClubsV2 />);
     await screen.findByText("LetMeGoo");

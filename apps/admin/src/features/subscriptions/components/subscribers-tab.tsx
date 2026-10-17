@@ -12,7 +12,7 @@ import {
   useSubscriptions,
   useAssignPlan,
 } from "../queries";
-import { rupees, type Plan, type Subscription } from "../schemas";
+import { SUBSCRIPTION_STATUSES, STATUS_LABEL, rupees, statusLabel, type Plan, type Subscription } from "../schemas";
 
 /**
  * Who is on what, and who has stopped paying.
@@ -29,21 +29,27 @@ const GRID =
 const WIDE_ONLY = "hidden md:block";
 
 const STATUS_TAG: Record<string, string> = {
+  // A checkout nobody has paid for yet: grants nothing, so it must not look like a customer.
+  pending: "tag tag-outline",
   active: "tag tag-accent",
   trial: "tag tag-neutral",
   past_due: "tag tag-outline",
+  paused: "tag tag-outline",
   cancelled: "tag tag-neutral",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  active: "Active",
-  trial: "Trial",
-  past_due: "Past due",
-  cancelled: "Cancelled",
-};
+/** Rows that want an admin's eye: a failed charge, or Razorpay holding the subscription. */
+const ATTENTION = new Set(["past_due", "paused"]);
 
 function inr(paiseValue: number): string {
   return `₹${formatNumber(Math.round(rupees(paiseValue)))}`;
+}
+
+/** What the row earns: a trial earns nothing yet, and a pending checkout nothing at all. */
+function mrrText(row: Subscription): string {
+  if (row.status === "trial") return "Trial";
+  if (row.status === "pending") return "—";
+  return inr(row.mrr_paise);
 }
 
 function renewsText(iso: string | null | undefined): string {
@@ -131,10 +137,7 @@ export function SubscribersTab() {
 
   const statuses: ReadonlyArray<{ key: string; label: string }> = [
     { key: "", label: "All" },
-    { key: "active", label: "Active" },
-    { key: "trial", label: "Trial" },
-    { key: "past_due", label: "Past due" },
-    { key: "cancelled", label: "Cancelled" },
+    ...SUBSCRIPTION_STATUSES.map((key) => ({ key, label: STATUS_LABEL[key] })),
   ];
 
   return (
@@ -144,13 +147,13 @@ export function SubscribersTab() {
 
         <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-2.5 rounded-[var(--radius-card)] bg-surface p-[18px] shadow-card">
           <span className="text-[17px]">Needs attention</span>
-          {rows.filter((row) => row.status === "past_due").length === 0 ? (
+          {rows.filter((row) => ATTENTION.has(row.status)).length === 0 ? (
             <span className="text-[13px] text-ink-3">
               Every charge has gone through. Nothing to chase.
             </span>
           ) : (
             rows
-              .filter((row) => row.status === "past_due")
+              .filter((row) => ATTENTION.has(row.status))
               .slice(0, 5)
               .map((row) => (
                 <div key={row.id} className="flex items-center gap-2.5 py-1 text-[13px]">
@@ -158,7 +161,7 @@ export function SubscribersTab() {
                   <span className="shrink-0 truncate text-[12px] text-ink-3">
                     {/* Razorpay's own words. A generic "payment failed" would
                         send the admin to Razorpay to find out why. */}
-                    {row.last_failure_reason || "Charge failed"}
+                    {row.status === "paused" ? "Paused at Razorpay" : row.last_failure_reason || "Charge failed"}
                   </span>
                   <span className="shrink-0 text-brand">
                     {inr(row.mrr_paise)}
@@ -267,8 +270,8 @@ export function SubscribersTab() {
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate">{row.club?.name ?? "—"}</span>
                         <span className="flex items-center gap-1.5 truncate text-[11.5px] text-ink-3 md:hidden">
-                          {row.plan?.name ?? "No plan"} · {STATUS_LABEL[row.status]} ·{" "}
-                          {inr(row.mrr_paise)}
+                          {row.plan?.name ?? "No plan"} · {statusLabel(row.status)} ·{" "}
+                          {mrrText(row)}
                         </span>
                       </span>
 
@@ -308,13 +311,22 @@ export function SubscribersTab() {
                       >
                         {renewsText(row.current_period_end)}
                       </span>
-                      <span className={WIDE_ONLY}>
+                      <span className={cn(WIDE_ONLY, "flex flex-col items-start gap-0.5")}>
                         <span className={STATUS_TAG[row.status] ?? "tag tag-neutral"}>
-                          {STATUS_LABEL[row.status] ?? row.status}
+                          {statusLabel(row.status)}
                         </span>
+                        {row.cancel_at_period_end && row.status !== "cancelled" ? (
+                          <span className="text-[11px] text-ink-3">
+                            Cancels {renewsText(row.current_period_end)}
+                          </span>
+                        ) : row.status === "pending" && row.checkout_expires_at ? (
+                          <span className="text-[11px] text-ink-3">
+                            Checkout until {renewsText(row.checkout_expires_at)}
+                          </span>
+                        ) : null}
                       </span>
                       <span className={cn(WIDE_ONLY, "text-right")}>
-                        {row.status === "trial" ? "Trial" : inr(row.mrr_paise)}
+                        {mrrText(row)}
                       </span>
 
                       <span className="flex justify-end">

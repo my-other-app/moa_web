@@ -103,7 +103,9 @@
       "followers_count": 0,
       "events_count": 0,
       "org": null,
-      "owner_email": "club3@clubs.myotherapp.in"
+      "owner_email": "club3@clubs.myotherapp.in",
+      "requested_plan": "growth",
+      "requested_cycle": "yearly"
     },
     {
       "id": 2,

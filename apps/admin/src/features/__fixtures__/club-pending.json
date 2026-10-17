@@ -30,5 +30,7 @@
     "total_registrations": 0,
     "total_attended": 0,
     "total_revenue": 0
-  }
+  },
+  "requested_plan": "pro",
+  "requested_cycle": "monthly"
 }

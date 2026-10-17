@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 /**
  * The Subscriptions screen.
@@ -11,6 +11,9 @@ import { screen, within } from "@testing-library/react";
  */
 let role: string | null = "owner";
 let plansResponse: unknown[] = [];
+let subscriptionRows: unknown[] = [];
+const statusQueries: Array<unknown> = [];
+const puts: Array<{ path: string; body: Record<string, unknown> }> = [];
 
 const FEATURE_GROUPS = {
   every_event: ["tickets", "certificates", "checkin", "reviews", "threads", "regform", "waitlist"],
@@ -54,7 +57,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       },
     }),
     api: {
-      get: vi.fn(async (path: string) => {
+      get: vi.fn(async (path: string, init?: { query?: Record<string, unknown> }) => {
         if (path.includes("/admin/subscriptions/totals")) {
           return {
             mrr_paise: 2500000,
@@ -67,12 +70,16 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         }
         if (path.includes("/admin/plans")) return plansResponse;
         if (path.includes("/admin/subscriptions")) {
-          return { limit: 25, offset: 0, total: 0, next: null, items: [] };
+          statusQueries.push(init?.query?.status);
+          return { limit: 25, offset: 0, total: subscriptionRows.length, next: null, items: subscriptionRows };
         }
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(async () => ({})),
-      put: vi.fn(async () => ({})),
+      put: vi.fn(async (path: string, body: Record<string, unknown>) => {
+        puts.push({ path, body });
+        return plan(body);
+      }),
       del: vi.fn(),
     },
   };
@@ -80,12 +87,38 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 
 const { render } = await import("@/test/render");
 const { SubscriptionsV2 } = await import("./components/subscriptions-v2");
-const { toForm, toPayload, rupees, paise, yearlyPriceProblem, planSchema } =
+const { SubscribersTab } = await import("./components/subscribers-tab");
+const { PlansTab } = await import("./components/plans-tab");
+const { toForm, toPayload, rupees, paise, yearlyPriceProblem, planSchema, subscriptionSchema, statusLabel } =
   await import("./schemas");
+
+function row(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 1,
+    club: { id: 5, name: "Circuit" },
+    plan: plan(),
+    cycle: "monthly",
+    status: "active",
+    current_period_end: "2026-11-17T10:00:00+05:30",
+    mrr_paise: 149900,
+    last_failure_reason: null,
+    razorpay_subscription_id: "sub_1",
+    entitled: true,
+    cancel_at_period_end: false,
+    cancel_requested_at: null,
+    trial_ends_at: null,
+    pending_since: null,
+    checkout_expires_at: null,
+    ...overrides,
+  };
+}
 
 beforeEach(() => {
   role = "owner";
   plansResponse = [plan()];
+  subscriptionRows = [];
+  statusQueries.length = 0;
+  puts.length = 0;
 });
 
 describe("money conversion", () => {
@@ -182,5 +215,65 @@ describe("subscriptions screen", () => {
     expect(screen.getByRole("tab", { name: /Subscribers/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Plans and features/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Compare plans/ })).toBeInTheDocument();
+  });
+});
+
+describe("subscription statuses", () => {
+  it("keeps a status as the server says it, never falling back to active", () => {
+    expect(subscriptionSchema.parse(row({ status: "pending", entitled: false })).status).toBe("pending");
+    expect(subscriptionSchema.parse(row({ status: "on_hold" })).status).toBe("on_hold");
+    expect(statusLabel("paused")).toBe("Paused");
+    expect(statusLabel("on_hold")).toBe("on hold");
+  });
+
+  it("labels pending and paused, shows a pending checkout earns nothing, and filters by both", async () => {
+    subscriptionRows = [
+      row({ id: 1, club: { id: 5, name: "Circuit" }, status: "active", cancel_at_period_end: true }),
+      row({ id: 2, club: { id: 6, name: "Robotics" }, status: "pending", entitled: false, mrr_paise: 0, current_period_end: null, checkout_expires_at: "2026-10-18T09:00:00+05:30" }),
+      row({ id: 3, club: { id: 7, name: "Drama" }, status: "paused", entitled: false, mrr_paise: 0 }),
+    ];
+    render(<SubscribersTab />);
+    const pendingRow = (await screen.findByText("Robotics")).closest<HTMLElement>("div.rule-fade")!;
+    expect(within(pendingRow).getByText("Pending")).toBeInTheDocument();
+    // No revenue figure for a checkout nobody has paid, not even ₹0.
+    expect(within(pendingRow).queryByText(/₹/)).not.toBeInTheDocument();
+    expect(within(pendingRow).getByText("Checkout until 18 Oct")).toBeInTheDocument();
+    const pausedRow = screen.getAllByText("Drama").map((el) => el.closest<HTMLElement>("div.rule-fade")).find(Boolean)!;
+    expect(within(pausedRow).getByText("Paused")).toBeInTheDocument();
+    const activeRow = screen.getAllByText("Circuit").map((el) => el.closest<HTMLElement>("div.rule-fade")).find(Boolean)!;
+    expect(within(activeRow).getByText("Cancels 17 Nov")).toBeInTheDocument();
+    // Paused is something to look at, beside a failed charge.
+    expect(screen.getByText("Paused at Razorpay")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pending" }));
+    await waitFor(() => expect(statusQueries.at(-1)).toBe("pending"));
+    fireEvent.click(screen.getByRole("button", { name: "Paused" }));
+    await waitFor(() => expect(statusQueries.at(-1)).toBe("paused"));
+  });
+});
+
+describe("pricing-page flags", () => {
+  it("round-trip through the form", () => {
+    const form = toForm(planSchema.parse(plan({ featured: true, contact_sales: false })));
+    expect(form).toMatchObject({ featured: true, contact_sales: false });
+    expect(toPayload({ ...form, contact_sales: true })).toMatchObject({ featured: true, contact_sales: true });
+    // A plan from before the flags existed reads as neither.
+    expect(planSchema.parse(plan())).toMatchObject({ featured: false, contact_sales: false });
+  });
+
+  it("are toggles in the editor, and saved with the plan", async () => {
+    plansResponse = [plan({ featured: true })];
+    render(<PlansTab />);
+    const popular = await screen.findByRole("button", { name: /^Most popular/ });
+    const talk = screen.getByRole("button", { name: /^Talk to us/ });
+    expect(popular).toHaveAttribute("aria-pressed", "true");
+    expect(talk).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(talk);
+    expect(talk).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: /Save plan/ }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]!.path).toBe("/api/v1/admin/plans/1");
+    expect(puts[0]!.body).toMatchObject({ featured: true, contact_sales: true });
   });
 });

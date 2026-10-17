@@ -19,7 +19,7 @@ import { useCan } from "@/hooks/use-can";
 import { useOrgs } from "@/features/orgs";
 import { approveClub } from "../api";
 import { useClubCounts, useClubs } from "../queries";
-import type { AdminClub } from "../schemas";
+import { requestedPlanText, type AdminClub } from "../schemas";
 import { CreateClubWizard } from "./create-club-wizard";
 
 /**
@@ -435,10 +435,16 @@ export function ClubsV2() {
                         {createdText(club.created_at)}
                       </span>
 
-                      <span className="flex justify-end">
+                      <span className="flex flex-col items-end gap-0.5">
                         <span className={club.is_verified ? "tag tag-neutral" : "tag tag-outline"}>
                           {club.is_verified ? "Verified" : "Awaiting"}
                         </span>
+                        {/* What an applicant expects to be on, so approving it sets the right expectation. */}
+                        {!club.is_verified && club.requested_plan ? (
+                          <span className="text-[11px] text-ink-3" title="Plan picked on the sign-up form">
+                            Wants {requestedPlanText(club.requested_plan, club.requested_cycle)}
+                          </span>
+                        ) : null}
                       </span>
                     </div>
                   );
