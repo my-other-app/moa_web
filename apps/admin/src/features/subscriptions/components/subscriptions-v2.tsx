@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   CirclePauseIcon,
+  GiftIcon,
   HourglassIcon,
   IndianRupeeIcon,
   ShoppingCartIcon,
@@ -15,9 +16,12 @@ import {
 import { formatNumber, useListParams } from "@moa/app-kit";
 import { InlineAlert, Skeleton, cn } from "@moa/ui";
 
+import { useCan } from "@/hooks/use-can";
+
 import { usePlans, useSubscriptionTotals } from "../queries";
 import { rupees } from "../schemas";
 import { CompareTab } from "./compare-tab";
+import { GivePlanDialog } from "./give-plan-dialog";
 import { PlansTab } from "./plans-tab";
 import { SubscribersTab } from "./subscribers-tab";
 
@@ -83,6 +87,8 @@ export function SubscriptionsV2() {
   const params = useListParams();
   const totals = useSubscriptionTotals();
   const plans = usePlans();
+  const canMoney = useCan("manage_money");
+  const [giving, setGiving] = React.useState(false);
 
   const tab = (params.param("tab") ?? "subscribers") as Tab;
 
@@ -100,7 +106,14 @@ export function SubscriptionsV2() {
             Club plans, what they are billed and what each one unlocks
           </span>
         </div>
+        {/* Any approved club, whether or not it has ever had a subscription. */}
+        {canMoney ? (
+          <button type="button" className="btn btn-primary" onClick={() => setGiving(true)}>
+            <GiftIcon className="size-4" /> Give a plan
+          </button>
+        ) : null}
       </header>
+      {giving ? <GivePlanDialog club={null} onClose={() => setGiving(false)} /> : null}
 
       {noPlans ? (
         /*
@@ -120,7 +133,7 @@ export function SubscriptionsV2() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {totals.isPending ? (
-          Array.from({ length: 7 }, (_, i) => (
+          Array.from({ length: 8 }, (_, i) => (
             <Skeleton key={i} className="h-[112px] rounded-[var(--radius-card)]" />
           ))
         ) : (
@@ -169,6 +182,12 @@ export function SubscriptionsV2() {
               value={formatNumber(data?.paused ?? 0)}
               note="Held at Razorpay: not charged, not granted"
               icon={<CirclePauseIcon className="size-4" />}
+            />
+            <Kpi
+              label="Free plans"
+              value={formatNumber(data?.complimentary ?? 0)}
+              note="Given by an admin · ₹0, not revenue"
+              icon={<GiftIcon className="size-4" />}
             />
           </>
         )}

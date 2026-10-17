@@ -11,6 +11,8 @@ export {
   notificationHref,
   GATEWAY_KINDS,
   alertLabel,
+  displayKind,
+  FREE_PLAN_GIVEN,
   readAllSchema,
   notificationSchema,
   notificationPageSchema,

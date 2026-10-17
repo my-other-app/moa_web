@@ -1,4 +1,5 @@
 import { paginatedSchema } from "@moa/api";
+import { formatDate, formatNumber } from "@moa/app-kit";
 import { z } from "zod";
 
 /**
@@ -159,9 +160,103 @@ export const subscriptionSchema = z.object({
   grace_ends_at: z.string().nullish().catch(null),
   /* The server's own word on whether the row is in grace. */
   in_grace: z.boolean().nullish().catch(null),
+  /* Given free by an admin: the club pays nothing and the row is never
+     counted as revenue. A server from before free plans sends none of these. */
+  complimentary: z.boolean().catch(false).default(false),
+  comp_reason: z.string().nullish().catch(null),
+  /* When the free plan ends; null is no end date. */
+  comp_ends_at: z.string().nullish().catch(null),
+  granted_by: z.object({ id: z.coerce.number(), name: z.string().nullish() }).nullish().catch(null),
 });
 
 export type Subscription = z.infer<typeof subscriptionSchema>;
+
+/**
+ * "Free · until 31 Mar 2027", or "Free · no end date": the badge a free plan
+ * wears wherever it is listed. Null for a row that is paid for.
+ */
+export function freeBadgeText(row: Pick<Subscription, "complimentary" | "comp_ends_at">): string | null {
+  if (!row.complimentary) return null;
+  return row.comp_ends_at ? `Free · until ${formatDate(row.comp_ends_at)}` : "Free · no end date";
+}
+
+/** Who gave the free plan and why, for a tooltip or a line under it. */
+export function freePlanNote(row: Pick<Subscription, "complimentary" | "comp_reason" | "granted_by">): string | null {
+  if (!row.complimentary) return null;
+  const by = row.granted_by?.name ? `Given by ${row.granted_by.name}` : null;
+  return [row.comp_reason?.trim() || null, by].filter(Boolean).join(" · ") || null;
+}
+
+// ─── Giving a club a plan ────────────────────────────────────────────────
+
+/** The longest reason the API keeps for a free plan. */
+export const REASON_MAX = 200;
+
+export interface GivePlanInput {
+  planId: number | null;
+  cycle: "monthly" | "yearly";
+  /** Free for this club: ₹0, not counted as revenue. */
+  complimentary: boolean;
+  reason: string;
+  /** "YYYY-MM-DD" from the date field, or null for no end date. */
+  endsOn: string | null;
+}
+
+/** What is wrong with the form, field by field; empty when it can be sent. */
+export function givePlanProblems(input: GivePlanInput, today: Date = new Date()): Partial<Record<"plan" | "reason" | "endsOn", string>> {
+  const problems: Partial<Record<"plan" | "reason" | "endsOn", string>> = {};
+  if (!input.planId) problems.plan = "Pick a plan.";
+  const reason = input.reason.trim();
+  if (input.complimentary && !reason) problems.reason = "Say why this club gets it free.";
+  else if (reason.length > REASON_MAX) problems.reason = `At most ${REASON_MAX} characters.`;
+  if (input.complimentary && input.endsOn !== null) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.endsOn)) problems.endsOn = "Pick the day it ends.";
+    else if (input.endsOn < localDay(today)) problems.endsOn = "That day has passed.";
+  }
+  return problems;
+}
+
+/** "YYYY-MM-DD" for a moment, in the browser's own calendar. */
+export function localDay(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * The end of the chosen day in India, where the clubs are: a plan "free until
+ * 31 Mar" still works on the evening of the 31st.
+ */
+export function endOfDayIst(day: string): string {
+  return `${day}T23:59:59+05:30`;
+}
+
+/** The body PUT /admin/subscriptions/club/{id}/plan takes. */
+export function givePlanPayload(input: GivePlanInput, cancelRazorpay = false) {
+  const reason = input.reason.trim();
+  return {
+    plan_id: input.planId,
+    cycle: input.cycle,
+    complimentary: input.complimentary,
+    ...(reason ? { reason } : {}),
+    ends_at: input.complimentary && input.endsOn ? endOfDayIst(input.endsOn) : null,
+    ...(cancelRazorpay ? { cancel_razorpay: true } : {}),
+  };
+}
+
+/**
+ * The sentence under the form: what the club ends up with, and whether it
+ * counts as money.
+ */
+export function givePlanSummary(input: GivePlanInput, plan: Pick<Plan, "name" | "price_monthly_paise" | "price_yearly_paise"> | null | undefined): string | null {
+  if (!plan) return null;
+  if (input.complimentary) {
+    const until = input.endsOn ? `free until ${formatDate(`${input.endsOn}T12:00:00+05:30`)}` : "free with no end date";
+    return `${plan.name}, ${until} — ₹0, not counted in revenue`;
+  }
+  const price = input.cycle === "yearly" ? plan.price_yearly_paise : plan.price_monthly_paise;
+  const per = input.cycle === "yearly" ? "a year" : "a month";
+  return `${plan.name}, ${input.cycle} — ₹${formatNumber(Math.round(rupees(price)))} ${per}, counted in revenue. Nothing is charged through Razorpay.`;
+}
 
 /**
  * Whether a row is in its grace period: a failed charge, the plan still on,
@@ -196,6 +291,8 @@ export const totalsSchema = z.object({
   /* A failed charge, the plan kept on until its grace ends. These are also
      counted in past_due: never add the two. */
   in_grace: z.number().default(0),
+  /* Plans an admin gave free: on a plan, paying nothing, not revenue. */
+  complimentary: z.number().catch(0).default(0),
 });
 
 export type SubscriptionTotals = z.infer<typeof totalsSchema>;

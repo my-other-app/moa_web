@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { Loader2Icon, Undo2Icon } from "lucide-react";
 import { formatDate, formatDateTime, initials } from "@moa/app-kit";
 import {
@@ -7,6 +8,7 @@ import {
   AvatarFallback,
   Button,
   EmptyState,
+  Pager,
   Skeleton,
   StatusBadge,
   Tabs,
@@ -26,8 +28,59 @@ import { useDeletedOrgs, useRestoreOrg } from "@/features/orgs";
  *
  * Badges are absent on purpose: BadgeDefinitions hard-deletes, so there is
  * nothing to restore and listing an empty tab would imply otherwise.
+ *
+ * Each tab pages through its own list. It used to ask for the first fifty
+ * and offer no way past them, so the fifty-first deleted club was simply not
+ * in Trash.
  */
-const PAGE = { offset: 0, limit: 50 };
+const PAGE_SIZE = 20;
+
+function usePaging() {
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(PAGE_SIZE);
+  return {
+    page,
+    pageSize,
+    query: { offset: (page - 1) * pageSize, limit: pageSize },
+    setPage,
+    /** Restoring the last row of a later page leaves it empty: step back rather than show "nothing deleted". */
+    settle: (empty: boolean, loading: boolean) => {
+      if (empty && !loading && page > 1) setPage(page - 1);
+    },
+    setPageSize: (size: number) => {
+      setPageSize(size);
+      setPage(1);
+    },
+  };
+}
+
+function Paging({
+  paging,
+  total,
+  busy,
+  noun,
+}: {
+  paging: ReturnType<typeof usePaging>;
+  total: number | null | undefined;
+  busy: boolean;
+  noun: [string, string];
+}) {
+  const count = total ?? 0;
+  if (count === 0) return null;
+  return (
+    <Pager
+      className="pt-2"
+      page={paging.page}
+      pageCount={Math.max(1, Math.ceil(count / paging.pageSize))}
+      total={count}
+      pageSize={paging.pageSize}
+      noun={noun}
+      busy={busy}
+      onPage={paging.setPage}
+      onPageSize={paging.setPageSize}
+    />
+  );
+}
 
 function Row({
   title,
@@ -77,12 +130,14 @@ function Row({
 function List({
   isPending,
   isError,
+  error,
   isEmpty,
   emptyTitle,
   children,
 }: {
   isPending: boolean;
   isError: boolean;
+  error?: unknown;
   isEmpty: boolean;
   emptyTitle: string;
   children: React.ReactNode;
@@ -97,8 +152,13 @@ function List({
     );
   }
   if (isError) {
+    // The server's words: "Try reloading" hid a 403 or a 500 behind the same shrug.
     return (
-      <EmptyState tone="muted" title="Could not load" description="Try reloading." />
+      <EmptyState
+        tone="muted"
+        title="Could not load"
+        description={error instanceof Error && error.message ? error.message : "Try reloading."}
+      />
     );
   }
   if (isEmpty) {
@@ -114,14 +174,18 @@ function List({
 }
 
 function ClubsTab() {
-  const { data, isPending, isError } = useDeletedClubs(PAGE);
+  const paging = usePaging();
+  const { data, isPending, isError, error, isFetching } = useDeletedClubs(paging.query);
   const restore = useRestoreClub();
-  const rows = data?.items ?? [];
+  // The backend asks for one more row than the page to know there is a next one.
+  const rows = (data?.items ?? []).slice(0, paging.pageSize);
+  paging.settle(rows.length === 0, isPending);
 
   return (
     <List
       isPending={isPending}
       isError={isError}
+      error={error}
       isEmpty={rows.length === 0}
       emptyTitle="No deleted clubs"
     >
@@ -138,23 +202,28 @@ function ClubsTab() {
             />
           }
           onRestore={() => restore.mutate(club.id)}
-          pending={restore.isPending}
+          // Only the row being restored waits; the rest stay usable.
+          pending={restore.isPending && restore.variables === club.id}
           index={i}
         />
       ))}
+      <Paging paging={paging} total={data?.total} busy={isFetching} noun={["deleted club", "deleted clubs"]} />
     </List>
   );
 }
 
 function EventsTab() {
-  const { data, isPending, isError } = useDeletedEvents(PAGE);
+  const paging = usePaging();
+  const { data, isPending, isError, error, isFetching } = useDeletedEvents(paging.query);
   const restore = useRestoreEvent();
-  const rows = data?.items ?? [];
+  const rows = (data?.items ?? []).slice(0, paging.pageSize);
+  paging.settle(rows.length === 0, isPending);
 
   return (
     <List
       isPending={isPending}
       isError={isError}
+      error={error}
       isEmpty={rows.length === 0}
       emptyTitle="No deleted events"
     >
@@ -164,23 +233,27 @@ function EventsTab() {
           title={event.name}
           subtitle={`${event.club?.name ? `${event.club.name} · ` : ""}${formatDateTime(event.event_datetime)}`}
           onRestore={() => restore.mutate(event.id)}
-          pending={restore.isPending}
+          pending={restore.isPending && restore.variables === event.id}
           index={i}
         />
       ))}
+      <Paging paging={paging} total={data?.total} busy={isFetching} noun={["deleted event", "deleted events"]} />
     </List>
   );
 }
 
 function OrgsTab() {
-  const { data, isPending, isError } = useDeletedOrgs(PAGE);
+  const paging = usePaging();
+  const { data, isPending, isError, error, isFetching } = useDeletedOrgs(paging.query);
   const restore = useRestoreOrg();
-  const rows = data?.items ?? [];
+  const rows = (data?.items ?? []).slice(0, paging.pageSize);
+  paging.settle(rows.length === 0, isPending);
 
   return (
     <List
       isPending={isPending}
       isError={isError}
+      error={error}
       isEmpty={rows.length === 0}
       emptyTitle="No deleted organisations"
     >
@@ -190,10 +263,11 @@ function OrgsTab() {
           title={org.name}
           subtitle={org.address ?? org.type ?? "No address"}
           onRestore={() => restore.mutate(org.id)}
-          pending={restore.isPending}
+          pending={restore.isPending && restore.variables === org.id}
           index={i}
         />
       ))}
+      <Paging paging={paging} total={data?.total} busy={isFetching} noun={["deleted organisation", "deleted organisations"]} />
     </List>
   );
 }

@@ -14,6 +14,7 @@ import {
   SmileIcon,
   TagIcon,
   Trash2Icon,
+  TrendingUpIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -49,6 +50,7 @@ export const navItems: NavItem[] = [
   // Clubs taking ticket payments in their own Razorpay account. Not under /payments: that prefix would light Payments too.
   { href: "/payment-gateways", label: "Club gateways", icon: LandmarkIcon },
   { href: "/subscriptions", label: "Subscriptions", icon: CrownIcon },
+  { href: "/revenue", label: "Revenue", icon: TrendingUpIcon },
 
   { href: "/badges", label: "Badges", icon: AwardIcon, group: "Catalogue" },
   { href: "/interests", label: "Interests", icon: TagIcon },

@@ -64,6 +64,8 @@ import {
   useClubLifetime,
   useDeleteClub,
 } from "../queries";
+import { ClubPlanPanel } from "@/features/subscriptions";
+
 import { requestedPlanText, type ClubEvent, type ClubFollower } from "../schemas";
 import { ClubEditForm } from "./club-edit-form";
 
@@ -437,6 +439,8 @@ export function ClubDetail({ clubId }: { clubId: number }) {
           </CardContent>
         </Card>
 
+        {club ? <ClubPlanPanel club={{ id: club.id, name: club.name, is_verified: club.is_verified }} /> : null}
+
         <section className="space-y-3">
           <SectionTitle>Performance</SectionTitle>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -502,19 +506,18 @@ export function ClubDetail({ clubId }: { clubId: number }) {
               This removes the club from the platform. It disappears from club
               listings and search, its organisers lose access, and its{" "}
               {formatNumber(club?.total_events ?? 0)} event
-              {(club?.total_events ?? 0) === 1 ? "" : "s"} go with it. The
-              record is retained in the database and can be restored by a
-              developer, but there is no way to undo this from here.
+              {(club?.total_events ?? 0) === 1 ? "" : "s"} go with it. It
+              goes to Trash, where it can be restored.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className={cn(buttonVariants({ variant: "destructive" }))}
-              onClick={async () => {
-                await remove.mutateAsync(clubId);
-                router.replace("/clubs");
-              }}
+              onClick={() =>
+                // The hook toasts a refusal; only a delete that went through leaves the page.
+                remove.mutate(clubId, { onSuccess: () => router.replace("/clubs") })
+              }
             >
               Delete club
             </AlertDialogAction>

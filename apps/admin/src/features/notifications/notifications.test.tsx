@@ -85,7 +85,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
-const { NotificationBell, NotificationsPage, notificationHref, kindLabel, kindTone, alertLabel, notificationPageSchema, UNREAD_POLL_MS, BELL_LIMIT, NOTIFICATION_KINDS } = await import("./index");
+const { NotificationBell, NotificationsPage, NotificationRow, notificationHref, kindLabel, kindTone, alertLabel, displayKind, notificationPageSchema, NOTIFICATION_KINDS, UNREAD_POLL_MS, BELL_LIMIT } = await import("./index");
 
 /** jsdom cannot navigate; following a link here is only about what it marks read. */
 const stayPut = (e: MouseEvent) => {
@@ -349,5 +349,52 @@ describe("alerts about a club's own Razorpay", () => {
     expect(NOTIFICATION_KINDS).toEqual(expect.arrayContaining(["payment_gateway_connected", "payment_gateway_failed", "payment_gateway_disconnected"]));
     fireEvent.change(kinds, { target: { value: "payment_gateway_failed" } });
     expect(pushes.at(-1)).toBe("/notifications?kind=payment_gateway_failed");
+  });
+});
+
+describe("free plans", () => {
+  const given = item({ id: 9, kind: "plan_assigned", title: "Deepu gave Drama Growth free", body: "Growth, monthly, free until 31 Mar 2027.", club: { id: 7, name: "Drama", slug: "drama" }, subscription_id: 12, data: { plan: "growth", cycle: "monthly", complimentary: true, action: "assign" } });
+  const ending = item({ id: 10, kind: "comp_ending", title: "Drama's free plan ends in 7 days", club: { id: 7, name: "Drama", slug: "drama" }, subscription_id: 12, data: { ends_at: "2027-03-31T23:59:59+05:30" } });
+  const ended = item({ id: 11, kind: "comp_ended", title: "Drama's free plan has ended", club: { id: 7, name: "Drama", slug: "drama" }, subscription_id: 12, data: {} });
+
+  it("names the two new kinds and a plan given free, each in its colour", () => {
+    expect(NOTIFICATION_KINDS).toEqual(expect.arrayContaining(["comp_ending", "comp_ended"]));
+    expect(kindLabel("comp_ending")).toBe("Free plan ending");
+    expect(kindLabel("comp_ended")).toBe("Free plan ended");
+    expect(kindTone("comp_ending")).toBe("grace");
+    expect(kindTone("comp_ended")).toBe("ended");
+    expect(alertLabel(ending)).toBe("Free plan ending");
+    expect(alertLabel(ended)).toBe("Free plan ended");
+    expect(displayKind(given)).toBe("free_plan_given");
+    expect(alertLabel(given)).toBe("Free plan given · Growth");
+    expect(alertLabel(item({ kind: "plan_assigned", data: { complimentary: true } }))).toBe("Free plan given");
+    // A plan given at its price, and grace extended, read as before.
+    expect(alertLabel(item({ kind: "plan_assigned", data: { complimentary: false, plan: "growth" } }))).toBe("Plan assigned");
+    expect(alertLabel(item({ kind: "plan_assigned", data: { action: "extend_grace", complimentary: true } }))).toBe("Grace extended");
+    // About a subscription: they lead to it.
+    expect(notificationHref(ending)).toBe("/subscriptions?q=Drama");
+    expect(notificationHref(given)).toBe("/subscriptions?q=Drama");
+  });
+
+  it("marks each with its own icon", () => {
+    render(
+      <ul>
+        {[given, ending, ended, item({ id: 12, kind: "plan_assigned", data: { plan: "pro" } })].map((n) => (
+          <NotificationRow key={n.id} n={notificationPageSchema.parse({ items: [n], total: 1, unread: 1 }).items[0]!} now={new Date(NOW)} onRead={() => {}} />
+        ))}
+      </ul>
+    );
+    expect(screen.getByRole("img", { name: "Free plan given" })).toHaveAttribute("data-tone", "change");
+    expect(screen.getByRole("img", { name: "Free plan ending" })).toHaveAttribute("data-tone", "grace");
+    expect(screen.getByRole("img", { name: "Free plan ended" })).toHaveAttribute("data-tone", "ended");
+    expect(screen.getByRole("img", { name: "Plan assigned" })).toBeInTheDocument();
+    expect(screen.getByText("Free plan given · Growth")).toBeInTheDocument();
+  });
+
+  it("can be filtered to on the page", async () => {
+    render(<NotificationsPage />);
+    const kind = await screen.findByRole("combobox", { name: "Kind" });
+    expect(within(kind).getByRole("option", { name: "Free plan ending" })).toHaveValue("comp_ending");
+    expect(within(kind).getByRole("option", { name: "Free plan ended" })).toHaveValue("comp_ended");
   });
 });

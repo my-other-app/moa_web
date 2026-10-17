@@ -64,9 +64,8 @@ export function ClubActions({ club }: { club: AdminClub }) {
               {/* Stating the real consequence: the API has no "rejected"
                   state, so rejecting soft-deletes the club. */}
               This removes the club from the platform. It will disappear from
-              club listings and search, and its organisers lose access. The
-              record is retained in the database and can be restored by a
-              developer, but there is no way to undo this from here.
+              club listings and search, and its organisers lose access. It goes
+              to Trash, where it can be restored (still pending approval).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

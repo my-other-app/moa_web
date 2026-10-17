@@ -22,6 +22,8 @@ export const NOTIFICATION_KINDS = [
   "payment_gateway_connected",
   "payment_gateway_failed",
   "payment_gateway_disconnected",
+  "comp_ending",
+  "comp_ended",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -49,15 +51,35 @@ export const KIND_META: Record<NotificationKind, { label: string; tone: KindTone
   payment_gateway_connected: { label: "Razorpay connected", tone: "money" },
   payment_gateway_failed: { label: "Razorpay check failed", tone: "failure" },
   payment_gateway_disconnected: { label: "Razorpay disconnected", tone: "ended" },
+  comp_ending: { label: "Free plan ending", tone: "grace" },
+  comp_ended: { label: "Free plan ended", tone: "ended" },
+};
+
+/**
+ * `plan_assigned` carrying `data.complimentary`: an admin gave the plan
+ * free. Shown as a kind of its own (its word and its mark), though the
+ * server files it under plan_assigned.
+ */
+export const FREE_PLAN_GIVEN = "free_plan_given";
+
+/** The kind an alert reads as: its own, or "free plan given" for a plan given free. */
+export function displayKind(n: Pick<AdminNotification, "kind" | "data">): string {
+  if (n.kind === "plan_assigned" && n.data?.complimentary === true && n.data?.action !== "extend_grace") return FREE_PLAN_GIVEN;
+  return n.kind;
+}
+
+const DISPLAY_META: Record<string, { label: string; tone: KindTone }> = {
+  ...KIND_META,
+  [FREE_PLAN_GIVEN]: { label: "Free plan given", tone: "change" },
 };
 
 /** A kind this build has a word for, else the server's own, readable. */
 export function kindLabel(kind: string): string {
-  return (KIND_META as Record<string, { label: string }>)[kind]?.label ?? kind.replace(/_/g, " ");
+  return DISPLAY_META[kind]?.label ?? kind.replace(/_/g, " ");
 }
 
 export function kindTone(kind: string): KindTone {
-  return (KIND_META as Record<string, { tone: KindTone }>)[kind]?.tone ?? "change";
+  return DISPLAY_META[kind]?.tone ?? "change";
 }
 
 export const notificationSchema = z.object({
@@ -123,6 +145,10 @@ export function alertLabel(n: Pick<AdminNotification, "kind" | "data">): string 
     const by = text(data.by);
     if (by === "admin") return "Razorpay disabled by an admin";
     if (by === "club") return "Razorpay disconnected by the club";
+  }
+  if (displayKind(n) === FREE_PLAN_GIVEN) {
+    const plan = text(data.plan_name) ?? (text(data.plan) ? planWords(text(data.plan)!) : null);
+    return plan ? `Free plan given · ${plan}` : kindLabel(FREE_PLAN_GIVEN);
   }
   return kindLabel(n.kind);
 }

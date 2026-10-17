@@ -1,0 +1,171 @@
+{
+  "mrr_paise": 1234567800,
+  "arr_paise": 14814813600,
+  "counts": {
+    "paying": 18,
+    "trialing": 2,
+    "complimentary": 3,
+    "past_due": 3,
+    "in_grace": 2,
+    "paused": 1,
+    "pending": 4,
+    "free_clubs": 41,
+    "total_clubs": 64
+  },
+  "by_plan": [
+    {
+      "plan_id": 3,
+      "plan_key": "growth",
+      "plan_name": "Growth",
+      "paying": 12,
+      "trialing": 2,
+      "complimentary": 2,
+      "mrr_paise": 1798800
+    },
+    {
+      "plan_id": 4,
+      "plan_key": "pro",
+      "plan_name": "Pro",
+      "paying": 6,
+      "trialing": 0,
+      "complimentary": 1,
+      "mrr_paise": 1799400
+    }
+  ],
+  "by_cycle": {
+    "monthly": {
+      "paying": 11,
+      "mrr_paise": 1648900
+    },
+    "yearly": {
+      "paying": 7,
+      "mrr_paise": 1949300
+    }
+  },
+  "collected": {
+    "this_month_paise": 1498000,
+    "last_month_paise": 1348100,
+    "year_to_date_paise": 7144600,
+    "all_time_paise": 8592700,
+    "refunded_paise": 249800
+  },
+  "series": [
+    {
+      "month": "2025-11",
+      "collected_paise": 0,
+      "refunded_paise": 0,
+      "new_paying": 0,
+      "new_trials": 1,
+      "cancelled": 0,
+      "new_complimentary": 0
+    },
+    {
+      "month": "2025-12",
+      "collected_paise": 149900,
+      "refunded_paise": 0,
+      "new_paying": 2,
+      "new_trials": 2,
+      "cancelled": 0,
+      "new_complimentary": 0
+    },
+    {
+      "month": "2026-01",
+      "collected_paise": 299800,
+      "refunded_paise": 0,
+      "new_paying": 3,
+      "new_trials": 1,
+      "cancelled": 0,
+      "new_complimentary": 0
+    },
+    {
+      "month": "2026-02",
+      "collected_paise": 449700,
+      "refunded_paise": 0,
+      "new_paying": 1,
+      "new_trials": 2,
+      "cancelled": 0,
+      "new_complimentary": 0
+    },
+    {
+      "month": "2026-03",
+      "collected_paise": 449700,
+      "refunded_paise": 149900,
+      "new_paying": 2,
+      "new_trials": 1,
+      "cancelled": 1,
+      "new_complimentary": 0
+    },
+    {
+      "month": "2026-04",
+      "collected_paise": 599600,
+      "refunded_paise": 0,
+      "new_paying": 3,
+      "new_trials": 2,
+      "cancelled": 0,
+      "new_complimentary": 0
+    },
+    {
+      "month": "2026-05",
+      "collected_paise": 749500,
+      "refunded_paise": 0,
+      "new_paying": 1,
+      "new_trials": 1,
+      "cancelled": 0,
+      "new_complimentary": 0
+    },
+    {
+      "month": "2026-06",
+      "collected_paise": 899400,
+      "refunded_paise": 0,
+      "new_paying": 2,
+      "new_trials": 2,
+      "cancelled": 0,
+      "new_complimentary": 0
+    },
+    {
+      "month": "2026-07",
+      "collected_paise": 1049300,
+      "refunded_paise": 0,
+      "new_paying": 3,
+      "new_trials": 1,
+      "cancelled": 0,
+      "new_complimentary": 0
+    },
+    {
+      "month": "2026-08",
+      "collected_paise": 1199200,
+      "refunded_paise": 99900,
+      "new_paying": 1,
+      "new_trials": 2,
+      "cancelled": 1,
+      "new_complimentary": 0
+    },
+    {
+      "month": "2026-09",
+      "collected_paise": 1348100,
+      "refunded_paise": 0,
+      "new_paying": 2,
+      "new_trials": 1,
+      "cancelled": 0,
+      "new_complimentary": 1
+    },
+    {
+      "month": "2026-10",
+      "collected_paise": 1498000,
+      "refunded_paise": 0,
+      "new_paying": 3,
+      "new_trials": 2,
+      "cancelled": 0,
+      "new_complimentary": 1
+    }
+  ],
+  "upcoming_renewals": {
+    "next_30_days_paise": 2997000,
+    "count": 9
+  },
+  "ticket_sales": {
+    "this_month_paise": 45678900,
+    "all_time_paise": 987654300,
+    "note": "Paid out to clubs on their payout schedule."
+  }
+}

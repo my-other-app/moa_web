@@ -1,0 +1,306 @@
+{
+  "items": [
+    {
+      "id": 100,
+      "club": {
+        "id": 5,
+        "name": "Circuit",
+        "slug": "circuit"
+      },
+      "plan_name": "Growth",
+      "cycle": "yearly",
+      "amount_paise": 149900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1000",
+      "charged_at": "2026-10-01T10:00:00+05:30"
+    },
+    {
+      "id": 101,
+      "club": {
+        "id": 6,
+        "name": "Robotics",
+        "slug": "robotics"
+      },
+      "plan_name": "Pro",
+      "cycle": "monthly",
+      "amount_paise": 299900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1001",
+      "charged_at": "2026-10-02T10:00:00+05:30"
+    },
+    {
+      "id": 102,
+      "club": {
+        "id": 5,
+        "name": "Circuit",
+        "slug": "circuit"
+      },
+      "plan_name": "Growth",
+      "cycle": "monthly",
+      "amount_paise": 149900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1002",
+      "charged_at": "2026-10-03T10:00:00+05:30"
+    },
+    {
+      "id": 103,
+      "club": {
+        "id": 6,
+        "name": "Robotics",
+        "slug": "robotics"
+      },
+      "plan_name": "Pro",
+      "cycle": "yearly",
+      "amount_paise": 299900,
+      "refunded_paise": 149900,
+      "status": "refunded",
+      "razorpay_payment_id": "pay_1003",
+      "charged_at": "2026-10-04T10:00:00+05:30"
+    },
+    {
+      "id": 104,
+      "club": {
+        "id": 5,
+        "name": "Circuit",
+        "slug": "circuit"
+      },
+      "plan_name": "Growth",
+      "cycle": "monthly",
+      "amount_paise": 149900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1004",
+      "charged_at": "2026-10-05T10:00:00+05:30"
+    },
+    {
+      "id": 105,
+      "club": {
+        "id": 6,
+        "name": "Robotics",
+        "slug": "robotics"
+      },
+      "plan_name": "Pro",
+      "cycle": "monthly",
+      "amount_paise": 299900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1005",
+      "charged_at": "2026-10-06T10:00:00+05:30"
+    },
+    {
+      "id": 106,
+      "club": {
+        "id": 5,
+        "name": "Circuit",
+        "slug": "circuit"
+      },
+      "plan_name": "Growth",
+      "cycle": "yearly",
+      "amount_paise": 149900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1006",
+      "charged_at": "2026-10-07T10:00:00+05:30"
+    },
+    {
+      "id": 107,
+      "club": {
+        "id": 6,
+        "name": "Robotics",
+        "slug": "robotics"
+      },
+      "plan_name": "Pro",
+      "cycle": "monthly",
+      "amount_paise": 299900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1007",
+      "charged_at": "2026-10-08T10:00:00+05:30"
+    },
+    {
+      "id": 108,
+      "club": {
+        "id": 5,
+        "name": "Circuit",
+        "slug": "circuit"
+      },
+      "plan_name": "Growth",
+      "cycle": "monthly",
+      "amount_paise": 149900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1008",
+      "charged_at": "2026-10-09T10:00:00+05:30"
+    },
+    {
+      "id": 109,
+      "club": {
+        "id": 6,
+        "name": "Robotics",
+        "slug": "robotics"
+      },
+      "plan_name": "Pro",
+      "cycle": "yearly",
+      "amount_paise": 299900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1009",
+      "charged_at": "2026-10-10T10:00:00+05:30"
+    },
+    {
+      "id": 110,
+      "club": {
+        "id": 5,
+        "name": "Circuit",
+        "slug": "circuit"
+      },
+      "plan_name": "Growth",
+      "cycle": "monthly",
+      "amount_paise": 149900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1010",
+      "charged_at": "2026-10-11T10:00:00+05:30"
+    },
+    {
+      "id": 111,
+      "club": {
+        "id": 6,
+        "name": "Robotics",
+        "slug": "robotics"
+      },
+      "plan_name": "Pro",
+      "cycle": "monthly",
+      "amount_paise": 299900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1011",
+      "charged_at": "2026-10-12T10:00:00+05:30"
+    },
+    {
+      "id": 112,
+      "club": {
+        "id": 5,
+        "name": "Circuit",
+        "slug": "circuit"
+      },
+      "plan_name": "Growth",
+      "cycle": "yearly",
+      "amount_paise": 149900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1012",
+      "charged_at": "2026-10-13T10:00:00+05:30"
+    },
+    {
+      "id": 113,
+      "club": {
+        "id": 6,
+        "name": "Robotics",
+        "slug": "robotics"
+      },
+      "plan_name": "Pro",
+      "cycle": "monthly",
+      "amount_paise": 299900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1013",
+      "charged_at": "2026-10-14T10:00:00+05:30"
+    },
+    {
+      "id": 114,
+      "club": {
+        "id": 5,
+        "name": "Circuit",
+        "slug": "circuit"
+      },
+      "plan_name": "Growth",
+      "cycle": "monthly",
+      "amount_paise": 149900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1014",
+      "charged_at": "2026-10-15T10:00:00+05:30"
+    },
+    {
+      "id": 115,
+      "club": {
+        "id": 6,
+        "name": "Robotics",
+        "slug": "robotics"
+      },
+      "plan_name": "Pro",
+      "cycle": "yearly",
+      "amount_paise": 299900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1015",
+      "charged_at": "2026-10-01T10:00:00+05:30"
+    },
+    {
+      "id": 116,
+      "club": {
+        "id": 5,
+        "name": "Circuit",
+        "slug": "circuit"
+      },
+      "plan_name": "Growth",
+      "cycle": "monthly",
+      "amount_paise": 149900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1016",
+      "charged_at": "2026-10-02T10:00:00+05:30"
+    },
+    {
+      "id": 117,
+      "club": {
+        "id": 6,
+        "name": "Robotics",
+        "slug": "robotics"
+      },
+      "plan_name": "Pro",
+      "cycle": "monthly",
+      "amount_paise": 299900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1017",
+      "charged_at": "2026-10-03T10:00:00+05:30"
+    },
+    {
+      "id": 118,
+      "club": {
+        "id": 5,
+        "name": "Circuit",
+        "slug": "circuit"
+      },
+      "plan_name": "Growth",
+      "cycle": "yearly",
+      "amount_paise": 149900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1018",
+      "charged_at": "2026-10-04T10:00:00+05:30"
+    },
+    {
+      "id": 119,
+      "club": {
+        "id": 6,
+        "name": "Robotics",
+        "slug": "robotics"
+      },
+      "plan_name": "Pro",
+      "cycle": "monthly",
+      "amount_paise": 299900,
+      "refunded_paise": 0,
+      "status": "captured",
+      "razorpay_payment_id": "pay_1019",
+      "charged_at": "2026-10-05T10:00:00+05:30"
+    }
+  ],
+  "total": 45,
+  "sum_paise": 8592700
+}
