@@ -71,8 +71,9 @@ export const navItems: NavItem[] = [
   { href: "/security", label: "Security", icon: ShieldCheckIcon, group: "manage" },
   // Every role may look; only the club's own account can change the plan (the page says so).
   { href: "/billing", label: "Plan & billing", icon: CreditCardIcon, group: "manage" },
-  // The club's own Razorpay. Free on every plan, so no lock; every role sees it, only the owner changes it.
-  { href: "/payments", label: "Payments", icon: BanknoteIcon, group: "manage" },
+  // The club's own Razorpay. Free on every plan, so no lock. The owner and admins may read it (the server's
+  // `money`, as with Finance); only the owner changes it.
+  { href: "/payments", label: "Payments", icon: BanknoteIcon, group: "manage", needs: "money" },
   { href: "/profile", label: "Club profile", icon: BuildingIcon, group: "manage", needs: "club_profile" },
 ];
 

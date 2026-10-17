@@ -36,7 +36,7 @@ import { useCan } from "@/hooks/use-can";
 import { SavedViews } from "@/components/saved-views";
 import { fetchPayments } from "../api";
 import { usePaymentTotals, usePayments, useRefundPayment } from "../queries";
-import { PAYMENT_GATEWAYS, PAYMENT_STATUSES, gatewayLabel, type Payment } from "../schemas";
+import { PAYMENT_GATEWAYS, PAYMENT_STATUSES, gatewayLabel, type Payment, type PaymentTotalsSplit } from "../schemas";
 
 /**
  * Every payment the platform has taken.
@@ -245,23 +245,46 @@ function Totals() {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card, i) => (
-        <div
-          key={card.label}
-          style={stagger(i)}
-          className="animate-in fade-in-0 slide-in-from-bottom-2 duration-500 motion-reduce:animate-none"
-        >
-          <StatCard
-            label={card.label}
-            value={card.value}
-            caption={card.caption}
-            tone={card.tone}
-            icon={<WalletIcon />}
-            className={cn("h-full", hoverLift)}
-          />
+    <div className="space-y-2.5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map((card, i) => (
+          <div
+            key={card.label}
+            style={stagger(i)}
+            className="animate-in fade-in-0 slide-in-from-bottom-2 duration-500 motion-reduce:animate-none"
+          >
+            <StatCard
+              label={card.label}
+              value={card.value}
+              caption={card.caption}
+              tone={card.tone}
+              icon={<WalletIcon />}
+              className={cn("h-full", hoverLift)}
+            />
+          </div>
+        ))}
+      </div>
+      {data?.platform && data.club ? (
+        <div role="group" aria-label="Split by account">
+          <dl className="text-muted-foreground m-0 grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
+            <SplitRow label="MyOtherApp's account" split={data.platform} />
+            <SplitRow label="Clubs' own accounts" split={data.club} />
+          </dl>
         </div>
-      ))}
+      ) : null}
+    </div>
+  );
+}
+
+/** One account's share, on one line: what MyOtherApp holds, and what went straight to clubs. */
+function SplitRow({ label, split }: { label: string; split: PaymentTotalsSplit }) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-2">
+      <dt className="text-ink font-medium">{label}</dt>
+      <dd className="m-0 tabular-nums">
+        {formatCurrency(split.captured_total)} captured · {formatCurrency(split.refunded_total)} refunded · {formatCurrency(split.net_total)} net
+        {split.failed_count > 0 ? ` · ${formatNumber(split.failed_count)} failed` : ""}
+      </dd>
     </div>
   );
 }

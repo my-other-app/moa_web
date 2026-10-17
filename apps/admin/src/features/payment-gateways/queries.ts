@@ -35,7 +35,10 @@ export function useDisableGateway() {
       toast.success(`Disabled. ${row.club.name}'s new payments go to MyOtherApp's account.`);
       await refresh();
     },
-    onError: (error: Error) => toast.error(error.message || "Could not disable it"),
+    onError: async (error: Error) => {
+      toast.error(error.message || "Could not disable it");
+      await refresh();
+    },
   });
 }
 
@@ -59,6 +62,10 @@ export function useEnableGateway() {
       else toast.warning(said.text);
       await refresh();
     },
-    onError: (error: Error) => toast.error(error.message || "Could not enable it"),
+    // 409 NOT_DISABLED or 404 NO_GATEWAY: the row was out of date. The server's words, and the list read again.
+    onError: async (error: Error) => {
+      toast.error(error.message || "Could not enable it");
+      await refresh();
+    },
   });
 }

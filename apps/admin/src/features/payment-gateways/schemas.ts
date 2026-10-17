@@ -9,8 +9,9 @@ import { z } from "zod";
  * failed        Razorpay refused the keys on the last check
  * disconnected  the club took its keys off
  * disabled      an admin turned it off
+ * replaced      keys the club has since replaced; hidden unless asked for
  */
-export const GATEWAY_STATUSES = ["active", "failed", "disconnected", "disabled"] as const;
+export const GATEWAY_STATUSES = ["active", "failed", "disconnected", "disabled", "replaced"] as const;
 export type GatewayStatus = (typeof GATEWAY_STATUSES)[number];
 
 export const gatewayRowSchema = z.object({
@@ -18,10 +19,14 @@ export const gatewayRowSchema = z.object({
   /* Kept as the server says it: a status this build does not know still shows. */
   status: z.string(),
   key_id: z.string().nullish(),
+  /** How the club connected: "keys" (its own API keys) is the only way so far. */
+  mode: z.string().nullish(),
   verified_at: z.string().nullish(),
   last_webhook_at: z.string().nullish(),
   last_error: z.string().nullish(),
   created_at: z.string().nullish(),
+  /** When it stopped taking payments: disconnected, disabled or replaced. */
+  ended_at: z.string().nullish(),
 });
 export type GatewayRow = z.infer<typeof gatewayRowSchema>;
 
@@ -35,6 +40,7 @@ export const STATUS_LABEL: Record<GatewayStatus, string> = {
   failed: "Failed",
   disconnected: "Disconnected",
   disabled: "Disabled",
+  replaced: "Replaced",
 };
 
 export const STATUS_TONE: Record<GatewayStatus, "default" | "info" | "success" | "warning" | "destructive"> = {
@@ -42,6 +48,7 @@ export const STATUS_TONE: Record<GatewayStatus, "default" | "info" | "success" |
   failed: "destructive",
   disconnected: "default",
   disabled: "warning",
+  replaced: "default",
 };
 
 export function statusLabel(status: string): string {

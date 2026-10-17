@@ -30,11 +30,22 @@ export const paymentSchema = z.object({
 
 export const paymentPageSchema = paginatedSchema(paymentSchema);
 
-export const paymentTotalsSchema = z.object({
+const totalsFields = {
   captured_total: z.number().default(0),
   refunded_total: z.number().default(0),
   net_total: z.number().default(0),
   failed_count: z.number().default(0),
+};
+
+/** One account's share of the totals: MyOtherApp's own, or every club's own Razorpay together. */
+export const paymentTotalsSplitSchema = z.object(totalsFields);
+export type PaymentTotalsSplit = z.infer<typeof paymentTotalsSplitSchema>;
+
+export const paymentTotalsSchema = z.object({
+  ...totalsFields,
+  /* The same four, split by whose Razorpay took the money. Absent (null) from a server that does not split. */
+  platform: paymentTotalsSplitSchema.nullish().catch(null),
+  club: paymentTotalsSplitSchema.nullish().catch(null),
 });
 
 /** The statuses the backend enum actually has. */

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { BanIcon, Loader2Icon, PlugZapIcon } from "lucide-react";
-import { ListFilters, ResourceList, formatDateTime, relativeTime, useListParams } from "@moa/app-kit";
+import { ListFilters, ResourceList, formatDate, formatDateTime, relativeTime, useListParams } from "@moa/app-kit";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,7 +59,7 @@ function DisableButton({ row }: { row: GatewayRow }) {
               disabled={disable.isPending}
               onClick={(event) => {
                 event.preventDefault();
-                disable.mutate(row.club.id, { onSuccess: () => setOpen(false) });
+                disable.mutate(row.club.id, { onSettled: () => setOpen(false) });
               }}
             >
               Disable
@@ -96,7 +96,8 @@ function EnableButton({ row }: { row: GatewayRow }) {
               disabled={enable.isPending}
               onClick={(event) => {
                 event.preventDefault();
-                enable.mutate(row.club.id, { onSuccess: () => setOpen(false) });
+                // Refused or not, the dialog closes: the toast says what happened, and the row is read again.
+                enable.mutate(row.club.id, { onSettled: () => setOpen(false) });
               }}
             >
               Enable
@@ -139,14 +140,24 @@ const columns: DataTableColumn<GatewayRow>[] = [
   {
     key: "status",
     header: "Status",
-    cell: (row) => <StatusBadge tone={statusTone(row.status)} label={statusLabel(row.status)} />,
+    cell: (row) => (
+      <div className="flex flex-col items-start gap-0.5">
+        <StatusBadge tone={statusTone(row.status)} label={statusLabel(row.status)} />
+        {row.ended_at ? <span className="text-muted-foreground text-[11px]">Ended {formatDate(row.ended_at)}</span> : null}
+      </div>
+    ),
   },
   {
     key: "key",
     header: "Key",
     className: "hidden lg:table-cell",
     headerClassName: "hidden lg:table-cell",
-    cell: (row) => <code className="bg-muted block truncate rounded px-1.5 py-0.5 text-xs">{row.key_id ?? "--"}</code>,
+    cell: (row) => (
+      <div className="min-w-0">
+        <code className="bg-muted block truncate rounded px-1.5 py-0.5 text-xs">{row.key_id ?? "--"}</code>
+        {row.mode ? <p className="text-muted-foreground mt-0.5 truncate text-[11px]">{row.mode === "keys" ? "API keys" : row.mode}</p> : null}
+      </div>
+    ),
   },
   {
     key: "verified",
@@ -226,6 +237,7 @@ export function GatewaysList() {
             {
               key: "status",
               label: "Status",
+              // Replaced keys are left out unless asked for here (the server's default).
               options: GATEWAY_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] })),
             },
           ]}

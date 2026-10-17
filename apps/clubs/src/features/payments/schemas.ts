@@ -92,21 +92,38 @@ export const GATEWAY_UNAVAILABLE = "GATEWAY_UNAVAILABLE";
 export const OWNER_ONLY = "OWNER_ONLY";
 /** 409 to PUT, verify and DELETE while MyOtherApp has the account turned off. */
 export const GATEWAY_DISABLED = "GATEWAY_DISABLED";
+/** 403 to GET for editors and door staff: only the owner and admins see payment settings. */
+export const ROLE_FORBIDDEN = "ROLE_FORBIDDEN";
+/** 502 to PUT: Razorpay could not be reached to check the keys. */
+export const RAZORPAY_UNREACHABLE = "RAZORPAY_UNREACHABLE";
+/** 404 to verify: there is no account on file to check. */
+export const NO_GATEWAY = "NO_GATEWAY";
 
 export const TEST_KEYS_MESSAGE =
   "These are test mode keys. Switch the Razorpay Dashboard to Live mode and generate keys there — a live Key ID starts with rzp_live_.";
 export const UNAVAILABLE_MESSAGE = "Connecting your own Razorpay isn't available right now. Your ticket payments still go through MyOtherApp. Try again later.";
 export const OWNER_ONLY_MESSAGE = "Only the club's own account can change where payments go.";
 export const DISABLED_MESSAGE = "MyOtherApp has turned off your own Razorpay. Talk to us.";
+export const UNREACHABLE_MESSAGE = "We couldn't reach Razorpay to check the keys. Try again in a minute.";
+export const NO_GATEWAY_MESSAGE = "There's no Razorpay account on file to check. Connect one first.";
+export const ROLE_FORBIDDEN_MESSAGE = "Only the club owner and admins can see payment settings";
 
 // ─── Words ──────────────────────────────────────────────────────────────
 
 /** Where to find the live keys, step by step, as Razorpay's Dashboard names things. */
 export const KEY_STEPS = [
   "Sign in to the Razorpay Dashboard and switch to Live mode (the toggle at the top).",
-  "Open Accounts & Settings → API Keys.",
+  "Open Account & Settings → API Keys.",
   "Click Generate Key. Copy the Key ID and the Key secret — Razorpay shows the secret only once.",
 ] as const;
 
-/** Step 2: telling Razorpay where to send its payment notices. */
-export const WEBHOOK_STEPS = ["In the Razorpay Dashboard (Live mode), open Accounts & Settings → Webhooks.", "Click Add new webhook."] as const;
+/**
+ * Step 2, first: payments must be captured automatically. Left on manual,
+ * Razorpay only authorises them, so attendees are charged but never
+ * confirmed.
+ */
+export const CAPTURE_STEP = "In Razorpay → Account & Settings → Payment capture, turn on automatic capture.";
+export const CAPTURE_WHY = "Payments must be captured automatically, or attendees are charged but never confirmed.";
+
+/** Then: telling Razorpay where to send its payment notices. */
+export const WEBHOOK_STEPS = ["In the Razorpay Dashboard (Live mode), open Account & Settings → Webhooks.", "Click Add new webhook."] as const;

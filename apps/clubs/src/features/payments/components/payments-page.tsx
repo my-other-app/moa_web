@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CopyIcon, KeyRoundIcon, LandmarkIcon, Loader2Icon, MailIcon, RefreshCwIcon, UnplugIcon } from "lucide-react";
+import { CopyIcon, KeyRoundIcon, LandmarkIcon, Loader2Icon, LockIcon, MailIcon, RefreshCwIcon, UnplugIcon } from "lucide-react";
 import { formatDateTime, relativeTime } from "@moa/app-kit";
 import {
   AlertDialog,
@@ -27,8 +27,20 @@ import {
 
 import { SALES_EMAIL, mailto } from "@/features/billing/schemas";
 
-import { gatewayErrorMessage, isGatewayDisabled, useDisconnectGateway, useGateway, useSaveGateway, useVerifyGateway, type KeysProblem } from "../queries";
-import { KEY_STEPS, STATUS_LABEL, STATUS_TONE, WEBHOOK_STEPS, gatewayKeysSchema, hasAccount, type Gateway, type GatewayKeys } from "../schemas";
+import { gatewayErrorMessage, isGatewayDisabled, isRoleForbidden, useDisconnectGateway, useGateway, useSaveGateway, useVerifyGateway, type KeysProblem } from "../queries";
+import {
+  CAPTURE_STEP,
+  CAPTURE_WHY,
+  KEY_STEPS,
+  ROLE_FORBIDDEN_MESSAGE,
+  STATUS_LABEL,
+  STATUS_TONE,
+  WEBHOOK_STEPS,
+  gatewayKeysSchema,
+  hasAccount,
+  type Gateway,
+  type GatewayKeys,
+} from "../schemas";
 
 /**
  * Payments: where the club's ticket money goes.
@@ -40,8 +52,10 @@ import { KEY_STEPS, STATUS_LABEL, STATUS_TONE, WEBHOOK_STEPS, gatewayKeysSchema,
  * (the webhook), and the page keeps that step lit until the first arrives.
  *
  * Only the club's own account may connect, check, replace or disconnect
- * (the server's `can_manage`, and 403 OWNER_ONLY behind it). Team members
- * see the same page without its buttons. While MyOtherApp has the account
+ * (the server's `can_manage`, and 403 OWNER_ONLY behind it). Admins see the
+ * same page without its buttons (and without the webhook secret); editors
+ * and door staff may not read it at all (403 ROLE_FORBIDDEN), and are told
+ * so calmly rather than shown an error. While MyOtherApp has the account
  * turned off, nobody may: the server refuses every write with 409
  * GATEWAY_DISABLED, so the page offers none, only the way to talk to us.
  */
@@ -56,7 +70,15 @@ export function PaymentsPage() {
         <p className="text-ink-2 mt-1 text-[13px]">Where the money from your paid events goes</p>
       </header>
 
-      {q.isError ? (
+      {q.isError && isRoleForbidden(q.error) ? (
+        <FigurePanel className="flex max-w-[560px] flex-col items-start gap-3 p-5" role="region" aria-label="Payment settings">
+          <span className="bg-sunken text-ink-2 grid size-10 place-items-center rounded-xl">
+            <LockIcon className="size-4" />
+          </span>
+          <h3 className="text-ink m-0 text-[16px] font-semibold tracking-[-0.01em]">{ROLE_FORBIDDEN_MESSAGE}</h3>
+          <p className="text-ink-2 m-0 text-[13px] leading-[1.55]">Ask the club&apos;s owner if you need to know where your ticket payments go.</p>
+        </FigurePanel>
+      ) : q.isError ? (
         <EmptyState tone="muted" title="Could not load your payment settings" description="Try reloading the page." />
       ) : !g ? (
         <div className="grid gap-3.5 lg:grid-cols-[1.4fr_1fr]">
@@ -261,7 +283,9 @@ function Connected({ g }: { g: Gateway }) {
           <p className="text-ink-2 m-0 mt-1 text-[13px] leading-[1.55]">
             {status === "active"
               ? "New payments for your paid events go straight to this Razorpay account."
-              : "Until this is fixed, new payments for your paid events go through MyOtherApp's account."}
+              : disabled
+                ? "While it's off, new payments go to MyOtherApp's account."
+                : "Until this is fixed, new payments go to MyOtherApp's account."}
           </p>
         </div>
       </div>
@@ -372,22 +396,26 @@ function WebhookSetup({ g }: { g: Gateway }) {
   const verify = useVerifyGateway();
   // Lit until Razorpay's first notice arrives: the account takes payments, but we would not hear of them.
   const todo = !g.last_webhook_at;
-  // The Dashboard steps first, then what to fill in on Razorpay's form.
-  const after = WEBHOOK_STEPS.length;
+  // Automatic capture first, then the webhook: the Dashboard steps, then what to fill in on Razorpay's form.
+  const after = 1 + WEBHOOK_STEPS.length;
 
   return (
-    <FigurePanel className={cn("flex flex-col gap-3 p-4", todo && "ring-brand ring-2")} role="region" aria-label="Step 2: payment notices" data-todo={todo || undefined}>
+    <FigurePanel className={cn("flex flex-col gap-3 p-4", todo && "ring-brand ring-2")} role="region" aria-label="Step 2: Razorpay settings" data-todo={todo || undefined}>
       <CardLabel right={todo ? <StatusBadge label="To do" tone="warning" /> : <StatusBadge label="Notices arriving" tone="success" />}>Step 2</CardLabel>
       <div>
-        <h3 className="text-ink m-0 text-[17px] font-semibold tracking-[-0.01em]">Send Razorpay&apos;s payment notices to MyOtherApp</h3>
+        <h3 className="text-ink m-0 text-[17px] font-semibold tracking-[-0.01em]">Finish setting up Razorpay</h3>
         <p className="text-ink-2 m-0 mt-1 text-[13px] leading-[1.55]">
-          Razorpay tells MyOtherApp about each payment with a webhook, so every ticket is confirmed even when the buyer closes the page before it finishes. Set it up once:
+          Two settings in your Razorpay Dashboard, once: payments captured automatically, and a webhook so Razorpay tells MyOtherApp about each payment — every ticket is confirmed even when the buyer closes the page before it finishes.
         </p>
       </div>
 
       <ol className="m-0 flex list-none flex-col gap-3 p-0 text-[13px]">
+        <Step n={1}>
+          {CAPTURE_STEP}
+          <span className="text-caution mt-0.5 block text-[12.5px] font-medium">{CAPTURE_WHY}</span>
+        </Step>
         {WEBHOOK_STEPS.map((text, i) => (
-          <Step key={text} n={i + 1}>
+          <Step key={text} n={i + 2}>
             {text}
           </Step>
         ))}

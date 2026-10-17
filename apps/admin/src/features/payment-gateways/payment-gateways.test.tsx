@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { ApiError } from "@moa/api";
 import { toast } from "@moa/ui";
 
 /**
@@ -25,10 +26,12 @@ function row(over: Record<string, unknown> = {}) {
     club: { id: 5, name: "Circuit", slug: "circuit" },
     status: "active",
     key_id: "rzp_live_Circ1",
+    mode: "keys",
     verified_at: ago(120 * MIN),
     last_webhook_at: ago(10 * MIN),
     last_error: null as string | null,
     created_at: ago(5 * 1440 * MIN),
+    ended_at: null as string | null,
     ...over,
   };
 }
@@ -36,6 +39,8 @@ function row(over: Record<string, unknown> = {}) {
 let ROWS: Array<ReturnType<typeof row>> = [];
 /** What Razorpay makes of the stored keys when one is enabled again. */
 let enableGives: { status: string; last_error: string | null } = { status: "active", last_error: null };
+/** When set, enabling is refused with it (409 NOT_DISABLED, 404 NO_GATEWAY). */
+let enableRefusal: ApiError | null = null;
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: (url: string) => pushes.push(url), replace: (url: string) => pushes.push(url), refresh: vi.fn(), prefetch: vi.fn() }),
@@ -57,6 +62,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       post: vi.fn(async (path: string) => {
         posts.push(path);
         const id = Number(path.split("/").at(-2));
+        if (path.endsWith("/enable") && enableRefusal) throw enableRefusal;
         const next = path.endsWith("/enable") ? enableGives : { status: "disabled" };
         ROWS = ROWS.map((r) => (r.club.id === id ? { ...r, ...next } : r));
         return ROWS.find((r) => r.club.id === id)!;
@@ -68,12 +74,13 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
-const { GatewaysList, gatewayPageSchema, canDisable, canEnable, statusLabel, enabledMessage } = await import("./index");
+const { GatewaysList, gatewayPageSchema, canDisable, canEnable, statusLabel, enabledMessage, GATEWAY_STATUSES } = await import("./index");
 const { navItems } = await import("@/components/nav-items");
 
 beforeEach(() => {
   vi.restoreAllMocks();
   enableGives = { status: "active", last_error: null };
+  enableRefusal = null;
   role = "owner";
   search = "";
   pushes.length = 0;
@@ -82,7 +89,7 @@ beforeEach(() => {
   ROWS = [
     row(),
     row({ club: { id: 6, name: "Robotics", slug: "robotics" }, status: "failed", key_id: "rzp_live_Robo2", last_webhook_at: null, last_error: "Authentication failed" }),
-    row({ club: { id: 7, name: "Drama", slug: "drama" }, status: "disabled", key_id: "rzp_live_Dram3" }),
+    row({ club: { id: 7, name: "Drama", slug: "drama" }, status: "disabled", key_id: "rzp_live_Dram3", ended_at: "2026-10-15T10:00:00+05:30" }),
     row({ club: { id: 8, name: "Quiz", slug: "quiz" }, status: "disconnected", key_id: "rzp_live_Quiz4", verified_at: null, last_webhook_at: null }),
   ];
 });
@@ -92,8 +99,13 @@ const rowOf = (club: string) => screen.getByRole("link", { name: club }).closest
 
 describe("the shapes", () => {
   it("reads a page, keeps a status it does not know, and offers Disable only where a payment could still land", () => {
-    const page = gatewayPageSchema.parse({ items: [row({ status: "paused_by_razorpay" })], total: 1 });
-    expect(page.items[0]).toMatchObject({ status: "paused_by_razorpay", club: { id: 5, name: "Circuit" } });
+    const page = gatewayPageSchema.parse({ items: [row({ status: "paused_by_razorpay", ended_at: "2026-10-15T10:00:00+05:30" })], total: 1 });
+    expect(page.items[0]).toMatchObject({ status: "paused_by_razorpay", club: { id: 5, name: "Circuit" }, mode: "keys", ended_at: "2026-10-15T10:00:00+05:30" });
+    // Replaced keys are hidden by the server unless the filter asks for them.
+    expect(GATEWAY_STATUSES).toContain("replaced");
+    expect(statusLabel("replaced")).toBe("Replaced");
+    expect(canDisable({ status: "replaced" })).toBe(false);
+    expect(canEnable({ status: "replaced" })).toBe(false);
     expect(statusLabel("paused_by_razorpay")).toBe("paused by razorpay");
     expect(statusLabel("disabled")).toBe("Disabled");
     expect(canDisable({ status: "active" })).toBe(true);
@@ -131,6 +143,9 @@ describe("club gateways", () => {
     expect(robotics.getByText("Authentication failed")).toBeInTheDocument();
 
     expect(within(rowOf("Drama")).getByText("Disabled")).toBeInTheDocument();
+    expect(within(rowOf("Drama")).getByText(/^Ended /)).toBeInTheDocument();
+    expect(circuit.queryByText(/^Ended /)).not.toBeInTheDocument();
+    expect(circuit.getByText("API keys")).toBeInTheDocument();
     expect(within(rowOf("Quiz")).getByText("Disconnected")).toBeInTheDocument();
     expect(screen.getByText("4 total")).toBeInTheDocument();
   });
@@ -201,6 +216,25 @@ describe("club gateways", () => {
     await waitFor(() => expect(warned).toHaveBeenCalledWith("Enabled, but Razorpay refused Drama's stored keys: Authentication failed. Its payments stay with MyOtherApp until the club replaces them."));
     expect(ok).not.toHaveBeenCalled();
     await waitFor(() => expect(within(rowOf("Drama")).getByText("Failed")).toBeInTheDocument());
+  });
+
+  it("shows the server's words when enabling is refused (409 NOT_DISABLED, 404 NO_GATEWAY), and reads the list again", async () => {
+    for (const [status, code, message] of [
+      [409, "NOT_DISABLED", "This gateway isn't disabled."],
+      [404, "NO_GATEWAY", "This club has no Razorpay gateway."],
+    ] as const) {
+      enableRefusal = new ApiError({ message, status, errorCode: code });
+      const said = vi.spyOn(toast, "error");
+      const { unmount } = render(<GatewaysList />);
+      fireEvent.click(await screen.findByRole("button", { name: "Enable Razorpay for Drama" }));
+      const before = listCalls().length;
+      fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Enable" }));
+      await waitFor(() => expect(said).toHaveBeenCalledWith(message));
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+      await waitFor(() => expect(listCalls().length).toBeGreaterThan(before));
+      unmount();
+      said.mockRestore();
+    }
   });
 
   it("offers support and viewers the list without Disable or Enable", async () => {

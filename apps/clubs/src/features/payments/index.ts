@@ -1,6 +1,6 @@
 export { PaymentsPage } from "./components/payments-page";
 export { PaymentsToNote } from "./components/payments-to-note";
-export { useGateway, useSaveGateway, useVerifyGateway, useDisconnectGateway, gatewayErrorMessage, isGatewayDisabled, GATEWAY_KEY, type KeysProblem } from "./queries";
+export { useGateway, useSaveGateway, useVerifyGateway, useDisconnectGateway, gatewayErrorMessage, isGatewayDisabled, isRoleForbidden, GATEWAY_KEY, type KeysProblem } from "./queries";
 export { fetchGateway, saveGateway, verifyGateway, disconnectGateway } from "./api";
 export {
   GATEWAY_STATUSES,

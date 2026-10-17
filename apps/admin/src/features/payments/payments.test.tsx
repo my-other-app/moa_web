@@ -4,9 +4,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 /**
  * The Payments list's "Goes to": whose Razorpay took each payment
  * (`gateway: "club" | "platform"` on the rows of GET /payments/admin/list),
- * and the filter for it. The totals are left as they are.
+ * the filter for it, and the totals split the same way (`platform` and
+ * `club` on GET /payments/admin/totals, each with the four top-level fields).
  */
 let search = "";
+const TOTALS = { captured_total: 750, refunded_total: 100, net_total: 650, failed_count: 2 };
+let totals: Record<string, unknown> = TOTALS;
 const gets: Array<{ path: string; query?: Record<string, unknown> }> = [];
 
 function payment(over: Record<string, unknown> = {}) {
@@ -50,7 +53,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       get: vi.fn(async (path: string, init?: { query?: Record<string, unknown> }) => {
         gets.push({ path, query: init?.query });
         if (path === "/api/v1/payments/admin/list") return { items: ROWS, total: ROWS.length, limit: 20, offset: 0, next: null };
-        if (path === "/api/v1/payments/admin/totals") return { captured_total: 750, refunded_total: 0, net_total: 750, failed_count: 0 };
+        if (path === "/api/v1/payments/admin/totals") return totals;
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(),
@@ -64,6 +67,7 @@ const { render } = await import("@/test/render");
 const { PaymentsTable, paymentSchema, gatewayLabel } = await import("./index");
 
 beforeEach(() => {
+  totals = TOTALS;
   search = "";
   gets.length = 0;
 });
@@ -104,5 +108,27 @@ describe("where a payment went", () => {
     render(<PaymentsTable />);
     await waitFor(() => expect(listCalls()).toHaveLength(1));
     expect(listCalls()[0]!.query).toMatchObject({ gateway: "club", status: "captured" });
+  });
+});
+
+describe("the totals' split", () => {
+  it("shows MyOtherApp's account beside the clubs' own accounts", async () => {
+    totals = {
+      ...TOTALS,
+      platform: { captured_total: 500, refunded_total: 100, net_total: 400, failed_count: 2 },
+      club: { captured_total: 250, refunded_total: 0, net_total: 250, failed_count: 0 },
+    };
+    render(<PaymentsTable />);
+    const split = await screen.findByRole("group", { name: "Split by account" });
+    const line = (label: string) => within(split).getByText(label).closest("div")!;
+    expect(line("MyOtherApp's account")).toHaveTextContent(/500.* captured · .*100.* refunded · .*400.* net · 2 failed/);
+    expect(line("Clubs' own accounts")).toHaveTextContent(/250.* captured · .*0.* refunded · .*250.* net$/);
+  });
+
+  it("is left out by a server that does not split", async () => {
+    render(<PaymentsTable />);
+    await screen.findByRole("link", { name: "Asha" });
+    await waitFor(() => expect(gets.some((g) => g.path === "/api/v1/payments/admin/totals")).toBe(true));
+    expect(screen.queryByRole("group", { name: "Split by account" })).not.toBeInTheDocument();
   });
 });
