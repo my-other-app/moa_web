@@ -225,7 +225,7 @@ describe("sync from Razorpay", () => {
     const before = gets.filter((g) => g.path === "/api/v1/admin/revenue").length;
     fireEvent.click(screen.getByRole("button", { name: /Sync from Razorpay/ }));
     await waitFor(() => expect(posts).toEqual(["/api/v1/admin/revenue/backfill"]));
-    await waitFor(() => expect(success).toHaveBeenCalledWith("Synced from Razorpay: 120 payments checked, 3 added"));
+    await waitFor(() => expect(success).toHaveBeenCalledWith("Synced from Razorpay: 120 subscriptions checked, 3 payments added"));
     // The page reads again what the sync may have added.
     await waitFor(() => expect(gets.filter((g) => g.path === "/api/v1/admin/revenue").length).toBeGreaterThan(before));
     success.mockRestore();

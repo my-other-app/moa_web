@@ -29,12 +29,13 @@ export function useBackfill() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: backfillRevenue,
-    onSuccess: async ({ scanned, inserted }) => {
-      toast.success(
+    onSuccess: async ({ scanned, inserted, failed }) => {
+      const found =
         inserted > 0
-          ? `Synced from Razorpay: ${formatNumber(scanned)} payments checked, ${formatNumber(inserted)} added`
-          : `Synced from Razorpay: ${formatNumber(scanned)} payments checked, nothing was missing`
-      );
+          ? `Synced from Razorpay: ${formatNumber(scanned)} subscriptions checked, ${formatNumber(inserted)} payments added`
+          : `Synced from Razorpay: ${formatNumber(scanned)} subscriptions checked, nothing was missing`;
+      if (failed > 0) toast.warning(`${found}. Razorpay didn't answer for ${formatNumber(failed)}; sync again later.`);
+      else toast.success(found);
       await queryClient.invalidateQueries({ queryKey: REVENUE_KEY });
     },
     onError: (error: Error) => toast.error(error.message || "Could not sync from Razorpay"),

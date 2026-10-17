@@ -102,6 +102,6 @@ export const chargePageSchema = z.object({
 });
 export type ChargePage = z.infer<typeof chargePageSchema>;
 
-/** POST /admin/revenue/backfill: how many Razorpay payments were read, and how many were new. */
-export const backfillSchema = z.object({ scanned: count, inserted: count });
+/** POST /admin/revenue/backfill: how many subscriptions were read at Razorpay, the payments that were new or changed, and the subscriptions Razorpay would not answer for. */
+export const backfillSchema = z.object({ scanned: count, inserted: count, updated: count.default(0), failed: count.default(0) });
 export type BackfillResult = z.infer<typeof backfillSchema>;
