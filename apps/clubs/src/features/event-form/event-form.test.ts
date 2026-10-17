@@ -133,6 +133,73 @@ describe("toEventFormData — wire format", () => {
   });
 });
 
+describe("toEventFormData — the venue pin", () => {
+  const pinned = { lat: 12.9716, lng: 77.5946 };
+
+  it("sends a pin the club set as lat and lng, and no clear_point", () => {
+    const fd = toEventFormData(parse({ ...pinned, geo_source: "manual" }));
+    expect(fd.get("lat")).toBe("12.9716");
+    expect(fd.get("lng")).toBe("77.5946");
+    expect(fd.get("clear_point")).toBeNull();
+  });
+
+  it("leaves a pin from the map link or the venue name to the server", () => {
+    // Sent back, it would be stored as manual and stop following the link.
+    for (const geo_source of ["link", "geocoded"] as const) {
+      const fd = toEventFormData(parse({ ...pinned, geo_source, location_link: "https://maps.app.goo.gl/abc123" }));
+      expect(fd.get("lat")).toBeNull();
+      expect(fd.get("lng")).toBeNull();
+      expect(fd.get("clear_point")).toBeNull();
+      expect(fd.get("location_link")).toBe("https://maps.app.goo.gl/abc123");
+    }
+  });
+
+  it("sends nothing about a pin when there is none", () => {
+    const fd = toEventFormData(parse());
+    expect(fd.get("lat")).toBeNull();
+    expect(fd.get("clear_point")).toBeNull();
+  });
+
+  it("sends clear_point once the pin is removed, and never with lat/lng", () => {
+    const fd = toEventFormData(parse({ lat: null, lng: null, geo_source: null, clear_point: true }));
+    expect(fd.get("clear_point")).toBe("true");
+    expect(fd.get("lat")).toBeNull();
+    expect(fd.get("lng")).toBeNull();
+  });
+
+  it("keeps the pasted map link while clearing the club's own pin so the link can place it", () => {
+    const fd = toEventFormData(parse({ lat: 8.5241, lng: 76.9366, geo_source: "link", clear_point: true, location_link: "https://www.google.com/maps?q=8.5241,76.9366" }));
+    expect(fd.get("location_link")).toBe("https://www.google.com/maps?q=8.5241,76.9366");
+    expect(fd.get("clear_point")).toBe("true");
+    expect(fd.get("lat")).toBeNull();
+  });
+
+  it("drops the pin for an online event", () => {
+    const fd = toEventFormData(parse({ ...pinned, geo_source: "manual", is_online: true, url: "https://meet.example.com/x" }));
+    expect(fd.get("lat")).toBeNull();
+    expect(fd.get("lng")).toBeNull();
+    expect(fd.get("clear_point")).toBe("true");
+  });
+});
+
+describe("eventFormSchema — the pin", () => {
+  it("takes both latitude and longitude, or neither", () => {
+    expect(eventFormSchema.safeParse({ ...base, lat: 12.97, lng: 77.59 }).success).toBe(true);
+    expect(eventFormSchema.safeParse({ ...base, lat: null, lng: null }).success).toBe(true);
+    expect(eventFormSchema.safeParse(base).success).toBe(true);
+    const half = eventFormSchema.safeParse({ ...base, lat: 12.97 });
+    expect(half.success).toBe(false);
+    expect(half.error?.issues[0]?.path).toEqual(["lng"]);
+    expect(eventFormSchema.safeParse({ ...base, lng: 77.59, lat: null }).success).toBe(false);
+  });
+
+  it("refuses a point off the globe, or a source it does not know", () => {
+    expect(eventFormSchema.safeParse({ ...base, lat: 91, lng: 77.59 }).success).toBe(false);
+    expect(eventFormSchema.safeParse({ ...base, lat: 12.97, lng: -181 }).success).toBe(false);
+    expect(eventFormSchema.safeParse({ ...base, lat: 12.97, lng: 77.59, geo_source: "satellite" }).success).toBe(false);
+  });
+});
+
 describe("speakerSchema — bio and link", () => {
   const speaker = (extra: Record<string, unknown>) => eventFormSchema.safeParse({ ...base, speakers: [{ name: "A", ...extra }] });
 
@@ -244,6 +311,31 @@ describe("eventDetailToFormValues", () => {
     const v = eventDetailToFormValues(detail);
     expect(v.speakers?.[0]).toMatchObject({ bio: "Teaches control systems.", link: "https://example.com/a" });
     expect(v.speakers?.[1]).toMatchObject({ bio: "", link: "" });
+  });
+
+  it("reads the pin and where it came from", () => {
+    const v = eventDetailToFormValues({ ...detail, lat: 8.5581, lng: 76.8816, geo_source: "geocoded" });
+    expect(v).toMatchObject({ lat: 8.5581, lng: 76.8816, geo_source: "geocoded", clear_point: false });
+  });
+
+  it("defaults to no pin for a payload without one, or from before pins existed", () => {
+    expect(eventDetailToFormValues(detail)).toMatchObject({ lat: null, lng: null, geo_source: null, clear_point: false });
+    expect(eventDetailToFormValues({ ...detail, lat: null, lng: null, geo_source: null })).toMatchObject({ lat: null, lng: null, geo_source: null });
+  });
+
+  it("reads half a pin as none, and an unknown source as unknown, rather than refusing to open", () => {
+    expect(eventDetailToFormValues({ ...detail, lat: 8.5581, lng: null, geo_source: "manual" })).toMatchObject({ lat: null, lng: null, geo_source: null });
+    expect(eventDetailToFormValues({ ...detail, lat: 8.5581, lng: 76.8816, geo_source: "satellite" })).toMatchObject({ lat: 8.5581, lng: 76.8816, geo_source: null });
+    expect(eventDetailToFormValues({ ...detail, lat: "north", lng: 76.8816 })).toMatchObject({ lat: null, lng: null });
+  });
+
+  it("re-sends a pin the club set on save, and leaves a found one alone", () => {
+    const manual = toEventFormData(eventFormSchema.parse(eventDetailToFormValues({ ...detail, lat: 8.5581, lng: 76.8816, geo_source: "manual" })));
+    expect(manual.get("lat")).toBe("8.5581");
+    expect(manual.get("lng")).toBe("76.8816");
+    const found = toEventFormData(eventFormSchema.parse(eventDetailToFormValues({ ...detail, lat: 8.5581, lng: 76.8816, geo_source: "geocoded" })));
+    expect(found.get("lat")).toBeNull();
+    expect(found.get("clear_point")).toBeNull();
   });
 
   it("round-trips back through the encoder without loss", () => {

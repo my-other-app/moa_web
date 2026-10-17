@@ -115,6 +115,56 @@ describe("updateMyClub sends everything the endpoint overwrites", () => {
 });
 
 /**
+ * The pin is the one thing the club update does not resend every time: the
+ * server keeps deriving a pin from the link or the location's name, and a
+ * derived one sent back would be stored as the club's own.
+ */
+describe("updateMyClub and the club's pin", () => {
+  it("sends a pin the club set as lat and lng", async () => {
+    await updateMyClub({ ...baseForm(), lat: 8.5241, lng: 76.9366, geo_source: "manual" });
+    const entries = formEntries(put.mock.calls[0]![1]);
+    expect(entries.lat).toBe("8.5241");
+    expect(entries.lng).toBe("76.9366");
+    expect(entries).not.toHaveProperty("clear_point");
+  });
+
+  it("sends clear_point for a removed pin, with no point", async () => {
+    await updateMyClub({ ...baseForm(), lat: null, lng: null, geo_source: null, clear_point: true });
+    const entries = formEntries(put.mock.calls[0]![1]);
+    expect(entries.clear_point).toBe("true");
+    expect(entries).not.toHaveProperty("lat");
+    expect(entries).not.toHaveProperty("lng");
+  });
+
+  it("sends nothing for a pin from the link or the name, or none", async () => {
+    for (const pin of [{ lat: 8.5, lng: 76.9, geo_source: "link" as const }, { lat: 8.5, lng: 76.9, geo_source: "geocoded" as const }, {}]) {
+      put.mockReset();
+      await updateMyClub({ ...baseForm(), ...pin });
+      const entries = formEntries(put.mock.calls[0]![1]);
+      expect(entries).not.toHaveProperty("lat");
+      expect(entries).not.toHaveProperty("clear_point");
+      // The link itself is still sent, as every save always has.
+      expect(entries.location_link).toBe("https://maps.example/x");
+    }
+  });
+
+  it("takes both latitude and longitude, or neither", () => {
+    expect(clubProfileFormSchema.safeParse({ ...baseForm(), lat: 8.5 }).success).toBe(false);
+    expect(clubProfileFormSchema.safeParse({ ...baseForm(), lat: 8.5, lng: 76.9 }).success).toBe(true);
+    expect(clubProfileFormSchema.safeParse({ ...baseForm(), lat: 8.5, lng: 200 }).success).toBe(false);
+  });
+
+  it("reads the pin off the club, and none when it has none", () => {
+    expect(clubSelfSchema.parse({ ...clubInfoFixture, lat: 8.5241, lng: 76.9366, geo_source: "link" })).toMatchObject({ lat: 8.5241, lng: 76.9366, geo_source: "link" });
+    const bare = clubSelfSchema.parse(clubInfoFixture);
+    expect(bare.lat ?? null).toBeNull();
+    expect(bare.geo_source ?? null).toBeNull();
+    // A source this build does not know is no reason to fail the whole club.
+    expect(clubSelfSchema.parse({ ...clubInfoFixture, lat: 8.5, lng: 76.9, geo_source: "satellite" }).geo_source).toBeNull();
+  });
+});
+
+/**
  * The original defect was not in the serialiser but in the schema: the form
  * type simply had no `org_id` or `interest_ids`, so no payload could carry
  * them however it was built. This pins the field set itself, which is what

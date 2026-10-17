@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
 import {
@@ -26,6 +26,7 @@ import {
   cn,
   toast, Combobox } from "@moa/ui";
 
+import { PinPreview, VenuePicker, pinAt, pinFieldsOf, pinFromDetail, pinOf, type PinState } from "@/features/venue";
 import { PUBLIC_SITE_HOST } from "@/lib/public-site";
 
 import {
@@ -507,6 +508,7 @@ function valuesOf(club: ClubSelf): Values {
     org_id: club.org?.id ?? null,
     location_name: club.location_name ?? "",
     location_link: club.location_link ?? "",
+    ...pinFromDetail(club),
     contact_email: club.contact_email ?? "",
     contact_phone: club.contact_phone ?? "",
     brand_primary: club.brand_primary ?? "",
@@ -517,6 +519,31 @@ function valuesOf(club: ClubSelf): Values {
     website: club.socials?.website ?? "",
     interest_ids: club.interests.map((i) => i.id),
   };
+}
+
+/** Writes a pin into the form's four flat fields, as one change. */
+function setPinOn(form: UseFormReturn<Values>, pin: PinState) {
+  const v = pinFieldsOf(pin);
+  form.setValue("lat", v.lat, { shouldDirty: true });
+  form.setValue("lng", v.lng, { shouldDirty: true });
+  form.setValue("geo_source", v.geo_source, { shouldDirty: true });
+  form.setValue("clear_point", v.clear_point, { shouldDirty: true });
+}
+
+/** Where the club is on the map: its pin, where it came from, and its map link. */
+function LocationPin({ form, disabled }: { form: UseFormReturn<Values>; disabled: boolean }) {
+  const [lat, lng, geoSource, clearPoint, mapLink, place] = useWatch({ control: form.control, name: ["lat", "lng", "geo_source", "clear_point", "location_link", "location_name"] });
+  return (
+    <PinPreview
+      pin={pinOf({ lat, lng, geo_source: geoSource, clear_point: clearPoint })}
+      onChange={(pin) => setPinOn(form, pin)}
+      mapLink={mapLink ?? ""}
+      onMapLinkChange={(link) => form.setValue("location_link", link, { shouldDirty: true })}
+      linkError={form.formState.errors.location_link?.message}
+      venue={place ?? ""}
+      disabled={disabled}
+    />
+  );
 }
 
 function ProfileForm({ club }: { club: ClubSelf }) {
@@ -618,12 +645,20 @@ function ProfileForm({ club }: { club: ClubSelf }) {
             <label htmlFor="club-location" className={label}>
               Location
             </label>
-            <input
-              id="club-location"
-              className={field}
-              disabled={saving}
-              placeholder="City, State"
-              {...form.register("location_name")}
+            <Controller
+              control={control}
+              name="location_name"
+              render={({ field: f }) => (
+                <VenuePicker
+                  {...f}
+                  id="club-location"
+                  value={f.value ?? ""}
+                  onPick={(place) => setPinOn(form, pinAt(place.point))}
+                  disabled={saving}
+                  placeholder="Search for your campus, or type the city"
+                  aria-invalid={errors.location_name ? true : undefined}
+                />
+              )}
             />
             <Err message={errors.location_name?.message} />
           </div>
@@ -644,6 +679,10 @@ function ProfileForm({ club }: { club: ClubSelf }) {
             />
             <p className="micro text-ink-3 mt-1.5">{orgId == null ? "Leave it empty if the club is not part of one." : "On the list."}</p>
           </div>
+        </div>
+        <div>
+          <span className={label}>On the map</span>
+          <LocationPin form={form} disabled={saving} />
         </div>
         <div>
           <span className={label}>Interests</span>

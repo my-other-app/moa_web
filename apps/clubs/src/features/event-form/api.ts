@@ -1,6 +1,8 @@
 import { api } from "@moa/app-kit";
 import { z } from "zod";
 
+import { pinWireFields } from "@/features/venue";
+
 import type { EventFormParsed } from "./schemas";
 
 /**
@@ -19,6 +21,13 @@ import type { EventFormParsed } from "./schemas";
  *                      appended in the same order. `bio` and `link` are null
  *                      when empty, never omitted.
  *   reg_startdate      ISO string; parsed with datetime.fromisoformat.
+ *   lat, lng           floats, both or neither, only for a pin the club set
+ *                      (picked from the venue search or typed in). A pin
+ *                      the server read off the map link or found from the
+ *                      venue name is not sent back, or it would be frozen
+ *                      as manual.
+ *   clear_point        "true" to drop the club's own pin: Remove pin, a
+ *                      pasted map link replacing it, or an online event.
  *   booleans           sent as "true"/"false".
  *
  * Optional fields are omitted entirely rather than sent empty: FastAPI's
@@ -59,6 +68,9 @@ export function toEventFormData(values: EventFormParsed, status?: "draft" | "pub
   const mapLink = values.is_online ? "" : (values.location_link ?? "").trim();
   if (mapLink) put("location_link", mapLink);
   else fd.append("clear_location_link", "true");
+  // The pin: lat/lng only when the club set it, clear_point when it was
+  // removed or the event went online, nothing when it was left alone.
+  for (const [key, value] of pinWireFields(values, { online: values.is_online })) fd.append(key, value);
   put("url", values.url);
   put("reg_fee", values.has_fee ? values.reg_fee : undefined);
   put("prize_amount", values.has_prize ? values.prize_amount : undefined);
