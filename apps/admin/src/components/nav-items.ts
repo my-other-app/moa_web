@@ -7,6 +7,7 @@ import {
   CreditCardIcon,
   CrownIcon,
   GraduationCapIcon,
+  InboxIcon,
   LayoutGridIcon,
   ShieldCheckIcon,
   SmileIcon,
@@ -29,7 +30,7 @@ export interface NavItem {
 }
 
 /**
- * The v2 rail: fourteen destinations in five groups.
+ * The v2 rail: fifteen destinations in five groups.
  *
  * Grouping is the change from v1's flat list. Fourteen unlabelled siblings is
  * a list you scan; five groups of two to five is a structure you learn, and it
@@ -51,6 +52,7 @@ export const navItems: NavItem[] = [
   { href: "/avatars", label: "Avatars", icon: SmileIcon },
 
   { href: "/announcements", label: "Announcements", icon: BellIcon, group: "Comms" },
+  { href: "/notifications", label: "Notifications", icon: InboxIcon },
   { href: "/activity", label: "Activity", icon: ClockIcon },
 
   { href: "/trash", label: "Trash", icon: Trash2Icon, group: "System" },

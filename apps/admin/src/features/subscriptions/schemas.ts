@@ -152,9 +152,28 @@ export const subscriptionSchema = z.object({
   trial_ends_at: z.string().nullish(),
   pending_since: z.string().nullish(),
   checkout_expires_at: z.string().nullish(),
+  /* When Razorpay stopped retrying a failed charge. */
+  halted_at: z.string().nullish().catch(null),
+  /* A failed charge keeps the plan on until this moment; then the club moves
+     to Free unless a payment lands. Null when nothing is owed. */
+  grace_ends_at: z.string().nullish().catch(null),
 });
 
 export type Subscription = z.infer<typeof subscriptionSchema>;
+
+/** Whether a row is in its grace period: a failed charge, the plan still on, the clock running. */
+export function inGrace(row: Pick<Subscription, "grace_ends_at" | "status">): boolean {
+  return Boolean(row.grace_ends_at) && row.status !== "cancelled";
+}
+
+/** The grace an admin may add at once, in days (the API's bounds). */
+export const GRACE_DAYS = { min: 1, max: 30 } as const;
+
+export function graceDaysProblem(days: number): string | null {
+  if (!Number.isInteger(days)) return "Whole days only.";
+  if (days < GRACE_DAYS.min || days > GRACE_DAYS.max) return `Between ${GRACE_DAYS.min} and ${GRACE_DAYS.max} days.`;
+  return null;
+}
 export const subscriptionPageSchema = paginatedSchema(subscriptionSchema);
 
 export const totalsSchema = z.object({
@@ -164,6 +183,11 @@ export const totalsSchema = z.object({
   trialing: z.number().default(0),
   past_due: z.number().default(0),
   cancelled: z.number().default(0),
+  /* Checkouts opened and not paid: they grant nothing. */
+  pending: z.number().default(0),
+  paused: z.number().default(0),
+  /* A failed charge, the plan kept on until its grace ends. */
+  in_grace: z.number().default(0),
 });
 
 export type SubscriptionTotals = z.infer<typeof totalsSchema>;

@@ -2,7 +2,10 @@
 
 import * as React from "react";
 import {
+  CirclePauseIcon,
+  HourglassIcon,
   IndianRupeeIcon,
+  ShoppingCartIcon,
   SlidersHorizontalIcon,
   TableIcon,
   TrendingUpIcon,
@@ -117,7 +120,7 @@ export function SubscriptionsV2() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {totals.isPending ? (
-          Array.from({ length: 4 }, (_, i) => (
+          Array.from({ length: 7 }, (_, i) => (
             <Skeleton key={i} className="h-[112px] rounded-[var(--radius-card)]" />
           ))
         ) : (
@@ -147,6 +150,25 @@ export function SubscriptionsV2() {
               note="Charge failed — retry or contact them"
               icon={<TriangleAlertIcon className="size-4" />}
               accent={(data?.past_due ?? 0) > 0}
+            />
+            <Kpi
+              label="In grace"
+              value={formatNumber(data?.in_grace ?? 0)}
+              note="Charge failed, plan kept on until grace ends"
+              icon={<HourglassIcon className="size-4" />}
+              accent={(data?.in_grace ?? 0) > 0}
+            />
+            <Kpi
+              label="Pending"
+              value={formatNumber(data?.pending ?? 0)}
+              note="Checkouts opened, not paid — they grant nothing"
+              icon={<ShoppingCartIcon className="size-4" />}
+            />
+            <Kpi
+              label="Paused"
+              value={formatNumber(data?.paused ?? 0)}
+              note="Held at Razorpay: not charged, not granted"
+              icon={<CirclePauseIcon className="size-4" />}
             />
           </>
         )}

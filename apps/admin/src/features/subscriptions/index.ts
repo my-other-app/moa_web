@@ -14,6 +14,8 @@ export {
   useSyncPlan,
   useAssignPlan,
   useRetryCharge,
+  useExtendGrace,
+  useCancelSubscription,
 } from "./queries";
 export {
   planSchema,
@@ -31,6 +33,9 @@ export {
   SUBSCRIPTION_STATUSES,
   STATUS_LABEL,
   statusLabel,
+  inGrace,
+  graceDaysProblem,
+  GRACE_DAYS,
   type SubscriptionStatus,
   type Plan,
   type Subscription,
