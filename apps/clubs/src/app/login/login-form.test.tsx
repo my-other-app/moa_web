@@ -25,6 +25,9 @@ vi.stubGlobal(
     const form = Object.fromEntries((init.body as URLSearchParams).entries());
     calls.push({ path: String(url), ...form });
     if (form.username === "locked") return reply(429, { message: "Too many wrong passwords. Try again in 5 min.", error_code: "LOGIN_LOCKED" });
+    if (form.username === "applicant@example.com" && form.password === "right") {
+      return reply(403, { message: "Your club is waiting for approval. We will email you when it is approved.", error_code: "CLUB_NOT_VERIFIED" });
+    }
     if (form.password !== "right") return reply(401, { message: "Incorrect username or password" });
     if (form.username === "two_factor") {
       if (!form.totp_code) return reply(401, { message: "Enter the code from your authenticator app", error_code: "TOTP_REQUIRED" });
@@ -35,7 +38,7 @@ vi.stubGlobal(
 );
 
 const { render } = await import("@/test/render");
-const { LoginForm } = await import("@moa/app-kit");
+const { LoginForm, setLoginScope } = await import("@moa/app-kit");
 
 const signIn = (username: string, password: string) => {
   fireEvent.change(screen.getByLabelText("Username"), { target: { value: username } });
@@ -71,6 +74,17 @@ describe("signing in", () => {
     render(<LoginForm usernamePlaceholder="your_club" />);
     signIn("locked", "right");
     expect(await screen.findByRole("alert")).toHaveTextContent("Too many wrong passwords. Try again in 5 min.");
+  });
+
+  it("tells a club whose application is not approved yet that it is under review", async () => {
+    // As the app's providers set it: the club account is looked for first.
+    setLoginScope("club");
+    render(<LoginForm usernamePlaceholder="your_club" />);
+    signIn("applicant@example.com", "right");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Your club is still under review — we'll email you when it's approved.");
+    expect(calls.at(-1)).toMatchObject({ scope: "club" });
+    expect(replace).not.toHaveBeenCalled();
+    setLoginScope(undefined);
   });
 
   it("asks for the authenticator code when the account has two-factor sign-in", async () => {

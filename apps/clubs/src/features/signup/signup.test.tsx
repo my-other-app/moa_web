@@ -10,8 +10,8 @@ import interests from "../__fixtures__/interests.json";
  * Applying to join against POST /clubs/create as the backend answers it: a
  * multipart form in; a duplicate email as a 400 with `errors.email`, a taken
  * club name as a bare message, a field rule as the 422 handler's
- * `{message, errors: {field: "msg"}}`. The pickers read /orgs/list (public)
- * and /interests/list (which wants a session, so a visitor gets a 401).
+ * `{message, errors: {field: "msg"}}`, too many applications as a 429. The
+ * pickers read /orgs/list and /interests/list, both public.
  */
 
 const state: { plans: unknown; interests: unknown; create: (body: FormData) => unknown } = {
@@ -147,7 +147,6 @@ describe("step by step", () => {
       name: "Circuit Society",
       email: "circuit@example.com",
       password: "letmein1",
-      phone: "+919847012345",
       contact_phone: "+919847012345",
       contact_email: "hello@circuit.org",
       about: "We build robots.",
@@ -188,13 +187,13 @@ describe("step by step", () => {
     expect(entries(posts[0]!.body)).toMatchObject({ requested_plan: "pro", requested_cycle: "yearly" });
   });
 
-  it("keeps the pricing page's plan when the catalogue cannot load, and skips interests without a session", async () => {
+  it("keeps the pricing page's plan when the catalogue cannot load, and moves on when interests cannot", async () => {
     state.plans = new ApiError({ status: 404, message: "Not Found" });
-    state.interests = new ApiError({ status: 401, message: "Could not validate credentials" });
+    state.interests = new ApiError({ status: 503, message: "Unavailable" });
     render(<SignupFlow initialPlan="growth" initialCycle="yearly" />);
     await fillClub();
     await fillContact();
-    expect(await screen.findByText(/Interests open once the club can sign in/)).toBeInTheDocument();
+    expect(await screen.findByText(/Interests could not load just now/)).toBeInTheDocument();
     next();
     await onStep("Review");
     expect(await screen.findByText(/Growth, billed yearly — you'll confirm it after approval/)).toBeInTheDocument();

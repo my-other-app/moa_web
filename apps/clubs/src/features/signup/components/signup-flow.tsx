@@ -410,7 +410,7 @@ function MoreStep({ form, disabled }: { form: Form; disabled: boolean }) {
       <div>
         <span className={label}>Interests</span>
         {isError ? (
-          <p className="text-ink-3 m-0 text-[12.5px]">Interests open once the club can sign in. Pick them from Club profile after approval.</p>
+          <p className="text-ink-3 m-0 text-[12.5px]">Interests could not load just now. You can pick them from Club profile once you&apos;re approved.</p>
         ) : isPending ? (
           <p className="text-ink-3 m-0 text-[12.5px]">Loading interests…</p>
         ) : (

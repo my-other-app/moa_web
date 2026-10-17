@@ -8,8 +8,9 @@ import { CYCLES, FREE_PLAN, type Catalog, type Cycle } from "@/features/billing"
  * refusals map back onto it.
  *
  * The rules are POST /clubs/create's own (CreateClub): a name of 3 to 20
- * characters, a password of 6 to 100, a login phone of at most 15. Checking
- * them here only says so sooner; the server is what holds them.
+ * characters, a password of 6 to 100, an email of at most 100, a contact
+ * phone of at most 20, links of at most 255. Checking them here only says so
+ * sooner; the server is what holds them.
  */
 
 export const NAME_MIN = 3;
@@ -27,7 +28,7 @@ const phone = z
   .trim()
   .refine((v) => v === "" || /^\+?\d{7,14}$/.test(compactPhone(v)), "Enter a phone number, like +91 98470 12345");
 
-const optionalUrl = z.string().trim().url("Enter the full link, starting with https://").or(z.literal(""));
+const optionalUrl = z.string().trim().max(255, "255 characters at most").url("Enter the full link, starting with https://").or(z.literal(""));
 
 export const signupSchema = z
   .object({
@@ -39,11 +40,11 @@ export const signupSchema = z
     /** Set when a place is picked from the suggestions, so the server can pin it. */
     location_link: z.string(),
     // Step 2: contact and login
-    email: z.string().trim().min(1, "Enter the email the club will sign in with").email("Enter a valid email address"),
+    email: z.string().trim().min(1, "Enter the email the club will sign in with").max(100, "100 characters at most").email("Enter a valid email address"),
     password: z.string().min(PASSWORD_MIN, `At least ${PASSWORD_MIN} characters`).max(PASSWORD_MAX, `${PASSWORD_MAX} characters at most`),
     confirm_password: z.string().min(1, "Type the password again"),
     contact_phone: phone,
-    contact_email: z.string().trim().email("Enter a valid email address").or(z.literal("")),
+    contact_email: z.string().trim().max(100, "100 characters at most").email("Enter a valid email address").or(z.literal("")),
     // Step 3: interests and links
     interest_ids: z.array(z.number()),
     instagram: optionalUrl,
@@ -122,9 +123,9 @@ export function resolvePlanKey(key: string, catalog?: Pick<Catalog, "plans"> | n
  *
  * Empty optional fields are left out rather than sent empty: `org_id` is an
  * int and an empty string is a 422, and the rest are better absent than
- * blank. `phone` (the club account's own number, the one the server keeps
- * today) and `contact_phone` (the public one) carry the same number: the
- * form asks for it once.
+ * blank. The number goes as `contact_phone`, the one on the club's page; the
+ * account's own `phone` is left out, because the server holds that one
+ * unique among club accounts and a college office number is often shared.
  */
 export function toFormData(values: SignupValues, logo: File | null): FormData {
   const form = new FormData();
@@ -133,10 +134,7 @@ export function toFormData(values: SignupValues, logo: File | null): FormData {
   form.append("password", values.password);
 
   const phoneNumber = compactPhone(values.contact_phone.trim());
-  if (phoneNumber) {
-    form.append("phone", phoneNumber);
-    form.append("contact_phone", phoneNumber);
-  }
+  if (phoneNumber) form.append("contact_phone", phoneNumber);
   const optional: [string, string][] = [
     ["contact_email", values.contact_email],
     ["about", values.about],
