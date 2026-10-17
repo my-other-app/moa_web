@@ -35,12 +35,7 @@ const featureRowSchema = z.object({
 });
 
 export const catalogPlanSchema = z.object({
-  /**
-   * POST /clubs/subscription/start takes the plan's numeric id. The public
-   * catalogue is specified by key; the id is read when it is there, and a
-   * plan without one cannot be bought from here (see `planIdOf`).
-   */
-  id: z.coerce.number().nullish().catch(null),
+  id: z.coerce.number(),
   key: z.string(),
   name: z.string(),
   tagline: z.string().nullish(),
@@ -64,8 +59,19 @@ export type Catalog = z.infer<typeof catalogSchema>;
 
 // ─── The club's own: GET /clubs/subscription, /clubs/entitlements ────────
 
-export const SUBSCRIPTION_STATUSES = ["trial", "active", "past_due", "cancelled"] as const;
+/**
+ * pending   checkout opened, nothing confirmed by Razorpay: grants nothing
+ * trial     Razorpay confirmed the mandate and the plan has a trial
+ * active    paid
+ * past_due  a charge failed; a plan once paid for stays on while Razorpay retries
+ * paused    paused at Razorpay: not charged, so not granted
+ * cancelled ended (or ending: see `entitled` and `current_period_end`)
+ */
+export const SUBSCRIPTION_STATUSES = ["pending", "trial", "active", "past_due", "paused", "cancelled"] as const;
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+
+/** Statuses with a Razorpay subscription that can still charge the club (service.LIVE_BILLED_STATUSES). */
+export const LIVE_BILLED: readonly SubscriptionStatus[] = ["pending", "trial", "active", "past_due", "paused"];
 
 const subscriptionPlanSchema = z.object({
   id: z.coerce.number(),
@@ -77,23 +83,38 @@ const subscriptionPlanSchema = z.object({
   trial_days: z.number().catch(0),
 });
 
-/** SubscriptionOut. The endpoint answers `null` for a club that never subscribed. */
+/**
+ * SubscriptionOut. The endpoint answers `null` for a club that never
+ * subscribed. A status this build does not know fails the parse on purpose:
+ * guessing at the state of someone's billing is worse than saying the page
+ * could not load.
+ */
 export const subscriptionSchema = z.object({
   id: z.coerce.number(),
   plan: subscriptionPlanSchema.nullish(),
   cycle: z.enum(CYCLES).catch("monthly"),
-  status: z.enum(SUBSCRIPTION_STATUSES).catch("active"),
+  status: z.enum(SUBSCRIPTION_STATUSES),
   current_period_end: z.string().nullish(),
   mrr_paise: z.number().catch(0),
   last_failure_reason: z.string().nullish(),
   razorpay_subscription_id: z.string().nullish(),
+  /** Whether this row grants its plan right now. */
+  entitled: z.boolean().catch(false),
+  /** The club cancelled; access runs until `current_period_end`. */
+  cancel_at_period_end: z.boolean().catch(false),
+  cancel_requested_at: z.string().nullish(),
+  trial_ends_at: z.string().nullish(),
+  /** While pending: when checkout opened, and when it falls back unpaid. */
+  pending_since: z.string().nullish(),
+  checkout_expires_at: z.string().nullish(),
 });
 export type Subscription = z.infer<typeof subscriptionSchema>;
 
-/** EntitlementsOut, plus the usage the page shows bars for once the server sends it. */
+/** EntitlementsOut: what grants the club its plan right now, and how much of it is used. */
 export const entitlementsSchema = z.object({
   plan_key: z.string().nullish(),
   plan_name: z.string().nullish(),
+  /** The status of whatever grants the plan: mid-checkout, the subscription the club had before. */
   status: z.enum(SUBSCRIPTION_STATUSES).nullish().catch(null),
   cycle: z.enum(CYCLES).nullish().catch(null),
   current_period_end: z.string().nullish(),
@@ -101,32 +122,45 @@ export const entitlementsSchema = z.object({
   features: z.record(z.string(), z.boolean()).catch({}),
   /** False: the platform has no free plan yet, so nothing is gated. */
   configured: z.boolean().catch(true),
+  /** The plan picked on the sign-up form. */
+  requested_plan: z.string().nullish(),
+  requested_cycle: z.enum(CYCLES).nullish().catch(null),
+  /** The club's own subscription row, whatever it grants: "pending" while a checkout waits. */
+  subscription_status: z.enum(SUBSCRIPTION_STATUSES).nullish().catch(null),
   /**
-   * How much of each limit is used, keyed like `limits`. Not sent by the
-   * server yet; without it the page shows each cap and no bar.
+   * Counted per club, in calendar months in India: events_per_month,
+   * registrations_per_month, committee_seats, announcements_per_month. The
+   * other limits have no count, so the page shows them as caps alone.
    */
-  usage: z.record(z.string(), z.number().nullable()).nullable().default(null).catch(null),
+  usage: z.record(z.string(), z.number()).catch({}),
 });
 export type Entitlements = z.infer<typeof entitlementsSchema>;
 
-/** StartSubscriptionOut. `key` is read if the server ever sends the public key with it. */
+/** StartSubscriptionOut. It carries no public key: that is this build's NEXT_PUBLIC_RAZORPAY_KEY_ID. */
 export const startSubscriptionSchema = z.object({
-  razorpay_subscription_id: z.string(),
   checkout_url: z.string().nullish(),
-  status: z.string().nullish(),
-  key: z.string().nullish(),
+  razorpay_subscription_id: z.string(),
+  status: z.string().catch("pending"),
+  razorpay_status: z.string().nullish(),
+  plan_key: z.string(),
+  cycle: z.enum(CYCLES).catch("monthly"),
+  trial_days: z.number().catch(0),
+  /** When the checkout link stops working and the club falls back unpaid. */
+  expires_at: z.string(),
 });
 export type StartSubscription = z.infer<typeof startSubscriptionSchema>;
 
 // ─── Words ──────────────────────────────────────────────────────────────
 
-/** The ten caps, in the order the admin's plan editor lists them. */
+/**
+ * The caps the page shows, in the order the admin's plan editor lists them.
+ * Ticket types and coupons per event are left out: nothing in the product
+ * offers either yet, so a number for them would describe nothing.
+ */
 export const LIMIT_FIELDS = [
   { key: "events_per_month", label: "Events", unit: "this month" },
   { key: "registrations_per_month", label: "Registrations", unit: "this month, all events" },
   { key: "registrations_per_event", label: "Registrations per event", unit: "for one event" },
-  { key: "ticket_types_per_event", label: "Ticket types", unit: "per event" },
-  { key: "coupons_per_event", label: "Coupon codes", unit: "per event" },
   { key: "merch_items_per_event", label: "Merchandise items", unit: "per event" },
   { key: "committee_seats", label: "Committee seats", unit: "logins with roles" },
   { key: "storage_gb", label: "Storage", unit: "GB" },
@@ -136,16 +170,20 @@ export const LIMIT_FIELDS = [
 export type LimitKey = (typeof LIMIT_FIELDS)[number]["key"];
 
 export const STATUS_LABEL: Record<SubscriptionStatus, string> = {
+  pending: "Waiting for payment",
   trial: "Trial",
   active: "Active",
   past_due: "Past due",
+  paused: "Paused",
   cancelled: "Cancelled",
 };
 
-export const STATUS_TONE: Record<SubscriptionStatus, "info" | "success" | "warning" | "destructive"> = {
+export const STATUS_TONE: Record<SubscriptionStatus, "default" | "info" | "success" | "warning" | "destructive"> = {
+  pending: "warning",
   trial: "info",
   active: "success",
   past_due: "warning",
+  paused: "default",
   cancelled: "destructive",
 };
 
@@ -189,26 +227,28 @@ export function priceLine(plan: CatalogPlan, cycle: Cycle): { amount: string; pe
   return { amount: formatPaise(plan.price_monthly_paise), per: "/ month", note: "Billed monthly" };
 }
 
+/** A cap as the plan includes it. Words of inclusion, not of refusal: the caps are not enforced yet. */
 export function limitText(cap: number | null | undefined, unit?: string): string {
   if (cap === null || cap === undefined) return "Unlimited";
   if (cap === 0) return "Not included";
-  return `Up to ${cap.toLocaleString("en-IN")}${unit ? ` ${unit}` : ""}`;
+  return `${cap.toLocaleString("en-IN")}${unit ? ` ${unit}` : ""} included`;
+}
+
+/** A Razorpay subscription that can still charge the club (pending included). */
+export function billedByRazorpay(sub: Subscription | null | undefined): sub is Subscription {
+  return Boolean(sub?.razorpay_subscription_id) && LIVE_BILLED.includes(sub!.status);
 }
 
 /**
- * Whether Razorpay may already be billing the club, or about to.
- *
- * `/clubs/subscription/start` makes a new Razorpay subscription every time
- * and does not cancel the one before it, so starting another here while one
- * is live would charge the club twice. A trial counts even before its first
- * charge: the club may have authorised it already, and nothing on our side
- * records that until the trial ends.
+ * Whether a new checkout would be refused (409 SUBSCRIPTION_EXISTS): a
+ * subscription Razorpay is running. A pending checkout is replaced instead,
+ * unless the club already authorised it, which only the server knows.
  */
-export function billedByRazorpay(sub: Subscription | null | undefined): boolean {
-  return Boolean(sub?.razorpay_subscription_id) && sub?.status !== "cancelled";
+export function blocksCheckout(sub: Subscription | null | undefined): boolean {
+  return billedByRazorpay(sub) && sub.status !== "pending";
 }
 
-/** A checkout that was started and never paid for: the same Razorpay subscription can be opened again. */
-export function awaitingCheckout(sub: Subscription | null | undefined): boolean {
-  return billedByRazorpay(sub) && (sub?.status === "trial" || sub?.status === "past_due") && !sub?.current_period_end && (sub?.mrr_paise ?? 0) === 0;
+/** Whether "Cancel plan" has anything to do: a Razorpay subscription not already set to end. */
+export function cancellable(sub: Subscription | null | undefined): sub is Subscription {
+  return billedByRazorpay(sub) && (sub.status === "pending" || !sub.cancel_at_period_end);
 }

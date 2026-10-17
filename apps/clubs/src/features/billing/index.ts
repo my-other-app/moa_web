@@ -1,6 +1,6 @@
 export { BillingPage } from "./components/billing-page";
-export { usePlans, useSubscription, useEntitlements, useStartSubscription, startErrorMessage, NOT_FOR_SALE } from "./queries";
-export { fetchPlans, fetchSubscription, fetchEntitlements, startSubscription } from "./api";
+export { usePlans, useSubscription, useEntitlements, useStartSubscription, useCancelSubscription, billingErrorMessage, NOT_FOR_SALE } from "./queries";
+export { fetchPlans, fetchSubscription, fetchEntitlements, startSubscription, cancelSubscription } from "./api";
 export { checkoutKey, loadCheckout, openSubscriptionCheckout, CHECKOUT_SRC, type CheckoutOutcome } from "./razorpay";
 export {
   CYCLES,
@@ -21,7 +21,9 @@ export {
   limitText,
   mailto,
   billedByRazorpay,
-  awaitingCheckout,
+  blocksCheckout,
+  cancellable,
+  SUBSCRIPTION_STATUSES,
   type Catalog,
   type CatalogPlan,
   type Cycle,

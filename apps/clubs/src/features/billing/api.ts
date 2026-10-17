@@ -20,20 +20,26 @@ export async function fetchSubscription() {
   return raw == null ? null : subscriptionSchema.parse(raw);
 }
 
-/** What the club may do: its plan's limits and features. */
+/** What the club may do, and how much of it is used. */
 export async function fetchEntitlements() {
   return entitlementsSchema.parse(await api.get<unknown>("/api/v1/clubs/entitlements"));
 }
 
 /**
- * POST /clubs/subscription/start: `{plan_id, cycle}` in, a Razorpay
- * subscription out. Nothing is charged here; the club authorises it in
- * Razorpay's checkout and the plan follows Razorpay's webhook.
- *
- * `plan_key` rides along for a server that takes keys; today's ignores it.
+ * POST /clubs/subscription/start: `{plan_key, cycle}` in, a Razorpay
+ * subscription out, recorded `pending`. Nothing is granted or charged here;
+ * the club authorises it in Razorpay's checkout and the plan follows
+ * Razorpay's webhook.
  */
-export async function startSubscription(plan: Pick<CatalogPlan, "id" | "key">, cycle: Cycle) {
-  const body: Record<string, unknown> = { plan_key: plan.key, cycle };
-  if (plan.id != null) body.plan_id = plan.id;
-  return startSubscriptionSchema.parse(await api.post<unknown>("/api/v1/clubs/subscription/start", body));
+export async function startSubscription(plan: Pick<CatalogPlan, "key">, cycle: Cycle) {
+  return startSubscriptionSchema.parse(await api.post<unknown>("/api/v1/clubs/subscription/start", { plan_key: plan.key, cycle }));
+}
+
+/**
+ * POST /clubs/subscription/cancel, no body. A paid plan ends with its period;
+ * a trial, a past-due or a paused one is cancelled now and kept until
+ * `current_period_end`; a pending checkout is closed and undone.
+ */
+export async function cancelSubscription() {
+  return subscriptionSchema.parse(await api.post<unknown>("/api/v1/clubs/subscription/cancel"));
 }

@@ -37,12 +37,13 @@ declare global {
 }
 
 /**
- * The public key the checkout opens with: what the server sent, else this
- * build's NEXT_PUBLIC_RAZORPAY_KEY_ID. Read at call time, not at import, so
- * a test (or a misconfigured build) sees the value it has now.
+ * The public key the checkout opens with: this build's
+ * NEXT_PUBLIC_RAZORPAY_KEY_ID (the server does not send one). Read at call
+ * time, not at import, so a test (or a misconfigured build) sees the value
+ * it has now. Without it the page falls back to Razorpay's hosted link.
  */
-export function checkoutKey(fromServer?: string | null): string | null {
-  return fromServer || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || null;
+export function checkoutKey(): string | null {
+  return process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || null;
 }
 
 let loading: Promise<boolean> | null = null;
