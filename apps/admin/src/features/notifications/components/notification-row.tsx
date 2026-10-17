@@ -6,22 +6,28 @@ import {
   BanIcon,
   BellIcon,
   Building2Icon,
+  CalendarClockIcon,
+  CalendarX2Icon,
   CircleCheckIcon,
   CirclePauseIcon,
   CirclePlayIcon,
   CircleXIcon,
   CrownIcon,
+  GiftIcon,
   HourglassIcon,
   IndianRupeeIcon,
+  PlugZapIcon,
+  ShieldAlertIcon,
   SparklesIcon,
   TrendingDownIcon,
   TriangleAlertIcon,
+  UnplugIcon,
   type LucideIcon,
 } from "lucide-react";
 import { relativeTime } from "@moa/app-kit";
 import { cn } from "@moa/ui";
 
-import { alertLabel, kindLabel, kindTone, notificationHref, type AdminNotification, type KindTone } from "../schemas";
+import { FREE_PLAN_GIVEN, alertLabel, displayKind, kindLabel, kindTone, notificationHref, type AdminNotification, type KindTone } from "../schemas";
 
 const ICON: Record<string, LucideIcon> = {
   club_applied: Building2Icon,
@@ -37,6 +43,12 @@ const ICON: Record<string, LucideIcon> = {
   subscription_resumed: CirclePlayIcon,
   subscription_cancelled: BanIcon,
   plan_assigned: CrownIcon,
+  payment_gateway_connected: PlugZapIcon,
+  payment_gateway_failed: ShieldAlertIcon,
+  payment_gateway_disconnected: UnplugIcon,
+  comp_ending: CalendarClockIcon,
+  comp_ended: CalendarX2Icon,
+  [FREE_PLAN_GIVEN]: GiftIcon,
 };
 
 const TONE: Record<KindTone, string> = {
@@ -48,7 +60,7 @@ const TONE: Record<KindTone, string> = {
   ended: "bg-sunken text-ink-2",
 };
 
-/** The kind's mark: an icon in its colour, named for a screen reader. */
+/** The kind's mark: an icon in its colour, named for a screen reader. Pass the alert's display kind (`displayKind`). */
 export function KindIcon({ kind, className }: { kind: string; className?: string }) {
   const Icon = ICON[kind] ?? BellIcon;
   return (
@@ -86,7 +98,7 @@ export function NotificationRow({
   };
   return (
     <li data-unread={unread || undefined} className={cn("flex items-start gap-3 px-3 py-2.5", unread && "bg-brand-soft/30")}>
-      <KindIcon kind={n.kind} />
+      <KindIcon kind={displayKind(n)} />
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           {href ? (

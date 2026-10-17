@@ -6,6 +6,8 @@ export interface PaymentQuery {
   status?: string | undefined;
   search?: string | undefined;
   userId?: number | undefined;
+  /** "club" or "platform": whose Razorpay took it. */
+  gateway?: string | undefined;
   offset: number;
   limit: number;
 }
@@ -16,6 +18,7 @@ export async function fetchPayments(query: PaymentQuery) {
       status: query.status,
       search: query.search,
       user_id: query.userId,
+      gateway: query.gateway,
       offset: query.offset,
       limit: query.limit,
     },

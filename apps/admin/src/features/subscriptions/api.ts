@@ -6,8 +6,11 @@ import {
   subscriptionPageSchema,
   subscriptionSchema,
   totalsSchema,
+  givePlanPayload,
+  type GivePlanInput,
   type Plan,
   type PlanFormInput,
+  type Subscription,
   toPayload,
 } from "./schemas";
 
@@ -62,6 +65,10 @@ export interface SubscriptionQuery {
   status?: string | undefined;
   planId?: number | undefined;
   search?: string | undefined;
+  /** Only the plans an admin gave free (true), or only the rest (false). */
+  complimentary?: boolean | undefined;
+  /** One club's row. */
+  clubId?: number | undefined;
   offset: number;
   limit: number;
 }
@@ -72,6 +79,8 @@ export async function fetchSubscriptions(query: SubscriptionQuery) {
       status: query.status,
       plan_id: query.planId,
       search: query.search,
+      complimentary: query.complimentary,
+      club_id: query.clubId,
       offset: query.offset,
       limit: query.limit,
     },
@@ -79,23 +88,38 @@ export async function fetchSubscriptions(query: SubscriptionQuery) {
   return subscriptionPageSchema.parse(raw);
 }
 
+/**
+ * One club's subscription row, or null when it has none (it is on Free by
+ * default). Asked by `club_id`, and by the club's name as well: a server that
+ * does not filter by id still narrows by name, and the row is then picked by
+ * id here, so a club with a similar name can never stand in for this one.
+ */
+export async function fetchClubSubscription(club: { id: number; name: string }): Promise<Subscription | null> {
+  const page = await fetchSubscriptions({ clubId: club.id, search: club.name, offset: 0, limit: 50 });
+  return page.items.find((row) => row.club?.id === club.id) ?? null;
+}
+
 export async function fetchTotals() {
   return totalsSchema.parse(await api.get<unknown>("/api/v1/admin/subscriptions/totals"));
 }
 
-/** Move a club onto a plan. Grants it; does not charge for it. */
-export async function assignPlan(input: {
-  clubId: number;
-  planId: number;
-  cycle: "monthly" | "yearly";
-}) {
+/**
+ * Give a club a plan. Grants it; never charges for it.
+ *
+ * Free by default (`complimentary`): ₹0, with a reason, and an end date or
+ * none, and never counted as revenue. A club paying through Razorpay is
+ * refused with 409 LIVE_SUBSCRIPTION until the request says to cancel that
+ * subscription too (`cancelRazorpay`), so an admin cannot leave a club being
+ * charged for a plan it was given.
+ */
+export async function assignPlan(input: { clubId: number; plan: GivePlanInput; cancelRazorpay?: boolean }) {
   return subscriptionSchema.parse(
-    await api.put(`/api/v1/admin/subscriptions/club/${input.clubId}/plan`, {
-      plan_id: input.planId,
-      cycle: input.cycle,
-    })
+    await api.put(`/api/v1/admin/subscriptions/club/${input.clubId}/plan`, givePlanPayload(input.plan, input.cancelRazorpay))
   );
 }
+
+/** The 409 that asks whether to cancel the club's Razorpay subscription first. */
+export const LIVE_SUBSCRIPTION = "LIVE_SUBSCRIPTION";
 
 /**
  * Ask Razorpay to re-attempt a failed charge.

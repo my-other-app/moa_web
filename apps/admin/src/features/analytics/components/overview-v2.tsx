@@ -20,6 +20,8 @@ import { useAdminOverview } from "../queries";
 import type { AdminOverview, TopClubSort } from "../overview-schemas";
 import { changeOf } from "../delta";
 import { Meter, Micro, Panel, PanelTitle, RuleRow, Segmented } from "./v2-primitives";
+import { RevenueStrip } from "@/features/revenue";
+
 import { PlatformDoorsPanel } from "./platform-doors-panel";
 
 /**
@@ -331,6 +333,8 @@ export function AdminOverviewV2() {
       </header>
 
       <PlatformDoorsPanel />
+
+      <RevenueStrip />
 
       {/* The one saturated band on the page: saturation as presence. */}
       <section className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-x-6 gap-y-[18px] overflow-hidden rounded-[var(--radius-card)] bg-[radial-gradient(90%_140%_at_0%_0%,var(--hero-from),var(--hero-to)_60%)] px-5 py-6 shadow-[var(--elev-hero)] sm:px-7 sm:py-[26px]">
@@ -704,8 +708,6 @@ export function AdminOverviewV2() {
             );
           })}
 
-          {/* Subscriptions have no backend yet. The card states that rather
-              than showing ₹0, which would read as "nobody is paying". */}
           <Link
             href="/subscriptions"
             className="mt-1 flex flex-col gap-1.5 rounded-[var(--radius-md)] bg-sunken p-3.5 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--brand)]"
@@ -715,7 +717,7 @@ export function AdminOverviewV2() {
               <ArrowRightIcon className="size-4 text-ink-3" />
             </span>
             <span className="text-[12.5px] text-ink-2">
-              Not built yet — plans and billing are specified in API_SPEC_V2 §4.1.
+              Plans, who is on which, and the free plans given to clubs.
             </span>
           </Link>
         </Panel>

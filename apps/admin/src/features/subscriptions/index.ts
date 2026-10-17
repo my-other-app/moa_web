@@ -2,6 +2,9 @@ export { SubscriptionsV2 } from "./components/subscriptions-v2";
 export { PlansTab } from "./components/plans-tab";
 export { SubscribersTab } from "./components/subscribers-tab";
 export { CompareTab } from "./components/compare-tab";
+export { GivePlanDialog, givablePlans } from "./components/give-plan-dialog";
+export { ClubPlanPanel } from "./components/club-plan-panel";
+export { FreeBadge } from "./components/subscribers-tab";
 export {
   usePlans,
   usePlan,
@@ -13,6 +16,7 @@ export {
   useArchivePlan,
   useSyncPlan,
   useAssignPlan,
+  useClubSubscription,
   useRetryCharge,
   useExtendGrace,
   useCancelSubscription,
@@ -36,6 +40,14 @@ export {
   inGrace,
   graceDaysProblem,
   GRACE_DAYS,
+  freeBadgeText,
+  freePlanNote,
+  givePlanProblems,
+  givePlanPayload,
+  givePlanSummary,
+  endOfDayIst,
+  REASON_MAX,
+  type GivePlanInput,
   type SubscriptionStatus,
   type Plan,
   type Subscription,

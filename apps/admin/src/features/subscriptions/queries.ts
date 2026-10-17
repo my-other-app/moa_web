@@ -6,7 +6,10 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { formatDate } from "@moa/app-kit";
 import { toast } from "@moa/ui";
+
+import { REVENUE_KEY } from "@/features/revenue/keys";
 
 import {
   archivePlan,
@@ -15,6 +18,7 @@ import {
   createPlan,
   duplicatePlan,
   extendGrace,
+  fetchClubSubscription,
   fetchPlan,
   fetchPlans,
   fetchSubscriptions,
@@ -63,9 +67,14 @@ export function useSubscriptionTotals() {
   });
 }
 
+/** Subscriptions, and the revenue page that counts them. */
 function useInvalidate() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: KEY });
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: KEY }),
+      queryClient.invalidateQueries({ queryKey: REVENUE_KEY }),
+    ]);
 }
 
 export function useCreatePlan() {
@@ -136,17 +145,38 @@ export function useSyncPlan() {
   });
 }
 
+/** One club's subscription row (null: none, so it is on Free), for its detail page. */
+export function useClubSubscription(club: { id: number; name: string } | null) {
+  return useQuery({
+    queryKey: [...KEY, "club", club?.id ?? 0],
+    queryFn: () => fetchClubSubscription(club!),
+    enabled: Boolean(club && club.id > 0 && club.name),
+  });
+}
+
+/**
+ * Give a club a plan, free or not. A refusal is the dialog's to show (the
+ * LIVE_SUBSCRIPTION re-ask is a question, not an error), so there is no
+ * error toast here.
+ */
 export function useAssignPlan() {
-  const invalidate = useInvalidate();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: assignPlan,
-    onSuccess: async (subscription) => {
+    onSuccess: async (subscription, { plan }) => {
+      const club = subscription.club?.name ?? "The club";
+      const name = subscription.plan?.name ?? "the plan";
       toast.success(
-        `${subscription.club?.name ?? "The club"} moved to ${subscription.plan?.name ?? "the plan"}`
+        plan.complimentary
+          ? `${club} is on ${name}, free${plan.endsOn ? ` until ${formatDate(`${plan.endsOn}T12:00:00+05:30`)}` : ""}`
+          : `${club} moved to ${name}`
       );
-      await invalidate();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: KEY }),
+        // Free plans and MRR are what the revenue page counts.
+        queryClient.invalidateQueries({ queryKey: REVENUE_KEY }),
+      ]);
     },
-    onError: (error: Error) => toast.error(error.message || "Could not move the club"),
   });
 }
 
@@ -182,11 +212,17 @@ export function useExtendGrace() {
 export function useCancelSubscription() {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: ({ subscriptionId, atPeriodEnd }: { subscriptionId: number; atPeriodEnd: boolean }) =>
+    mutationFn: ({ subscriptionId, atPeriodEnd }: { subscriptionId: number; atPeriodEnd: boolean; free?: boolean }) =>
       cancelSubscription(subscriptionId, atPeriodEnd),
-    onSuccess: async (subscription, { atPeriodEnd }) => {
+    onSuccess: async (subscription, { atPeriodEnd, free }) => {
       const club = subscription.club?.name ?? "The club";
-      toast.success(atPeriodEnd ? `${club}'s subscription ends with its period` : `${club}'s subscription is cancelled`);
+      toast.success(
+        free
+          ? `${club}'s free plan has ended; it is on Free now`
+          : atPeriodEnd
+            ? `${club}'s subscription ends with its period`
+            : `${club}'s subscription is cancelled`
+      );
       await invalidate();
     },
     // The dialog shows the server's refusal itself, where the admin is looking.

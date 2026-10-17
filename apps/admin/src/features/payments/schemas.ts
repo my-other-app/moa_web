@@ -23,15 +23,29 @@ export const paymentSchema = z.object({
   /* Computed server-side: only a captured payment can be refunded, and the
      UI should not re-derive a rule the service owns. */
   is_refundable: z.boolean().default(false),
+  /* Whose Razorpay took it: the club's own account, or MyOtherApp's. Null
+     from a server that does not say (every payment then was MyOtherApp's). */
+  gateway: z.enum(["club", "platform"]).nullish().catch(null),
 });
 
 export const paymentPageSchema = paginatedSchema(paymentSchema);
 
-export const paymentTotalsSchema = z.object({
+const totalsFields = {
   captured_total: z.number().default(0),
   refunded_total: z.number().default(0),
   net_total: z.number().default(0),
   failed_count: z.number().default(0),
+};
+
+/** One account's share of the totals: MyOtherApp's own, or every club's own Razorpay together. */
+export const paymentTotalsSplitSchema = z.object(totalsFields);
+export type PaymentTotalsSplit = z.infer<typeof paymentTotalsSplitSchema>;
+
+export const paymentTotalsSchema = z.object({
+  ...totalsFields,
+  /* The same four, split by whose Razorpay took the money. Absent (null) from a server that does not split. */
+  platform: paymentTotalsSplitSchema.nullish().catch(null),
+  club: paymentTotalsSplitSchema.nullish().catch(null),
 });
 
 /** The statuses the backend enum actually has. */
@@ -44,6 +58,16 @@ export const PAYMENT_STATUSES = [
   "created",
   "disputed",
 ] as const;
+
+/** Where a payment went, as the "Goes to" column and filter word it. */
+export const PAYMENT_GATEWAYS = [
+  { value: "club", label: "Club" },
+  { value: "platform", label: "MyOtherApp" },
+] as const;
+
+export function gatewayLabel(gateway: string | null | undefined): string | null {
+  return PAYMENT_GATEWAYS.find((g) => g.value === gateway)?.label ?? null;
+}
 
 export type Payment = z.infer<typeof paymentSchema>;
 export type PaymentTotals = z.infer<typeof paymentTotalsSchema>;

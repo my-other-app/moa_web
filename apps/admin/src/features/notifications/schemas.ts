@@ -19,6 +19,11 @@ export const NOTIFICATION_KINDS = [
   "subscription_resumed",
   "subscription_cancelled",
   "plan_assigned",
+  "payment_gateway_connected",
+  "payment_gateway_failed",
+  "payment_gateway_disconnected",
+  "comp_ending",
+  "comp_ended",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -42,15 +47,39 @@ export const KIND_META: Record<NotificationKind, { label: string; tone: KindTone
   subscription_resumed: { label: "Resumed", tone: "money" },
   subscription_cancelled: { label: "Cancelled", tone: "ended" },
   plan_assigned: { label: "Plan assigned", tone: "change" },
+  // A club's own Razorpay: its ticket money now goes to the club, its keys stopped working, or it went back to ours.
+  payment_gateway_connected: { label: "Razorpay connected", tone: "money" },
+  payment_gateway_failed: { label: "Razorpay check failed", tone: "failure" },
+  payment_gateway_disconnected: { label: "Razorpay disconnected", tone: "ended" },
+  comp_ending: { label: "Free plan ending", tone: "grace" },
+  comp_ended: { label: "Free plan ended", tone: "ended" },
+};
+
+/**
+ * `plan_assigned` carrying `data.complimentary`: an admin gave the plan
+ * free. Shown as a kind of its own (its word and its mark), though the
+ * server files it under plan_assigned.
+ */
+export const FREE_PLAN_GIVEN = "free_plan_given";
+
+/** The kind an alert reads as: its own, or "free plan given" for a plan given free. */
+export function displayKind(n: Pick<AdminNotification, "kind" | "data">): string {
+  if (n.kind === "plan_assigned" && n.data?.complimentary === true && n.data?.action !== "extend_grace") return FREE_PLAN_GIVEN;
+  return n.kind;
+}
+
+const DISPLAY_META: Record<string, { label: string; tone: KindTone }> = {
+  ...KIND_META,
+  [FREE_PLAN_GIVEN]: { label: "Free plan given", tone: "change" },
 };
 
 /** A kind this build has a word for, else the server's own, readable. */
 export function kindLabel(kind: string): string {
-  return (KIND_META as Record<string, { label: string }>)[kind]?.label ?? kind.replace(/_/g, " ");
+  return DISPLAY_META[kind]?.label ?? kind.replace(/_/g, " ");
 }
 
 export function kindTone(kind: string): KindTone {
-  return (KIND_META as Record<string, { tone: KindTone }>)[kind]?.tone ?? "change";
+  return DISPLAY_META[kind]?.tone ?? "change";
 }
 
 export const notificationSchema = z.object({
@@ -110,18 +139,33 @@ export function alertLabel(n: Pick<AdminNotification, "kind" | "data">): string 
     return by ? `Cancelled ${CANCELLED_BY[by] ?? `by ${by.replace(/_/g, " ")}`}` : kindLabel(n.kind);
   }
   if (n.kind === "plan_assigned" && data.action === "extend_grace") return "Grace extended";
+  if (n.kind === "payment_gateway_connected" && text(data.by) === "admin") return "Razorpay re-enabled by an admin";
+  if (n.kind === "payment_gateway_disconnected") {
+    // Who took it off, when the alert says: the club itself, or an admin disabling it.
+    const by = text(data.by);
+    if (by === "admin") return "Razorpay disabled by an admin";
+    if (by === "club") return "Razorpay disconnected by the club";
+  }
+  if (displayKind(n) === FREE_PLAN_GIVEN) {
+    const plan = text(data.plan_name) ?? (text(data.plan) ? planWords(text(data.plan)!) : null);
+    return plan ? `Free plan given · ${plan}` : kindLabel(FREE_PLAN_GIVEN);
+  }
   return kindLabel(n.kind);
 }
 
+/** Kinds about a club's own Razorpay account: they lead to the club. */
+export const GATEWAY_KINDS = new Set<string>(["payment_gateway_connected", "payment_gateway_failed", "payment_gateway_disconnected"]);
+
 /** Kinds about a club's subscription rather than the club itself. */
-const SUBSCRIPTION_KINDS = new Set<string>(NOTIFICATION_KINDS.filter((k) => k !== "club_applied"));
+const SUBSCRIPTION_KINDS = new Set<string>(NOTIFICATION_KINDS.filter((k) => k !== "club_applied" && !GATEWAY_KINDS.has(k)));
 
 /**
  * Where a notification leads: the subscription (the Subscribers tab, found
  * by the club's name) for anything about billing, the club for an
- * application, nowhere when it names neither.
+ * application or its own Razorpay account, nowhere when it names neither.
  */
 export function notificationHref(n: Pick<AdminNotification, "kind" | "club" | "subscription_id">): string | null {
+  if (n.club && GATEWAY_KINDS.has(n.kind)) return `/clubs/${n.club.id}`;
   if (n.club && (n.subscription_id != null || SUBSCRIPTION_KINDS.has(n.kind))) {
     return `/subscriptions?q=${encodeURIComponent(n.club.name)}`;
   }

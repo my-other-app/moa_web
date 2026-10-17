@@ -1,0 +1,586 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useForm } from "react-hook-form";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { ApiError } from "@moa/api";
+import { Form, toast } from "@moa/ui";
+
+import eventDetail from "../__fixtures__/event-detail.json";
+
+/**
+ * Payments: the club's own Razorpay, against the backend's contract:
+ * GET /clubs/payments/gateway → {available, connected, status, mode, key_id,
+ * webhook_url, webhook_secret, webhook_events, verified_at, last_webhook_at,
+ * last_error, can_manage}; PUT {key_id, key_secret}, POST /verify and DELETE
+ * answer the same shape; PUT refuses with 422 INVALID_KEYS (Razorpay's reason
+ * in the message) or TEST_KEYS_NOT_ALLOWED. The event detail carries
+ * `payments_to`.
+ */
+
+const NOW = Date.now();
+const ago = (ms: number) => new Date(NOW - ms).toISOString();
+const MIN = 60_000;
+
+const NOT_CONNECTED = {
+  available: true,
+  connected: false,
+  status: null,
+  mode: null,
+  key_id: null,
+  webhook_url: null,
+  webhook_secret: null,
+  webhook_events: [],
+  verified_at: null,
+  last_webhook_at: null,
+  last_error: null,
+  can_manage: true,
+};
+
+const CONNECTED = {
+  ...NOT_CONNECTED,
+  connected: true,
+  status: "active",
+  mode: "keys",
+  key_id: "rzp_live_AbC123xyz",
+  webhook_url: "https://api.myotherapp.in/api/v1/payments/razorpay/webhook/club/5",
+  webhook_secret: "whsec_9f8e7d6c",
+  webhook_events: ["payment.authorized", "payment.captured", "payment.failed", "order.paid", "refund.processed"],
+  verified_at: ago(10 * MIN),
+};
+
+const RECEIVING = { ...CONNECTED, last_webhook_at: ago(5 * MIN) };
+const FAILED = { ...CONNECTED, status: "failed", last_error: "Authentication failed." };
+const DISABLED = { ...CONNECTED, connected: false, status: "disabled", last_error: null };
+
+type Answer = () => unknown;
+const state = {
+  gateway: NOT_CONNECTED as unknown,
+  put: (() => CONNECTED) as Answer,
+  verify: (() => CONNECTED) as Answer,
+  del: (() => ({ ...NOT_CONNECTED, status: "disconnected" })) as Answer,
+  details: {} as Record<string, unknown>,
+};
+const calls: Array<{ method: string; path: string; body?: unknown }> = [];
+
+function answer(value: unknown) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+
+vi.mock("@moa/app-kit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@moa/app-kit")>();
+  return {
+    ...actual,
+    api: {
+      get: vi.fn(async (path: string) => {
+        calls.push({ method: "GET", path });
+        if (path === "/api/v1/clubs/payments/gateway") return answer(state.gateway);
+        if (path === "/api/v1/clubs/entitlements") return {};
+        const detail = /^\/api\/v1\/events\/info\/(\d+)$/.exec(path);
+        if (detail && state.details[detail[1]!]) return state.details[detail[1]!];
+        throw new Error(`unstubbed GET ${path}`);
+      }),
+      put: vi.fn(async (path: string, body: unknown) => {
+        calls.push({ method: "PUT", path, body });
+        if (path === "/api/v1/clubs/payments/gateway") return answer(state.put());
+        throw new Error(`unstubbed PUT ${path}`);
+      }),
+      post: vi.fn(async (path: string, body?: unknown) => {
+        calls.push({ method: "POST", path, body });
+        if (path === "/api/v1/clubs/payments/gateway/verify") return answer(state.verify());
+        throw new Error(`unstubbed POST ${path}`);
+      }),
+      del: vi.fn(async (path: string) => {
+        calls.push({ method: "DELETE", path });
+        if (path === "/api/v1/clubs/payments/gateway") return answer(state.del());
+        throw new Error(`unstubbed DELETE ${path}`);
+      }),
+      patch: vi.fn(),
+    },
+  };
+});
+
+const { render } = await import("@/test/render");
+const { PaymentsPage, gatewaySchema, hasAccount, paymentsToOf, gatewayErrorMessage } = await import("./index");
+const { EntryStep } = await import("@/features/event-form/components/steps/entry-step");
+const { emptyEventForm } = await import("@/features/event-form/components/event-form");
+const { navItems } = await import("@/components/nav-items");
+
+const writeText = vi.fn(async () => {});
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  calls.length = 0;
+  writeText.mockClear();
+  Object.assign(state, {
+    gateway: NOT_CONNECTED,
+    put: () => CONNECTED,
+    verify: () => CONNECTED,
+    del: () => ({ ...NOT_CONNECTED, status: "disconnected" }),
+    details: {},
+  });
+  Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+});
+
+const writes = () => calls.filter((c) => c.method !== "GET");
+const account = () => screen.findByRole("region", { name: "Your Razorpay" });
+const stepTwo = () => screen.findByRole("region", { name: "Step 2: Razorpay settings" });
+
+function fillKeys(id: string, secret: string) {
+  fireEvent.change(screen.getByLabelText("Key ID"), { target: { value: id } });
+  fireEvent.change(screen.getByLabelText("Key secret"), { target: { value: secret } });
+}
+
+describe("the shape", () => {
+  it("parses the gateway, and an unknown status as none rather than a broken page", () => {
+    expect(gatewaySchema.parse(CONNECTED)).toMatchObject({ connected: true, status: "active", key_id: "rzp_live_AbC123xyz", webhook_events: CONNECTED.webhook_events });
+    expect(gatewaySchema.parse({ ...CONNECTED, status: "on_fire" }).status).toBeNull();
+  });
+
+  it("counts a failed or disabled account as there, and sends payments to the club only while it is active", () => {
+    const g = (over: Record<string, unknown>) => gatewaySchema.parse({ ...CONNECTED, ...over });
+    expect(hasAccount(g({}))).toBe(true);
+    expect(hasAccount(g({ connected: false, status: "failed" }))).toBe(true);
+    expect(hasAccount(g({ connected: false, status: "disabled" }))).toBe(true);
+    expect(hasAccount(g({ connected: false, status: "disconnected" }))).toBe(false);
+    expect(hasAccount(gatewaySchema.parse(NOT_CONNECTED))).toBe(false);
+    expect(paymentsToOf(g({}))).toBe("club");
+    expect(paymentsToOf(g({ status: "failed" }))).toBe("platform");
+    expect(paymentsToOf(g({ available: false }))).toBe("platform");
+    expect(paymentsToOf(gatewaySchema.parse(NOT_CONNECTED))).toBe("platform");
+  });
+});
+
+describe("the Payments page", () => {
+  it("says so when the server is not set up for it, and offers nothing", async () => {
+    state.gateway = { ...NOT_CONNECTED, available: false };
+    render(<PaymentsPage />);
+    expect(await screen.findByText("Own Razorpay isn't available yet — your ticket payments go through MyOtherApp.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Key ID")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Help" })).not.toBeInTheDocument();
+  });
+
+  it("reads a server without the route as not set up for it", async () => {
+    state.gateway = new ApiError({ message: "Not Found", status: 404 });
+    render(<PaymentsPage />);
+    expect(await screen.findByText(/Own Razorpay isn't available yet/)).toBeInTheDocument();
+  });
+
+  it("explains, lists what is needed and asks for the live keys, the secret as a password", async () => {
+    render(<PaymentsPage />);
+    const panel = await account();
+    expect(within(panel).getByText("Not connected")).toBeInTheDocument();
+    expect(within(panel).getByText(/currently go through MyOtherApp's Razorpay account\. Connect your own to receive them directly in your bank account\./)).toBeInTheDocument();
+    expect(within(panel).getByText("What you need")).toBeInTheDocument();
+    expect(within(panel).getByText(/KYC done/)).toBeInTheDocument();
+    expect(within(panel).getByText(/Live mode API keys/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Key ID")).toHaveAttribute("type", "text");
+    expect(screen.getByLabelText("Key secret")).toHaveAttribute("type", "password");
+    expect(screen.getByRole("button", { name: /Connect Razorpay/ })).toBeInTheDocument();
+    // Help: where the live keys are, and who handles refunds.
+    const help = screen.getByRole("region", { name: "Help" });
+    expect(within(help).getByText(/Account & Settings → API Keys/)).toBeInTheDocument();
+    expect(within(help).getByText(/Click Generate Key/)).toBeInTheDocument();
+    expect(within(help).getByText(/switch to Live mode/)).toBeInTheDocument();
+    expect(within(help).getByText(/refunds and disputes for them are handled in your own Razorpay Dashboard/)).toBeInTheDocument();
+    // Nothing about the webhook until there is an account to send notices for.
+    expect(screen.queryByRole("region", { name: "Step 2: Razorpay settings" })).not.toBeInTheDocument();
+  });
+
+  it("asks for both keys before sending anything", async () => {
+    render(<PaymentsPage />);
+    await account();
+    fireEvent.click(screen.getByRole("button", { name: /Connect Razorpay/ }));
+    expect(await screen.findByText("Paste the Key ID from Razorpay.")).toBeInTheDocument();
+    expect(screen.getByText("Paste the Key secret from Razorpay.")).toBeInTheDocument();
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("shows Razorpay's reason (errors.reason) inline when it refuses the keys (INVALID_KEYS), and keeps the form", async () => {
+    state.put = () =>
+      new ApiError({ message: "Razorpay rejected these keys.", status: 422, errorCode: "INVALID_KEYS", fieldErrors: { reason: "The api key provided is invalid" } as unknown as Record<string, string[]> });
+    render(<PaymentsPage />);
+    await account();
+    fillKeys(" rzp_live_wrong ", "nope");
+    fireEvent.click(screen.getByRole("button", { name: /Connect Razorpay/ }));
+    const refusal = await screen.findByRole("alert");
+    expect(refusal).toHaveTextContent("Razorpay didn't accept these keys: The api key provided is invalid. Check both and paste them again.");
+    expect(writes()).toEqual([{ method: "PUT", path: "/api/v1/clubs/payments/gateway", body: { key_id: "rzp_live_wrong", key_secret: "nope" } }]);
+    expect(screen.getByLabelText("Key ID")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Key secret")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("region", { name: "Your Razorpay" })).toHaveTextContent("Not connected");
+  });
+
+  it("falls back to the server's message when INVALID_KEYS carries no reason", () => {
+    expect(gatewayErrorMessage(new ApiError({ message: "Razorpay rejected these keys.", status: 422, errorCode: "INVALID_KEYS" }))).toEqual({
+      field: "keys",
+      text: "Razorpay rejected these keys. Check both and paste them again.",
+    });
+    expect(gatewayErrorMessage(new ApiError({ message: "x", status: 422, errorCode: "INVALID_KEYS", fieldErrors: { reason: ["Key expired."] } })).text).toBe(
+      "Razorpay didn't accept these keys: Key expired. Check both and paste them again.",
+    );
+  });
+
+  it("shows the server's words when Razorpay could not be reached (502 RAZORPAY_UNREACHABLE)", async () => {
+    state.put = () => new ApiError({ message: "We couldn't reach Razorpay. Try again.", status: 502, errorCode: "RAZORPAY_UNREACHABLE" });
+    render(<PaymentsPage />);
+    await account();
+    fillKeys("rzp_live_ok", "secret");
+    fireEvent.click(screen.getByRole("button", { name: /Connect Razorpay/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't reach Razorpay. Try again.");
+    expect(screen.getByLabelText("Key ID")).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("says test mode keys are not taken (TEST_KEYS_NOT_ALLOWED), inline", async () => {
+    state.put = () => new ApiError({ message: "Test keys are not allowed.", status: 422, errorCode: "TEST_KEYS_NOT_ALLOWED" });
+    render(<PaymentsPage />);
+    await account();
+    fillKeys("rzp_test_123", "secret");
+    fireEvent.click(screen.getByRole("button", { name: /Connect Razorpay/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("These are test mode keys. Switch the Razorpay Dashboard to Live mode and generate keys there — a live Key ID starts with rzp_live_.");
+    expect(screen.getByLabelText("Key ID")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Key secret")).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("says when the server cannot take it right now (503 GATEWAY_UNAVAILABLE)", async () => {
+    state.put = () => new ApiError({ message: "Unavailable", status: 503, errorCode: "GATEWAY_UNAVAILABLE" });
+    render(<PaymentsPage />);
+    await account();
+    fillKeys("rzp_live_ok", "secret");
+    fireEvent.click(screen.getByRole("button", { name: /Connect Razorpay/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/isn't available right now/);
+  });
+
+  it("connects, and the secret is never shown again", async () => {
+    render(<PaymentsPage />);
+    await account();
+    fillKeys("rzp_live_AbC123xyz", "s3cr3t-value");
+    fireEvent.click(screen.getByRole("button", { name: /Connect Razorpay/ }));
+    await waitFor(() => expect(screen.getByRole("region", { name: "Your Razorpay" })).toHaveTextContent("Active"));
+    expect(screen.queryByLabelText("Key secret")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("s3cr3t-value")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("s3cr3t-value");
+  });
+
+  it("shows a connected account without a webhook: key, status, verified, no notice yet, and step 2 lit", async () => {
+    state.gateway = CONNECTED;
+    render(<PaymentsPage />);
+    const panel = await account();
+    expect(within(panel).getByText("Active")).toBeInTheDocument();
+    expect(within(panel).getByText("rzp_live_AbC123xyz")).toBeInTheDocument();
+    expect(within(panel).getByText("Verified")).toBeInTheDocument();
+    expect(within(panel).getByText("10 min ago")).toBeInTheDocument();
+    expect(within(panel).getByText("Last payment notice from Razorpay")).toBeInTheDocument();
+    expect(within(panel).getByText("None yet — finish step 2")).toBeInTheDocument();
+    for (const name of ["Check again", "Replace keys", "Disconnect"]) expect(within(panel).getByRole("button", { name })).toBeInTheDocument();
+
+    const step = await stepTwo();
+    expect(step).toHaveAttribute("data-todo", "true");
+    expect(within(step).getByText("To do")).toBeInTheDocument();
+    // Automatic capture comes first: without it attendees are charged but never confirmed.
+    expect(within(step).getByText("In Razorpay → Account & Settings → Payment capture, turn on automatic capture.")).toBeInTheDocument();
+    expect(within(step).getByText("Payments must be captured automatically, or attendees are charged but never confirmed.")).toBeInTheDocument();
+    expect(within(step).getByText(/Account & Settings → Webhooks/)).toBeInTheDocument();
+    expect(within(step).getByText("Click Add new webhook.")).toBeInTheDocument();
+    expect(within(step).getByText(CONNECTED.webhook_url)).toBeInTheDocument();
+    expect(within(step).getByText(CONNECTED.webhook_secret)).toBeInTheDocument();
+    expect(within(step).getByText("Tick these events:")).toBeInTheDocument();
+    const events = within(step).getByRole("list", { name: "Events to tick" });
+    expect(within(events).getAllByRole("listitem").map((li) => li.textContent)).toEqual(CONNECTED.webhook_events);
+    expect(within(step).getByText("Then come back and click Check again.")).toBeInTheDocument();
+
+    fireEvent.click(within(step).getByRole("button", { name: "Copy the webhook url" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(CONNECTED.webhook_url));
+    fireEvent.click(within(step).getByRole("button", { name: "Copy the secret" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(CONNECTED.webhook_secret));
+  });
+
+  it("shows when Razorpay's last notice came, and step 2 no longer lit", async () => {
+    state.gateway = RECEIVING;
+    render(<PaymentsPage />);
+    const panel = await account();
+    expect(within(panel).getByText("5 min ago")).toBeInTheDocument();
+    expect(within(panel).queryByText("None yet — finish step 2")).not.toBeInTheDocument();
+    const step = await stepTwo();
+    expect(step).not.toHaveAttribute("data-todo");
+    expect(within(step).getByText("Notices arriving")).toBeInTheDocument();
+  });
+
+  it("shows a failed check with Razorpay's words, and what to do", async () => {
+    state.gateway = FAILED;
+    render(<PaymentsPage />);
+    const panel = await account();
+    expect(within(panel).getByText("Failed")).toBeInTheDocument();
+    expect(within(panel).getByRole("alert")).toHaveTextContent("Razorpay said: Authentication failed. Replace the keys, or fix them in Razorpay and click Check again.");
+    expect(within(panel).getByText("Until this is fixed, new payments go to MyOtherApp's account.")).toBeInTheDocument();
+  });
+
+  it("says when there is no account on file to check (404 NO_GATEWAY), and reads the page again", async () => {
+    const said = vi.spyOn(toast, "error");
+    state.gateway = CONNECTED;
+    state.verify = () => {
+      state.gateway = { ...NOT_CONNECTED, status: "disconnected" };
+      return new ApiError({ message: "There is no Razorpay account to check.", status: 404, errorCode: "NO_GATEWAY" });
+    };
+    render(<PaymentsPage />);
+    fireEvent.click(within(await account()).getByRole("button", { name: "Check again" }));
+    await waitFor(() => expect(said).toHaveBeenCalledWith("There is no Razorpay account to check."));
+    expect(said).toHaveBeenCalledTimes(1);
+    expect(await screen.findByLabelText("Key ID")).toBeInTheDocument();
+  });
+
+  it("checks again", async () => {
+    state.gateway = FAILED;
+    state.verify = () => RECEIVING;
+    render(<PaymentsPage />);
+    const panel = await account();
+    fireEvent.click(within(panel).getByRole("button", { name: "Check again" }));
+    await waitFor(() => expect(writes()).toEqual([{ method: "POST", path: "/api/v1/clubs/payments/gateway/verify", body: undefined }]));
+    await waitFor(() => expect(within(panel).getByText("Active")).toBeInTheDocument());
+    expect(within(panel).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("replaces the keys, or keeps them", async () => {
+    state.gateway = CONNECTED;
+    state.put = () => ({ ...CONNECTED, key_id: "rzp_live_New999" });
+    render(<PaymentsPage />);
+    const panel = await account();
+    fireEvent.click(within(panel).getByRole("button", { name: "Replace keys" }));
+    fireEvent.click(within(panel).getByRole("button", { name: "Keep current keys" }));
+    expect(within(panel).queryByLabelText("Key ID")).not.toBeInTheDocument();
+
+    fireEvent.click(within(panel).getByRole("button", { name: "Replace keys" }));
+    fillKeys("rzp_live_New999", "another-secret");
+    fireEvent.click(within(panel).getByRole("button", { name: /Save new keys/ }));
+    await waitFor(() => expect(within(panel).getByText("rzp_live_New999")).toBeInTheDocument());
+    expect(writes()).toEqual([{ method: "PUT", path: "/api/v1/clubs/payments/gateway", body: { key_id: "rzp_live_New999", key_secret: "another-secret" } }]);
+    expect(within(panel).queryByLabelText("Key secret")).not.toBeInTheDocument();
+  });
+
+  it("asks before disconnecting, says what happens to payments, and goes back to the form", async () => {
+    state.gateway = RECEIVING;
+    render(<PaymentsPage />);
+    const panel = await account();
+    fireEvent.click(within(panel).getByRole("button", { name: "Disconnect" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("New payments will go to MyOtherApp's account. Payments already made stay in your Razorpay.")).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Keep connected" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(writes()).toHaveLength(0);
+
+    fireEvent.click(within(panel).getByRole("button", { name: "Disconnect" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Disconnect" }));
+    await waitFor(() => expect(writes()).toEqual([{ method: "DELETE", path: "/api/v1/clubs/payments/gateway" }]));
+    expect(await screen.findByLabelText("Key ID")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Step 2: Razorpay settings" })).not.toBeInTheDocument();
+  });
+
+  it("shows an account MyOtherApp turned off: its status, why, and Talk to us — nothing else", async () => {
+    state.gateway = DISABLED;
+    render(<PaymentsPage />);
+    const panel = await account();
+    expect(within(panel).getByText("Disabled by MyOtherApp")).toBeInTheDocument();
+    expect(within(panel).getByText("rzp_live_AbC123xyz")).toBeInTheDocument();
+    expect(within(panel).getByText(/MyOtherApp has turned off this connection/)).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: /Talk to us/ })).toHaveAttribute("href", expect.stringMatching(/^mailto:support@myotherapp\.in\?/));
+    // The server refuses all three while it is off (409 GATEWAY_DISABLED), so none is offered.
+    expect(within(panel).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByLabelText("Key ID")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Step 2: Razorpay settings" })).not.toBeInTheDocument();
+  });
+
+  describe("turned off by MyOtherApp while the page was open (409 GATEWAY_DISABLED)", () => {
+    const SAID = "MyOtherApp has turned off your own Razorpay. Talk to us.";
+    const refusal = () => {
+      // The server has it off now: the next read says so.
+      state.gateway = DISABLED;
+      return new ApiError({ message: SAID, status: 409, errorCode: "GATEWAY_DISABLED" });
+    };
+
+    it("reads the code as the server's own words", () => {
+      expect(gatewayErrorMessage(new ApiError({ message: SAID, status: 409, errorCode: "GATEWAY_DISABLED" }))).toEqual({ field: null, text: SAID });
+      expect(gatewayErrorMessage(new ApiError({ message: "", status: 409, errorCode: "GATEWAY_DISABLED" })).text).toBe(SAID);
+    });
+
+    it("says so when saving keys, once, and shows the account off", async () => {
+      const said = vi.spyOn(toast, "error");
+      state.put = refusal;
+      render(<PaymentsPage />);
+      await account();
+      fillKeys("rzp_live_AbC123xyz", "secret");
+      fireEvent.click(screen.getByRole("button", { name: /Connect Razorpay/ }));
+      await waitFor(() => expect(said).toHaveBeenCalledWith(SAID));
+      await waitFor(() => expect(screen.getByRole("region", { name: "Your Razorpay" })).toHaveTextContent("Disabled by MyOtherApp"));
+      expect(said).toHaveBeenCalledTimes(1);
+      expect(screen.queryByLabelText("Key ID")).not.toBeInTheDocument();
+    });
+
+    it("says so when checking again, once, and shows the account off", async () => {
+      const said = vi.spyOn(toast, "error");
+      state.gateway = CONNECTED;
+      state.verify = refusal;
+      render(<PaymentsPage />);
+      fireEvent.click(within(await account()).getByRole("button", { name: "Check again" }));
+      await waitFor(() => expect(said).toHaveBeenCalledWith(SAID));
+      await waitFor(() => expect(screen.getByRole("region", { name: "Your Razorpay" })).toHaveTextContent("Disabled by MyOtherApp"));
+      expect(said).toHaveBeenCalledTimes(1);
+    });
+
+    it("says so when disconnecting, once, and shows the account off", async () => {
+      const said = vi.spyOn(toast, "error");
+      state.gateway = CONNECTED;
+      state.del = refusal;
+      render(<PaymentsPage />);
+      fireEvent.click(within(await account()).getByRole("button", { name: "Disconnect" }));
+      fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Disconnect" }));
+      await waitFor(() => expect(said).toHaveBeenCalledWith(SAID));
+      await waitFor(() => expect(screen.getByRole("region", { name: "Your Razorpay" })).toHaveTextContent("Disabled by MyOtherApp"));
+      expect(said).toHaveBeenCalledTimes(1);
+      expect(writes()).toEqual([{ method: "DELETE", path: "/api/v1/clubs/payments/gateway" }]);
+    });
+  });
+
+  it("tells an editor or door staff calmly that payment settings are not theirs to see (403 ROLE_FORBIDDEN)", async () => {
+    state.gateway = new ApiError({ message: "Your role can't see payment settings.", status: 403, errorCode: "ROLE_FORBIDDEN" });
+    render(<PaymentsPage />);
+    const panel = await screen.findByRole("region", { name: "Payment settings" });
+    expect(within(panel).getByText("Only the club owner and admins can see payment settings")).toBeInTheDocument();
+    expect(screen.queryByText("Could not load your payment settings")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Key ID")).not.toBeInTheDocument();
+  });
+
+  it("is read-only for a team member: the status, and none of the buttons", async () => {
+    state.gateway = { ...CONNECTED, can_manage: false, webhook_secret: null };
+    render(<PaymentsPage />);
+    const panel = await account();
+    expect(screen.getByText(/Only the club's own account can connect or change the Razorpay account/)).toBeInTheDocument();
+    expect(within(panel).getByText("Active")).toBeInTheDocument();
+    expect(within(panel).getByText("rzp_live_AbC123xyz")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Check again" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Replace keys" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
+    expect(within(await stepTwo()).getByText("Only the club's own account can see it.")).toBeInTheDocument();
+  });
+
+  it("gives a team member no form when nothing is connected", async () => {
+    state.gateway = { ...NOT_CONNECTED, can_manage: false };
+    render(<PaymentsPage />);
+    const panel = await account();
+    expect(within(panel).getByText("Only the club's own account can connect one.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Key ID")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Connect Razorpay/ })).not.toBeInTheDocument();
+  });
+});
+
+// ─── The event form's note ───────────────────────────────────────────────
+
+function Entry({ eventId, hasFee = true }: { eventId?: number; hasFee?: boolean }) {
+  const form = useForm({ defaultValues: { ...emptyEventForm, has_fee: hasFee, reg_fee: hasFee ? 100 : undefined } });
+  return (
+    <Form {...form}>
+      <form>
+        <EntryStep eventId={eventId} />
+      </form>
+    </Form>
+  );
+}
+
+const note = () => screen.findByText(/^Payments go/);
+
+describe("the event form's note", () => {
+  it("names the club's account when creating with one connected", async () => {
+    state.gateway = CONNECTED;
+    render(<Entry />);
+    expect(await note()).toHaveTextContent("Payments go to your Razorpay (rzp_live_AbC123xyz)");
+  });
+
+  it("says MyOtherApp, with the way to connect, when creating without one", async () => {
+    render(<Entry />);
+    expect(await note()).toHaveTextContent("Payments go through MyOtherApp — connect your own Razorpay");
+    expect(screen.getByRole("link", { name: "connect your own Razorpay" })).toHaveAttribute("href", "/payments");
+  });
+
+  it("sends a failed account to be fixed rather than connected, and offers nothing the server cannot take", async () => {
+    state.gateway = FAILED;
+    const first = render(<Entry />);
+    expect(await note()).toHaveTextContent("Payments go through MyOtherApp — fix your Razorpay connection");
+    expect(screen.getByRole("link", { name: "fix your Razorpay connection" })).toHaveAttribute("href", "/payments");
+    first.unmount();
+
+    state.gateway = DISABLED;
+    const second = render(<Entry />);
+    expect(await note()).toHaveTextContent(/^Payments go through MyOtherApp$/);
+    second.unmount();
+
+    state.gateway = { ...NOT_CONNECTED, available: false };
+    render(<Entry />);
+    expect(await note()).toHaveTextContent(/^Payments go through MyOtherApp$/);
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("takes the event's own word when editing, over the club's account", async () => {
+    state.gateway = CONNECTED;
+    state.details = { "41": { ...eventDetail, id: 41, payments_to: "platform" }, "42": { ...eventDetail, id: 42, payments_to: "club" } };
+    const first = render(<Entry eventId={41} />);
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/info/41")).toBe(true));
+    // Connected, yet this event stays on MyOtherApp's account: said, with nothing to connect.
+    await waitFor(() => expect(screen.getByText(/^Payments go/)).toHaveTextContent(/^Payments go through MyOtherApp$/));
+    first.unmount();
+
+    state.gateway = NOT_CONNECTED;
+    render(<Entry eventId={42} />);
+    await waitFor(() => expect(screen.getByText(/^Payments go/)).toHaveTextContent(/^Payments go to your Razorpay$/));
+  });
+
+  it("falls back to the club's account for an event from a server that does not say", async () => {
+    state.gateway = CONNECTED;
+    state.details = { "43": { ...eventDetail, id: 43 } };
+    render(<Entry eventId={43} />);
+    expect(await note()).toHaveTextContent("Payments go to your Razorpay (rzp_live_AbC123xyz)");
+  });
+
+  describe("for an editor or door staff, who may not read the gateway (403 ROLE_FORBIDDEN)", () => {
+    beforeEach(() => {
+      state.gateway = new ApiError({ message: "Forbidden", status: 403, errorCode: "ROLE_FORBIDDEN" });
+    });
+
+    it("says nothing when creating", async () => {
+      render(<Entry />);
+      await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/clubs/payments/gateway")).toBe(true));
+      await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/clubs/entitlements")).toBe(true));
+      expect(screen.queryByText(/^Payments go/)).not.toBeInTheDocument();
+    });
+
+    it("says only what the event says when editing, with nothing to connect", async () => {
+      state.details = { "44": { ...eventDetail, id: 44, payments_to: "platform" }, "45": { ...eventDetail, id: 45 } };
+      const first = render(<Entry eventId={44} />);
+      expect(await note()).toHaveTextContent(/^Payments go through MyOtherApp$/);
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      first.unmount();
+
+      render(<Entry eventId={45} />);
+      await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/info/45")).toBe(true));
+      await waitFor(() => expect(calls.filter((c) => c.path === "/api/v1/clubs/payments/gateway").length).toBeGreaterThan(0));
+      expect(screen.queryByText(/^Payments go/)).not.toBeInTheDocument();
+    });
+  });
+
+  it("is not there while the event is free", async () => {
+    state.gateway = CONNECTED;
+    render(<Entry hasFee={false} />);
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/clubs/entitlements")).toBe(true));
+    expect(screen.queryByText(/^Payments go/)).not.toBeInTheDocument();
+  });
+});
+
+describe("the nav", () => {
+  it("has Payments under Manage, next to Plan & billing, on every plan, for the owner and admins", () => {
+    const i = navItems.findIndex((n) => n.href === "/payments");
+    expect(navItems[i]).toMatchObject({ label: "Payments", group: "manage" });
+    expect(navItems[i]!.feature).toBeUndefined();
+    // The server's `money`: the owner and admins, the roles that may read the gateway.
+    expect(navItems[i]!.needs).toBe("money");
+    expect(navItems[i - 1]!.href).toBe("/billing");
+  });
+});

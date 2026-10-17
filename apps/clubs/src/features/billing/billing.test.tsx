@@ -507,3 +507,69 @@ describe("a failed charge in its grace period", () => {
     expect(entitlementsSchema.parse({ ...FREE_ENTITLEMENTS, enforced: true, grandfathered_before: "2026-10-01T00:00:00+05:30" })).toMatchObject({ enforced: true, grandfathered_before: "2026-10-01T00:00:00+05:30" });
   });
 });
+
+describe("a plan given free by MyOtherApp", () => {
+  /** An admin gave the club Growth free: no Razorpay subscription, nothing billed. */
+  const COMP_SUB = { ...GROWTH_ACTIVE, razorpay_subscription_id: null, mrr_paise: 0, complimentary: true, comp_ends_at: "2027-03-31T23:59:59+05:30" };
+  const COMP_ENT = { ...GROWTH_ENTITLEMENTS, complimentary: true, comp_ends_at: "2027-03-31T23:59:59+05:30" };
+
+  it("says who provides the plan and until when, with no checkout and nothing to cancel", async () => {
+    state.sub = COMP_SUB;
+    state.ent = COMP_ENT;
+    render(<BillingPage />);
+    const current = await currentPanel();
+    expect(within(current).getByText("Growth — provided free by MyOtherApp until 31 Mar 2027")).toBeInTheDocument();
+    expect(within(current).getByText("Free from MyOtherApp")).toBeInTheDocument();
+    expect(within(current).getByRole("link", { name: /Talk to us to change your plan/ })).toHaveAttribute("href", expect.stringMatching(/^mailto:support@myotherapp\.in\?subject=Our%20Growth%20plan/));
+    expect(within(current).queryByText(/billed/)).not.toBeInTheDocument();
+
+    expect(await screen.findByRole("article", { name: "Pro" })).toBeInTheDocument();
+    expect(within(card("Growth")).getByText("Current plan")).toBeInTheDocument();
+    expect(within(card("Pro")).getByText("Talk to us to change your plan.")).toBeInTheDocument();
+    expect(within(card("Free")).getByText("Talk to us to change your plan.")).toBeInTheDocument();
+    // Nothing to buy, switch to or cancel.
+    expect(screen.queryByRole("button", { name: /Upgrade|Switch|Cancel|Move to Free|Finish/ })).not.toBeInTheDocument();
+    expect(posts()).toHaveLength(0);
+  });
+
+  it("says so when the free plan has no end date, from the entitlements alone", async () => {
+    state.sub = null;
+    state.ent = { ...COMP_ENT, comp_ends_at: null };
+    render(<BillingPage />);
+    const current = await currentPanel();
+    expect(within(current).getByText("Growth — provided free by MyOtherApp with no end date")).toBeInTheDocument();
+  });
+
+  it("is read the same by a team member, without the mail link", async () => {
+    state.me = EDITOR;
+    state.sub = COMP_SUB;
+    state.ent = COMP_ENT;
+    render(<BillingPage />);
+    const current = await currentPanel();
+    expect(within(current).getByText("Growth — provided free by MyOtherApp until 31 Mar 2027")).toBeInTheDocument();
+    expect(within(current).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(current).getByText("Talk to us to change your plan.")).toBeInTheDocument();
+  });
+
+  it("reads the new fields, and a server without them", () => {
+    expect(subscriptionSchema.parse(COMP_SUB)).toMatchObject({ complimentary: true, comp_ends_at: COMP_SUB.comp_ends_at });
+    expect(subscriptionSchema.parse(GROWTH_ACTIVE)).toMatchObject({ complimentary: false });
+    expect(entitlementsSchema.parse(COMP_ENT)).toMatchObject({ complimentary: true, comp_ends_at: COMP_ENT.comp_ends_at });
+    expect(entitlementsSchema.parse(FREE_ENTITLEMENTS).complimentary).toBe(false);
+  });
+
+  it("answers a checkout refused because the plan was given free, and reads the plan again", async () => {
+    // The page loaded before the admin gave the plan: it still offers checkout.
+    state.start = () => {
+      state.sub = COMP_SUB;
+      state.ent = COMP_ENT;
+      throw new ApiError({ status: 409, message: "This club's plan is complimentary.", errorCode: "COMPLIMENTARY_PLAN" });
+    };
+    render(<BillingPage />);
+    fireEvent.click(await within(await screen.findByRole("article", { name: "Campus" })).findByRole("button", { name: /Upgrade to Campus/ }));
+    expect(await screen.findByText(/MyOtherApp provides your plan free, so there is nothing to buy or cancel here/)).toBeInTheDocument();
+    expect(opened).toHaveLength(0);
+    expect(await screen.findByText("Growth — provided free by MyOtherApp until 31 Mar 2027")).toBeInTheDocument();
+    expect(billingErrorMessage(new ApiError({ status: 409, message: "x", errorCode: "COMPLIMENTARY_PLAN" }))).toMatch(/^MyOtherApp provides your plan free/);
+  });
+});

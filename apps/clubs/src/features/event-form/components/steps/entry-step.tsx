@@ -4,6 +4,7 @@ import { useFormContext } from "react-hook-form";
 import { GiftIcon, IndianRupeeIcon, ShoppingBagIcon, TrophyIcon } from "lucide-react";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, Switch, cn } from "@moa/ui";
 
+import { PaymentsToNote } from "@/features/payments";
 import { LockBadge, openUpgrade, useEventPlan, type PlanLock } from "@/features/plan";
 
 import type { EventFormValues } from "../../schemas";
@@ -86,6 +87,8 @@ export function EntryStep({ eventId }: { eventId?: number } = {}) {
               </FormItem>
             )}
           />
+          {/* Whose Razorpay the money lands in: the club's own, or MyOtherApp's. */}
+          <PaymentsToNote eventId={eventId} />
         </Offer>
         <Offer name="has_prize" icon={<TrophyIcon className="size-4" />} title="A prize" hint="Shown on the card. Worth saying when it pulls people in.">
           <FormField

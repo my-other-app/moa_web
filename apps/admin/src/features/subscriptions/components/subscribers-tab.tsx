@@ -2,17 +2,13 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { SearchIcon } from "lucide-react";
+import { GiftIcon, SearchIcon } from "lucide-react";
 import { formatNumber } from "@moa/app-kit";
 import { InlineAlert, Skeleton, StatusBadge, cn } from "@moa/ui";
 
 import { useCan } from "@/hooks/use-can";
-import {
-  usePlans,
-  useSubscriptions,
-  useAssignPlan,
-} from "../queries";
-import { SUBSCRIPTION_STATUSES, STATUS_LABEL, inGrace, rupees, statusLabel, type Plan, type Subscription } from "../schemas";
+import { usePlans, useSubscriptions } from "../queries";
+import { SUBSCRIPTION_STATUSES, STATUS_LABEL, freeBadgeText, freePlanNote, inGrace, rupees, statusLabel, type Plan, type Subscription } from "../schemas";
 import { SubscriptionActions } from "./subscription-actions";
 
 /**
@@ -47,8 +43,9 @@ function inr(paiseValue: number): string {
   return `₹${formatNumber(Math.round(rupees(paiseValue)))}`;
 }
 
-/** What the row earns: a trial earns nothing yet, and a pending checkout nothing at all. */
+/** What the row earns: a trial earns nothing yet, a pending checkout nothing at all, a free plan nothing ever. */
 function mrrText(row: Subscription): string {
+  if (row.complimentary) return "Free";
   if (row.status === "trial") return "Trial";
   if (row.status === "pending") return "—";
   return inr(row.mrr_paise);
@@ -115,14 +112,27 @@ function PlanMix({ plans, rows }: { plans: Plan[]; rows: Subscription[] }) {
   );
 }
 
+/** "Free · until 31 Mar 2027": a plan an admin gave, with why and by whom on hover. */
+export function FreeBadge({ row }: { row: Subscription }) {
+  const text = freeBadgeText(row);
+  if (!text) return null;
+  const note = freePlanNote(row);
+  return (
+    <span title={note ?? undefined}>
+      <StatusBadge label={text} tone="info" />
+    </span>
+  );
+}
+
 export function SubscribersTab() {
   const canMoney = useCan("manage_money");
   const plans = usePlans();
-  const assign = useAssignPlan();
   // A notification links here with ?q=<club>, so the row it is about is the one shown.
   const linked = useSearchParams().get("q") ?? "";
 
   const [status, setStatus] = React.useState<string>("");
+  // Only the plans an admin gave free.
+  const [freeOnly, setFreeOnly] = React.useState(false);
   const [search, setSearch] = React.useState(linked);
   const [committed, setCommitted] = React.useState(linked);
   const [page, setPage] = React.useState(0);
@@ -138,6 +148,7 @@ export function SubscribersTab() {
   const { data, isPending, isError, error, isPlaceholderData } = useSubscriptions({
     status: status || undefined,
     search: committed || undefined,
+    complimentary: freeOnly ? true : undefined,
     offset: page * PAGE_SIZE,
     limit: PAGE_SIZE,
   });
@@ -210,6 +221,22 @@ export function SubscribersTab() {
             </button>
           );
         })}
+
+        <span aria-hidden="true" className="bg-line mx-1 h-5 w-px" />
+        <button
+          type="button"
+          aria-pressed={freeOnly}
+          onClick={() => {
+            setFreeOnly(!freeOnly);
+            setPage(0);
+          }}
+          className={cn(
+            "flex items-center gap-1.5 rounded-[999px] border px-3 py-1.5 text-[12.5px] whitespace-nowrap transition-colors",
+            freeOnly ? "border-brand bg-brand-soft text-brand" : "border-line text-ink-2 hover:text-ink"
+          )}
+        >
+          <GiftIcon className="size-3.5" aria-hidden="true" /> Free plans
+        </button>
 
         <div className="relative ml-auto max-w-[280px] min-w-[200px] flex-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-[11px] size-4 -translate-y-1/2 text-ink-3" />
@@ -288,32 +315,18 @@ export function SubscribersTab() {
                           {row.plan?.name ?? "No plan"} · {statusLabel(row.status)} ·{" "}
                           {mrrText(row)}
                         </span>
+                        {row.complimentary ? (
+                          <span className="md:hidden">
+                            <FreeBadge row={row} />
+                          </span>
+                        ) : null}
                       </span>
 
+                      {/* The plan is changed from the row's actions (Change plan), with a
+                          reason and a confirmation -- not a dropdown that moved a club the
+                          moment it was touched. */}
                       <span className={WIDE_ONLY}>
-                        {canMoney && row.club ? (
-                          <select
-                            className="input min-h-8 text-[12.5px]"
-                            aria-label={`Plan for ${row.club.name}`}
-                            value={row.plan?.id ?? ""}
-                            disabled={assign.isPending}
-                            onChange={(event) =>
-                              assign.mutate({
-                                clubId: row.club!.id,
-                                planId: Number(event.target.value),
-                                cycle: row.cycle,
-                              })
-                            }
-                          >
-                            {(plans.data ?? []).map((plan) => (
-                              <option key={plan.id} value={plan.id}>
-                                {plan.name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className="text-[13px]">{row.plan?.name ?? "—"}</span>
-                        )}
+                        <span className="text-[13px]">{row.plan?.name ?? "—"}</span>
                       </span>
 
                       <span
@@ -330,6 +343,7 @@ export function SubscribersTab() {
                         <span className={STATUS_TAG[row.status] ?? "tag tag-neutral"}>
                           {statusLabel(row.status)}
                         </span>
+                        <FreeBadge row={row} />
                         {inGrace(row) ? (
                           <StatusBadge label={`Grace until ${renewsText(row.grace_ends_at)}`} tone="warning" />
                         ) : null}
@@ -387,12 +401,12 @@ export function SubscribersTab() {
       {!isPending && !isError && rows.length === 0 ? (
         <div className="flex flex-col items-start gap-2 py-8">
           <span className="text-[16px]">
-            {status || committed ? "No subscriptions match" : "No club is on a plan yet"}
+            {status || committed || freeOnly ? "No subscriptions match" : "No club is on a plan yet"}
           </span>
           <span className="text-[13px] text-ink-2">
-            {status || committed
+            {status || committed || freeOnly
               ? "Clear the filters to see the rest."
-              : "Create a plan on the Plans tab, then move a club onto it or let them subscribe."}
+              : "Create a plan on the Plans tab, then give it to a club or let them subscribe."}
           </span>
         </div>
       ) : null}

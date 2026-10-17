@@ -45,7 +45,13 @@ const BY_CODE: Record<string, string> = {
   SUBSCRIPTION_EXISTS: "You already have a subscription; cancel it first or talk to us to switch.",
   CHECKOUT_NOT_CLOSED: "Razorpay hasn't confirmed your earlier checkout is closed yet. Try again in a minute.",
   NO_SUBSCRIPTION: "There is no paid subscription to cancel.",
+  COMPLIMENTARY_PLAN: `MyOtherApp provides your plan free, so there is nothing to buy or cancel here. Write to ${SALES_EMAIL} to change it.`,
 };
+
+/** A start or cancel refused because the club's plan was given free (409 COMPLIMENTARY_PLAN). */
+export function isComplimentaryRefusal(error: unknown): boolean {
+  return error instanceof ApiError && error.errorCode === "COMPLIMENTARY_PLAN";
+}
 
 /**
  * Why a start or a cancel was refused, in words for the club. A bare 5xx
