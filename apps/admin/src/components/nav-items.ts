@@ -13,6 +13,7 @@ import {
   SmileIcon,
   TagIcon,
   Trash2Icon,
+  TrendingUpIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -30,7 +31,7 @@ export interface NavItem {
 }
 
 /**
- * The v2 rail: fifteen destinations in five groups.
+ * The v2 rail: sixteen destinations in five groups.
  *
  * Grouping is the change from v1's flat list. Fourteen unlabelled siblings is
  * a list you scan; five groups of two to five is a structure you learn, and it
@@ -46,6 +47,7 @@ export const navItems: NavItem[] = [
 
   { href: "/payments", label: "Payments", icon: CreditCardIcon, group: "Money" },
   { href: "/subscriptions", label: "Subscriptions", icon: CrownIcon },
+  { href: "/revenue", label: "Revenue", icon: TrendingUpIcon },
 
   { href: "/badges", label: "Badges", icon: AwardIcon, group: "Catalogue" },
   { href: "/interests", label: "Interests", icon: TagIcon },
