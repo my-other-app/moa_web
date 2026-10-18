@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { CLUB_NOT_VERIFIED } from "@moa/auth";
 import { getSessionWithRole } from "@moa/auth/server";
 
 import { AppShell } from "@/components/app-shell";
+import { AwaitingApproval } from "@/components/awaiting-approval";
 
 /**
  * Club-role gate.
@@ -12,8 +14,10 @@ import { AppShell } from "@/components/app-shell";
  * tooling lives in its own app.
  */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, allowed } = await getSessionWithRole(["club"]);
+  const { user, allowed, refusal } = await getSessionWithRole(["club"]);
 
+  // A club still awaiting approval (403 CLUB_NOT_VERIFIED) is told so, not signed out.
+  if (!user && refusal === CLUB_NOT_VERIFIED) return <AwaitingApproval />;
   if (!user) redirect("/login");
   if (!allowed) redirect("/login?error=forbidden");
 

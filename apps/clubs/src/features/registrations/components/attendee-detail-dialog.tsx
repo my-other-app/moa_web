@@ -19,6 +19,7 @@ import {
 } from "@moa/ui";
 
 import { type DeliveryBrief, verdictOf } from "@/features/deliveries";
+import { answerText } from "@/lib/answers";
 
 import { useRegistration } from "../queries";
 import type { EventField, RegistrationDetail } from "../schemas";
@@ -165,11 +166,11 @@ export function AttendeeDetailDialog({
                   rows={[
                     ...fields.map((f) => ({
                       k: f.label ?? f.key,
-                      v: answers[f.key] ? String(answers[f.key]) : none("not answered"),
+                      v: answerText(answers[f.key]) ? answerText(answers[f.key]) : none("not answered"),
                     })),
                     ...Object.entries(answers)
                       .filter(([k]) => !fields.some((f) => f.key === k))
-                      .map(([k, v]) => ({ k, v: String(v) })),
+                      .map(([k, v]) => ({ k, v: answerText(v) })),
                   ]}
                 />
               </Section>

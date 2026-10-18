@@ -1,11 +1,46 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRightIcon, EyeIcon, EyeOffIcon } from "lucide-react";
-import { FigurePanel, NativeSelect, Notice, ProgressBar, Segmented, cn } from "@moa/ui";
+import { ArrowRightIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
+import { FigurePanel, IconButton, NativeSelect, Notice, ProgressBar, Segmented, cn } from "@moa/ui";
 
+import { namesOf, tieAtCut, type TieAtCut } from "../errors";
 import { useAdvance, usePatchSettings, usePatchTeam } from "../queries";
 import { STAGE_LABEL, type BoardRow, type Competition, type Stage } from "../schemas";
+
+type Round = "shortlisted" | "finalist";
+const ROUND_WORD: Record<Round, string> = { shortlisted: "the shortlist", finalist: "the final" };
+
+/**
+ * A tie at the cut: the teams level on the score for the last place, and
+ * nothing moved. The organiser picks who goes through -- a button per team
+ * moves it by hand -- then advances again to fill what is left.
+ */
+function TieNotice({ tie, to, onMove, onClose }: { tie: TieAtCut; to: Round; onMove: (teamId: number) => void; onClose: () => void }) {
+  const places = tie.places_left === 1 ? "the last place" : `the last ${tie.places_left} places`;
+  const score = tie.score ?? tie.tied[0]?.score;
+  return (
+    <Notice tone="caution" tag="Tie at the cut">
+      <div className="grid gap-2">
+        <div className="flex items-start gap-2">
+          <p className="min-w-0 flex-1">
+            {namesOf(tie.tied.map((t) => t.name))} are level{score != null ? ` on ${score.toFixed(1)}` : ""} for {places} in {ROUND_WORD[to]}, so nobody was moved. Break the tie: move {tie.places_left === 1 ? "one" : tie.places_left} of them by hand, then advance again.
+          </p>
+          <IconButton label="Dismiss" variant="quiet" size="xs" onClick={onClose}>
+            <XIcon />
+          </IconButton>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {tie.tied.map((t) => (
+            <button key={t.team_id} type="button" className="btn btn-secondary btn-xs" onClick={() => onMove(t.team_id)}>
+              <ArrowRightIcon /> Move {t.name} to {ROUND_WORD[to]}
+            </button>
+          ))}
+        </div>
+      </div>
+    </Notice>
+  );
+}
 
 /**
  * Rounds: three columns — the entered, the shortlist, the final — and
@@ -47,6 +82,18 @@ export function RoundsPanel({ eventId, c }: { eventId: number; c: Competition })
   const settings = usePatchSettings(eventId);
   const patch = usePatchTeam(eventId);
   const move = (id: number, stage: Stage) => patch.mutate({ id, body: { stage } });
+  const [tie, setTie] = React.useState<{ tie: TieAtCut; to: Round } | null>(null);
+  const advanceTo = (to: Round) =>
+    advance.mutate(
+      { to },
+      {
+        onSuccess: () => setTie(null),
+        onError: (error) => {
+          const t = tieAtCut(error);
+          setTie(t ? { tie: t, to } : null);
+        },
+      }
+    );
   const Move = ({ r, to, label }: { r: BoardRow; to: Stage; label: string }) => (
     <button type="button" className="btn btn-quiet btn-xs" aria-label={`${label} ${r.name}`} title={label} onClick={() => move(r.team_id, to)}>
       {to === "entered" ? "↩" : <ArrowRightIcon />}
@@ -70,7 +117,7 @@ export function RoundsPanel({ eventId, c }: { eventId: number; c: Competition })
               ))}
             </NativeSelect>
           </label>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => advance.mutate({ to: "shortlisted" })} disabled={advance.isPending || c.rounds.entered.every((r) => r.score === null)}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => advanceTo("shortlisted")} disabled={advance.isPending || c.rounds.entered.every((r) => r.score === null)}>
             <ArrowRightIcon /> Advance to shortlist
           </button>
           <label className="flex items-center gap-1.5 text-[12.5px]">
@@ -83,11 +130,22 @@ export function RoundsPanel({ eventId, c }: { eventId: number; c: Competition })
               ))}
             </NativeSelect>
           </label>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => advance.mutate({ to: "finalist" })} disabled={advance.isPending || c.rounds.shortlisted.every((r) => r.score === null)}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => advanceTo("finalist")} disabled={advance.isPending || c.rounds.shortlisted.every((r) => r.score === null)}>
             <ArrowRightIcon /> Advance to final
           </button>
         </div>
       </div>
+      {tie ? (
+        <TieNotice
+          tie={tie.tie}
+          to={tie.to}
+          onClose={() => setTie(null)}
+          onMove={(teamId) => {
+            move(teamId, tie.to);
+            setTie(null);
+          }}
+        />
+      ) : null}
       <div className="grid gap-3 lg:grid-cols-3">
         <Column title="Round 1 · entered" rows={c.rounds.entered} count={c.rounds.entered.length}>
           {(r) => <Move r={r} to="shortlisted" label="Shortlist" />}

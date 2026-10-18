@@ -17,7 +17,7 @@ import { formatCurrency, formatNumber } from "@moa/app-kit";
 import { Button, Skeleton, cn, toast } from "@moa/ui";
 
 import { useAdminOverview } from "../queries";
-import type { AdminOverview, TopClubSort } from "../overview-schemas";
+import { approx, estimatedTotals, type AdminOverview, type TopClubSort } from "../overview-schemas";
 import { changeOf } from "../delta";
 import { Meter, Micro, Panel, PanelTitle, RuleRow, Segmented } from "./v2-primitives";
 import { RevenueStrip } from "@/features/revenue";
@@ -71,11 +71,14 @@ function monthLabel(iso: string | null): string {
     : date.toLocaleDateString("en-IN", { month: "short" });
 }
 
-function BandStat({ label, value, note }: { label: string; value: string; note: string }) {
+function BandStat({ label, value, note, estimate = false }: { label: string; value: string; note: string; estimate?: boolean }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[12px] text-white/75">{label}</span>
-      <span className="truncate font-mono text-[28px] leading-[1.05] font-semibold tracking-[-0.03em] text-white sm:text-[34px]">
+      <span
+        className="truncate font-mono text-[28px] leading-[1.05] font-semibold tracking-[-0.03em] text-white sm:text-[34px]"
+        title={estimate ? "An estimate from the database's own count of rows, within about a percent" : undefined}
+      >
         {value}
       </span>
       <span className="truncate text-[12px] text-white/70">{note}</span>
@@ -249,14 +252,16 @@ export function AdminOverviewV2() {
 
   const { totals, today, running, averages, growth, breakdowns, funnel, money } = data;
   const maxFunnel = Math.max(1, ...funnel.map((f) => f.value));
+  // Counts past a million rows are the planner's estimate: "≈" before them.
+  const rough = estimatedTotals(data.estimated);
 
   const summary = [
-    ["Users", formatNumber(totals.users)],
+    ["Users", approx(formatNumber(totals.users), rough.has("users"))],
     ["Clubs", `${totals.clubs} (${totals.verified_clubs} verified)`],
     ["Organisations", formatNumber(totals.organisations)],
     ["Events hosted", formatNumber(totals.events)],
-    ["Registrations", formatNumber(totals.registrations)],
-    ["Attendance rate", `${totals.attendance_rate}%`],
+    ["Registrations", approx(formatNumber(totals.registrations), rough.has("registrations"))],
+    ["Attendance rate", approx(`${totals.attendance_rate}%`, rough.has("attendance_rate"))],
     ["GMV all time", formatCurrency(totals.gmv)],
     ["Average rating", `${averages.average_rating} from ratings`],
   ] as const;
@@ -338,11 +343,11 @@ export function AdminOverviewV2() {
 
       {/* The one saturated band on the page: saturation as presence. */}
       <section className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-x-6 gap-y-[18px] overflow-hidden rounded-[var(--radius-card)] bg-[radial-gradient(90%_140%_at_0%_0%,var(--hero-from),var(--hero-to)_60%)] px-5 py-6 shadow-[var(--elev-hero)] sm:px-7 sm:py-[26px]">
-        <BandStat label="Users" value={formatNumber(totals.users)} note={`${today.new_users} today`} />
+        <BandStat label="Users" value={approx(formatNumber(totals.users), rough.has("users"))} note={`${today.new_users} today`} estimate={rough.has("users")} />
         <BandStat label="Clubs" value={formatNumber(totals.clubs)} note={`${totals.verified_clubs} verified`} />
         <BandStat label="Organisations" value={formatNumber(totals.organisations)} note="colleges and communities" />
         <BandStat label="Events hosted" value={formatNumber(totals.events)} note={`${totals.upcoming_events} upcoming`} />
-        <BandStat label="Registrations" value={formatNumber(totals.registrations)} note={`${totals.attendance_rate}% turned up`} />
+        <BandStat label="Registrations" value={approx(formatNumber(totals.registrations), rough.has("registrations"))} note={`${approx(`${totals.attendance_rate}%`, rough.has("attendance_rate"))} turned up`} estimate={rough.has("registrations")} />
         <BandStat label="GMV, all time" value={lakh(totals.gmv)} note="captured, net of nothing" />
       </section>
 
@@ -463,7 +468,7 @@ export function AdminOverviewV2() {
         {[
           ["Events by type", `${totals.events} events`, breakdowns.events_by_type],
           ["Clubs by organisation", `${totals.clubs} clubs`, breakdowns.clubs_by_organisation],
-          ["How users sign in", `${totals.users} users`, breakdowns.users_by_provider],
+          ["How users sign in", `${approx(String(totals.users), rough.has("users"))} users`, breakdowns.users_by_provider],
         ].map(([title, sub, rows]) => {
           const list = rows as AdminOverview["breakdowns"]["events_by_type"];
           const max = Math.max(1, ...list.map((r) => r.value));

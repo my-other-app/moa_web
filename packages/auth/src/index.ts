@@ -2,6 +2,7 @@ export {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
   GATEWAY_PREFIX,
+  CLUB_NOT_VERIFIED,
   type SessionUser,
   type UserType,
 } from "./constants";

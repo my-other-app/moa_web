@@ -3,21 +3,21 @@ import { describe, expect, it } from "vitest";
 import { type AgendaEntry, type AgendaPiece, layoutAgenda, layoutProblems, layoutText, lineX, sampleAgenda } from "./engine";
 import { AGENDA_STARTERS, agendaStarter, BADGE_STARTERS, badgeStarter, badgeStarterPage, CERTIFICATE_STARTERS, certificateStarter, TICKET_STARTERS, ticketStarter } from "./starters";
 import { AgendaLayer, minQrSize, PAGE_PRESETS, TicketLayoutFields } from "./ticket-layout";
-import { canonicalToken, carriesPerGuestToken, fieldToken, parseTicketTemplate, renderTicketTemplate } from "./ticket-tokens";
+import { canonicalToken, carriesPerGuestToken, fieldToken, parseTicketTemplate, renderTicketTemplate, sampleValues, TOKEN_BY_KEY } from "./ticket-tokens";
 
 /**
  * The same cases the backend pins in tests/test_layout_tokens.py and
  * tests/test_layout_text.py, so the two halves of the contract agree.
  */
 const values: Record<string, string> = {
-  attendee_name: "Amara Okonjo", organization: "", email: "amara@x.co", seat: "", admission_no: "ADM-0041-KF26",
+  attendee_name: "Amara Okonjo", organization: "", email: "amara@x.co", seat: "", admission_no: "ADM-0041-KF26", ticket_code: "MOA-7K3QF-X9PLM",
   ticket_type: "VIP", event_name: "Annual Summit", event_date: "16 Sept 2026", event_day: "Wednesday",
   event_time: "09:00", event_end_time: "18:00", venue: "Ravensbourne Hall", "field.t_shirt_size": "L",
 };
 
 describe("the ticket template language", () => {
   it("fills tokens, and accepts the names other ticketing tools use", () => {
-    expect(renderTicketTemplate("{{name}} · {{ticket_code}} · {{event_title}}", values)).toBe("Amara Okonjo · ADM-0041-KF26 · Annual Summit");
+    expect(renderTicketTemplate("{{name}} · {{ticket_code}} · {{event_title}}", values)).toBe("Amara Okonjo · MOA-7K3QF-X9PLM · Annual Summit");
     expect(renderTicketTemplate("{{ attendee_name | upper }}", values)).toBe("AMARA OKONJO");
     expect(renderTicketTemplate("{{event_day}} {{event_date}} {{event_time}}–{{event_end_time}}", values)).toBe("Wednesday 16 Sept 2026 09:00–18:00");
     expect(renderTicketTemplate("Size {{field.t_shirt_size}}", values)).toBe("Size L");
@@ -42,6 +42,23 @@ describe("the ticket template language", () => {
     expect(parseTicketTemplate("{{}}").errors[0]).toMatch(/empty/);
     expect(parseTicketTemplate("Plain words and {{venue}}").errors).toEqual([]);
     expect(parseTicketTemplate("{{name}} {{company}}").tokens).toEqual(["attendee_name", "organization"]);
+  });
+
+  it("reads the ticket code -- not the admission number -- for every name other tools give the code", () => {
+    for (const name of ["ticket_code", "ticket_id", "ticket_number", "invite_code"]) expect(canonicalToken(name)).toBe("ticket_code");
+    expect(canonicalToken("admission_no")).toBe("admission_no");
+    expect(canonicalToken("admission_number")).toBe("admission_no");
+    expect(renderTicketTemplate("{{ticket_id}} / {{admission_no}}", values)).toBe("MOA-7K3QF-X9PLM / ADM-0041-KF26");
+    expect(carriesPerGuestToken("{{ticket_code}}")).toBe(true);
+  });
+
+  it("samples a ticket code the shape a ticket id is minted in", () => {
+    const sample = TOKEN_BY_KEY.get("ticket_code")?.sample;
+    expect(sample).toBe("MOA-7K3QF-X9PLM");
+    // MOA-XXXXX-XXXXX: two groups of five, as generate_ticket_id mints them.
+    expect(sample).toMatch(/^MOA-[A-Z0-9]{5}-[A-Z0-9]{5}$/);
+    expect(sampleValues().ticket_code).toBe("MOA-7K3QF-X9PLM");
+    expect(TOKEN_BY_KEY.get("ticket_code")?.note).toMatch(/gate/);
   });
 
   it("recognises our own aliases", () => {
@@ -124,6 +141,34 @@ describe("what a design may not be", () => {
     expect(layoutProblems(s.canvas, s.layers, PAGE_PRESETS.a4_portrait.page).map((p) => p.message)).toContainEqual(expect.stringContaining("not the shape of a 210 × 297 mm page"));
     const tiny = s.layers.map((l) => (l.kind === "qr" ? { ...l, size: 40 } : l));
     expect(layoutProblems(s.canvas, tiny, s.page).map((p) => p.message)).toContainEqual(expect.stringContaining(`at least ${minQrSize(s.canvas, s.page)} px`));
+  });
+});
+
+describe("the code every starter prints under the QR", () => {
+  const textLayers = (s: { layers: readonly { kind: string; id: string; text?: string }[] }) => s.layers.filter((l): l is { kind: "text"; id: string; text: string } => l.kind === "text");
+
+  it.each(Object.keys(TICKET_STARTERS) as (keyof typeof TICKET_STARTERS)[])("the %s ticket prints {{ticket_code}}, never {{admission_no}}", (kind) => {
+    for (const seats of [false, true]) {
+      const layers = textLayers(ticketStarter(kind, { seats }));
+      const code = layers.filter((l) => l.id === "code");
+      expect(code).toHaveLength(1);
+      expect(parseTicketTemplate(code[0]!.text).tokens).toEqual(["ticket_code"]);
+      expect(layers.filter((l) => parseTicketTemplate(l.text).tokens.includes("admission_no"))).toEqual([]);
+      for (const label of layers.filter((l) => l.id === "code-label")) expect(label.text).toBe("TICKET CODE");
+    }
+  });
+
+  it.each(Object.keys(BADGE_STARTERS) as (keyof typeof BADGE_STARTERS)[])("the %s ID card prints {{ticket_code}} under a TICKET CODE label", (kind) => {
+    for (const page of [null, PAGE_PRESETS.cr80_landscape.page, PAGE_PRESETS.label_38x90.page]) {
+      const layers = textLayers(badgeStarter(kind, { seats: false, page }));
+      const code = layers.filter((l) => l.id === "code");
+      // "simple" is a name, a QR and the event, by design: no code line at all.
+      if (kind === "simple") expect(code).toEqual([]);
+      else expect(code.length).toBeGreaterThan(0);
+      for (const l of code) expect(parseTicketTemplate(l.text).tokens).toEqual(["ticket_code"]);
+      for (const l of layers.filter((x) => x.id === "code-label")) expect(l.text).toBe("TICKET CODE");
+      expect(layers.filter((l) => parseTicketTemplate(l.text).tokens.includes("admission_no"))).toEqual([]);
+    }
   });
 });
 

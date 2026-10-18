@@ -35,6 +35,7 @@ import {
   Skeleton,
   StatusBadge,
   Switch,
+  cn,
   toast,
 } from "@moa/ui";
 
@@ -48,6 +49,7 @@ import {
   useUnpairKiosk,
   useUpdateKioskSettings,
 } from "../queries";
+import { PIN_MIN, pinFieldError, pinProblem } from "../api";
 import {
   VERIFY_META,
   type KioskDevice,
@@ -351,6 +353,10 @@ function SelfCheckInSettings({
   const update = useUpdateKioskSettings(eventId);
   const id = React.useId();
   const [pin, setPin] = React.useState("");
+  // Said under the field: too short before it is sent, or the API's own word (422) after.
+  const tooShort = pinProblem(pin);
+  const refused = pinFieldError(update.error);
+  const pinNote = tooShort ?? refused;
   return (
     <div className="border-line-soft grid gap-4 border-t px-4 py-4">
       <SwitchRow
@@ -391,6 +397,7 @@ function SelfCheckInSettings({
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          if (!pin || tooShort) return;
           update.mutate({ kiosk_pin: pin }, { onSuccess: () => setPin("") });
         }}
         className="border-line-soft grid gap-2 border-t pt-4"
@@ -406,17 +413,23 @@ function SelfCheckInSettings({
           <input
             id={`${id}-pin`}
             value={pin}
-            onChange={(e) =>
-              setPin(e.target.value.replace(/\D/g, "").slice(0, 12))
-            }
+            onChange={(e) => {
+              setPin(e.target.value.replace(/\D/g, "").slice(0, 12));
+              // A refusal belongs to the PIN it was about, not the next one.
+              if (refused) update.reset();
+            }}
             inputMode="numeric"
             placeholder={settings.has_pin ? "New PIN" : "4 to 12 digits"}
-            className="input w-40 font-mono"
+            minLength={PIN_MIN}
+            maxLength={12}
+            aria-invalid={pinNote ? true : undefined}
+            aria-describedby={pinNote ? `${id}-pin-note` : undefined}
+            className={cn("input w-40 font-mono", pinNote && "border-refuse")}
           />
           <Button
             type="submit"
             variant="secondary"
-            disabled={pin.length < 4 || update.isPending}
+            disabled={pin.length < PIN_MIN || update.isPending}
           >
             {settings.has_pin ? "Change PIN" : "Set PIN"}
           </Button>
@@ -431,9 +444,15 @@ function SelfCheckInSettings({
             </Button>
           ) : null}
         </div>
+        {pinNote ? (
+          <p id={`${id}-pin-note`} className="text-refuse text-[11.5px]">
+            {pinNote}
+          </p>
+        ) : null}
         <p className="text-ink-3 text-[11.5px]">
           Volunteers tap the corner of the kiosk screen and type it to see
-          counts, reload, or unpair.
+          counts, reload, or unpair. Five wrong tries lock it for fifteen
+          minutes.
         </p>
       </form>
     </div>

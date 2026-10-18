@@ -26,6 +26,30 @@ export interface UserFilters {
 export interface UserListQuery extends UserFilters {
   offset: number;
   limit: number;
+  /**
+   * The page after the one that handed this out (its `next` link): a
+   * keyset page, an index range rather than a skip past every row before
+   * it. Sent instead of the offset when there is one.
+   */
+  cursor?: string | undefined;
+}
+
+/** The total is counted up to this and no further; past it X-Total-Capped is set. */
+export const USER_TOTAL_CAP = 10_000;
+
+/** A page of users, with what the response says beyond its JSON. */
+export type UserListPage = AdminUserPage & {
+  /** The total stopped counting at USER_TOTAL_CAP: there are at least that many. */
+  capped: boolean;
+  /** The cursor for the next page, when `next` carries one (an API from before pages by offset only). */
+  nextCursor: string | null;
+};
+
+/** The `cursor` a `next` link carries, or null. */
+export function cursorOf(next: string | null | undefined): string | null {
+  if (!next) return null;
+  const query = next.includes("?") ? next.slice(next.indexOf("?") + 1) : "";
+  return new URLSearchParams(query).get("cursor");
 }
 
 /**
@@ -47,15 +71,21 @@ function filterParams(filters: UserFilters) {
   };
 }
 
-export async function fetchUsers(query: UserListQuery): Promise<AdminUserPage> {
+export async function fetchUsers(query: UserListQuery): Promise<UserListPage> {
+  let capped = false;
   const raw = await api.get<unknown>("/api/v1/user/admin/list", {
     query: {
       ...filterParams(query),
-      offset: query.offset,
+      // A cursor names the page by its last row; an offset beside it means nothing.
+      ...(query.cursor ? { cursor: query.cursor } : { offset: query.offset }),
       limit: query.limit,
     },
+    onResponse: (response) => {
+      capped = response.headers.get("X-Total-Capped") === "true";
+    },
   });
-  return adminUserPageSchema.parse(raw);
+  const page = adminUserPageSchema.parse(raw);
+  return { ...page, capped, nextCursor: cursorOf(page.next) };
 }
 
 /**

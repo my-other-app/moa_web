@@ -160,7 +160,7 @@ export function useSendTemplate(eventId: number) {
   const refresh = useRefreshEmails({ kind: "event", eventId });
   const refreshDeliveries = useRefreshDeliveries(eventId);
   return useMutation({
-    mutationFn: (templateId: string) => sendTemplate(eventId, templateId),
+    mutationFn: ({ templateId, clientRef }: { templateId: string; clientRef?: string }) => sendTemplate(eventId, templateId, clientRef),
     onSuccess: (m) => {
       toast.success(m.recipients ? `Sending to ${m.recipients} ${m.recipients === 1 ? "guest" : "guests"}` : "Nobody to send to", {
         description: m.recipients ? "Each guest's email is on its way; the message shows how it went." : "No guest matches this audience.",

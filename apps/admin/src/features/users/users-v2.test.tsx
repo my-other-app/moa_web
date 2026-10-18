@@ -36,14 +36,17 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       },
     }),
     api: {
-      get: vi.fn(async (path: string, init?: { query?: Record<string, unknown> }) => {
+      get: vi.fn(async (path: string, init?: { query?: Record<string, unknown>; onResponse?: (r: Response) => void }) => {
         const query = new URLSearchParams(
           Object.entries(init?.query ?? {})
             .filter(([, v]) => v !== undefined)
             .map(([k, v]) => [k, String(v)])
         ).toString();
         calls.push(query ? `${path}?${query}` : path);
-        if (path.includes("/user/admin/list")) return pageOf(rows);
+        if (path.includes("/user/admin/list")) {
+          init?.onResponse?.(new Response(null, { headers: capped ? { "X-Total-Capped": "true" } : {} }));
+          return { ...pageOf(rows), ...envelope };
+        }
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(),
@@ -56,6 +59,9 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 type Row = (typeof usersFixture)["items"][number];
 
 let rows: Row[] = usersFixture.items;
+/** What the Wave-1 API adds: the capped header, and a cursor in `next`. Off for today's API. */
+let capped = false;
+let envelope: Record<string, unknown> = {};
 
 function pageOf(items: Row[]) {
   return { ...usersFixture, items, total: items.length === 0 ? 0 : usersFixture.total };
@@ -64,12 +70,14 @@ function pageOf(items: Row[]) {
 const { render } = await import("@/test/render");
 const { UsersV2 } = await import("./components/users-v2");
 const { adminUserSchema } = await import("./schemas");
-const { exportUsersCsv } = await import("./api");
+const { exportUsersCsv, fetchUsers, cursorOf } = await import("./api");
 
 beforeEach(() => {
   calls.length = 0;
   rows = usersFixture.items;
   role = "owner";
+  capped = false;
+  envelope = {};
 });
 
 describe("admin user row schema", () => {
@@ -145,6 +153,47 @@ describe("users screen", () => {
     // useSearchParams is stubbed empty in setup.ts, so no filter is applied
     // and this is the genuinely-empty wording.
     expect(await screen.findByText("No users yet")).toBeInTheDocument();
+  });
+});
+
+describe("a platform past ten thousand accounts", () => {
+  it("says 10,000+ when the API stopped counting, and names no last page", async () => {
+    capped = true;
+    envelope = { total: 10_000, next: "/api/v1/user/admin/list?limit=25&sort=joined&order=desc&cursor=2026-10-18T09%3A00%3A00%2B00%3A00~4211" };
+    render(<UsersV2 />);
+    expect(await screen.findByText(/^10,000\+ people/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export 10,000+ as CSV" })).toBeInTheDocument();
+    expect(screen.getByText("Page 1 · 1–3 of 10,000+")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Next/ })).toBeEnabled();
+  });
+
+  it("reads today's exact total as it always did", async () => {
+    render(<UsersV2 />);
+    expect(await screen.findByText(/^668 people/)).toBeInTheDocument();
+    expect(screen.getByText(/Page 1 of 27/)).toBeInTheDocument();
+  });
+
+  it("reads the cursor out of the next link, and the cap off the header", async () => {
+    capped = true;
+    envelope = { total: 10_000, next: "/api/v1/user/admin/list?limit=25&cursor=2026-10-18T09%3A00%3A00%2B00%3A00~4211" };
+    const page = await fetchUsers({ offset: 0, limit: 25 });
+    expect(page.capped).toBe(true);
+    expect(page.nextCursor).toBe("2026-10-18T09:00:00+00:00~4211");
+    expect(cursorOf("/api/v1/user/admin/list?limit=3&offset=3")).toBeNull();
+    expect(cursorOf(null)).toBeNull();
+
+    // The page after it is asked for by its cursor, not an offset.
+    calls.length = 0;
+    await fetchUsers({ offset: 25, limit: 25, cursor: "2026-10-18T09:00:00+00:00~4211" });
+    expect(calls[0]).toContain("cursor=2026-10-18T09%3A00%3A00%2B00%3A00%7E4211");
+    expect(calls[0]).not.toContain("offset=");
+  });
+
+  it("pages by offset against today's API, which hands out no cursor", async () => {
+    const page = await fetchUsers({ offset: 0, limit: 25 });
+    expect(page.capped).toBe(false);
+    expect(page.nextCursor).toBeNull();
+    expect(calls[0]).toContain("offset=0");
   });
 });
 

@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -21,6 +22,17 @@ import {
   FormMessage,
   NativeSelect,
 } from "@moa/ui";
+
+import {
+  answerForForm,
+  answersPayload,
+  inputTypeOf,
+  invalidAnswers,
+  isBlank,
+  isMultiChoice,
+  isSingleChoice,
+  type AnswerValue,
+} from "@/lib/answers";
 
 import { useAddAttendee, useUpdateRegistration } from "../queries";
 import {
@@ -41,7 +53,8 @@ const valuesSchema = z.object({
   email: z.string().trim().email("That does not look like an email address."),
   phone: z.string().trim().max(15, "Too long for a phone number.").optional(),
   role: z.enum(REGISTRATION_ROLES),
-  answers: z.record(z.string()),
+  // A several-choices question holds the ticked options; every other, text.
+  answers: z.record(z.union([z.string(), z.array(z.string())])),
 });
 type Values = z.infer<typeof valuesSchema>;
 
@@ -69,14 +82,13 @@ export function AttendeeFormDialog({
 }) {
   const add = useAddAttendee(eventId);
   const update = useUpdateRegistration(eventId);
-  const answersOf = (r: RegistrationDetail | null) =>
+  const answersOf = (r: RegistrationDetail | null): Record<string, AnswerValue> =>
     Object.fromEntries(
       fields.map((f) => [
         f.key,
-        String(
-          (
-            r?.additional_details as Record<string, unknown> | null | undefined
-          )?.[f.key] ?? "",
+        answerForForm(
+          f,
+          (r?.additional_details as Record<string, unknown> | null | undefined)?.[f.key],
         ),
       ]),
     );
@@ -104,17 +116,26 @@ export function AttendeeFormDialog({
   const submit = form.handleSubmit((v) => {
     // A required question left blank is refused here, the way the server refuses it.
     for (const f of fields) {
-      if (f.required !== false && !v.answers[f.key]?.trim()) {
+      if (f.required !== false && isBlank(v.answers[f.key])) {
         form.setError(`answers.${f.key}`, { message: "This is required." });
         return;
       }
     }
-    const answers = Object.fromEntries(
-      Object.entries(v.answers).filter(([, value]) => value.trim() !== ""),
-    );
+    // A blank answer is left out; several ticks go as a list, one as itself.
+    const answers = answersPayload(fields, v.answers);
     const done = () => {
       onOpenChange(false);
       form.reset();
+    };
+    // The API's word on an answer it refused (INVALID_ANSWERS: a number
+    // that is not one, an option no longer offered), under that question.
+    const refused = (error: unknown) => {
+      const problems = invalidAnswers(error);
+      if (!problems) return;
+      for (const [key, message] of Object.entries(problems)) {
+        if (fields.some((f) => f.key === key)) form.setError(`answers.${key}`, { message });
+        else form.setError("root.answers", { message });
+      }
     };
     if (existing) {
       update.mutate(
@@ -128,7 +149,7 @@ export function AttendeeFormDialog({
             additional_details: answers,
           },
         },
-        { onSuccess: done },
+        { onSuccess: done, onError: refused },
       );
     } else {
       add.mutate(
@@ -139,7 +160,7 @@ export function AttendeeFormDialog({
           role: v.role,
           additional_details: answers,
         },
-        { onSuccess: done },
+        { onSuccess: done, onError: refused },
       );
     }
   });
@@ -240,13 +261,34 @@ export function AttendeeFormDialog({
                           {f.label ?? f.key}
                           {f.required === false ? " · optional" : ""}
                         </FormLabel>
-                        {f.options?.length ? (
+                        {isMultiChoice(f) ? (
+                          <div role="group" aria-label={f.label ?? f.key} className="flex flex-wrap gap-x-4 gap-y-2 pt-0.5">
+                            {(f.options ?? []).map((o) => {
+                              const ticked = Array.isArray(field.value) ? field.value : [];
+                              const id = `answer-${f.key}-${o}`;
+                              return (
+                                <span key={o} className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={id}
+                                    checked={ticked.includes(o)}
+                                    onCheckedChange={(on) =>
+                                      field.onChange(on === true ? [...ticked.filter((t) => t !== o), o] : ticked.filter((t) => t !== o))
+                                    }
+                                  />
+                                  <label htmlFor={id} className="text-ink cursor-pointer text-[13px]">
+                                    {o}
+                                  </label>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : isSingleChoice(f) ? (
                           <FormControl>
-                            <NativeSelect className="w-full" {...field} value={field.value || ""}>
+                            <NativeSelect className="w-full" {...field} value={typeof field.value === "string" ? field.value : ""}>
                               <option value="" disabled>
                                 Choose
                               </option>
-                              {f.options.map((o) => (
+                              {(f.options ?? []).map((o) => (
                                 <option key={o} value={o}>
                                   {o}
                                 </option>
@@ -255,7 +297,12 @@ export function AttendeeFormDialog({
                           </FormControl>
                         ) : (
                           <FormControl>
-                            <input className={FIELD} {...field} value={field.value ?? ""} />
+                            <input
+                              className={FIELD}
+                              type={inputTypeOf(f)}
+                              {...field}
+                              value={typeof field.value === "string" ? field.value : ""}
+                            />
                           </FormControl>
                         )}
                         <FormMessage />
@@ -263,6 +310,9 @@ export function AttendeeFormDialog({
                     )}
                   />
                 ))}
+                {form.formState.errors.root?.answers ? (
+                  <p className="text-refuse text-[12px]">{form.formState.errors.root.answers.message}</p>
+                ) : null}
               </div>
             ) : null}
             <DialogFooter>

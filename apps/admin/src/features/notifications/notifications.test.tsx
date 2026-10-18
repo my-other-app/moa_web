@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 /**
  * Admin alerts against the backend's contract (the UI calls them
@@ -481,5 +481,74 @@ describe("content reported", () => {
     expect(within(kinds).getByRole("option", { name: "Content reported" })).toHaveValue("content_reported");
     fireEvent.change(kinds, { target: { value: "content_reported" } });
     expect(pushes.at(-1)).toBe("/notifications?kind=content_reported");
+  });
+});
+
+// ─── Wave 1: money that needs a look, mail given up on ───────────────────
+
+const WAVE1_ITEMS = [
+  item({ id: 31, kind: "payment_unapplied", title: "Ananya paid (order order_N1) but the registration is still not paid", subscription_id: null, data: { order_id: "o1", razorpay_order_id: "order_N1", registration_id: "r1", repaired: false } }),
+  item({ id: 32, kind: "payment_auto_refunded", title: "A payment for Build Night was refunded: the event was full", subscription_id: null, data: { payment_id: "pay_R1", reason: "event_full", amount: "499.00" } }),
+  item({ id: 33, kind: "payment_refund_failed", title: "An automatic refund of ₹499 has not gone through yet", subscription_id: null, data: { payment_id: "pay_R2", reason: "duplicate", error: "BAD_REQUEST" } }),
+  item({ id: 34, kind: "store_oversold", title: "A guest paid for store pieces that had sold out", subscription_id: null, data: { order_id: "s1", event_id: 37, total: "890" } }),
+  item({ id: 35, kind: "subscription_orphan_charged", title: "Razorpay charged ₹999 on a subscription no club holds", subscription_id: null, data: { razorpay_subscription_id: "sub_X", payment_id: "pay_S", cancelled: true } }),
+  item({ id: 36, kind: "email_dead_letter", title: "Emails for Build Night were given up on", subscription_id: null, data: { event_id: 37, what: "ticket", error: "Throttled" } }),
+];
+
+describe("the Wave-1 alerts", () => {
+  it("are kinds of their own, each with a word and a colour", () => {
+    expect(NOTIFICATION_KINDS).toEqual(expect.arrayContaining(["payment_unapplied", "payment_auto_refunded", "payment_refund_failed", "store_oversold", "subscription_orphan_charged", "email_dead_letter"]));
+    expect(kindLabel("payment_unapplied")).toBe("Payment not applied");
+    expect(kindLabel("payment_auto_refunded")).toBe("Refunded automatically");
+    expect(kindLabel("payment_refund_failed")).toBe("Refund failed");
+    expect(kindLabel("store_oversold")).toBe("Store oversold");
+    expect(kindLabel("subscription_orphan_charged")).toBe("Charge on an unknown subscription");
+    expect(kindLabel("email_dead_letter")).toBe("Emails failed after retries");
+    for (const k of ["payment_unapplied", "payment_refund_failed", "store_oversold", "subscription_orphan_charged", "email_dead_letter"]) expect(kindTone(k)).toBe("failure");
+    expect(kindTone("payment_auto_refunded")).toBe("change");
+  });
+
+  it("say what the data adds: repaired or not, and why a refund was made", () => {
+    expect(alertLabel(WAVE1_ITEMS[0]!)).toBe("Payment not applied · still unpaid");
+    expect(alertLabel(item({ kind: "payment_unapplied", data: { repaired: true } }))).toBe("Payment not applied · applied by the sweep");
+    expect(alertLabel(WAVE1_ITEMS[1]!)).toBe("Refunded automatically · the event was full");
+    expect(alertLabel(item({ kind: "payment_auto_refunded", data: { reason: "duplicate" } }))).toBe("Refunded automatically · paid twice");
+    expect(alertLabel(item({ kind: "payment_auto_refunded", data: null }))).toBe("Refunded automatically");
+  });
+
+  it("lead a payment to the Payments page by its Razorpay id, and the rest to the club", () => {
+    expect(notificationHref(WAVE1_ITEMS[0]!)).toBe("/payments?q=order_N1");
+    expect(notificationHref(WAVE1_ITEMS[1]!)).toBe("/payments?q=pay_R1");
+    expect(notificationHref(WAVE1_ITEMS[2]!)).toBe("/payments?q=pay_R2");
+    expect(notificationHref(item({ kind: "payment_refund_failed", data: null, club: null }))).toBe("/payments");
+    expect(notificationHref(WAVE1_ITEMS[3]!)).toBe("/clubs/5");
+    expect(notificationHref(WAVE1_ITEMS[5]!)).toBe("/clubs/5");
+    expect(notificationHref(item({ kind: "email_dead_letter", club: null }))).toBeNull();
+    // A charge Razorpay made on a subscription: the club's subscriptions.
+    expect(notificationHref(WAVE1_ITEMS[4]!)).toBe("/subscriptions?q=Circuit");
+  });
+
+  it("show in the bell and on the Notifications page with their marks", async () => {
+    listItems = WAVE1_ITEMS;
+    render(<NotificationBell />);
+    fireEvent.click(await screen.findByRole("button", { name: /Notifications: 3 unread/ }));
+    const list = await screen.findByRole("list", { name: "Latest notifications" });
+    expect(within(list).getByRole("img", { name: "Emails failed after retries" })).toHaveAttribute("data-tone", "failure");
+    expect(within(list).getByRole("link", { name: "Emails for Build Night were given up on" })).toHaveAttribute("href", "/clubs/5");
+    expect(within(list).getByRole("link", { name: /An automatic refund/ })).toHaveAttribute("href", "/payments?q=pay_R2");
+    cleanup();
+
+    render(<NotificationsPage />);
+    const page = await screen.findByRole("list", { name: "Notifications" });
+    expect(within(page).getAllByRole("img").map((i) => i.getAttribute("aria-label"))).toEqual([
+      "Payment not applied",
+      "Refunded automatically",
+      "Refund failed",
+      "Store oversold",
+      "Charge on an unknown subscription",
+      "Emails failed after retries",
+    ]);
+    const kinds = screen.getByRole("combobox", { name: "Kind" });
+    expect(within(kinds).getByRole("option", { name: "Emails failed after retries" })).toHaveValue("email_dead_letter");
   });
 });

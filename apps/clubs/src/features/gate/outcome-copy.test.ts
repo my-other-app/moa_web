@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { outcomeCard, walkupCard } from "./lib/outcome-copy";
-import type { ScanResult, WalkupResult } from "./schemas";
+import { needsHandCheckIn, outcomeCard, walkupCard } from "./lib/outcome-copy";
+import { scanResultSchema, type ScanResult, type WalkupResult } from "./schemas";
 
 const base: ScanResult = {
   outcome: "CHECKED_IN",
@@ -38,6 +38,19 @@ describe("the outcome card", () => {
     expect(outcomeCard({ ...base, outcome: "INVALID", attendee: null }, "Gate A").tone).toBe("refuse");
   });
 
+  it("asks staff to check an admission number's holder in by hand, and admits nobody", () => {
+    const res: ScanResult = { ...base, outcome: "INVALID", attendee: { ...base.attendee!, admission_no: "MOA-0042-E123" }, hint: "ADMISSION_NUMBER" };
+    const c = outcomeCard(res, "Gate A");
+    expect(c.tone).toBe("caution");
+    expect(c.title).toBe("Ananya Iyer, admission no. MOA-0042-E123: check in by hand?");
+    expect(c.sub).toBe("NOT A TICKET CODE · MOA-1 · SPEAKER · GATE A");
+    expect(needsHandCheckIn(res)).toBe(true);
+    // Today's API sends no hint: an unknown code is just that.
+    expect(needsHandCheckIn({ ...base, outcome: "INVALID", attendee: null })).toBe(false);
+    expect(needsHandCheckIn({ ...res, attendee: null })).toBe(false);
+    expect(outcomeCard({ ...base, outcome: "INVALID", attendee: null }, "Gate A").note).toContain("MOA-XXXXX-XXXXX");
+  });
+
   it("marks a queued scan as saved, not admitted", () => {
     const c = outcomeCard({ ...base, attendee: null }, "Gate A", true);
     expect(c.tag).toBe("Queued");
@@ -50,5 +63,21 @@ describe("the outcome card", () => {
     expect(walkupCard({ ...registered, checked_in: false, ticket_sent: false }, "Gate A", "Devika")?.note).toContain("No address given");
     expect(walkupCard({ ...registered, outcome: "DUPLICATE", attendee: null, duplicate_of: { id: "x", name: "Ananya Iyer" }, duplicate_by: "NAME" }, "Gate A", "Ananya")?.tag).toBe("Same name on the list");
     expect(walkupCard({ ...registered, outcome: "DUPLICATE", attendee: null, duplicate_of: { id: "x", name: "Ananya Iyer" }, duplicate_by: "CONTACT" }, "Gate A", "Ananya")?.tag).toBe("Already on the list");
+  });
+});
+
+describe("what the door reads from the server", () => {
+  const wire = { outcome: "INVALID", attendee: null, checked_in_at: null, checked_in_by: null, other_event: null, revoked_at: null, capture: { ask: false, required: false, reason: "NOT_ADMITTED" }, replayed: false };
+
+  it("parses a refusal from today's API, which sends no hint", () => {
+    const r = scanResultSchema.parse(wire);
+    expect(r.hint).toBeUndefined();
+    expect(needsHandCheckIn(r)).toBe(false);
+  });
+
+  it("parses the admission-number hint and its holder", () => {
+    const r = scanResultSchema.parse({ ...wire, hint: "ADMISSION_NUMBER", attendee: { id: "r9", name: "Devika Menon", ticket_id: "MOA-ABCDE-23456", role: "attendee", admission_no: "MOA-0042-E123" } });
+    expect(needsHandCheckIn(r)).toBe(true);
+    expect(r.attendee?.admission_no).toBe("MOA-0042-E123");
   });
 });

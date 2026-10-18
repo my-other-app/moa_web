@@ -13,6 +13,9 @@ import { z } from "zod";
 
 export const GATE_KEY_HEADER = "X-Gate-Key";
 
+/** The door key, as a header for a fetch of our own (a card's PDF); never in a URL. */
+export const gateHeaders = (key: string | null): Record<string, string> | undefined => (key ? { [GATE_KEY_HEADER]: key } : undefined);
+
 const clients = new Map<string, ReturnType<typeof createApiClient>>();
 
 /**

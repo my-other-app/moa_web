@@ -22,6 +22,12 @@ export interface RequestOptions {
   cache?: RequestCache;
   revalidate?: number | false;
   tags?: string[];
+  /**
+   * Shown the raw response before its body is read, for the rare caller
+   * that needs a header the JSON does not carry (X-Total-Capped on the
+   * admin user list).
+   */
+  onResponse?: (response: Response) => void;
 }
 
 function buildUrl(
@@ -97,6 +103,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       buildUrl(options.baseUrl, path, reqOptions.query),
       init
     );
+    reqOptions.onResponse?.(response);
 
     if (!response.ok) throw await toApiError(response);
 

@@ -22,7 +22,19 @@ export const settingsSchema = z.object({
   shortlist_size: z.number(),
   final_size: z.number(),
   slot_minutes: z.number(),
+  /**
+   * How the judges' totals make a team's score: their mean, or each judge
+   * put on their own scale first (z-scores). Absent on an API from before,
+   * which only knows the mean -- the console then offers no choice.
+   */
+  score_method: z.enum(["mean", "zscore"]).optional(),
 });
+
+export const SCORE_METHODS = [
+  { value: "mean", label: "Mean" },
+  { value: "zscore", label: "Z-score per judge" },
+] as const;
+export type ScoreMethod = (typeof SCORE_METHODS)[number]["value"];
 
 export const trackSchema = z.object({ id: z.number(), name: z.string(), description: z.string().nullable(), sponsor: z.string().nullable(), prize: z.string().nullable(), sort_order: z.number(), teams: z.number() });
 
@@ -97,6 +109,7 @@ export type SettingsPatch = Partial<{
   shortlist_size: number;
   final_size: number;
   slot_minutes: number;
+  score_method: ScoreMethod;
 }>;
 
 export const VIEWS = ["tracks", "teams", "submissions", "judging", "rounds", "leaderboard", "hours"] as const;

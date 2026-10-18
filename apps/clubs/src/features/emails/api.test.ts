@@ -91,7 +91,7 @@ describe("the email endpoints", () => {
     await api.duplicateTemplate({ kind: "event", eventId: 42 }, "t1");
     await api.resetTemplate(42, "t1");
     await api.saveToLibrary(42, "t1");
-    const m = await api.sendTemplate(42, "t1");
+    const m = await api.sendTemplate(42, "t1", "6f1c2d3e-4a5b-4c6d-8e7f-001122334455");
     expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
       "PUT /api/v1/events/42/emails/t1",
       "PUT /api/v1/clubs/me/emails/lib-1",
@@ -101,6 +101,15 @@ describe("the email endpoints", () => {
       "POST /api/v1/events/42/emails/t1/send",
     ]);
     expect(m.recipients).toBe(3);
+    // The press's key rides in the body, camel-cased as the email API speaks.
+    expect(calls.at(-1)?.body).toEqual({ clientRef: "6f1c2d3e-4a5b-4c6d-8e7f-001122334455" });
+  });
+
+  it("sends no body without a key, as an API from before the key expects", async () => {
+    await api.sendTemplate(42, "t1");
+    expect(calls.at(-1)?.body).toBeUndefined();
+    expect(api.newClientRef()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(api.newClientRef()).not.toBe(api.newClientRef());
   });
 
   it("previews and test-sends the unsaved design, and counts an audience", async () => {

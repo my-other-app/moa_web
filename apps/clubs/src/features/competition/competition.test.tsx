@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { ApiError } from "@moa/api";
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
+let advanceRefusal: ApiError | null = null;
+let competition: Record<string, unknown> | null = null;
 
 const board = [{ rank: 1, team_id: 10, name: "Byte Benders", track: "Wake word on a ₹300 chip", stage: "entered", score: 77.0, judges_scored: 2, judges_total: 2 }, { rank: 2, team_id: 11, name: "Tiny Tensors", track: "Sensors for good", stage: "entered", score: 60.0, judges_scored: 1, judges_total: 2 }];
 
@@ -35,14 +38,17 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     api: {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
-        if (path.endsWith("/events/37/competition")) return base;
+        if (path.endsWith("/events/37/competition")) return competition ?? base;
         if (path.includes("/registrations")) return { items: [], total: 0 };
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(async (path: string, body: unknown) => {
         calls.push({ method: "POST", path, body });
         if (path.endsWith("/tracks")) return { ...base, tracks: [...base.tracks, { id: 3, name: (body as { name: string }).name, description: null, sponsor: null, prize: null, sort_order: 2, teams: 0 }] };
-        if (path.endsWith("/rounds/advance")) return { ...base, rounds: { entered: [base.board[1]!], shortlisted: [base.board[0]!], finalists: [] } };
+        if (path.endsWith("/rounds/advance")) {
+          if (advanceRefusal) throw advanceRefusal;
+          return { ...base, rounds: { entered: [base.board[1]!], shortlisted: [base.board[0]!], finalists: [] } };
+        }
         return base;
       }),
       patch: vi.fn(async (path: string, body: unknown) => {
@@ -68,6 +74,8 @@ const { totalOf } = await import("./schemas");
 
 beforeEach(() => {
   calls.length = 0;
+  advanceRefusal = null;
+  competition = null;
   window.history.replaceState(null, "", "/events/37/competition");
 });
 
@@ -143,6 +151,57 @@ describe("the competition tab", () => {
     expect(await screen.findByText(/Private — only your committee/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("radio", { name: "Public" }));
     await waitFor(() => expect(calls.find((c) => c.method === "PATCH")).toMatchObject({ body: { leaderboard_public: true } }));
+  });
+
+  it("names the teams tied at the cut and lets the organiser move one by hand", async () => {
+    advanceRefusal = new ApiError({
+      message: "Byte Benders, Tiny Tensors tie on 77.0 for the last place. Move one by hand, or advance 0 or 2.",
+      status: 409,
+      errorCode: "TIE_AT_CUT",
+      fieldErrors: { tied: [{ team_id: 10, name: "Byte Benders", score: 77.0 }, { team_id: 11, name: "Tiny Tensors", score: 77.0 }], places_left: 1, score: 77.0 } as unknown as Record<string, string[]>,
+    });
+    render(<CompetitionPage eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: /^Rounds/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Advance to shortlist/ }));
+    expect(await screen.findByText(/Byte Benders and Tiny Tensors are level on 77.0 for the last place in the shortlist/)).toBeInTheDocument();
+    expect(screen.getByText("Tie at the cut")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Move Tiny Tensors to the shortlist" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "PATCH")).toMatchObject({ path: "/api/v1/events/37/competition/teams/11", body: { stage: "shortlisted" } }));
+    expect(screen.queryByText("Tie at the cut")).toBeNull();
+  });
+
+  it("offers mean or z-score scoring only when the API says which it uses", async () => {
+    // Today's API: no score_method, so no choice to make.
+    const first = render(<CompetitionPage eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: /^Judging/ }));
+    await screen.findByText("Judges");
+    expect(screen.queryByRole("radiogroup", { name: "Scoring" })).toBeNull();
+    first.unmount();
+
+    competition = { ...base, settings: { ...base.settings, score_method: "mean" } };
+    render(<CompetitionPage eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: /^Judging/ }));
+    const scoring = await screen.findByRole("radiogroup", { name: "Scoring" });
+    expect(within(scoring).getByRole("radio", { name: "Mean" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText(/a harsh judge and a generous one count the same/)).toBeInTheDocument();
+    fireEvent.click(within(scoring).getByRole("radio", { name: "Z-score per judge" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "PATCH")).toMatchObject({ path: "/api/v1/events/37/competition", body: { score_method: "zscore" } }));
+  });
+
+  it("words a team too small to submit, and leaves a tie to the rounds panel", async () => {
+    const { competitionError, tieAtCut } = await import("./errors");
+    const { toast } = await import("@moa/ui");
+    const spy = vi.spyOn(toast, "error");
+    competitionError(new ApiError({ message: "A team needs at least 2 people to submit; Solo has 1.", status: 409, errorCode: "TEAM_TOO_SMALL" }));
+    expect(spy).toHaveBeenCalledWith("Too few people on the team to submit", { description: "A team needs at least 2 people to submit; Solo has 1." });
+    spy.mockClear();
+    const tie = new ApiError({ message: "tie", status: 409, errorCode: "TIE_AT_CUT", fieldErrors: { tied: [{ team_id: 1, name: "A", score: 5 }], places_left: 1 } as unknown as Record<string, string[]> });
+    competitionError(tie);
+    expect(spy).not.toHaveBeenCalled();
+    expect(tieAtCut(tie)?.tied[0]?.name).toBe("A");
+    // A 409 without the details reads as an ordinary refusal.
+    expect(tieAtCut(new ApiError({ message: "x", status: 409, errorCode: "TIE_AT_CUT" }))).toBeNull();
+    spy.mockRestore();
   });
 
   it("shows the mentor grid and frees a booked slot", async () => {

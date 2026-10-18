@@ -2,10 +2,31 @@
 
 import * as React from "react";
 import { PlusIcon, Trash2Icon } from "lucide-react";
-import { FigurePanel, IconButton, NativeSelect, Notice, cn } from "@moa/ui";
+import { FigurePanel, IconButton, NativeSelect, Notice, Segmented, cn } from "@moa/ui";
 
 import { useAddJudge, useDeleteJudge, usePatchSettings, usePutScore } from "../queries";
-import { totalOf, type Competition, type Criterion } from "../schemas";
+import { SCORE_METHODS, totalOf, type Competition, type Criterion, type ScoreMethod } from "../schemas";
+
+/**
+ * How the judges' totals make a team's score. Offered only by an API that
+ * says which it uses (score_method); one from before knows only the mean.
+ */
+function Scoring({ eventId, method }: { eventId: number; method: ScoreMethod }) {
+  const settings = usePatchSettings(eventId);
+  return (
+    <FigurePanel className="p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-ink text-[15px] font-semibold">Scoring</h3>
+        <Segmented label="Scoring" value={method} options={SCORE_METHODS} onChange={(v) => settings.mutate({ score_method: v })} />
+      </div>
+      <p className="text-ink-3 mt-2 text-[12px] leading-[1.5]">
+        {method === "zscore"
+          ? "Z-score puts each judge's marks on their own scale first, so a harsh judge and a generous one count the same; a team's score is 50 at a judge's average."
+          : "Mean averages the judges' totals out of 100. Z-score puts each judge on their own scale first, so a harsh judge and a generous one count the same."}
+      </p>
+    </FigurePanel>
+  );
+}
 
 /**
  * Judging: the rubric on the left — criteria and their weights, which
@@ -126,6 +147,7 @@ export function JudgingPanel({ eventId, c }: { eventId: number; c: Competition }
       ) : null}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
         <div className="grid content-start gap-3">
+          {c.settings.score_method ? <Scoring eventId={eventId} method={c.settings.score_method} /> : null}
           <Rubric key={JSON.stringify(c.settings.rubric)} eventId={eventId} c={c} />
           <Judges eventId={eventId} c={c} />
         </div>

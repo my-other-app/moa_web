@@ -122,11 +122,11 @@ export function DoorIconButton({
 }
 
 /** One of a few exclusive choices at touch height: a door, a role. Put several in a `role="radiogroup"`. */
-export function TouchChoice({ checked, onClick, children, aside }: { checked: boolean; onClick: () => void; children: React.ReactNode; aside?: React.ReactNode }) {
+export function TouchChoice({ checked, onClick, children, aside, role = "radio" }: { checked: boolean; onClick: () => void; children: React.ReactNode; aside?: React.ReactNode; role?: "radio" | "checkbox" }) {
   return (
     <button
       type="button"
-      role="radio"
+      role={role}
       aria-checked={checked}
       onClick={onClick}
       className={cn(

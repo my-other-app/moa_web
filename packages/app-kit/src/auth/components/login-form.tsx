@@ -13,6 +13,7 @@ import {
   ShieldCheckIcon,
 } from "lucide-react";
 import { ApiError } from "@moa/api";
+import { CLUB_NOT_VERIFIED } from "@moa/auth";
 import { IconToggle, Notice } from "@moa/ui";
 
 import { useLogin } from "../queries";
@@ -27,10 +28,12 @@ import { loginSchema, type LoginInput } from "../schemas";
 const TOTP_REQUIRED = "TOTP_REQUIRED";
 const TOTP_INVALID = "TOTP_INVALID";
 const LOGIN_LOCKED = "LOGIN_LOCKED";
-const CLUB_NOT_VERIFIED = "CLUB_NOT_VERIFIED";
 
-/** An applicant whose password is right, told where it stands rather than "refused". */
-const CLUB_UNDER_REVIEW = "Your club is still under review — we'll email you when it's approved.";
+/**
+ * An applicant whose password is right, told where it stands rather than
+ * "refused". The clubs app's awaiting-approval screen says the same.
+ */
+export const CLUB_UNDER_REVIEW = "Your club is still under review — we'll email you when it's approved.";
 
 type Problem = { tone: "refuse" | "caution"; text: string };
 

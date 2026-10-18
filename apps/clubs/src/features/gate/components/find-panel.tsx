@@ -7,6 +7,7 @@ import { CheckIcon, PrinterIcon, SearchIcon, UserPlusIcon } from "lucide-react";
 import { PrintFrame, cardPdfUrl } from "@/features/idcards";
 import { formatDateTime } from "@moa/app-kit";
 
+import { gateHeaders } from "../api";
 import { outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { useCheckInByHand, useGuestSearch } from "../queries";
 import { ROLE_LABEL, type GateContext } from "../schemas";
@@ -37,11 +38,11 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
   };
   return (
     <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
-      {printing ? <PrintFrame key={printing} url={printing} onDone={() => setTimeout(() => setPrinting(null), 4000)} /> : null}
+      {printing ? <PrintFrame key={printing} url={printing} headers={gateHeaders(gateKey)} onDone={() => setTimeout(() => setPrinting(null), 4000)} /> : null}
       {card ? <OutcomeCard card={card} onDismiss={() => setCard(null)} /> : null}
       <div>
         <label htmlFor="gate-find" className={DOOR_LABEL}>
-          Name, email or ticket
+          Name, email, ticket or admission no.
         </label>
         <div className="search h-11">
           <SearchIcon aria-hidden="true" />
@@ -73,7 +74,7 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
                     In · {formatDateTime(r.checked_in_at)}
                   </span>
                   {mayPrint(r.badge_printed_at) ? (
-                    <Button type="button" size="lg" variant="secondary" aria-label={`Print card for ${r.name}`} onClick={() => setPrinting(cardPdfUrl(ctx.event.id, r.id, { source: "manual", record: true, door, key: gateKey }))}>
+                    <Button type="button" size="lg" variant="secondary" aria-label={`Print card for ${r.name}`} onClick={() => setPrinting(cardPdfUrl(ctx.event.id, r.id, { source: "manual", record: true, door }))}>
                       <PrinterIcon /> Print
                     </Button>
                   ) : null}

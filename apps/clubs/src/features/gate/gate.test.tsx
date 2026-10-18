@@ -69,12 +69,13 @@ vi.mock("./api", async (importOriginal) => {
 
 // Node's own localStorage shadows jsdom's and has no backing file here; the screens read through a plain one.
 const store = new Map<string, string>();
-vi.stubGlobal("localStorage", {
+const localStorageStub = {
   getItem: (k: string) => store.get(k) ?? null,
   setItem: (k: string, v: string) => void store.set(k, String(v)),
   removeItem: (k: string) => void store.delete(k),
   clear: () => store.clear(),
-});
+};
+vi.stubGlobal("localStorage", localStorageStub);
 
 const { render } = await import("@/test/render");
 const { GateConsole } = await import("./components/gate-console");
@@ -132,7 +133,7 @@ describe("the gate console", () => {
   it("checks a typed code in and shows the verdict, without waiting for the camera", async () => {
     api.scan.mockResolvedValue(result({ outcome: "WRONG_EVENT", attendee: null, other_event: { name: "Demo Day" } }));
     render(<GateConsole eventId={37} />);
-    const field = await screen.findByLabelText("Or type the code under the QR");
+    const field = await screen.findByLabelText("Or type the ticket code (MOA-XXXXX-XXXXX)");
     const submit = screen.getByRole("button", { name: "Check in" });
     expect(submit).toBeDisabled();
     fireEvent.change(field, { target: { value: "moa-77" } });
@@ -140,6 +141,55 @@ describe("the gate console", () => {
     expect(await screen.findByText("Wrong event")).toBeInTheDocument();
     expect(screen.getByText("That ticket is for another event.")).toBeInTheDocument();
     expect(api.scan).toHaveBeenCalledWith(null, 37, expect.objectContaining({ code: "moa-77", door: "Gate A" }));
+  });
+
+  it("will not admit on an admission number, but offers to check its holder in by hand", async () => {
+    api.scan.mockResolvedValue(result({ outcome: "INVALID", attendee: { ...attendee, admission_no: "MOA-0042-E123" }, hint: "ADMISSION_NUMBER", capture: { ask: false, required: false, reason: "NOT_ADMITTED" } }));
+    api.byHand.mockResolvedValue(result({}));
+    render(<GateConsole eventId={37} />);
+    fireEvent.change(await screen.findByLabelText("Or type the ticket code (MOA-XXXXX-XXXXX)"), { target: { value: "MOA-0042-E123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Check in" }));
+    expect(await screen.findByText("Ananya Iyer, admission no. MOA-0042-E123: check in by hand?")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveAttribute("data-tone", "caution");
+    expect(screen.queryByText("Welcome in")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Check Ananya Iyer in by hand" }));
+    expect(await screen.findByText("Welcome in")).toBeInTheDocument();
+    expect(api.byHand).toHaveBeenCalledWith(null, 37, "r1", "Gate A");
+  });
+
+  it("reads a refusal from an API without the hint as a code it does not know, with no by-hand offer", async () => {
+    // Today's API: no `hint` key at all.
+    api.scan.mockResolvedValue(result({ outcome: "INVALID", attendee: null }));
+    render(<GateConsole eventId={37} />);
+    fireEvent.change(await screen.findByLabelText("Or type the ticket code (MOA-XXXXX-XXXXX)"), { target: { value: "nope" } });
+    fireEvent.click(screen.getByRole("button", { name: "Check in" }));
+    expect(await screen.findByText("Not recognised")).toBeInTheDocument();
+    expect(screen.getByText(/ticket code printed under the QR/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /in by hand/ })).toBeNull();
+  });
+
+  it("prints a card with the door key in a header, never in the link", async () => {
+    store.set("moa.gate.37.key", "door-key-123");
+    const fetchSpy = vi.fn(async () => new Response(new Blob(["%PDF-1.4"], { type: "application/pdf" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchSpy);
+    api.context.mockResolvedValue({ ...ctx, event: { ...ctx.event, auto_print_badges: true } });
+    api.scan.mockResolvedValue(result({ badge: { auto: true, may_print: true, printed_at: null, policy: "anyone" } }));
+    try {
+      render(<GateConsole eventId={37} />);
+      fireEvent.change(await screen.findByLabelText("Or type the ticket code (MOA-XXXXX-XXXXX)"), { target: { value: "MOA-ABCDE-23456" } });
+      fireEvent.click(screen.getByRole("button", { name: "Check in" }));
+      expect(await screen.findByText("Welcome in")).toBeInTheDocument();
+      await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+      const [url, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+      expect(url).toBe("/api/gateway/api/v1/events/37/idcards/r1.pdf?source=checkin&record=true&door=Gate+A");
+      expect(url).not.toContain("key=");
+      expect((init.headers as Record<string, string>)["X-Gate-Key"]).toBe("door-key-123");
+      expect(api.scan).toHaveBeenCalledWith("door-key-123", 37, expect.anything());
+      expect((await screen.findByTitle("Print")).getAttribute("src")).toMatch(/^blob:/);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.stubGlobal("localStorage", localStorageStub);
+    }
   });
 
   it("says plainly when the door is shut", async () => {
@@ -165,7 +215,7 @@ describe("the gate console", () => {
     api.byHand.mockResolvedValue(result({}));
     render(<GateConsole eventId={37} />);
     fireEvent.click(await screen.findByRole("tab", { name: "Find" }));
-    fireEvent.change(screen.getByLabelText("Name, email or ticket"), { target: { value: "Ananya" } });
+    fireEvent.change(screen.getByLabelText("Name, email, ticket or admission no."), { target: { value: "Ananya" } });
     const rows = await screen.findAllByRole("listitem");
     expect(rows).toHaveLength(3);
     expect(within(rows[1]!).getByText("Not paid")).toBeInTheDocument();
@@ -190,6 +240,23 @@ describe("the gate console", () => {
     expect(await screen.findByText("Walk-in")).toBeInTheDocument();
     expect(api.walkup).toHaveBeenCalledWith(null, 37, expect.objectContaining({ name: "Devika Menon", role: "speaker", door: "Gate A" }));
     await waitFor(() => expect(screen.getByLabelText("Name")).toHaveValue(""));
+  });
+});
+
+describe("the walk-up form's own questions", () => {
+  it("answers a several-choices question with the ticks, as a list when there are two", async () => {
+    api.context.mockResolvedValue({ ...ctx, guest_fields: [{ key: "tracks", label: "Tracks", field_type: "checkbox", options: ["AI", "Web"] }, { key: "year", label: "Year", field_type: "number" }] });
+    api.walkup.mockResolvedValue({ outcome: "REGISTERED", attendee: { ...attendee, name: "Devika Menon", role: "attendee" }, duplicate_of: null, duplicate_by: null, checked_in: true, ticket_sent: false });
+    render(<GateConsole eventId={37} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Walk-up" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Devika Menon" } });
+    const tracks = screen.getByRole("group", { name: "Tracks" });
+    fireEvent.click(within(tracks).getByRole("checkbox", { name: "Web" }));
+    fireEvent.click(within(tracks).getByRole("checkbox", { name: "AI" }));
+    expect(within(tracks).getByRole("checkbox", { name: "AI" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText(/^Year/)).toHaveAttribute("type", "number");
+    fireEvent.click(screen.getByRole("button", { name: /Register and check in/ }));
+    await waitFor(() => expect(api.walkup).toHaveBeenCalledWith(null, 37, expect.objectContaining({ custom_fields: { tracks: ["AI", "Web"] } })));
   });
 });
 
