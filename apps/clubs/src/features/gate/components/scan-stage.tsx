@@ -2,13 +2,14 @@
 
 import * as React from "react";
 import { Button, toast } from "@moa/ui";
-import { CameraIcon, CameraOffIcon, DoorClosedIcon, PrinterIcon, ScanLineIcon, WifiOffIcon } from "lucide-react";
+import { CameraIcon, CameraOffIcon, DoorClosedIcon, HandIcon, PrinterIcon, ScanLineIcon, WifiOffIcon } from "lucide-react";
 
 import { PrintFrame, cardPdfUrl } from "@/features/idcards";
 
-import { outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
+import { gateHeaders } from "../api";
+import { needsHandCheckIn, outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { cameraProblem, startScanner, type Scanner } from "../lib/scanner";
-import { useScanMutation } from "../queries";
+import { useCheckInByHand, useScanMutation } from "../queries";
 import { newRef, type GateContext, type ScanBody, type ScanResult } from "../schemas";
 import { CaptureSheet } from "./capture-sheet";
 import { CameraWell, DOOR_FIELD, DOOR_LABEL, DoorBanner, DoorSpinner } from "./door-kit";
@@ -31,11 +32,12 @@ const QUEUED: ScanResult = { outcome: "CHECKED_IN", attendee: null, checked_in_a
  */
 export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
   const scan = useScanMutation(gateKey, ctx.event.id, enqueue);
+  const byHand = useCheckInByHand(gateKey, ctx.event.id);
   const [card, setCard] = React.useState<{ model: OutcomeCardModel; response: ScanResult | null; captureAsk: boolean } | null>(null);
   const [printing, setPrinting] = React.useState<string | null>(null);
   const printCard = React.useCallback(
-    (registrationId: string, source: "checkin" | "manual") => setPrinting(cardPdfUrl(ctx.event.id, registrationId, { source, record: true, door, key: gateKey })),
-    [ctx.event.id, door, gateKey]
+    (registrationId: string, source: "checkin" | "manual") => setPrinting(cardPdfUrl(ctx.event.id, registrationId, { source, record: true, door })),
+    [ctx.event.id, door]
   );
   const [code, setCode] = React.useState("");
   const [cameraOn, setCameraOn] = React.useState(false);
@@ -43,6 +45,19 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const scannerRef = React.useRef<Scanner | null>(null);
   const dismissTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const show = React.useCallback(
+    (r: ScanResult) => {
+      clearTimeout(dismissTimer.current);
+      const ask = r.capture.ask && !!r.attendee;
+      setCard({ model: outcomeCard(r, door), response: r, captureAsk: ask });
+      // A first admission prints the card when the event says so.
+      if (r.outcome === "CHECKED_IN" && r.badge.auto && r.attendee) printCard(r.attendee.id, "checkin");
+      // Admissions clear themselves so the card never blocks the next scan; anything needing a decision stays.
+      if (r.outcome === "CHECKED_IN" && !ask) dismissTimer.current = setTimeout(() => setCard(null), 7000);
+    },
+    [door, printCard]
+  );
 
   const submit = React.useCallback(
     async (raw: string) => {
@@ -56,21 +71,24 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
           setCard({ model: outcomeCard(QUEUED, door, true), response: null, captureAsk: false });
           dismissTimer.current = setTimeout(() => setCard(null), 6000);
         } else {
-          const r = res.response;
-          const ask = r.capture.ask && !!r.attendee;
-          setCard({ model: outcomeCard(r, door), response: r, captureAsk: ask });
-          // A first admission prints the card when the event says so.
-          if (r.outcome === "CHECKED_IN" && r.badge.auto && r.attendee) printCard(r.attendee.id, "checkin");
-          // Admissions clear themselves so the card never blocks the next scan; anything needing a decision stays.
-          if (r.outcome === "CHECKED_IN" && !ask) dismissTimer.current = setTimeout(() => setCard(null), 7000);
+          show(res.response);
         }
         setCode("");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "The scan failed");
       }
     },
-    [door, scan, printCard]
+    [door, scan, show]
   );
+
+  /** An admission number's holder, confirmed by the volunteer: in by hand, as Find would. */
+  const admitByHand = async (registrationId: string) => {
+    try {
+      show(await byHand.mutateAsync({ registrationId, door }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not check them in");
+    }
+  };
 
   const startCamera = async () => {
     setCameraError(null);
@@ -95,11 +113,21 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
         </DoorBanner>
       ) : null}
 
-      {printing ? <PrintFrame key={printing} url={printing} onDone={() => setTimeout(() => setPrinting(null), 4000)} /> : null}
+      {printing ? <PrintFrame key={printing} url={printing} headers={gateHeaders(gateKey)} onDone={() => setTimeout(() => setPrinting(null), 4000)} /> : null}
 
       <div className={card ? "lg:order-2" : "hidden lg:order-2 lg:block"}>
         {card ? (
           <OutcomeCard card={card.model} onDismiss={() => setCard(null)}>
+            {needsHandCheckIn(card.response) ? (
+              <div className="border-line-soft flex flex-col gap-2 border-t px-4 py-3">
+                <Button type="button" size="lg" className="w-full" disabled={byHand.isPending} onClick={() => void admitByHand(card.response!.attendee!.id)}>
+                  <HandIcon /> {byHand.isPending ? "Checking them in…" : `Check ${card.response.attendee.name} in by hand`}
+                </Button>
+                <Button type="button" size="lg" variant="secondary" className="w-full" onClick={() => setCard(null)}>
+                  Not them — ask for the ticket code
+                </Button>
+              </div>
+            ) : null}
             {mayPrint ? (
               <div className="border-line-soft border-t px-4 py-3">
                 <Button type="button" variant="secondary" size="lg" onClick={() => printCard(card.response!.attendee!.id, "manual")}>
@@ -157,7 +185,7 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
                 {cameraError ? <CameraOffIcon className="size-6" /> : <CameraIcon className="size-6" />}
               </span>
               <p className="text-ink mt-3 text-[15px] font-medium">{cameraError ? "The camera did not start" : "Camera access needed to scan"}</p>
-              <p className="text-ink-2 mx-auto mt-1.5 max-w-[280px] text-[13px] leading-[1.5]">{cameraError ?? "Your browser will ask once. You can always type the code instead."}</p>
+              <p className="text-ink-2 mx-auto mt-1.5 max-w-[280px] text-[13px] leading-[1.5]">{cameraError ?? "Your browser will ask once. You can always type the ticket code instead."}</p>
               <Button type="button" size="lg" className="mt-4" onClick={() => void startCamera()}>
                 <CameraIcon /> {cameraError ? "Try the camera again" : "Start camera"}
               </Button>
@@ -172,7 +200,7 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
           }}
         >
           <label htmlFor="gate-code" className={DOOR_LABEL}>
-            Or type the code under the QR
+            Or type the ticket code ({ctx.event.ticket_example})
           </label>
           <div className="flex gap-2">
             <input id="gate-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder={ctx.event.ticket_example} autoCapitalize="characters" autoCorrect="off" spellCheck={false} className={`${DOOR_FIELD} min-w-0 flex-1 font-mono uppercase`} />

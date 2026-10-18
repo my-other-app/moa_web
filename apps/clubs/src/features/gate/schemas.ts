@@ -4,6 +4,13 @@ import { z } from "zod";
 export const SCAN_OUTCOMES = ["CHECKED_IN", "ALREADY_CHECKED_IN", "WRONG_EVENT", "REVOKED", "UNPAID", "INVALID", "EVENT_NOT_OPEN"] as const;
 export type ScanOutcome = (typeof SCAN_OUTCOMES)[number];
 
+/**
+ * INVALID with this hint: the code was the admission number printed beside
+ * the QR, not a ticket. Nobody was admitted; `attendee` is who holds it, for
+ * staff to confirm and check in by hand. Absent on an API from before.
+ */
+export const ADMISSION_NUMBER_HINT = "ADMISSION_NUMBER";
+
 export const attendeeSummarySchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -30,6 +37,8 @@ export const scanResultSchema = z.object({
   replayed: z.boolean().default(false),
   /** What the console should do about the ID card. */
   badge: z.object({ auto: z.boolean(), may_print: z.boolean(), printed_at: z.string().nullish(), policy: z.string() }).default({ auto: false, may_print: false, printed_at: null, policy: "anyone" }),
+  /** Why a refusal is what it is, when the server says: ADMISSION_NUMBER_HINT. */
+  hint: z.string().nullish(),
 });
 export type ScanResult = z.infer<typeof scanResultSchema>;
 

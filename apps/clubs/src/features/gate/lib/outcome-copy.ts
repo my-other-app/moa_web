@@ -1,4 +1,4 @@
-import { ROLE_LABEL, type ScanOutcome, type ScanResult, type WalkupResult } from "../schemas";
+import { ADMISSION_NUMBER_HINT, ROLE_LABEL, type ScanOutcome, type ScanResult, type WalkupResult } from "../schemas";
 
 export type Tone = "admit" | "caution" | "refuse" | "accent";
 
@@ -15,6 +15,14 @@ const ago = (iso: string) => {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
   return m < 1 ? "moments ago" : m === 1 ? "1 minute ago" : m < 60 ? `${m} minutes ago` : `${Math.floor(m / 60)}h ${m % 60}m ago`;
 };
+
+/**
+ * An admission number typed (or scanned) at the door: not a ticket, so
+ * nobody was let in, but the server says whose it is. Staff look at the
+ * person in front of them and check them in by hand -- or do not.
+ */
+export const needsHandCheckIn = (res: ScanResult | null | undefined): res is ScanResult & { attendee: NonNullable<ScanResult["attendee"]> } =>
+  !!res && res.outcome === "INVALID" && res.hint === ADMISSION_NUMBER_HINT && !!res.attendee;
 
 /** Every outcome card in one place: plain, direct, and it says what to do next. */
 export const outcomeCard = (res: ScanResult, door: string, queued = false): OutcomeCardModel => {
@@ -57,7 +65,15 @@ export const outcomeCard = (res: ScanResult, door: string, queued = false): Outc
       return { tone: "caution", tag: "Door shut", title: "This event's door is closed.", note: "The organiser opens it under Team & doors. Nothing is wrong with the ticket." };
     case "INVALID":
     default:
-      return { tone: "refuse", tag: "Not recognised", title: "Not a recognised ticket code.", sub: "NO TICKET MATCHES THIS CODE", note: "Check the code printed under the QR and type it in, or try the scan again." };
+      if (needsHandCheckIn(res))
+        return {
+          tone: "caution",
+          tag: "Admission number",
+          title: `${res.attendee.name}, admission no. ${res.attendee.admission_no ?? "on their ticket"}: check in by hand?`,
+          sub: sub ? `NOT A TICKET CODE · ${sub}` : "NOT A TICKET CODE",
+          note: "An admission number does not let anyone in by itself. If this is them, check them in by hand; otherwise ask for the ticket code under the QR.",
+        };
+      return { tone: "refuse", tag: "Not recognised", title: "Not a recognised ticket code.", sub: "NO TICKET MATCHES THIS CODE", note: "Type the ticket code printed under the QR (MOA-XXXXX-XXXXX), or try the scan again." };
   }
 };
 
