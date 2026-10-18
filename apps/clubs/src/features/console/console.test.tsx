@@ -3,6 +3,7 @@ import { fireEvent, screen, within } from "@testing-library/react";
 
 import eventFixture from "../__fixtures__/event-detail.json";
 import summaryFixture from "../__fixtures__/event-summary.json";
+import topicsFixture from "../__fixtures__/topics.json";
 
 const pathname = { current: "/events/37" };
 
@@ -24,6 +25,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       get: vi.fn(async (path: string) => {
         if (path.includes("/events/info/")) return eventFixture;
         if (/\/events\/\d+\/summary$/.test(path)) return summaryFixture;
+        if (path === "/api/v1/interests/list") return topicsFixture;
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(),
@@ -35,6 +37,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 
 const { render } = await import("@/test/render");
 const { EventConsole, EventOverviewTab, tabFor, clockNotices, overviewAttention, eventSummarySchema } = await import("./index");
+const { eventDetailSchema } = await import("@/features/events");
 
 describe("the console's sections", () => {
   it("names the tab from the path under the event", () => {
@@ -171,5 +174,27 @@ describe("overview tab", () => {
     expect(await screen.findByText("the figures")).toBeInTheDocument();
     for (const piece of ["the sign-ups", "the composer", "the reviews"]) expect(screen.getByText(piece)).toBeInTheDocument();
     expect(screen.getByText("About")).toBeInTheDocument();
+  });
+
+  it("names the event's topics beside its interests: the server's own, else derived from the interests", async () => {
+    const own = eventDetailSchema.parse({ ...eventFixture, interests: [{ id: 6, name: "Coding" }], topics: [{ id: 2, slug: "development", name: "Development", color: "#2563EB" }] });
+    const { unmount } = render(<EventOverviewTab eventId={37} event={own} />);
+    const row = (await screen.findByText("Interests")).closest("div")!;
+    expect(within(row).getByRole("list", { name: "Topics" })).toHaveTextContent("Development");
+    expect(within(row).getByText("Coding")).toBeInTheDocument();
+    unmount();
+
+    // A server before topics: worked out from the interests against /interests/list.
+    const derived = eventDetailSchema.parse({ ...eventFixture, interests: [{ id: 31, name: "Robotics" }, { id: 6, name: "Coding" }] });
+    expect(derived.topics).toBeNull();
+    const second = render(<EventOverviewTab eventId={37} event={derived} />);
+    const list = await screen.findByRole("list", { name: "Topics" });
+    expect(within(list).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Development", "Deep Tech"]);
+    expect(screen.getByText("Robotics, Coding")).toBeInTheDocument();
+    second.unmount();
+
+    render(<EventOverviewTab eventId={37} event={eventDetailSchema.parse(eventFixture)} />);
+    const none = (await screen.findByText("Interests")).closest("div")!;
+    expect(within(none).getByText("None picked")).toBeInTheDocument();
   });
 });

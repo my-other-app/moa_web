@@ -1,5 +1,5 @@
 import { paginatedSchema } from "@moa/api";
-import { EVENT_STATUSES, imageFieldSchema, namedRefSchema, type EventLifecycle } from "@moa/app-kit";
+import { EVENT_STATUSES, imageFieldSchema, linkedInterestSchema, namedRefSchema, topicRefsField, type EventLifecycle } from "@moa/app-kit";
 import { z } from "zod";
 
 export { EVENT_STATUSES, type EventLifecycle };
@@ -120,6 +120,9 @@ export const eventDetailSchema = z
      * form then works it out from the club's gateway.
      */
     payments_to: z.enum(["club", "platform"]).nullish().catch(null),
+    /** What it is about, for the Overview: its interests, and the topics they fall under (null from a server before topics). */
+    interests: z.array(linkedInterestSchema).catch([]).default([]),
+    topics: topicRefsField,
   })
   .passthrough();
 
