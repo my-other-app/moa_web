@@ -1,9 +1,11 @@
 "use client";
 
+import type * as React from "react";
 import Link from "next/link";
 import { LockIcon } from "lucide-react";
 import { Notice, ProgressBar, cn } from "@moa/ui";
 
+import { openUpgrade } from "../errors";
 import { useEventPlan, useFeatureGate } from "../queries";
 import { UPGRADE_PATH, meterText, type PlanLock } from "../schemas";
 
@@ -34,26 +36,60 @@ export function LockBadge({ lock, className }: { lock: PlanLock | null; classNam
 /**
  * Over an area the plan does not include: what it is, the plan that has it,
  * and that what is already here stays. The area itself stays readable.
+ *
+ * `locked` is for a screen whose own endpoint knows better than the
+ * entitlements (a custom domain's `entitled: false`); `children` replaces
+ * the general sentence (it is handed the lock, for the plan's name); and
+ * `dialog` makes the button open the upgrade dialog rather than go to
+ * Plan & billing.
  */
-export function LockedNotice({ feature, eventId, className }: { feature: string; eventId?: number | null; className?: string }) {
+export function LockedNotice({
+  feature,
+  eventId,
+  className,
+  locked,
+  dialog = false,
+  children,
+}: {
+  feature: string;
+  eventId?: number | null;
+  className?: string;
+  locked?: boolean;
+  dialog?: boolean;
+  children?: (lock: PlanLock) => React.ReactNode;
+}) {
   const gate = useFeatureGate(feature, { eventId });
-  if (!gate.lock) return null;
-  const { label, requiredPlanName } = gate.lock;
+  const plan = useEventPlan(eventId);
+  const lock = gate.lock ?? (locked ? plan.lockFor(feature) : null);
+  if (!lock) return null;
+  const { label, requiredPlanName } = lock;
   return (
     <Notice
       tone="accent"
       tag="Plan"
       className={className}
       action={
-        <Link href={UPGRADE_PATH} className="btn btn-primary btn-sm">
-          See plans
-        </Link>
+        dialog ? (
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => openUpgrade(lock)}>
+            Upgrade
+          </button>
+        ) : (
+          <Link href={UPGRADE_PATH} className="btn btn-primary btn-sm">
+            See plans
+          </Link>
+        )
       }
     >
-      <strong className="font-semibold">
-        {label} {requiredPlanName ? `is part of ${requiredPlanName} and up.` : "isn't on your plan."}
-      </strong>{" "}
-      Anything already here stays for you to look at; adding to it or changing it needs an upgrade.
+      {children ? (
+        children(lock)
+      ) : (
+        <>
+          <strong className="font-semibold">
+            {label} {requiredPlanName ? `is part of ${requiredPlanName} and up.` : "isn't on your plan."}
+          </strong>{" "}
+          Anything already here stays for you to look at; adding to it or changing it needs an upgrade.
+        </>
+      )}
     </Notice>
   );
 }

@@ -35,6 +35,7 @@ export const GATED_FEATURES = [
   "judging",
   "rounds",
   "finance",
+  "custom_domain",
 ] as const;
 export type GatedFeature = (typeof GATED_FEATURES)[number];
 export type PlanFeature = GatedFeature | (typeof ALWAYS_ON)[number];
@@ -60,6 +61,7 @@ export const FEATURE_LABEL: Record<GatedFeature, string> = {
   judging: "Competition judging",
   rounds: "Competition rounds",
   finance: "Finance and expenses",
+  custom_domain: "Your own domain for the club website",
 };
 
 /**
@@ -83,6 +85,7 @@ const FALLBACK_TIER: Record<GatedFeature, { key: string; name: string }> = {
   judging: { key: "pro", name: "Pro" },
   rounds: { key: "pro", name: "Pro" },
   finance: { key: "campus", name: "Campus" },
+  custom_domain: { key: "growth", name: "Growth" },
 };
 
 /** The limits the server holds a club to. Storage, ticket types and coupons are not among them. */
@@ -223,6 +226,13 @@ export interface PlanState {
   atLimit(key: string, used?: number | null): boolean;
   /** The lock for a flag, or null when it is open. */
   featureLock(feature: string): PlanLock | null;
+  /**
+   * The lock a flag would have, open or not: for a screen whose own endpoint
+   * says the club is not entitled (a custom domain's `entitled`) while the
+   * entitlements have not caught up, or for an upgrade offered on a paused
+   * thing.
+   */
+  lockFor(feature: string): PlanLock;
   /** The lock for a limit, or null while under it. */
   limitLock(key: string, used?: number | null): PlanLock | null;
 }
@@ -278,8 +288,7 @@ export function planState(ent: Entitlements | null | undefined, catalog?: Catalo
     return hit ? { key: hit.key, name: hit.name } : null;
   };
 
-  const featureLock = (feature: string): PlanLock | null => {
-    if (can(feature)) return null;
+  const lockFor = (feature: string): PlanLock => {
     const row = plans.flatMap((p) => p.features).find((f) => f.key === feature);
     const req = requiredForFeature(feature);
     return {
@@ -294,6 +303,8 @@ export function planState(ent: Entitlements | null | undefined, catalog?: Catalo
       message: null,
     };
   };
+
+  const featureLock = (feature: string): PlanLock | null => (can(feature) ? null : lockFor(feature));
 
   const limitLock = (key: string, override?: number | null): PlanLock | null => {
     if (!atLimit(key, override)) return null;
@@ -322,6 +333,7 @@ export function planState(ent: Entitlements | null | undefined, catalog?: Catalo
     used,
     atLimit,
     featureLock,
+    lockFor,
     limitLock,
   };
 }

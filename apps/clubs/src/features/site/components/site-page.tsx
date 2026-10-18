@@ -9,6 +9,7 @@ import { LockBadge, LockedNotice, openUpgrade, useFeatureGate, usePlan } from "@
 
 import { usePatchSite, usePreview, usePublishSite, useSite } from "../queries";
 import { SECTIONS, SECTION_EMPTY, SECTION_LABEL, type Site, type SitePatch, type Template, type Theme } from "../schemas";
+import { DomainCard } from "./domain-card";
 import { SiteAnalytics } from "./site-analytics";
 
 /**
@@ -161,7 +162,7 @@ function Editor({ site, draft, setDraft }: { site: Site; draft: SitePatch; setDr
         <p className="text-ink mt-2 flex items-center gap-2 font-mono text-[12.5px]">
           <GlobeIcon className="text-ink-3 size-4" /> {site.url.replace(/^https?:\/\//, "")}
         </p>
-        <p className="text-ink-3 mt-2 text-[11.5px]">Your club&apos;s address on MyOtherApp. A domain of your own can point here too; write to support to set it up.</p>
+        <p className="text-ink-3 mt-2 text-[11.5px]">Your club&apos;s address on MyOtherApp. To use a domain of your own, see Custom domain below.</p>
       </FigurePanel>
     </div>
   );
@@ -278,6 +279,8 @@ export function SitePage() {
           </FigurePanel>
         </div>
       </div>
+
+      <DomainCard />
     </div>
   );
 }

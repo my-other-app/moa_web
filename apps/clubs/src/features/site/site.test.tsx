@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
 const analytics: { on: boolean; data: unknown } = {
@@ -38,6 +38,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
         if (path.endsWith("/clubs/site")) return site;
+        if (path.endsWith("/clubs/site/domain")) return { available: true, entitled: true, default_host: "circuit-society.myotherapp.in", domain: null };
         if (path.includes("/clubs/site/analytics")) {
           if (!analytics.on) throw new Error("Not Found");
           return analytics.data;
@@ -80,6 +81,10 @@ describe("the website page", () => {
     expect(screen.getByText("myotherapp.in/clubs/circuit-society", { selector: "p" })).toBeInTheDocument();
     await waitFor(() => expect(calls.some((c) => c.path.endsWith("/clubs/site/preview"))).toBe(true));
     expect(await screen.findByTitle("Site preview")).toHaveAttribute("srcdoc", expect.stringContaining("Build things that think."));
+    // The club's own domain, under the editor.
+    const domain = await screen.findByRole("region", { name: "Custom domain" });
+    expect(await within(domain).findByLabelText("Your domain")).toBeInTheDocument();
+    expect(screen.getByText(/To use a domain of your own, see Custom domain below\./)).toBeInTheDocument();
   });
 
   it("re-previews as the headline is typed, says the live page is behind, and updates the site", async () => {

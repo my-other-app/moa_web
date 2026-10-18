@@ -60,7 +60,7 @@ export const FEATURE_LABELS: Record<string, string> = {
   sessions: "Session check-in",
   report: "Event reports",
   website: "Website",
-  domain: "Custom domain",
+  custom_domain: "Custom domain",
   nobadge: "Remove MyOtherApp badge",
   finance: "Finance and expenses",
   roles: "Committee roles",
