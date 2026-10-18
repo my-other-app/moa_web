@@ -13,6 +13,13 @@ const labelled = z.object({ label: z.string(), value: z.number() });
 export const adminOverviewSchema = z.object({
   generated_at: z.string(),
   period_days: z.number(),
+  /**
+   * Which counts are the planner's row estimate rather than exact (Wave 1:
+   * a whole-table count past a million rows). The API names the tables --
+   * "users", "event_registrations_link" -- not the totals; `estimatedTotals`
+   * says which totals they are. Absent on an API from before: all exact.
+   */
+  estimated: z.array(z.string()).default([]),
 
   totals: z.object({
     users: z.number(),
@@ -139,4 +146,22 @@ export const adminOverviewSchema = z.object({
 });
 
 export type AdminOverview = z.infer<typeof adminOverviewSchema>;
+
+type TotalKey = keyof AdminOverview["totals"];
+
+/** The totals each estimated table stands behind: a rate over an estimate is one too. */
+const ESTIMATED_TOTALS: Record<string, TotalKey[]> = {
+  users: ["users"],
+  event_registrations_link: ["registrations", "attendance_rate"],
+  // Should the API ever name the totals themselves.
+  registrations: ["registrations", "attendance_rate"],
+};
+
+/** Which totals are approximate, from the overview's `estimated`. */
+export function estimatedTotals(estimated: readonly string[]): ReadonlySet<TotalKey> {
+  return new Set(estimated.flatMap((name) => ESTIMATED_TOTALS[name] ?? []));
+}
+
+/** A figure as shown, with "≈ " before it when it is an estimate. */
+export const approx = (text: string, estimate: boolean) => (estimate ? `≈ ${text}` : text);
 export type TopClubSort = "followers" | "registrations" | "revenue";
