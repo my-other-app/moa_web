@@ -26,6 +26,13 @@ export const NOTIFICATION_KINDS = [
   "comp_ended",
   "club_domain_active",
   "content_reported",
+  // Wave 1: money that needs a look, and mail given up on.
+  "payment_unapplied",
+  "payment_auto_refunded",
+  "payment_refund_failed",
+  "store_oversold",
+  "subscription_orphan_charged",
+  "email_dead_letter",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -59,6 +66,18 @@ export const KIND_META: Record<NotificationKind, { label: string; tone: KindTone
   club_domain_active: { label: "Club domain live", tone: "change" },
   // An app user reported a thread, a comment, a person or a club: it wants a decision on the Reports page.
   content_reported: { label: "Content reported", tone: "failure" },
+  // A captured ticket payment that never marked its registration paid; the sweep applied it, or could not (data.repaired).
+  payment_unapplied: { label: "Payment not applied", tone: "failure" },
+  // A payment handed back on its own: the event filled while it was paid, or an order paid twice (data.reason).
+  payment_auto_refunded: { label: "Refunded automatically", tone: "change" },
+  // Razorpay did not take an automatic refund; the sweep keeps trying.
+  payment_refund_failed: { label: "Refund failed", tone: "failure" },
+  // A guest paid for store pieces that had sold out: the organiser hands something over or refunds.
+  store_oversold: { label: "Store oversold", tone: "failure" },
+  // Razorpay charged a subscription no club holds; it was cancelled there.
+  subscription_orphan_charged: { label: "Charge on an unknown subscription", tone: "failure" },
+  // An event's emails were given up on after every retry.
+  email_dead_letter: { label: "Emails failed after retries", tone: "failure" },
 };
 
 /**
@@ -160,6 +179,14 @@ export function alertLabel(n: Pick<AdminNotification, "kind" | "data">): string 
     const count = typeof data.report_count === "number" && data.report_count > 1 ? `${data.report_count} reports` : null;
     return [kindLabel(n.kind), ...parts, ...(count ? [count] : [])].join(" · ");
   }
+  if (n.kind === "payment_unapplied" && typeof data.repaired === "boolean") {
+    return data.repaired ? "Payment not applied · applied by the sweep" : "Payment not applied · still unpaid";
+  }
+  if (n.kind === "payment_auto_refunded") {
+    const reason = text(data.reason);
+    if (reason === "event_full") return "Refunded automatically · the event was full";
+    if (reason === "duplicate") return "Refunded automatically · paid twice";
+  }
   if (displayKind(n) === FREE_PLAN_GIVEN) {
     const plan = text(data.plan_name) ?? (text(data.plan) ? planWords(text(data.plan)!) : null);
     return plan ? `Free plan given · ${plan}` : kindLabel(FREE_PLAN_GIVEN);
@@ -170,23 +197,34 @@ export function alertLabel(n: Pick<AdminNotification, "kind" | "data">): string 
 /** Kinds about a club's own Razorpay account: they lead to the club. */
 export const GATEWAY_KINDS = new Set<string>(["payment_gateway_connected", "payment_gateway_failed", "payment_gateway_disconnected"]);
 
-/** Kinds about the club's own setup rather than its plan (its Razorpay, its domain): they lead to the club. */
-const CLUB_KINDS = new Set<string>([...GATEWAY_KINDS, "club_domain_active"]);
+/**
+ * Kinds about the club itself rather than its plan -- its Razorpay, its
+ * domain, its store, its emails: they lead to the club.
+ */
+const CLUB_KINDS = new Set<string>([...GATEWAY_KINDS, "club_domain_active", "store_oversold", "email_dead_letter"]);
 
 /** Kinds that are not about the club or its money, and lead to a page of their own. */
 const KIND_PAGES: Record<string, string> = { content_reported: "/reports" };
 
+/** Kinds about one ticket payment: they lead to it on the Payments page, found by its Razorpay id. */
+const PAYMENT_KINDS = new Set<string>(["payment_unapplied", "payment_auto_refunded", "payment_refund_failed"]);
+
 /** Kinds about a club's subscription rather than the club itself. */
-const SUBSCRIPTION_KINDS = new Set<string>(NOTIFICATION_KINDS.filter((k) => k !== "club_applied" && !CLUB_KINDS.has(k) && !(k in KIND_PAGES)));
+const SUBSCRIPTION_KINDS = new Set<string>(NOTIFICATION_KINDS.filter((k) => k !== "club_applied" && !CLUB_KINDS.has(k) && !PAYMENT_KINDS.has(k) && !(k in KIND_PAGES)));
 
 /**
- * Where a notification leads: a report to the Reports page, the
+ * Where a notification leads: a report to the Reports page, a ticket
+ * payment to the Payments page (searched by its Razorpay id), the
  * subscription (the Subscribers tab, found by the club's name) for
  * anything about billing, the club for an application, its own Razorpay
  * account or its domain, nowhere when it names neither.
  */
-export function notificationHref(n: Pick<AdminNotification, "kind" | "club" | "subscription_id">): string | null {
+export function notificationHref(n: Pick<AdminNotification, "kind" | "club" | "subscription_id"> & { data?: AdminNotification["data"] }): string | null {
   if (KIND_PAGES[n.kind]) return KIND_PAGES[n.kind]!;
+  if (PAYMENT_KINDS.has(n.kind)) {
+    const id = text(n.data?.payment_id) ?? text(n.data?.razorpay_order_id);
+    return id ? `/payments?q=${encodeURIComponent(id)}` : "/payments";
+  }
   if (n.club && CLUB_KINDS.has(n.kind)) return `/clubs/${n.club.id}`;
   if (n.club && (n.subscription_id != null || SUBSCRIPTION_KINDS.has(n.kind))) {
     return `/subscriptions?q=${encodeURIComponent(n.club.name)}`;
