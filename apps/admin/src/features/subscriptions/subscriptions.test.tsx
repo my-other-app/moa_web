@@ -23,7 +23,7 @@ const FEATURE_GROUPS = {
   every_event: ["tickets", "certificates", "checkin", "reviews", "threads", "regform", "waitlist"],
   grow: ["coupons", "links", "merch", "swag", "quiz", "qa", "polls", "networking"],
   competitions: ["teams", "judging", "rounds", "badges", "sessions", "report"],
-  club: ["website", "domain", "nobadge", "finance", "roles", "tfa", "payouts", "sso", "api"],
+  club: ["website", "custom_domain", "nobadge", "finance", "roles", "tfa", "payouts", "sso", "api"],
 };
 
 function plan(overrides: Record<string, unknown> = {}) {

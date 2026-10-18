@@ -13,6 +13,7 @@ import {
   CirclePlayIcon,
   CircleXIcon,
   CrownIcon,
+  FlagIcon,
   GiftIcon,
   GlobeIcon,
   HourglassIcon,
@@ -50,6 +51,7 @@ const ICON: Record<string, LucideIcon> = {
   comp_ending: CalendarClockIcon,
   comp_ended: CalendarX2Icon,
   club_domain_active: GlobeIcon,
+  content_reported: FlagIcon,
   [FREE_PLAN_GIVEN]: GiftIcon,
 };
 

@@ -40,7 +40,7 @@ export function NotificationsPage() {
         <div className="flex-1 basis-[300px]">
           <h2 className="m-0 text-[32px] leading-[1.12] tracking-[-0.015em]">Notifications</h2>
           <span className="text-ink-3 text-[13px]">
-            {data ? `${formatNumber(unread)} unread · applications, payments, failed charges and plan changes` : "Applications, payments, failed charges and plan changes"}
+            {data ? `${formatNumber(unread)} unread · applications, payments, failed charges, plan changes and reports` : "Applications, payments, failed charges, plan changes and reports"}
           </span>
         </div>
         {canMark && unread > 0 ? (
