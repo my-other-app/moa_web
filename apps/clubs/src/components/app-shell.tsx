@@ -29,6 +29,7 @@ import {
 import { RouteGate, useAccess } from "@/features/access";
 import { PlanLockHost } from "@/features/plan";
 
+import { AwaitingApproval, useClubNotVerified } from "./awaiting-approval";
 import { Breadcrumbs } from "./breadcrumbs";
 import { GateCard } from "./gate-card";
 import { SidebarNav } from "./sidebar-nav";
@@ -160,12 +161,16 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const clubName = user.full_name || user.username || "My Other App";
+  // Approval taken back while signed in: every call is now 403 CLUB_NOT_VERIFIED.
+  const notVerified = useClubNotVerified();
 
   // <main> is the scroller, not the window, so a new page is put back at the top here.
   const mainRef = React.useRef<HTMLElement>(null);
   React.useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 });
   }, [pathname]);
+
+  if (notVerified) return <AwaitingApproval />;
 
   // overflow-clip, not overflow-hidden: a hidden box can still be scrolled by
   // a #fragment link or scrollIntoView, which slid the whole shell up and left

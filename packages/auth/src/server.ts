@@ -33,28 +33,48 @@ export function createServerApiClient() {
   });
 }
 
+/** What the session check found: the user, or why there is none. */
+export interface SessionCheck {
+  user: SessionUser | null;
+  /**
+   * The API's error code when it refused the session (401/403), e.g.
+   * CLUB_NOT_VERIFIED for a club still awaiting approval; null when there
+   * was simply no session, or the refusal named no code.
+   */
+  refusal: string | null;
+}
+
+/** The code a refused session check carries, or null when it was not a refusal. */
+export function sessionRefusal(error: unknown): string | null | undefined {
+  if (error instanceof ApiError && (error.isUnauthorized || error.isForbidden)) return error.errorCode ?? null;
+  return undefined;
+}
+
 /**
- * The signed-in user, or null.
+ * The signed-in user, or why there is none.
  *
  * Wrapped in React's `cache` so a layout, a page and three server components
  * in the same render share one upstream call rather than issuing four
  * identical /auth/me requests.
  */
-export const getSession = cache(async (): Promise<SessionUser | null> => {
+export const checkSession = cache(async (): Promise<SessionCheck> => {
   const store = await cookies();
-  if (!store.get(ACCESS_TOKEN_COOKIE)) return null;
+  if (!store.get(ACCESS_TOKEN_COOKIE)) return { user: null, refusal: null };
 
   const api = createServerApiClient();
   for (let attempt = 0; ; attempt++) {
     try {
-      return await api.get<SessionUser>("/api/v1/auth/me", { cache: "no-store" });
+      return { user: await api.get<SessionUser>("/api/v1/auth/me", { cache: "no-store" }), refusal: null };
     } catch (error) {
       // Next's own control flow (a dynamic-render signal, a redirect) is not a fault.
       unstable_rethrow(error);
       // A 401 here is ordinary: an expired or revoked token (the backend bumps
-      // token_version on password change).
-      if (error instanceof ApiError && (error.isUnauthorized || error.isForbidden)) {
-        return null;
+      // token_version on password change). A 403 says why: a club not yet
+      // approved is CLUB_NOT_VERIFIED, which the clubs app answers with a
+      // screen of its own rather than the sign-in form.
+      const refusal = sessionRefusal(error);
+      if (refusal !== undefined) {
+        return { user: null, refusal };
       }
       // The API restarting (a deploy is about a minute of 502s) or a dropped
       // connection: asked again, shortly, before the whole page fails. Seen in
@@ -70,6 +90,9 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
     }
   }
 });
+
+/** The signed-in user, or null. */
+export const getSession = cache(async (): Promise<SessionUser | null> => (await checkSession()).user);
 
 const MAX_RETRIES = 2;
 
@@ -87,10 +110,10 @@ export function isTransient(error: unknown): boolean {
  */
 export async function getSessionWithRole(
   allowed: readonly UserType[]
-): Promise<{ user: SessionUser | null; allowed: boolean }> {
-  const user = await getSession();
-  if (!user) return { user: null, allowed: false };
-  return { user, allowed: allowed.includes(user.user_type) };
+): Promise<{ user: SessionUser | null; allowed: boolean; refusal: string | null }> {
+  const { user, refusal } = await checkSession();
+  if (!user) return { user: null, allowed: false, refusal };
+  return { user, allowed: allowed.includes(user.user_type), refusal: null };
 }
 
 /**
