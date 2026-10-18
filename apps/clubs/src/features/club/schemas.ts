@@ -1,4 +1,4 @@
-import { imageFieldSchema } from "@moa/app-kit";
+import { imageFieldSchema, interestEmoji, topicRefsField } from "@moa/app-kit";
 import { z } from "zod";
 
 import { pinDetailShape, pinFormShape, refinePin } from "@/features/venue";
@@ -14,26 +14,20 @@ export const clubSocialsSchema = z
   .passthrough()
   .nullish();
 
-/** One interest as the club endpoints return it (ClubInterestDetailMin). */
+/**
+ * One interest as the club endpoints return it (ClubInterestDetailMin).
+ * `category_id` -- the topic it sits under -- arrives with the topics
+ * release; absent before it.
+ */
 export const clubInterestSchema = z.object({
   id: z.coerce.number(),
   name: z.string(),
   icon: z.string().nullish(),
   icon_type: z.string().nullish(),
+  category_id: z.coerce.number().nullish(),
 });
 
 export type ClubInterest = z.infer<typeof clubInterestSchema>;
-
-/** GET /interests/list — interests already grouped by category. */
-export const interestCategorySchema = z.object({
-  id: z.coerce.number(),
-  name: z.string(),
-  icon: z.string().nullish(),
-  icon_type: z.string().nullish(),
-  interests: z.array(clubInterestSchema).default([]),
-});
-
-export type InterestCategory = z.infer<typeof interestCategorySchema>;
 
 /** GET /orgs/list — only the fields the picker needs. */
 export const organizationSchema = z.object({
@@ -108,6 +102,8 @@ export const clubSelfSchema = z.object({
   brand_secondary: z.string().nullish(),
   socials: clubSocialsSchema,
   interests: z.array(clubInterestSchema).catch([]).default([]),
+  /** The distinct topics of its interests, in topic order; null from a server before topics. */
+  topics: topicRefsField,
   org: clubOrgSchema,
 });
 
@@ -183,19 +179,8 @@ export const changePasswordSchema = z
 
 export type ChangePasswordForm = z.infer<typeof changePasswordSchema>;
 
-/**
- * Interest icons are stored as free text with an `icon_type`, and the seeded
- * rows contain the literal word "string". Rendering that verbatim puts
- * "string Coding" on the chip, so only a value that is actually outside ASCII
- * -- i.e. a real emoji -- is shown.
- */
-export function interestEmoji(interest: {
-  icon?: string | null;
-  icon_type?: string | null;
-}): string | null {
-  if (!interest.icon || interest.icon_type !== "emoji") return null;
-  return /[^\u0000-\u007F]/.test(interest.icon) ? interest.icon : null;
-}
+/** Shared with the topic picker; kept exported here for the callers that read it from the club. */
+export { interestEmoji };
 
 /** One partner row: a name, what they are to the club, and since when. */
 export const partnerFormSchema = z.object({

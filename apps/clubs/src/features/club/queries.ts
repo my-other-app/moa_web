@@ -10,7 +10,6 @@ import { toastError } from "@/features/plan/errors";
 import {
   changePassword,
   fetchClubDashboard,
-  fetchInterestCategories,
   fetchMyClub,
   fetchOrganizations,
   createPartner,
@@ -49,18 +48,11 @@ export function useMyClub() {
 }
 
 /**
- * Interests and organizations are reference data -- they change when an admin
- * edits them, which is rare -- so they sit in the longest cache tier and are
- * shared by every form that needs them.
+ * Organizations are reference data -- they change when an admin edits them,
+ * which is rare -- so they sit in the longest cache tier and are shared by
+ * every form that needs them. Interests are the topics feature's
+ * (useTopicTree).
  */
-export function useInterestCategories() {
-  return useQuery({
-    queryKey: qk.interests.all,
-    queryFn: fetchInterestCategories,
-    staleTime: staleTimes.reference,
-  });
-}
-
 export function useOrganizations() {
   return useQuery({
     queryKey: qk.orgs.list({}),

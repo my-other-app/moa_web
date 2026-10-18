@@ -129,8 +129,9 @@ describe("step by step", () => {
     await fillClub();
     await fillContact();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Coding" }));
-    fireEvent.click(screen.getByRole("button", { name: "Photography" }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: /Coding/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Photography/ }));
+    expect(screen.getByText("2 interests picked")).toBeInTheDocument();
     type("Instagram", "https://instagram.com/circuit");
     next();
     await onStep("Review");

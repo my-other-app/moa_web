@@ -164,32 +164,6 @@ export async function fetchCategories() {
   return categoryListSchema.parse(await api.get<unknown>("/api/v1/events/categories/list"));
 }
 
-const interestSchema = z.object({ id: z.coerce.number(), name: z.string() }).passthrough();
-const interestListSchema = z
-  .union([
-    z.array(interestSchema),
-    z.object({ items: z.array(interestSchema) }),
-    // /interests/list groups interests under categories in some deployments;
-    // flatten so the picker has one list either way.
-    z.array(z.object({ interests: z.array(interestSchema) }).passthrough()),
-  ])
-  .transform((v) => {
-    if (Array.isArray(v)) {
-      const first = v[0] as Record<string, unknown> | undefined;
-      if (first && Array.isArray(first.interests)) {
-        return (v as Array<{ interests: z.infer<typeof interestSchema>[] }>).flatMap(
-          (c) => c.interests
-        );
-      }
-      return v as z.infer<typeof interestSchema>[];
-    }
-    return v.items;
-  });
-
-export async function fetchInterests() {
-  return interestListSchema.parse(await api.get<unknown>("/api/v1/interests/list"));
-}
-
 const duplicatedSchema = z.object({
   id: z.number(),
   slug: z.string(),

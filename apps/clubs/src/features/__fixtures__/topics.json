@@ -1,0 +1,58 @@
+[
+  {
+    "id": 2,
+    "slug": "development",
+    "name": "Development",
+    "icon": "💻",
+    "icon_type": "emoji",
+    "color": "#2563EB",
+    "description": "Building software, from the web to the cloud.",
+    "sort_order": 1,
+    "interests": [
+      { "id": 3, "slug": "web-development", "name": "Web Development", "icon": null, "icon_type": null, "category_id": 2, "sort_order": 1 },
+      { "id": 30, "slug": "app-development", "name": "App Development", "icon": null, "icon_type": null, "category_id": 2, "sort_order": 2 },
+      { "id": 6, "slug": "coding", "name": "Coding", "icon": "⌨️", "icon_type": "emoji", "category_id": 2, "sort_order": 3 },
+      { "id": 12, "slug": "cybersecurity", "name": "Cybersecurity", "icon": null, "icon_type": null, "category_id": 2, "sort_order": 4 }
+    ]
+  },
+  {
+    "id": 3,
+    "slug": "deep-tech",
+    "name": "Deep Tech",
+    "icon": "🧠",
+    "icon_type": "emoji",
+    "color": "#7C3AED",
+    "description": "AI, robots, hardware and what comes after.",
+    "sort_order": 2,
+    "interests": [
+      { "id": 8, "slug": "artificial-intelligence", "name": "Artificial Intelligence", "icon": "🤖", "icon_type": "emoji", "category_id": 3, "sort_order": 1 },
+      { "id": 31, "slug": "robotics", "name": "Robotics", "icon": null, "icon_type": null, "category_id": 3, "sort_order": 2 }
+    ]
+  },
+  {
+    "id": 1,
+    "slug": "arts",
+    "name": "Arts",
+    "icon": "🎨",
+    "icon_type": "emoji",
+    "color": "#EA580C",
+    "description": null,
+    "sort_order": 4,
+    "interests": [
+      { "id": 22, "slug": "music", "name": "Music", "icon": "🥁", "icon_type": "emoji", "category_id": 1, "sort_order": 2 },
+      { "id": 21, "slug": "photography", "name": "Photography", "icon": "📷", "icon_type": "emoji", "category_id": 1, "sort_order": 6 },
+      { "id": 33, "slug": "theatre", "name": "Théâtre", "icon": null, "icon_type": null, "category_id": 1, "sort_order": 5 }
+    ]
+  },
+  {
+    "id": 9,
+    "slug": "community",
+    "name": "Community",
+    "icon": null,
+    "icon_type": null,
+    "color": "#0D9488",
+    "description": null,
+    "sort_order": 7,
+    "interests": []
+  }
+]

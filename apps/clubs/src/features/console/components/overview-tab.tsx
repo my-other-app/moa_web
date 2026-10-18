@@ -14,7 +14,9 @@ import {
   pct,
   pickImage,
   relativeTime,
+  TopicChips,
   timeUntil,
+  type TopicRef,
   type AttentionItem,
 } from "@moa/app-kit";
 import {
@@ -30,6 +32,7 @@ import {
 } from "@moa/ui";
 
 import type { EventDetail } from "@/features/events";
+import { useResolvedTopics } from "@/features/topics";
 import { useEventSummary } from "../queries";
 import { overviewAttention, type EventSummary, type OverviewAttention } from "../schemas";
 
@@ -292,9 +295,21 @@ function DoorPanel({ s, base }: { s: EventSummary; base: string }) {
   );
 }
 
+/** What the event is about: the topics it is listed under, then its interests by name. */
+function EventInterests({ names, topics }: { names: string[]; topics: TopicRef[] }) {
+  if (!names.length && !topics.length) return <>None picked</>;
+  return (
+    <div className="flex flex-col gap-1">
+      <TopicChips topics={topics} size="xs" />
+      {names.length ? <span>{names.join(", ")}</span> : null}
+    </div>
+  );
+}
+
 /** The event's own facts: the poster and the words that front it, where and when, what entry costs, what happens to the guest list. */
 function AboutPanel({ s, event, base }: { s: EventSummary; event: EventDetail | undefined; base: string }) {
   const poster = pickImage(event?.poster, ["medium", "large", "original", "thumbnail"]);
+  const topics = useResolvedTopics(event);
   const at = new Date(s.generated_at);
   const closes = event?.reg_enddate ? new Date(event.reg_enddate) : null;
   const signups = !closes || Number.isNaN(closes.getTime()) ? "Open until the event starts" : closes > at ? `Open until ${formatDate(closes)}` : `Closed ${formatDate(closes)}`;
@@ -333,6 +348,7 @@ function AboutPanel({ s, event, base }: { s: EventSummary; event: EventDetail | 
       <DefinitionRows
         rows={[
           { k: "Club", v: event?.club?.name ?? "—" },
+          { k: "Interests", v: <EventInterests names={(event?.interests ?? []).flatMap((i) => (i.name ? [i.name] : []))} topics={topics} /> },
           { k: "Venue", v: event?.is_online ? "Online" : event?.location_name || "—" },
           { k: "Runs", v: formatWindow(s.starts_at, s.ends_at, s.timezone) },
           { k: "Entry", v: event?.has_fee && event.reg_fee ? formatCurrency(event.reg_fee) : "Free" },

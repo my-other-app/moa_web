@@ -12,7 +12,6 @@ export {
   useUpdateTeamMember,
   useDeleteTeamMember,
   useUpdateTeamMemberPhoto,
-  useInterestCategories,
   useOrganizations,
   useChangePassword,
 } from "./queries";
@@ -26,7 +25,6 @@ export {
   socialHref,
   BRAND_PRESETS,
   changePasswordSchema,
-  interestCategorySchema,
   organizationSchema,
   interestEmoji,
   type ClubSelf,
@@ -37,11 +35,9 @@ export {
   type TeamMemberForm,
   type ChangePasswordForm,
   type ClubInterest,
-  type InterestCategory,
   type Organization,
 } from "./schemas";
 export { ClubProfilePage } from "./components/club-profile-page";
-export { InterestPicker } from "./components/interest-picker";
 export { NextEventCard } from "./components/next-event-card";
 export { ReachPanel } from "./components/reach-panel";
 export { isUpcoming, isClosingSoon, needsAttendance, summariseReach, byDateAscending, hoursUntil, CLOSING_SOON_HOURS, type ReachSummary } from "./insights";

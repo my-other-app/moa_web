@@ -1,7 +1,7 @@
 import { paginatedSchema } from "@moa/api";
 import { z } from "zod";
 
-import { imageFieldSchema } from "@moa/app-kit";
+import { imageFieldSchema, topicRefsField } from "@moa/app-kit";
 
 export const adminClubSchema = z.object({
   id: z.coerce.number(),
@@ -64,7 +64,10 @@ export const adminClubDetailSchema = z.object({
     .partial()
     .passthrough()
     .nullish(),
-  interests: z.array(namedRef).catch([]).default([]),
+  /** `category_id` (the topic it sits under) arrives with the topics release. */
+  interests: z.array(namedRef.extend({ category_id: z.coerce.number().nullish() })).catch([]).default([]),
+  /** The distinct topics of its interests, in topic order; null from a server before topics. */
+  topics: topicRefsField,
   org: namedRef.nullish(),
   is_verified: z.boolean().default(false),
   is_deleted: z.boolean().default(false),

@@ -25,6 +25,7 @@ export {
 } from "./format";
 export * from "./analytics";
 export { imageFieldSchema, namedRefSchema, pickImage, type ImageField } from "./image";
+export * from "./topics";
 export { useListParams, type ListParams } from "./hooks/use-list-params";
 export { useLocalPage } from "./hooks/use-local-page";
 export { ResourceList, type ResourceListProps } from "./components/resource-list";
