@@ -1,16 +1,19 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
-import { Chip, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, Skeleton, Textarea } from "@moa/ui";
+import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, Textarea } from "@moa/ui";
 
-import { useInterests } from "../../queries";
+import { TopicPicker } from "@/features/topics";
+
 import type { EventFormValues } from "../../schemas";
 
-/** Reach and rules: the topics that put it in front of followers, a label for the card, and the rules. */
+/**
+ * Reach and rules: the interests that put it in front of followers (and,
+ * through them, the topics it is listed under), a label for the card, and
+ * the rules.
+ */
 export function ReachStep() {
   const form = useFormContext<EventFormValues>();
-  const interests = useInterests();
-  const selected = form.watch("interest_ids") ?? [];
   return (
     <div className="grid gap-6">
       <FormField
@@ -18,18 +21,16 @@ export function ReachStep() {
         name="interest_ids"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Topics</FormLabel>
-            <FormDescription>Students who follow a topic see this event in their feed. Pick the two or three it is really about.</FormDescription>
+            <FormLabel>Interests</FormLabel>
+            <FormDescription>Students who follow an interest see this event in their feed, and it is listed under that interest&apos;s topic. Pick the two or three it is really about.</FormDescription>
             <FormControl>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {interests.isPending
-                  ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-7 w-24 rounded-lg" />)
-                  : interests.data?.map((it) => (
-                      <Chip key={it.id} active={selected.includes(it.id)} onClick={() => field.onChange(selected.includes(it.id) ? selected.filter((id) => id !== it.id) : [...selected, it.id])}>
-                        {it.name}
-                      </Chip>
-                    ))}
-              </div>
+              <TopicPicker
+                value={field.value ?? []}
+                onChange={field.onChange}
+                label="Interests"
+                className="pt-1"
+                errorText="Interests could not load just now. The event keeps the ones it has; try again in a moment to change them."
+              />
             </FormControl>
             <FormMessage />
           </FormItem>

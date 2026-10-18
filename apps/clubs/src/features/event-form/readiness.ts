@@ -42,7 +42,7 @@ export function readiness(v: EventFormValues): Readiness {
     { key: "close", label: "When sign-up closes", section: "when", done: filled(v.reg_enddate) },
     { key: "capacity", label: "How many places", section: "entry", done: Boolean(v.max_participants) },
     { key: "contact", label: "Someone to contact", section: "people", done: filled(v.contact_phone) || filled(v.contact_email) },
-    { key: "topics", label: "Topics, so followers find it", section: "reach", done: (v.interest_ids ?? []).length > 0 },
+    { key: "topics", label: "Interests, so followers find it", section: "reach", done: (v.interest_ids ?? []).length > 0 },
   ];
   const reqDone = required.filter((i) => i.done).length;
   const recDone = recommended.filter((i) => i.done).length;

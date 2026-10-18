@@ -6,11 +6,13 @@ import { Controller, useForm, useWatch, type UseFormReturn } from "react-hook-fo
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle2Icon, CheckIcon, CircleIcon, ImagePlusIcon, Loader2Icon, XIcon } from "lucide-react";
-import { Button, ChoiceCard, Chip, Combobox, Notice, Segmented, cn } from "@moa/ui";
+import { Button, ChoiceCard, Combobox, Notice, Segmented, cn } from "@moa/ui";
 import { useObjectUrl } from "@moa/ui/hooks";
+import { TopicChips, resolveTopics } from "@moa/app-kit";
 
 import { isFree, priceLine, usePlans, type Catalog, type Cycle } from "@/features/billing";
-import { useInterestCategories, useOrganizations } from "@/features/club";
+import { useOrganizations } from "@/features/club";
+import { TopicPicker, useTopicTree } from "@/features/topics";
 import { VenuePicker } from "@/features/venue";
 
 import { applyForClub } from "../api";
@@ -401,34 +403,20 @@ const SOCIALS = [
 
 function MoreStep({ form, disabled }: { form: Form; disabled: boolean }) {
   const { errors } = form.formState;
-  const { data: categories, isPending, isError } = useInterestCategories();
   const picked = useWatch({ control: form.control, name: "interest_ids" }) ?? [];
-  const toggle = (id: number) => form.setValue("interest_ids", picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id], { shouldDirty: true });
 
   return (
     <>
       <div>
         <span className={label}>Interests</span>
-        {isError ? (
-          <p className="text-ink-3 m-0 text-[12.5px]">Interests could not load just now. You can pick them from Club profile once you&apos;re approved.</p>
-        ) : isPending ? (
-          <p className="text-ink-3 m-0 text-[12.5px]">Loading interests…</p>
-        ) : (
-          <div className="flex max-h-[300px] flex-col gap-4 overflow-y-auto">
-            {(categories ?? []).map((c) => (
-              <fieldset key={c.id} className="m-0 flex flex-col gap-2 border-0 p-0">
-                <legend className="text-ink-2 mb-2 p-0 text-[12.5px] font-medium">{c.name}</legend>
-                <div className="flex flex-wrap gap-2">
-                  {c.interests.map((i) => (
-                    <Chip key={i.id} active={picked.includes(i.id)} onClick={() => toggle(i.id)} disabled={disabled}>
-                      {i.name}
-                    </Chip>
-                  ))}
-                </div>
-              </fieldset>
-            ))}
-          </div>
-        )}
+        <p className="text-ink-3 m-0 mb-2 text-[12px]">What the club is about. Students who follow these find it.</p>
+        <TopicPicker
+          value={picked}
+          onChange={(next) => form.setValue("interest_ids", next, { shouldDirty: true })}
+          disabled={disabled}
+          listMaxHeight={300}
+          errorText="Interests could not load just now. You can pick them from Club profile once you're approved."
+        />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {SOCIALS.map((s) => (
@@ -453,11 +441,12 @@ const titleCase = (key: string) => key.replace(/_/g, " ").replace(/^./, (c) => c
 function ReviewStep({ form, logo, catalog, plansFailed, onEdit, disabled }: { form: Form; logo: File | null; catalog?: Catalog; plansFailed: boolean; onEdit: (step: number) => void; disabled: boolean }) {
   const v = useWatch({ control: form.control }) as SignupValues;
   const { data: orgs } = useOrganizations();
-  const { data: categories } = useInterestCategories();
+  const { data: tree } = useTopicTree();
   const planKey = resolvePlanKey(v.requested_plan, catalog);
   const plan = catalog?.plans.find((p) => p.key === planKey);
   const cycle = v.requested_cycle;
-  const interestNames = (categories ?? []).flatMap((c) => c.interests).filter((i) => v.interest_ids.includes(i.id)).map((i) => i.name);
+  const interestNames = (tree ?? []).flatMap((c) => c.interests).filter((i) => v.interest_ids.includes(i.id)).map((i) => i.name);
+  const topics = tree ? resolveTopics({ interests: v.interest_ids.map((id) => ({ id })) }, tree) : [];
   const links = [v.instagram, v.linkedin, v.youtube, v.website].filter(Boolean);
 
   const sections: { step: number; title: string; rows: [string, React.ReactNode][] }[] = [
@@ -485,6 +474,7 @@ function ReviewStep({ form, logo, catalog, plansFailed, onEdit, disabled }: { fo
       title: "Interests and links",
       rows: [
         ["Interests", interestNames.length ? interestNames.join(", ") : "None yet"],
+        ...(topics.length ? [["Topics", <TopicChips key="topics" topics={topics} size="xs" />] as [string, React.ReactNode]] : []),
         ["Links", links.length ? `${links.length} added` : "None"],
       ],
     },

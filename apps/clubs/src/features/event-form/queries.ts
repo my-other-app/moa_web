@@ -9,21 +9,13 @@ import { ENTITLEMENTS_KEY } from "@/features/billing/queries";
 import { toastError } from "@/features/plan/errors";
 import { skippedNotice } from "@/features/plan/schemas";
 
-import { createEvent, deleteEvent, fetchCategories, fetchEvent, fetchInterests, publishEvent, updateEvent, duplicateEvent, type DuplicateInput } from "./api";
+import { createEvent, deleteEvent, fetchCategories, fetchEvent, publishEvent, updateEvent, duplicateEvent, type DuplicateInput } from "./api";
 import type { EventFormParsed } from "./schemas";
 
 export function useEventCategories() {
   return useQuery({
     queryKey: ["event-categories"],
     queryFn: fetchCategories,
-    staleTime: staleTimes.reference,
-  });
-}
-
-export function useInterests() {
-  return useQuery({
-    queryKey: qk.interests.all,
-    queryFn: fetchInterests,
     staleTime: staleTimes.reference,
   });
 }

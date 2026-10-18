@@ -5,12 +5,10 @@ import { pinWireFields } from "@/features/venue";
 
 import {
   clubSelfSchema,
-  interestCategorySchema,
   organizationSchema,
   type ChangePasswordForm,
   type ClubProfileForm,
   type ClubSelf,
-  type InterestCategory,
   type Organization,
   clubPartnerSchema,
   clubTeamMemberSchema,
@@ -39,11 +37,6 @@ export async function fetchClubOverview(days: number) {
 export async function fetchMyClub(): Promise<ClubSelf> {
   const raw = await api.get<unknown>("/api/v1/clubs/info");
   return clubSelfSchema.parse(raw);
-}
-
-export async function fetchInterestCategories(): Promise<InterestCategory[]> {
-  const raw = await api.get<unknown>("/api/v1/interests/list");
-  return z.array(interestCategorySchema).parse(raw);
 }
 
 export async function fetchOrganizations(): Promise<Organization[]> {

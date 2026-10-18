@@ -1,0 +1,15 @@
+[
+  {
+    "id": 1,
+    "name": "arts",
+    "icon": "string",
+    "icon_type": "emoji",
+    "interests": [
+      { "id": 3, "name": "Web Development", "icon": "string", "icon_type": "emoji" },
+      { "id": 6, "name": "Coding", "icon": "⌨️", "icon_type": "emoji" },
+      { "id": 12, "name": "Cybersecurity", "icon": null, "icon_type": null },
+      { "id": 21, "name": "Photography", "icon": "📷", "icon_type": "emoji" },
+      { "id": 22, "name": "Music", "icon": "🥁", "icon_type": "emoji" }
+    ]
+  }
+]

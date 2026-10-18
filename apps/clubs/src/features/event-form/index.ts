@@ -2,7 +2,6 @@ export { EventForm, emptyEventForm, type EventFormContext } from "./components/e
 export { readiness, spanLabel, joinLocal, splitLocal, hoursBetween, ANSWER_TYPES, answerTypeLabel } from "./readiness";
 export {
   useEventCategories,
-  useInterests,
   useEvent,
   useCreateEvent,
   useUpdateEvent,

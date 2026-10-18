@@ -27,6 +27,7 @@ import {
   toast, Combobox } from "@moa/ui";
 
 import { PinPreview, VenuePicker, pinAt, pinFieldsOf, pinFromDetail, pinOf, type PinState } from "@/features/venue";
+import { TopicPicker } from "@/features/topics";
 import { PUBLIC_SITE_HOST } from "@/lib/public-site";
 
 import {
@@ -48,7 +49,6 @@ import {
   type ClubProfileForm as Values,
   type ClubSelf,
 } from "../schemas";
-import { InterestPicker } from "./interest-picker";
 import { TeamPanel } from "./team-panel";
 import { usePick } from "./use-pick";
 
@@ -686,12 +686,17 @@ function ProfileForm({ club }: { club: ClubSelf }) {
         </div>
         <div>
           <span className={label}>Interests</span>
-          <InterestPicker
+          <p className="text-ink-3 m-0 mb-2 text-[12px]">
+            What the club is about. People who follow these find it, and the
+            club is listed under their topics.
+          </p>
+          <TopicPicker
             value={interestIds}
             onChange={(next) =>
               form.setValue("interest_ids", next, { shouldDirty: true })
             }
             disabled={saving}
+            errorText="Interests could not load just now, so they are left as they are when you save."
           />
         </div>
       </FigurePanel>

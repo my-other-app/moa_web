@@ -16,9 +16,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => ({
   },
 }));
 
-const { fetchInterestCategories, fetchOrganizations, updateMyClub } = await import(
-  "./api"
-);
+const { fetchOrganizations, updateMyClub } = await import("./api");
+const { fetchTopicTree } = await import("@/features/topics");
 const { clubProfileFormSchema, clubSelfSchema, interestEmoji } = await import(
   "./schemas"
 );
@@ -219,7 +218,7 @@ describe("club profile form validation", () => {
 describe("reference data schemas", () => {
   it("parses the category-wise interest list", async () => {
     get.mockResolvedValue(interestsFixture);
-    const categories = await fetchInterestCategories();
+    const categories = await fetchTopicTree();
     expect(categories.map((c) => c.name)).toEqual(["Academic", "Creative"]);
     expect(categories[0]!.interests.length).toBe(3);
   });
@@ -237,6 +236,14 @@ describe("reference data schemas", () => {
       "UI/UX",
       "Marketing",
     ]);
+  });
+
+  it("reads the club's topics when the server sends them, and null from one before topics", () => {
+    expect(clubSelfSchema.parse(clubInfoFixture).topics).toBeNull();
+    const club = clubSelfSchema.parse({ ...clubInfoFixture, topics: [{ id: 1, slug: "development", name: "Development", color: "#2563EB" }] });
+    expect(club.topics).toEqual([{ id: 1, slug: "development", name: "Development", color: "#2563EB" }]);
+    // A malformed list reads as absent rather than failing the whole profile.
+    expect(clubSelfSchema.parse({ ...clubInfoFixture, topics: "development" }).topics).toBeNull();
   });
 });
 

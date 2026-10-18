@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import clubInfoFixture from "../__fixtures__/club-info.json";
 import interestsFixture from "../__fixtures__/interests.json";
@@ -166,5 +166,18 @@ describe("club profile", () => {
     const form = await putBody();
     expect(form.get("clear_point")).toBe("true");
     expect(form.get("lat")).toBeNull();
+  });
+
+  it("picks interests by topic, removes one from the picked chips, and saves the lot", async () => {
+    render(<ClubProfilePage />);
+    await screen.findByTestId("club-name");
+    const creative = await screen.findByRole("group", { name: /Creative/ });
+    fireEvent.click(within(creative).getByRole("checkbox", { name: /Photography/ }));
+    expect(screen.getByText("4 interests picked")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remove Marketing" }));
+    expect(screen.getByRole("checkbox", { name: "Marketing" })).not.toBeChecked();
+    fireEvent.click(await screen.findByRole("button", { name: "Save changes" }));
+    const form = await putBody();
+    expect(form.get("interest_ids")).toBe("6,7,21");
   });
 });

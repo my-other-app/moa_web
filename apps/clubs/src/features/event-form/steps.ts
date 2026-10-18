@@ -19,6 +19,6 @@ export const STEPS: StepDef[] = [
   { id: "where", title: "Where", description: "A venue, or a link", fields: ["is_online", "location_name", "location_link", "lat", "lng", "url"] },
   { id: "entry", title: "Places and money", description: "How many can come, what it costs, and what is on offer", fields: ["max_participants", "has_fee", "reg_fee", "has_prize", "prize_amount", "merch_enabled", "swag_enabled"] },
   { id: "people", title: "People", description: "Who is speaking, and who to ask", fields: ["speakers", "contact_name", "contact_phone", "contact_email"] },
-  { id: "reach", title: "Reach and rules", description: "Topics that put it in front of the right followers, a label, and the rules", fields: ["interest_ids", "event_tag", "event_guidelines"] },
+  { id: "reach", title: "Reach and rules", description: "Interests that put it in front of the right followers, a label, and the rules", fields: ["interest_ids", "event_tag", "event_guidelines"] },
   { id: "questions", title: "Sign-up questions", description: "What to ask beyond a name and an email", fields: ["additional_details"] },
 ];
