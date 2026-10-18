@@ -33,7 +33,6 @@ export function topicLabel(name: string): string {
  */
 export function interestEmoji(item: { icon?: string | null | undefined; icon_type?: string | null | undefined }): string | null {
   if (!item.icon || item.icon_type !== "emoji") return null;
-  // eslint-disable-next-line no-control-regex
   return /[^\u0000-\u007F]/.test(item.icon) ? item.icon : null;
 }
 
