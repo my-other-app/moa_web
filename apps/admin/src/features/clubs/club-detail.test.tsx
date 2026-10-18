@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 
 import detailFixture from "../__fixtures__/club-detail.json";
 import eventsFixture from "../__fixtures__/club-events.json";
 import followersFixture from "../__fixtures__/club-followers.json";
 import pendingFixture from "../__fixtures__/club-pending.json";
 import lifetimeFixture from "../__fixtures__/club-lifetime.json";
+import topicsFixture from "../__fixtures__/topics.json";
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
 let detail: unknown = detailFixture;
@@ -21,6 +22,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (/\/clubs\/\d+\/events/.test(path)) return eventsFixture;
         if (/\/clubs\/admin\/\d+\/lifetime$/.test(path)) return lifetimeFixture;
         if (/\/clubs\/admin\/\d+$/.test(path)) return detail;
+        if (path === "/api/v1/interests/list") return topicsFixture;
         throw new Error(`unstubbed GET ${path}`);
       }),
       put: vi.fn(async (path: string, body: unknown) => {
@@ -72,6 +74,22 @@ describe("club detail schema", () => {
 });
 
 describe("club detail page", () => {
+  it("names the topics its focus areas fall under: derived from the interests, or the server's own", async () => {
+    // Coding sits under Development, UI/UX under Design.
+    const first = render(<ClubDetail clubId={5} />);
+    const derived = await screen.findByRole("list", { name: "Topics" });
+    expect(within(derived).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Development", "Design"]);
+    expect(calls.some((c) => c.path === "/api/v1/interests/list")).toBe(true);
+    first.unmount();
+
+    calls.length = 0;
+    detail = { ...detailFixture, topics: [{ id: 3, slug: "deep-tech", name: "Deep Tech", color: "#7C3AED" }] };
+    render(<ClubDetail clubId={5} />);
+    const own = await screen.findByRole("list", { name: "Topics" });
+    expect(within(own).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Deep Tech"]);
+    expect(calls.some((c) => c.path === "/api/v1/interests/list")).toBe(false);
+  });
+
   it("renders without throwing", () => {
     expect(() => render(<ClubDetail clubId={5} />)).not.toThrow();
   });

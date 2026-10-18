@@ -19,6 +19,7 @@ import {
 import {
   PageHeader,
   SectionTitle,
+  TopicChips,
   formatCurrency,
   formatDate,
   formatDateTime,
@@ -64,6 +65,7 @@ import {
   useClubLifetime,
   useDeleteClub,
 } from "../queries";
+import { useResolvedTopics } from "@/features/interests";
 import { ClubPlanPanel } from "@/features/subscriptions";
 
 import { requestedPlanText, type ClubEvent, type ClubFollower } from "../schemas";
@@ -280,6 +282,8 @@ function LifetimeSection({ clubId, brand }: { clubId: number; brand: { primary: 
 export function ClubDetail({ clubId }: { clubId: number }) {
   const router = useRouter();
   const { data: club, isPending, isError } = useClub(clubId);
+  // Its topics: the server's own, else derived from its interests against the topic list.
+  const clubTopics = useResolvedTopics(club);
   const approve = useApproveClub();
   const remove = useDeleteClub();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -468,6 +472,7 @@ export function ClubDetail({ clubId }: { clubId: number }) {
         {club?.interests?.length ? (
           <section className="space-y-3">
             <SectionTitle>Focus areas</SectionTitle>
+            <TopicChips topics={clubTopics} />
             <div className="flex flex-wrap gap-2">
               {club.interests.map((interest) => (
                 <Badge key={interest.id} variant="outline">
