@@ -17,7 +17,7 @@ import { useCan } from "@/hooks/use-can";
 import { ViewChips, type ViewChip } from "@/components/view-chips";
 import { ProviderIcon, providerLabel } from "@/components/provider-icon";
 import { useExportUsers, useUsers } from "../queries";
-import type { UserFilters } from "../api";
+import { USER_TOTAL_CAP, type UserFilters } from "../api";
 import type { AdminUser } from "../schemas";
 import { UserDrawer } from "./user-drawer";
 
@@ -173,6 +173,19 @@ export function UsersV2() {
     isActive: activeParam === undefined ? undefined : activeParam !== "false",
   };
 
+  /*
+   * Keyset paging: each page's `next` carries a cursor (its last row), and
+   * the page after it is asked for by that cursor -- an index range -- rather
+   * than by skipping every row before it. The cursors are remembered per
+   * filter set as Next is pressed, so Previous reuses them too; a page
+   * reached any other way (a link, a reload) is asked for by its offset,
+   * which still works. An API from before sends no cursor: offsets only.
+   */
+  const trailKey = JSON.stringify([filters, params.pageSize]);
+  const [trail, setTrail] = React.useState<{ key: string; cursors: Record<number, string> }>({ key: trailKey, cursors: {} });
+  const cursors = trail.key === trailKey ? trail.cursors : {};
+  const cursor = params.page > 1 ? cursors[params.page] : undefined;
+
   const { data, isPending, isError, error, isPlaceholderData } = useUsers({
     ...filters,
     offset: params.offset,
@@ -180,13 +193,23 @@ export function UsersV2() {
     // limit that disagreed with the offset it was derived from would skip or
     // repeat rows between pages.
     limit: params.pageSize,
+    cursor,
   });
 
   const rows = data?.items ?? [];
   const total = data?.total ?? 0;
+  // Counted up to 10,000 and no further: "10,000+" then, and no last page to name.
+  const capped = data?.capped ?? false;
+  const totalText = capped ? `${formatNumber(USER_TOTAL_CAP)}+` : formatNumber(total);
   const pages = Math.max(1, Math.ceil(total / params.pageSize));
   const firstOnPage = params.offset + 1;
-  const lastOnPage = Math.min(total, params.offset + rows.length);
+  const lastOnPage = capped ? params.offset + rows.length : Math.min(total, params.offset + rows.length);
+  const hasNext = data ? Boolean(data.next) || (!capped && params.page < pages) : false;
+  const nextPage = () => {
+    const nextCursor = data?.nextCursor;
+    if (nextCursor) setTrail({ key: trailKey, cursors: { ...cursors, [params.page + 1]: nextCursor } });
+    params.setPage(params.page + 1);
+  };
 
   const anyFilter = Boolean(search || userType || provider || activeParam !== undefined);
 
@@ -222,8 +245,8 @@ export function UsersV2() {
             {isPending
               ? "Loading…"
               : anyFilter
-                ? `${formatNumber(total)} match`
-                : `${formatNumber(total)} people · app users, club logins, admins and guests`}
+                ? `${totalText} match`
+                : `${totalText} people · app users, club logins, admins and guests`}
           </span>
         </div>
 
@@ -241,7 +264,7 @@ export function UsersV2() {
             )}
             {exportUsers.isPending
               ? "Preparing…"
-              : `Export ${formatNumber(total)} as CSV`}
+              : `Export ${totalText} as CSV`}
           </button>
         ) : null}
       </header>
@@ -435,7 +458,9 @@ export function UsersV2() {
             <span className="text-[12.5px] text-ink-2">
               {isPending
                 ? " "
-                : `Page ${params.page} of ${pages} · ${formatNumber(firstOnPage)}–${formatNumber(lastOnPage)} of ${formatNumber(total)}`}
+                : capped
+                  ? `Page ${params.page} · ${formatNumber(firstOnPage)}–${formatNumber(lastOnPage)} of ${totalText}`
+                  : `Page ${params.page} of ${pages} · ${formatNumber(firstOnPage)}–${formatNumber(lastOnPage)} of ${formatNumber(total)}`}
             </span>
             <div className="flex gap-1.5">
               <button
@@ -450,8 +475,8 @@ export function UsersV2() {
               <button
                 type="button"
                 className="btn btn-secondary"
-                disabled={params.page >= pages}
-                onClick={() => params.setPage(params.page + 1)}
+                disabled={!hasNext}
+                onClick={nextPage}
               >
                 Next
                 <ChevronRightIcon className="size-4" />
@@ -469,7 +494,7 @@ export function UsersV2() {
           <span className="text-[13px] text-ink-2">
             {anyFilter
               ? unfiltered.data
-                ? `There are ${formatNumber(unfiltered.data.total ?? 0)} users in total — the filters are hiding them.`
+                ? `There are ${unfiltered.data.capped ? `${formatNumber(USER_TOTAL_CAP)}+` : formatNumber(unfiltered.data.total ?? 0)} users in total — the filters are hiding them.`
                 : "Clearing the filters will show the rest."
               : "People who sign up through the app will appear here."}
           </span>
