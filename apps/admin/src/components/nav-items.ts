@@ -6,6 +6,7 @@ import {
   ClockIcon,
   CreditCardIcon,
   CrownIcon,
+  FlagIcon,
   GraduationCapIcon,
   InboxIcon,
   LandmarkIcon,
@@ -27,12 +28,15 @@ export interface NavItem {
   group?: string;
   /** Exact match only -- otherwise "/" would light up on every route. */
   exact?: boolean;
-  /** Which count from the overview payload to show, if any. */
-  badge?: "pendingClubs" | "users" | "events" | "trash";
+  /**
+   * Which count to show, if any: one from the overview payload, or
+   * `openReports`, which the rail asks for itself every minute.
+   */
+  badge?: "pendingClubs" | "users" | "events" | "trash" | "openReports";
 }
 
 /**
- * The v2 rail: sixteen destinations in five groups.
+ * The v2 rail: eighteen destinations in five groups.
  *
  * Grouping is the change from v1's flat list. Fourteen unlabelled siblings is
  * a list you scan; five groups of two to five is a structure you learn, and it
@@ -58,6 +62,8 @@ export const navItems: NavItem[] = [
 
   { href: "/announcements", label: "Announcements", icon: BellIcon, group: "Comms" },
   { href: "/notifications", label: "Notifications", icon: InboxIcon },
+  // What app users reported, beside the platform's own alerts: both are things that came in and want an admin.
+  { href: "/reports", label: "Reports", icon: FlagIcon, badge: "openReports" },
   { href: "/activity", label: "Activity", icon: ClockIcon },
 
   { href: "/trash", label: "Trash", icon: Trash2Icon, group: "System" },

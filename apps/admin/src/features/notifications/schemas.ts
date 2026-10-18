@@ -24,12 +24,13 @@ export const NOTIFICATION_KINDS = [
   "payment_gateway_disconnected",
   "comp_ending",
   "comp_ended",
+  "content_reported",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 /**
- * The colour a kind reads in: money in, a failure, a clock running, a club
- * asking, a change of plan, an ending.
+ * The colour a kind reads in: money in, a failure (or a report wanting a
+ * decision), a clock running, a club asking, a change of plan, an ending.
  */
 export type KindTone = "money" | "failure" | "grace" | "application" | "change" | "ended";
 
@@ -53,6 +54,8 @@ export const KIND_META: Record<NotificationKind, { label: string; tone: KindTone
   payment_gateway_disconnected: { label: "Razorpay disconnected", tone: "ended" },
   comp_ending: { label: "Free plan ending", tone: "grace" },
   comp_ended: { label: "Free plan ended", tone: "ended" },
+  // An app user reported a thread, a comment, a person or a club: it wants a decision on the Reports page.
+  content_reported: { label: "Content reported", tone: "failure" },
 };
 
 /**
@@ -146,6 +149,12 @@ export function alertLabel(n: Pick<AdminNotification, "kind" | "data">): string 
     if (by === "admin") return "Razorpay disabled by an admin";
     if (by === "club") return "Razorpay disconnected by the club";
   }
+  if (n.kind === "content_reported") {
+    // What was reported and why, and how many people have: "Content reported · comment · harassment · 3 reports".
+    const parts = [text(data.target_type), text(data.reason)].filter((p): p is string => Boolean(p)).map((p) => p.replace(/_/g, " "));
+    const count = typeof data.report_count === "number" && data.report_count > 1 ? `${data.report_count} reports` : null;
+    return [kindLabel(n.kind), ...parts, ...(count ? [count] : [])].join(" · ");
+  }
   if (displayKind(n) === FREE_PLAN_GIVEN) {
     const plan = text(data.plan_name) ?? (text(data.plan) ? planWords(text(data.plan)!) : null);
     return plan ? `Free plan given · ${plan}` : kindLabel(FREE_PLAN_GIVEN);
@@ -156,15 +165,20 @@ export function alertLabel(n: Pick<AdminNotification, "kind" | "data">): string 
 /** Kinds about a club's own Razorpay account: they lead to the club. */
 export const GATEWAY_KINDS = new Set<string>(["payment_gateway_connected", "payment_gateway_failed", "payment_gateway_disconnected"]);
 
+/** Kinds that are not about the club or its money, and lead to a page of their own. */
+const KIND_PAGES: Record<string, string> = { content_reported: "/reports" };
+
 /** Kinds about a club's subscription rather than the club itself. */
-const SUBSCRIPTION_KINDS = new Set<string>(NOTIFICATION_KINDS.filter((k) => k !== "club_applied" && !GATEWAY_KINDS.has(k)));
+const SUBSCRIPTION_KINDS = new Set<string>(NOTIFICATION_KINDS.filter((k) => k !== "club_applied" && !GATEWAY_KINDS.has(k) && !(k in KIND_PAGES)));
 
 /**
- * Where a notification leads: the subscription (the Subscribers tab, found
- * by the club's name) for anything about billing, the club for an
- * application or its own Razorpay account, nowhere when it names neither.
+ * Where a notification leads: a report to the Reports page, the
+ * subscription (the Subscribers tab, found by the club's name) for
+ * anything about billing, the club for an application or its own Razorpay
+ * account, nowhere when it names neither.
  */
 export function notificationHref(n: Pick<AdminNotification, "kind" | "club" | "subscription_id">): string | null {
+  if (KIND_PAGES[n.kind]) return KIND_PAGES[n.kind]!;
   if (n.club && GATEWAY_KINDS.has(n.kind)) return `/clubs/${n.club.id}`;
   if (n.club && (n.subscription_id != null || SUBSCRIPTION_KINDS.has(n.kind))) {
     return `/subscriptions?q=${encodeURIComponent(n.club.name)}`;

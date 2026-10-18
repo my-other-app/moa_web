@@ -13,6 +13,7 @@ import {
   CirclePlayIcon,
   CircleXIcon,
   CrownIcon,
+  FlagIcon,
   GiftIcon,
   HourglassIcon,
   IndianRupeeIcon,
@@ -48,6 +49,7 @@ const ICON: Record<string, LucideIcon> = {
   payment_gateway_disconnected: UnplugIcon,
   comp_ending: CalendarClockIcon,
   comp_ended: CalendarX2Icon,
+  content_reported: FlagIcon,
   [FREE_PLAN_GIVEN]: GiftIcon,
 };
 
