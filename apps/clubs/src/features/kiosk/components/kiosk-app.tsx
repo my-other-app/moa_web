@@ -13,11 +13,13 @@ import { CameraWell, DOOR_FIELD, brandOnDark, DoorBanner, DoorCount, DoorProgres
 import {
   KIOSK_TOKEN_STORAGE,
   kioskCardUrl,
+  kioskHeaders,
   kioskSelfCardUrl,
   kioskStaff,
   markSelfPrinted,
   notMe,
   redeemAtKiosk,
+  staffProblem,
 } from "../api";
 import { useKioskContext, useSelfQr } from "../queries";
 import { AgendaCycle } from "./agenda-cycle";
@@ -201,7 +203,13 @@ function verdictOf(result: RedeemResult | null): {
     case "EVENT_NOT_OPEN":
       return { tone: "caution", verdict: "Doors not open", title: "The doors are not open yet.", detail: desk };
     default:
-      return { tone: "refuse", verdict: "Not recognised", title: "That code was not recognised.", detail: desk };
+      // An admission number is not taken here any more: it comes back NO_MATCH like any unknown code.
+      return {
+        tone: "refuse",
+        verdict: "Not recognised",
+        title: "That code was not recognised.",
+        detail: "Type the ticket code printed under the QR (it looks like MOA-XXXXX-XXXXX), not the admission number. Or a volunteer at the desk can check you in.",
+      };
   }
 }
 
@@ -227,6 +235,8 @@ function Kiosk({
   const [staff, setStaff] = React.useState<StaffInfo | null>(null);
   const [pinOpen, setPinOpen] = React.useState(false);
   const [pin, setPin] = React.useState("");
+  const [pinError, setPinError] = React.useState<string | null>(null);
+  const [pinBusy, setPinBusy] = React.useState(false);
   const [left, setLeft] = React.useState(DONE_RESET_S);
   const [notMeLeft, setNotMeLeft] = React.useState(0);
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -256,7 +266,7 @@ function Kiosk({
     if (!pending || printing) return;
     printedSessions.current.add(pending.session);
     setPrintingSession(pending.session);
-    setPrinting(kioskSelfCardUrl(token, pending.session));
+    setPrinting(kioskSelfCardUrl(pending.session));
   }, [selfQr.data, printing, token]);
 
   const reset = React.useCallback(() => {
@@ -298,7 +308,7 @@ function Kiosk({
             : 0,
         );
         if (r.outcome === "MATCHED" && r.auto_print && r.print_url)
-          setPrinting(kioskCardUrl(token, r.print_url));
+          setPrinting(kioskCardUrl(r.print_url));
         setCode("");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "The scan failed");
@@ -328,7 +338,7 @@ function Kiosk({
   React.useEffect(() => () => scannerRef.current?.stop(), []);
 
   const printAgain = () => {
-    if (result?.print_url) setPrinting(kioskCardUrl(token, result.print_url));
+    if (result?.print_url) setPrinting(kioskCardUrl(result.print_url));
   };
   const undo = async () => {
     if (!result?.redemption_token) return;
@@ -341,13 +351,26 @@ function Kiosk({
     }
   };
   const openStaff = async () => {
+    if (!pin.trim() || pinBusy) return;
+    setPinBusy(true);
+    setPinError(null);
     try {
       setStaff(await kioskStaff(token, pin));
       setPinOpen(false);
       setPin("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Wrong PIN");
+      // Said in the dialog, where the volunteer is looking: a wrong PIN, or
+      // five of them in fifteen minutes (429 PIN_LOCKED).
+      setPinError(staffProblem(err));
+      setPin("");
+    } finally {
+      setPinBusy(false);
     }
+  };
+  const closePin = () => {
+    setPinOpen(false);
+    setPin("");
+    setPinError(null);
   };
   const g = result?.guest;
   // The club's colour on the buttons, the accents and the agenda; never on a verdict.
@@ -362,6 +385,7 @@ function Kiosk({
         <PrintFrame
           key={printing}
           url={printing}
+          headers={kioskHeaders(token)}
           onDone={() => {
             // The phone is polling: tell it the card is out, then free the frame for the next one.
             if (printingSession)
@@ -491,7 +515,7 @@ function Kiosk({
               <input
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="Or type the code under the QR"
+                placeholder="Or type your ticket code (MOA-XXXXX-XXXXX)"
                 aria-label="Ticket code"
                 autoCapitalize="characters"
                 autoCorrect="off"
@@ -656,18 +680,25 @@ function Kiosk({
               onChange={(e) => setPin(e.target.value)}
               placeholder="Event PIN"
               aria-label="Event PIN"
-              className={cn(DOOR_FIELD, "font-mono text-[20px] tracking-[0.3em] placeholder:tracking-normal")}
+              aria-invalid={pinError ? true : undefined}
+              aria-describedby={pinError ? "kiosk-pin-error" : undefined}
+              className={cn(DOOR_FIELD, "font-mono text-[20px] tracking-[0.3em] placeholder:tracking-normal", pinError && "border-refuse")}
             />
+            {pinError ? (
+              <p id="kiosk-pin-error" role="alert" className="text-refuse text-[14px] leading-[1.5]">
+                {pinError}
+              </p>
+            ) : null}
             <div className="flex gap-2">
-              <Button type="submit" size="lg" className="flex-1">
-                Open
+              <Button type="submit" size="lg" className="flex-1" disabled={!pin.trim() || pinBusy}>
+                {pinBusy ? "Checking…" : "Open"}
               </Button>
               <Button
                 type="button"
                 variant="secondary"
                 size="lg"
                 className="flex-1"
-                onClick={() => (setPinOpen(false), setPin(""))}
+                onClick={closePin}
               >
                 Cancel
               </Button>

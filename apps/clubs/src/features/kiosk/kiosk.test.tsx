@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { ApiError } from "@moa/api";
 
 import type { KioskContext, RedeemResult } from "./schemas";
 
@@ -27,6 +28,7 @@ const api = vi.hoisted(() => ({
   staff: vi.fn(),
   kiosks: vi.fn(),
   settings: vi.fn(),
+  update: vi.fn(),
 }));
 
 vi.mock("./api", async (importOriginal) => {
@@ -38,17 +40,19 @@ vi.mock("./api", async (importOriginal) => {
     kioskStaff: api.staff,
     fetchKiosks: api.kiosks,
     fetchKioskSettings: api.settings,
+    updateKioskSettings: api.update,
   };
 });
 
 // Node's own localStorage shadows jsdom's and has no backing file here; the screens read through a plain one.
 const store = new Map<string, string>();
-vi.stubGlobal("localStorage", {
+const localStorageStub = {
   getItem: (k: string) => store.get(k) ?? null,
   setItem: (k: string, v: string) => void store.set(k, String(v)),
   removeItem: (k: string) => void store.delete(k),
   clear: () => store.clear(),
-});
+};
+vi.stubGlobal("localStorage", localStorageStub);
 
 const { render } = await import("@/test/render");
 const { KioskApp } = await import("./components/kiosk-app");
@@ -126,6 +130,51 @@ describe("the kiosk", () => {
     expect(screen.getByText("It is a valid ticket for Demo Day.")).toBeInTheDocument();
   });
 
+  it("sends a guest who typed an unknown code -- an admission number, say -- to the ticket code or the desk", async () => {
+    localStorage.setItem(KIOSK_TOKEN_STORAGE, "kiosk_tok");
+    api.redeem.mockResolvedValue({ ...matched, outcome: "NO_MATCH", guest: null, redemption_token: null });
+    render(<KioskApp />);
+    const field = await screen.findByLabelText("Ticket code");
+    expect(field).toHaveAttribute("placeholder", "Or type your ticket code (MOA-XXXXX-XXXXX)");
+    fireEvent.change(field, { target: { value: "MOA-0042-E123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Check in" }));
+    expect(await screen.findByRole("heading", { name: "That code was not recognised." })).toBeInTheDocument();
+    expect(screen.getByText(/ticket code printed under the QR .*not the admission number.*desk/)).toBeInTheDocument();
+  });
+
+  it("prints the card it just admitted with the device token in a header, not the link", async () => {
+    localStorage.setItem(KIOSK_TOKEN_STORAGE, "kiosk_tok");
+    const fetchSpy = vi.fn(async () => new Response(new Blob(["%PDF-1.4"], { type: "application/pdf" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchSpy);
+    api.redeem.mockResolvedValue({ ...matched, auto_print: true, print_url: "/api/v1/kiosk/card.pdf?redemption=rt_1.abcdefghij" });
+    try {
+      render(<KioskApp />);
+      fireEvent.change(await screen.findByLabelText("Ticket code"), { target: { value: "MOA-ABCDE-23456" } });
+      fireEvent.click(screen.getByRole("button", { name: "Check in" }));
+      expect(await screen.findByText("Printing your card…")).toBeInTheDocument();
+      await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+      const [url, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+      expect(url).toBe("/api/gateway/api/v1/kiosk/card.pdf?redemption=rt_1.abcdefghij");
+      expect(url).not.toContain("token=");
+      expect((init.headers as Record<string, string>)["X-Kiosk-Token"]).toBe("kiosk_tok");
+    } finally {
+      vi.unstubAllGlobals();
+      vi.stubGlobal("localStorage", localStorageStub);
+    }
+  });
+
+  it("says a kiosk locked by wrong PINs plainly, in the PIN dialog", async () => {
+    localStorage.setItem(KIOSK_TOKEN_STORAGE, "kiosk_tok");
+    api.staff.mockRejectedValue(new ApiError({ message: "Too many wrong PINs on this kiosk. Try again in a few minutes.", status: 429, errorCode: "PIN_LOCKED" }));
+    render(<KioskApp />);
+    fireEvent.click(await screen.findByRole("button", { name: /Staff/ }));
+    const pin = within(screen.getByRole("dialog", { name: "Staff mode" }));
+    fireEvent.change(pin.getByLabelText("Event PIN"), { target: { value: "0000" } });
+    fireEvent.click(pin.getByRole("button", { name: "Open" }));
+    expect(await pin.findByRole("alert")).toHaveTextContent("Too many tries, wait 15 minutes.");
+    expect(screen.queryByRole("dialog", { name: "Lobby tablet" })).toBeNull();
+  });
+
   it("opens staff mode behind the PIN", async () => {
     localStorage.setItem(KIOSK_TOKEN_STORAGE, "kiosk_tok");
     api.staff.mockResolvedValue({ ok: true, device: { name: "Lobby tablet", door: "Lobby kiosk" }, printed_today: 9, checked_in_here: 21, counters: { registered: 120, checked_in: 64 } });
@@ -151,5 +200,22 @@ describe("the kiosks panel", () => {
     expect(screen.getByRole("button", { name: "Unpair Lobby tablet" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Pair a kiosk/ })).toBeDisabled();
     expect(await screen.findByRole("radio", { name: /Code by email/ })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("will not send a PIN shorter than four, and shows the API's word when it refuses one", async () => {
+    api.kiosks.mockResolvedValue([]);
+    api.settings.mockResolvedValue({ self_check_in_enabled: false, self_check_in_verify: "email", self_check_in_print: false, has_pin: false });
+    api.update.mockRejectedValue(new ApiError({ message: "A PIN of four characters or more.", status: 422, fieldErrors: { fields: { kiosk_pin: "Four characters or more." } } as unknown as Record<string, string[]> }));
+    render(<KiosksPanel eventId={37} doors={[]} />);
+    const field = await screen.findByPlaceholderText("4 to 12 digits");
+    fireEvent.change(field, { target: { value: "12" } });
+    expect(screen.getByText("A PIN of 4 digits or more.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Set PIN" })).toBeDisabled();
+    fireEvent.submit(field.closest("form")!);
+    expect(api.update).not.toHaveBeenCalled();
+    // A server that refuses one anyway is heard under the field, not only in a toast.
+    fireEvent.change(field, { target: { value: "1234" } });
+    fireEvent.click(screen.getByRole("button", { name: "Set PIN" }));
+    expect(await screen.findByText("Four characters or more.")).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { api } from "@moa/app-kit";
-import { createApiClient } from "@moa/api";
+import { ApiError, createApiClient } from "@moa/api";
 import { GATEWAY_PREFIX } from "@moa/auth";
 
 import { kioskContextSchema, kioskDeviceSchema, kioskSettingsSchema, pairedKioskSchema, redeemResultSchema, selfQrSchema, staffSchema, type KioskSettings } from "./schemas";
@@ -31,15 +31,35 @@ export async function notMe(token: string, redemption: string) {
 export async function kioskStaff(token: string, pin: string) {
   return staffSchema.parse(await kioskClient(token).post<unknown>("/api/v1/kiosk/staff", { pin }));
 }
+
+/** Five wrong PINs in fifteen minutes lock staff mode on a kiosk (429, error_code PIN_LOCKED). */
+export const PIN_LOCKED = "PIN_LOCKED";
+export const PIN_LOCKED_MESSAGE = "Too many tries, wait 15 minutes.";
+
+/** Why staff mode did not open, in the words the PIN dialog shows. */
+export function staffProblem(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.errorCode === PIN_LOCKED || error.status === 429) return PIN_LOCKED_MESSAGE;
+    if (error.status === 403) return "That PIN does not open staff mode on this kiosk.";
+  }
+  return error instanceof Error && error.message ? error.message : "Staff mode did not open. Try again.";
+}
 export async function fetchSelfQr(token: string) {
   return selfQrSchema.parse(await kioskClient(token).get<unknown>("/api/v1/kiosk/self-qr"));
 }
 export async function markSelfPrinted(token: string, session: string) {
   await kioskClient(token).post<unknown>("/api/v1/kiosk/self-printed", { session });
 }
-/** A card for a guest the kiosk just admitted, or one a phone asked to print here: links a frame can load. */
-export const kioskCardUrl = (token: string, printUrl: string) => `${GATEWAY_PREFIX}${printUrl}&token=${encodeURIComponent(token)}`;
-export const kioskSelfCardUrl = (token: string, session: string) => `${GATEWAY_PREFIX}/api/v1/kiosk/self-card.pdf?session=${encodeURIComponent(session)}&token=${encodeURIComponent(token)}`;
+/**
+ * A card for a guest the kiosk just admitted, or one a phone asked to print
+ * here: through the gateway, for PrintFrame to fetch with the device token
+ * in its header (`kioskHeaders`). Never with the token in the link -- in the
+ * query string it lands in every access log on the way. (The API still reads
+ * `?token=` for kiosks deployed before this, deprecated.)
+ */
+export const kioskCardUrl = (printUrl: string) => `${GATEWAY_PREFIX}${printUrl}`;
+export const kioskSelfCardUrl = (session: string) => `${GATEWAY_PREFIX}/api/v1/kiosk/self-card.pdf?session=${encodeURIComponent(session)}`;
+export const kioskHeaders = (token: string): Record<string, string> => ({ [KIOSK_TOKEN_HEADER]: token });
 
 // --- the dashboard's side -----------------------------------------------------------
 
@@ -61,4 +81,24 @@ export async function fetchKioskSettings(eventId: number) {
 }
 export async function updateKioskSettings(eventId: number, body: Partial<KioskSettings> & { kiosk_pin?: string | null }) {
   return kioskSettingsSchema.parse(await api.patch<unknown>(`${base(eventId)}/settings`, body));
+}
+
+/** The shortest staff PIN the API keeps; a shorter one is a 422. */
+export const PIN_MIN = 4;
+
+/** What is wrong with a PIN before it is sent, or null. An empty one is "no PIN" and is fine. */
+export function pinProblem(pin: string): string | null {
+  const n = pin.trim().length;
+  return n > 0 && n < PIN_MIN ? `A PIN of ${PIN_MIN} digits or more.` : null;
+}
+
+/** The API's word on a refused PIN: 422 with errors.fields.kiosk_pin. */
+export function pinFieldError(error: unknown): string | null {
+  if (!(error instanceof ApiError) || error.status !== 422) return null;
+  const errors = (error.fieldErrors ?? {}) as Record<string, unknown>;
+  const fields = errors.fields && typeof errors.fields === "object" ? (errors.fields as Record<string, unknown>) : errors;
+  const said = fields.kiosk_pin;
+  if (typeof said === "string") return said;
+  if (Array.isArray(said) && typeof said[0] === "string") return said[0];
+  return null;
 }

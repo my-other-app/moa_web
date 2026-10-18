@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "@moa/api";
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
 const device = { id: "k1", event_id: 42, name: "Lobby tablet", door_id: "d1", door_label: "Lobby kiosk", token_prefix: "jTCuFS", expires_at: "2026-10-12T00:00:00Z", last_seen_at: null, revoked_at: null, online: false, active: true, created_at: "2026-10-11T00:00:00Z" };
@@ -37,10 +38,32 @@ describe("the organiser's kiosk endpoints", () => {
   });
 });
 
-describe("the links a kiosk loads into its print frame", () => {
-  it("carry the device token so the PDF route can authenticate without a session", () => {
-    expect(api.kioskCardUrl("kiosk_abc", "/api/v1/kiosk/card.pdf?redemption=r.1")).toBe("/api/gateway/api/v1/kiosk/card.pdf?redemption=r.1&token=kiosk_abc");
-    expect(api.kioskSelfCardUrl("kiosk_abc", "s/1+2")).toBe("/api/gateway/api/v1/kiosk/self-card.pdf?session=s%2F1%2B2&token=kiosk_abc");
+describe("the cards a kiosk prints", () => {
+  it("never carry the device token in the link: it goes in the X-Kiosk-Token header", () => {
+    expect(api.kioskCardUrl("/api/v1/kiosk/card.pdf?redemption=r.1")).toBe("/api/gateway/api/v1/kiosk/card.pdf?redemption=r.1");
+    expect(api.kioskSelfCardUrl("s/1+2")).toBe("/api/gateway/api/v1/kiosk/self-card.pdf?session=s%2F1%2B2");
+    expect(api.kioskHeaders("kiosk_abc")).toEqual({ "X-Kiosk-Token": "kiosk_abc" });
+  });
+});
+
+describe("the staff PIN", () => {
+  it("is checked for length before it is sent", () => {
+    expect(api.pinProblem("")).toBeNull();
+    expect(api.pinProblem("123")).toBe("A PIN of 4 digits or more.");
+    expect(api.pinProblem("1234")).toBeNull();
+  });
+
+  it("reads the API's refusal of a short PIN, in either shape", () => {
+    const wave1 = new ApiError({ message: "A PIN of four characters or more.", status: 422, fieldErrors: { fields: { kiosk_pin: "Four characters or more." } } as unknown as Record<string, string[]> });
+    const pydantic = new ApiError({ message: "Some of the submitted values were not valid.", status: 422, fieldErrors: { kiosk_pin: ["String should have at least 4 characters"] } });
+    expect(api.pinFieldError(wave1)).toBe("Four characters or more.");
+    expect(api.pinFieldError(pydantic)).toBe("String should have at least 4 characters");
+    expect(api.pinFieldError(new ApiError({ message: "x", status: 500 }))).toBeNull();
+  });
+
+  it("says a locked kiosk in plain words, and a wrong PIN as such", () => {
+    expect(api.staffProblem(new ApiError({ message: "Too many wrong PINs on this kiosk. Try again in a few minutes.", status: 429, errorCode: "PIN_LOCKED" }))).toBe("Too many tries, wait 15 minutes.");
+    expect(api.staffProblem(new ApiError({ message: "That PIN does not open staff mode on this kiosk.", status: 403 }))).toBe("That PIN does not open staff mode on this kiosk.");
   });
 });
 
