@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from "@moa/ui";
 
+import { newClientRef } from "../api";
 import { useAudienceCount, useSendTemplate } from "../queries";
 import { audienceSummary, type EmailTemplateFields } from "../schemas";
 
@@ -34,6 +35,17 @@ export function SendTemplateDialog({
   onSent?: () => void;
 }) {
   const send = useSendTemplate(eventId);
+  // One key per send of a template, kept until it is sent: a double click, or
+  // Send again after a dropped answer, is the same send and mails nobody twice.
+  const refs = React.useRef(new Map<string, string>());
+  const refFor = (templateId: string) => {
+    let ref = refs.current.get(templateId);
+    if (!ref) {
+      ref = newClientRef();
+      refs.current.set(templateId, ref);
+    }
+    return ref;
+  };
   const count = useAudienceCount(
     eventId,
     template?.audience ?? { who: "ALL", roles: [] },
@@ -69,12 +81,18 @@ export function SendTemplateDialog({
             onClick={(e) => {
               e.preventDefault();
               if (!template) return;
-              send.mutate(template.id, {
-                onSuccess: () => {
-                  onOpenChange(false);
-                  onSent?.();
+              const templateId = template.id;
+              send.mutate(
+                { templateId, clientRef: refFor(templateId) },
+                {
+                  onSuccess: () => {
+                    // Sent: the next press is a new send.
+                    refs.current.delete(templateId);
+                    onOpenChange(false);
+                    onSent?.();
+                  },
                 },
-              });
+              );
             }}
           >
             {send.isPending ? <Loader2Icon className="animate-spin" /> : null}

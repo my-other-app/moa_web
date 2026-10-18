@@ -79,9 +79,26 @@ export async function resetTemplate(eventId: number, templateId: string) {
   return emailTemplateSchema.parse(raw);
 }
 
-export async function sendTemplate(eventId: number, templateId: string) {
-  const raw = await api.post<unknown>(`${scopeBase({ kind: "event", eventId })}/${templateId}/send`);
+/**
+ * Sends a template to its audience now. `clientRef` is one per press of
+ * Send, the same on a retry of that press: the API answers a ref it has
+ * seen with that message and mails nobody again. (An API from before the
+ * ref reads no body here, and sends as it always did.)
+ */
+export async function sendTemplate(eventId: number, templateId: string, clientRef?: string) {
+  const raw = await api.post<unknown>(`${scopeBase({ kind: "event", eventId })}/${templateId}/send`, clientRef ? { clientRef } : undefined);
   return messageSchema.parse(raw);
+}
+
+/** A fresh idempotency key (a UUID, as the API reads it) for one press of a send button. */
+export function newClientRef(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  // randomUUID is for secure contexts only; a v4 UUID by hand otherwise.
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6]! & 0x0f) | 0x40;
+  b[8] = (b[8]! & 0x3f) | 0x80;
+  const h = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
 export interface PreviewBody {
