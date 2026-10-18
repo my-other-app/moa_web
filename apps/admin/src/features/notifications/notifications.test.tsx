@@ -398,3 +398,53 @@ describe("free plans", () => {
     expect(within(kind).getByRole("option", { name: "Free plan ended" })).toHaveValue("comp_ended");
   });
 });
+
+// ─── App users' reports ──────────────────────────────────────────────────
+
+describe("content reported", () => {
+  const reported = item({
+    id: 31,
+    kind: "content_reported",
+    title: "A comment in Circuit was reported",
+    body: "Harassment: “Keeps replying to me like this”",
+    subscription_id: null,
+    data: { target_type: "comment", target_id: "7d1c0c8e-5b8f-4c55-9d7e-3f0c1d2e4a10", reason: "harassment", report_count: 3 },
+  });
+
+  it("has its label and colour, says what was reported and why, and leads to Reports rather than the club", () => {
+    expect(NOTIFICATION_KINDS).toContain("content_reported");
+    expect(kindLabel("content_reported")).toBe("Content reported");
+    expect(kindTone("content_reported")).toBe("failure");
+    expect(alertLabel(reported)).toBe("Content reported · comment · harassment · 3 reports");
+    expect(alertLabel(item({ kind: "content_reported", data: { target_type: "user", reason: "spam", report_count: 1 } }))).toBe("Content reported · user · spam");
+    expect(alertLabel(item({ kind: "content_reported", data: null }))).toBe("Content reported");
+    // Even naming a club (or a subscription): a report is decided on the Reports page.
+    expect(notificationHref(reported)).toBe("/reports");
+    expect(notificationHref(item({ kind: "content_reported", club: null, subscription_id: null }))).toBe("/reports");
+    expect(notificationHref(item({ kind: "content_reported", subscription_id: 11 }))).toBe("/reports");
+  });
+
+  it("shows in the bell with its icon, and opening it goes to Reports and marks it read", async () => {
+    listItems = [reported];
+    render(<NotificationBell />);
+    fireEvent.click(await screen.findByRole("button", { name: /Notifications: 3 unread/ }));
+    const list = await screen.findByRole("list", { name: "Latest notifications" });
+    expect(within(list).getByRole("img", { name: "Content reported" })).toHaveAttribute("data-tone", "failure");
+    expect(within(list).getByText("Content reported · comment · harassment · 3 reports")).toBeInTheDocument();
+    const link = within(list).getByRole("link", { name: "A comment in Circuit was reported" });
+    expect(link).toHaveAttribute("href", "/reports");
+    fireEvent.click(link);
+    await waitFor(() => expect(posts).toEqual(["/api/v1/admin/alerts/31/read"]));
+  });
+
+  it("can be filtered to on the Notifications page", async () => {
+    listItems = [reported];
+    render(<NotificationsPage />);
+    const page = await screen.findByRole("list", { name: "Notifications" });
+    expect(within(page).getByRole("link", { name: "A comment in Circuit was reported" })).toHaveAttribute("href", "/reports");
+    const kinds = screen.getByRole("combobox", { name: "Kind" });
+    expect(within(kinds).getByRole("option", { name: "Content reported" })).toHaveValue("content_reported");
+    fireEvent.change(kinds, { target: { value: "content_reported" } });
+    expect(pushes.at(-1)).toBe("/notifications?kind=content_reported");
+  });
+});
