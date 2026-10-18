@@ -398,3 +398,38 @@ describe("free plans", () => {
     expect(within(kind).getByRole("option", { name: "Free plan ended" })).toHaveValue("comp_ended");
   });
 });
+
+// ─── A club's own domain ─────────────────────────────────────────────────
+
+describe("a club's domain going live", () => {
+  const live = item({ id: 31, kind: "club_domain_active", title: "Circuit's site is live at www.circuit.org", body: "circuit.myotherapp.in now forwards there.", subscription_id: null, data: { host: "www.circuit.org" } });
+
+  it("has its own words and colour, and leads to the club rather than a subscription", () => {
+    expect(NOTIFICATION_KINDS).toContain("club_domain_active");
+    expect(kindLabel("club_domain_active")).toBe("Club domain live");
+    expect(kindTone("club_domain_active")).toBe("change");
+    expect(alertLabel(live)).toBe("Club domain live · www.circuit.org");
+    expect(alertLabel(item({ kind: "club_domain_active", data: null }))).toBe("Club domain live");
+    expect(notificationHref(live)).toBe("/clubs/5");
+    // Even one that names a subscription: it is about the club's site, not its plan.
+    expect(notificationHref(item({ kind: "club_domain_active", subscription_id: 11 }))).toBe("/clubs/5");
+    expect(notificationHref(item({ kind: "club_domain_active", club: null }))).toBeNull();
+  });
+
+  it("shows in the bell with its globe, and can be picked out on the page", async () => {
+    listItems = [live];
+    const { unmount } = render(<NotificationBell />);
+    fireEvent.click(await screen.findByRole("button", { name: /Notifications: \d+ unread/ }));
+    const list = await screen.findByRole("list", { name: "Latest notifications" });
+    const mark = within(list).getByRole("img", { name: "Club domain live" });
+    expect(mark).toHaveAttribute("data-tone", "change");
+    expect(mark.querySelector("svg")).toHaveClass("lucide-globe");
+    expect(within(list).getByRole("link", { name: "Circuit's site is live at www.circuit.org" })).toHaveAttribute("href", "/clubs/5");
+    expect(within(list).getByText("Club domain live · www.circuit.org")).toBeInTheDocument();
+    unmount();
+
+    render(<NotificationsPage />);
+    const kinds = await screen.findByRole("combobox", { name: "Kind" });
+    expect(within(kinds).getByRole("option", { name: "Club domain live" })).toHaveValue("club_domain_active");
+  });
+});

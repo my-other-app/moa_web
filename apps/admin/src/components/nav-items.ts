@@ -6,6 +6,7 @@ import {
   ClockIcon,
   CreditCardIcon,
   CrownIcon,
+  GlobeIcon,
   GraduationCapIcon,
   InboxIcon,
   LandmarkIcon,
@@ -43,6 +44,8 @@ export const navItems: NavItem[] = [
   { href: "/", label: "Overview", icon: LayoutGridIcon, group: "Platform", exact: true },
   { href: "/users", label: "Users", icon: UsersIcon, badge: "users" },
   { href: "/clubs", label: "Clubs", icon: BuildingIcon, badge: "pendingClubs" },
+  // Club websites on domains of their own. Not under /clubs: that prefix would light Clubs too.
+  { href: "/club-domains", label: "Club domains", icon: GlobeIcon },
   { href: "/organizations", label: "Organisations", icon: GraduationCapIcon },
   { href: "/events", label: "Events", icon: CalendarDaysIcon, badge: "events" },
 
