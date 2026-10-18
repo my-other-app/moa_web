@@ -4,6 +4,8 @@ import * as React from "react";
 import { Button, FigurePanel, NativeSelect, cn, toast } from "@moa/ui";
 import { IndianRupeeIcon, UserPlusIcon } from "lucide-react";
 
+import { answersPayload, inputTypeOf, isMultiChoice, type AnswerValue } from "@/lib/answers";
+
 import { walkupCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { useGateCatalog, useWalkup } from "../queries";
 import { newRef, ROLE_LABEL, type GateContext, type WalkupBody } from "../schemas";
@@ -18,7 +20,7 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
   const [name, setName] = React.useState("");
   const [contact, setContact] = React.useState("");
   const [role, setRole] = React.useState(ctx.walkup_roles[0] ?? "attendee");
-  const [custom, setCustom] = React.useState<Record<string, string>>({});
+  const [custom, setCustom] = React.useState<Record<string, AnswerValue>>({});
   const [card, setCard] = React.useState<{ model: OutcomeCardModel; sameName: boolean } | null>(null);
   const [fieldError, setFieldError] = React.useState<string | null>(null);
   const ref = React.useRef(newRef());
@@ -35,7 +37,8 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
     setFieldError(null);
     const c = contact.trim();
     const isEmail = c.includes("@");
-    const answered = Object.fromEntries(Object.entries(custom).filter(([, v]) => v.trim()));
+    // Blanks left out; several ticks of one question go as a list.
+    const answered = answersPayload(ctx.guest_fields, custom);
     const body: WalkupBody = {
       name: name.trim(),
       ...(c ? (isEmail ? { email: c } : { phone: c }) : {}),
@@ -133,8 +136,20 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
                 <label htmlFor={`walk-${f.key}`} className={DOOR_LABEL}>
                   {f.label} <span className="text-ink-3 font-normal">— optional at the door</span>
                 </label>
-                {f.options?.length ? (
-                  <NativeSelect id={`walk-${f.key}`} value={custom[f.key] ?? ""} onChange={(e) => setCustom((c) => ({ ...c, [f.key]: e.target.value }))} className="h-11 text-[16px]">
+                {isMultiChoice(f) ? (
+                  <div id={`walk-${f.key}`} role="group" aria-label={f.label} className="flex flex-wrap gap-2">
+                    {(f.options ?? []).map((o) => {
+                      const ticked = Array.isArray(custom[f.key]) ? (custom[f.key] as string[]) : [];
+                      const on = ticked.includes(o);
+                      return (
+                        <TouchChoice key={o} role="checkbox" checked={on} onClick={() => setCustom((c) => ({ ...c, [f.key]: on ? ticked.filter((t) => t !== o) : [...ticked, o] }))}>
+                          {o}
+                        </TouchChoice>
+                      );
+                    })}
+                  </div>
+                ) : f.options?.length ? (
+                  <NativeSelect id={`walk-${f.key}`} value={typeof custom[f.key] === "string" ? (custom[f.key] as string) : ""} onChange={(e) => setCustom((c) => ({ ...c, [f.key]: e.target.value }))} className="h-11 text-[16px]">
                     <option value="">—</option>
                     {f.options.map((o) => (
                       <option key={o} value={o}>
@@ -143,7 +158,7 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
                     ))}
                   </NativeSelect>
                 ) : (
-                  <input id={`walk-${f.key}`} value={custom[f.key] ?? ""} onChange={(e) => setCustom((c) => ({ ...c, [f.key]: e.target.value }))} className={DOOR_FIELD} />
+                  <input id={`walk-${f.key}`} type={inputTypeOf(f)} value={typeof custom[f.key] === "string" ? (custom[f.key] as string) : ""} onChange={(e) => setCustom((c) => ({ ...c, [f.key]: e.target.value }))} className={DOOR_FIELD} />
                 )}
               </div>
             ))}

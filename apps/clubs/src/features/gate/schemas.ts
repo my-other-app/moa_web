@@ -104,7 +104,8 @@ export interface WalkupBody {
   email?: string;
   phone?: string;
   role?: string;
-  custom_fields?: Record<string, string>;
+  /** The event's own questions; a several-choices one answered with more than one tick is a list. */
+  custom_fields?: Record<string, string | string[]>;
   confirm_new?: boolean;
   door?: string | null;
   client_ref: string;

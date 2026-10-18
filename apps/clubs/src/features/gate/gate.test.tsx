@@ -243,6 +243,23 @@ describe("the gate console", () => {
   });
 });
 
+describe("the walk-up form's own questions", () => {
+  it("answers a several-choices question with the ticks, as a list when there are two", async () => {
+    api.context.mockResolvedValue({ ...ctx, guest_fields: [{ key: "tracks", label: "Tracks", field_type: "checkbox", options: ["AI", "Web"] }, { key: "year", label: "Year", field_type: "number" }] });
+    api.walkup.mockResolvedValue({ outcome: "REGISTERED", attendee: { ...attendee, name: "Devika Menon", role: "attendee" }, duplicate_of: null, duplicate_by: null, checked_in: true, ticket_sent: false });
+    render(<GateConsole eventId={37} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Walk-up" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Devika Menon" } });
+    const tracks = screen.getByRole("group", { name: "Tracks" });
+    fireEvent.click(within(tracks).getByRole("checkbox", { name: "Web" }));
+    fireEvent.click(within(tracks).getByRole("checkbox", { name: "AI" }));
+    expect(within(tracks).getByRole("checkbox", { name: "AI" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText(/^Year/)).toHaveAttribute("type", "number");
+    fireEvent.click(screen.getByRole("button", { name: /Register and check in/ }));
+    await waitFor(() => expect(api.walkup).toHaveBeenCalledWith(null, 37, expect.objectContaining({ custom_fields: { tracks: ["AI", "Web"] } })));
+  });
+});
+
 describe("the shelf at the desk", () => {
   it("counts up within stock and shows what to take", () => {
     const catalog = { enabled: true, items: [{ id: "kit", name: "Kit", price: 890, left: 1, variants: [] }] };
