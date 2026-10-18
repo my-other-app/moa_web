@@ -60,7 +60,8 @@ export const navItems: NavItem[] = [
   { href: "/revenue", label: "Revenue", icon: TrendingUpIcon },
 
   { href: "/badges", label: "Badges", icon: AwardIcon, group: "Catalogue" },
-  { href: "/interests", label: "Interests", icon: TagIcon },
+  // Topics and the interests under them. The address stays /interests so old links still land.
+  { href: "/interests", label: "Topics", icon: TagIcon },
   { href: "/avatars", label: "Avatars", icon: SmileIcon },
 
   { href: "/announcements", label: "Announcements", icon: BellIcon, group: "Comms" },

@@ -1,0 +1,30 @@
+[
+  {
+    "id": 2, "slug": "development", "name": "Development", "icon": "💻", "icon_type": "emoji", "color": "#2563EB",
+    "description": "Building software, from the web to the cloud.", "sort_order": 1,
+    "interests": [
+      { "id": 3, "slug": "web-development", "name": "Web Development", "icon": null, "icon_type": null, "category_id": 2, "sort_order": 1 },
+      { "id": 6, "slug": "coding", "name": "Coding", "icon": "⌨️", "icon_type": "emoji", "category_id": 2, "sort_order": 2 },
+      { "id": 12, "slug": "cybersecurity", "name": "Cybersecurity", "icon": "string", "icon_type": "emoji", "category_id": 2, "sort_order": 3 }
+    ]
+  },
+  {
+    "id": 3, "slug": "deep-tech", "name": "Deep Tech", "icon": "🧠", "icon_type": "emoji", "color": "#7C3AED",
+    "description": null, "sort_order": 2,
+    "interests": [
+      { "id": 8, "slug": "artificial-intelligence", "name": "Artificial Intelligence", "icon": "🤖", "icon_type": "emoji", "category_id": 3, "sort_order": 1 },
+      { "id": 31, "slug": "robotics", "name": "Robotics", "icon": null, "icon_type": null, "category_id": 3, "sort_order": 2 }
+    ]
+  },
+  {
+    "id": 5, "slug": "design", "name": "Design", "icon": null, "icon_type": null, "color": "#DB2777",
+    "description": null, "sort_order": 3,
+    "interests": [
+      { "id": 7, "slug": "ui-ux", "name": "UI/UX", "icon": "🎨", "icon_type": "emoji", "category_id": 5, "sort_order": 1 }
+    ]
+  },
+  {
+    "id": 9, "slug": "community", "name": "Community", "icon": null, "icon_type": null, "color": "#0D9488",
+    "description": null, "sort_order": 7, "interests": []
+  }
+]

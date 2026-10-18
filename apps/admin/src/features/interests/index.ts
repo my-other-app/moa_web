@@ -1,14 +1,32 @@
 export {
-  useInterestCategories,
+  useTopicTree,
+  useTopicStats,
+  useResolvedTopics,
+  useCreateTopic,
+  useUpdateTopic,
+  useDeleteTopic,
+  useReorder,
+  useMoveInterest,
   useCreateInterest,
   useUpdateInterest,
   useDeleteInterest,
-  useCreateInterestCategory,
+  TOPIC_STATS_KEY,
 } from "./queries";
-export { InterestsManager } from "./components/interests-manager";
+export { TopicsManager } from "./components/topics-manager";
 export {
-  interestCategorySchema,
+  topicFormSchema,
   interestFormSchema,
-  type Interest,
-  type InterestCategory,
+  isMissingEndpoint,
+  isTopicNotEmpty,
+  slugify,
+  moveBy,
+  reorderTopic,
+  reorderInterest,
+  TOPIC_COLORS,
+  TOPIC_ERRORS,
+  type Topic,
+  type TopicInterest,
+  type TopicFormInput,
+  type InterestFormInput,
+  type ReorderBody,
 } from "./schemas";
