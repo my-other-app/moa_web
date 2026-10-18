@@ -8,7 +8,6 @@ import {
   newLayerId,
   renderTicketTemplate,
   resolveColor,
-  sampleValues as catalogueSamples,
   type TicketArea,
   type TicketLayer,
   TicketLayoutFields,
@@ -30,7 +29,7 @@ import { AlertTriangleIcon, CheckCircle2Icon, Loader2Icon, Redo2Icon, RotateCcwI
 import * as React from "react";
 
 import { previewLayout, uploadLayoutImage } from "../api";
-import { DESIGNERS, type DesignerConfig } from "../config";
+import { DESIGNERS, designSamples, type DesignerConfig } from "../config";
 import { useLayout, useResetLayout, useSaveLayout } from "../queries";
 import { AUDIENCES, type Audience, type DesignKind, type DesignScope, type LayerDesign } from "../schemas";
 import { detectTicketArea } from "./detect-area";
@@ -229,7 +228,7 @@ const Editor = ({ config, scope, eventId, design, audience, picker, onSaved, onD
   );
   const resolve = React.useCallback((c: ColorRef) => resolveColor(c, colors), [colors]);
   // The server's samples are made by the renderer's own code; the catalogue fills any it does not know.
-  const samples = React.useMemo(() => ({ ...catalogueSamples(), ...design.sampleValues }), [design.sampleValues]);
+  const samples = React.useMemo(() => designSamples(design.sampleValues), [design.sampleValues]);
 
   const urlOf = React.useCallback(
     (key: string | null | undefined) => (key ? (urls[key] ?? design.imageUrls[key] ?? null) : null),

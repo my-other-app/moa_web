@@ -7,6 +7,8 @@ import {
   certificateStarter,
   PAGE_PRESETS,
   TICKET_STARTERS,
+  TOKEN_BY_KEY,
+  sampleValues,
   ticketStarter,
   type PagePreset,
   type PageSpec,
@@ -57,7 +59,25 @@ export interface DesignerConfig {
   sampleQr: string;
 }
 
-const TICKET_QR = "MOA-2BCEBA8-PFZG3";
+/** The sample ticket code, in the shape a ticket id is minted in (MOA-XXXXX-XXXXX). */
+const SAMPLE_TICKET_CODE = TOKEN_BY_KEY.get("ticket_code")?.sample ?? "MOA-7K3QF-X9PLM";
+/** A ticket's QR carries its ticket code, so the sample QR carries the sample code. */
+const TICKET_QR = SAMPLE_TICKET_CODE;
+const MINTED = /^MOA-[A-Z0-9]{5}-[A-Z0-9]{5}$/;
+
+/**
+ * What the canvas fills tokens with: the server's samples (made by the
+ * renderer's own code) over the catalogue's, which fills any token the
+ * server does not know -- a server from before {{ticket_code}} sends none.
+ * The ticket code is the one exception: the server's is used only when it
+ * has the shape a ticket id is minted in, so the sample under the QR never
+ * reads as an id no guest will ever hold.
+ */
+export function designSamples(server: Record<string, string> = {}): Record<string, string> {
+  const merged = { ...sampleValues(), ...server };
+  if (!MINTED.test(merged.ticket_code ?? "")) merged.ticket_code = SAMPLE_TICKET_CODE;
+  return merged;
+}
 
 export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
   ticket: {

@@ -25,7 +25,13 @@ export const TICKET_TOKENS: readonly TicketToken[] = [
   { key: "organization", group: "Guest", label: "Their organisation", sample: "Sahyadri Systems", aliases: ["company", "organisation", "institution", "college"] },
   { key: "email", group: "Guest", label: "Email", sample: "ananya@sahyadrisystems.in" },
   { key: "seat", group: "Guest", label: "Seat label", sample: "A-014", aliases: ["seat_label", "seat_number"] },
-  { key: "admission_no", group: "Ticket", label: "Admission number", sample: "MOA-0041-KF26", aliases: ["ticket_code", "ticket_id", "ticket_number", "invite_code"], note: "Typed at the gate when a QR will not scan." },
+  // The code under the QR: what the gate and the kiosk ask a guest to type
+  // when the QR will not scan. The ticket's own id -- the gate does not take
+  // an admission number (it answers INVALID and asks staff to check the guest
+  // in by hand), so a ticket must never print one there. The sample has the
+  // shape a ticket id is minted in, MOA-XXXXX-XXXXX.
+  { key: "ticket_code", group: "Ticket", label: "Ticket code", sample: "MOA-7K3QF-X9PLM", aliases: ["ticket_id", "ticket_number", "invite_code"], note: "Typed at the gate or the kiosk when a QR will not scan." },
+  { key: "admission_no", group: "Ticket", label: "Admission number", sample: "MOA-0041-KF26", aliases: ["admission_number"], note: "The guest's number in this event's sequence, for a smaller line of its own. Not accepted at the gate: the ticket code is." },
   { key: "ticket_type", group: "Ticket", label: "Ticket type", sample: "VIP", aliases: ["ticket_name", "ticket_type_name", "pass_type", "role"] },
   { key: "event_name", group: "Event", label: "Event name", sample: "Builders Day", aliases: ["event_title", "event"] },
   { key: "event_date", group: "Event", label: "Date", sample: "16 Sept 2026", aliases: ["date", "event_start_date"] },
@@ -185,6 +191,7 @@ export const renderTicketTemplate = (src: string, values: Record<string, string>
 const PER_GUEST_TOKENS: ReadonlySet<string> = new Set([
   ...TICKET_TOKENS.filter((t) => t.group === "Guest" || t.group === "Certificate").map((t) => t.key),
   "admission_no",
+  "ticket_code",
 ]);
 
 /** Whether text says something only one guest's card can say. */
