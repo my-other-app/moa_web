@@ -46,7 +46,7 @@ export function useAiFilled(): AiFilledValue {
 
 /** The ring a filled field carries. On the field's FormItem; an outline, so nothing moves when it goes. */
 export function aiFilledClass(on: boolean): string | undefined {
-  return on ? "rounded-lg outline-2 outline-offset-4 outline-brand/50" : undefined;
+  return on ? "rounded-lg outline-2 outline-offset-4 outline-brand/40" : undefined;
 }
 
 /** "AI" beside a filled field's label; says "filled by AI" to a screen reader. */

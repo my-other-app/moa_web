@@ -216,7 +216,7 @@ function WriteDialog({ kind: preset, eventId, value, onChange, subject, context,
             </h3>
             {result.subject ? (
               <p className="text-ink m-0 text-[13px]">
-                <span className="text-ink-3">Subject: </span>
+                <span className="text-ink-3">{kind === "announcement" ? "Title: " : "Subject: "}</span>
                 <span className="font-medium">{result.subject}</span>
               </p>
             ) : null}

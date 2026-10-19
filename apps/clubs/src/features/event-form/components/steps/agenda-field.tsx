@@ -36,7 +36,7 @@ export function AgendaField() {
       {agenda.fields.length > 0 ? (
         <ul className="mt-3 grid gap-2" aria-label="Running order">
           {agenda.fields.map((item, index) => (
-            <li key={item.id} className="border-line-soft bg-sunken grid gap-3 rounded-xl border p-3 sm:grid-cols-[112px_minmax(0,1.4fr)_minmax(0,1fr)_auto] sm:items-end">
+            <li key={item.id} className="border-line-soft bg-sunken grid gap-3 rounded-xl border p-3 sm:grid-cols-[140px_minmax(0,1.4fr)_minmax(0,1fr)_auto] sm:items-end">
               <FormField
                 control={form.control}
                 name={`agenda.${index}.at`}
@@ -70,7 +70,7 @@ export function AgendaField() {
                   <FormItem>
                     <FormLabel>Led by · optional</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value ?? ""} placeholder="Dr. A. Kumar" />
+                      <Input {...field} value={field.value ?? ""} placeholder="Who leads it" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
