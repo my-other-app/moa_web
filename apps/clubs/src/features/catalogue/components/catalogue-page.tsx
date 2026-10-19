@@ -208,6 +208,8 @@ export function CataloguePage() {
   if (wanted && wanted !== opened && items) {
     setOpened(wanted);
     if (items.some((i) => i.id === wanted)) setSheet({ open: true, id: wanted });
+  } else if (!wanted && opened) {
+    setOpened(null);
   }
 
   const editing = sheet.id ? (items?.find((i) => i.id === sheet.id) ?? null) : null;

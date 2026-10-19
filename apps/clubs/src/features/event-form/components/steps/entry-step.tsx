@@ -80,7 +80,7 @@ function MerchPicks({ eventId }: { eventId?: number }) {
       <p className="text-ink-3 text-[12.5px]">
         Could not read which items this event sells, so they stay as they are.{" "}
         {eventId ? (
-          <Link href={`/events/${eventId}/store`} className="text-brand hover:underline">
+          <Link href={`/events/${eventId}/store`} target="_blank" rel="noopener" className="text-brand hover:underline">
             Choose them on its Merchandise tab
           </Link>
         ) : null}
