@@ -264,12 +264,18 @@ describe("notifying the room", () => {
   it.each([
     ["sent", { sent: 42, skipped_reason: null }, success, "Sent to 42"],
     ["nobody checked in", { sent: 0, skipped_reason: "nobody_checked_in" }, success, "Nobody is checked in yet"],
-    ["rate limited", { sent: 0, skipped_reason: "rate_limited" }, warning, "Not notified — the room was notified recently; try again in a few minutes"],
+    ["rate limited, with the wait", { sent: 0, skipped_reason: "rate_limited", retry_after: 90 }, warning, "Not notified — the room was notified recently; you can notify again in 2 min"],
+    ["rate limited, under a minute to go", { sent: 0, skipped_reason: "rate_limited", retry_after: 30 }, warning, "Not notified — the room was notified recently; you can notify again in less than a minute"],
+    ["rate limited, without a wait", { sent: 0, skipped_reason: "rate_limited" }, warning, "Not notified — the room was notified recently; try again in a few minutes"],
+    ["everyone muted", { sent: 0, skipped_reason: "all_muted" }, success, "Not notified — everyone checked in has muted these notifications"],
+    ["nobody to notify", { sent: 0, skipped_reason: null }, success, "Nobody to notify"],
   ] as const)("says what came of the push when the quiz opens: %s", async (_, notified, said, text) => {
     reply.start = { notified };
     render(<LivePage eventId={37} />);
     fireEvent.click(await screen.findByRole("button", { name: "Host live" }));
     await waitFor(() => expect(said).toHaveBeenCalledWith(opened, expect.objectContaining({ description: text })));
+    // Only a rate limit is amber; the rest ride on the action's own toast.
+    if (said === success) expect(warning).not.toHaveBeenCalled();
   });
 
   it("says what came of the push when a poll launches", async () => {
@@ -341,7 +347,17 @@ describe("notifying the room", () => {
     expect(notifiedNote({ sent: 42, skipped_reason: null })).toEqual({ tone: "success", text: "Sent to 42" });
     expect(notifiedNote({ sent: 42 })).toEqual({ tone: "success", text: "Sent to 42" });
     expect(notifiedNote({ sent: 0, skipped_reason: "nobody_checked_in" })).toEqual({ tone: "success", text: "Nobody is checked in yet" });
-    expect(notifiedNote({ sent: 0, skipped_reason: "rate_limited" })).toEqual({ tone: "warning", text: "Not notified — the room was notified recently; try again in a few minutes" });
+    expect(notifiedNote({ sent: 0, skipped_reason: null })).toEqual({ tone: "success", text: "Nobody to notify" });
+    expect(notifiedNote({ sent: 0, skipped_reason: "all_muted" })).toEqual({ tone: "success", text: "Not notified — everyone checked in has muted these notifications" });
+    const limited = (retry_after?: number | null) => notifiedNote({ sent: 0, skipped_reason: "rate_limited", retry_after })?.text;
+    expect(notifiedNote({ sent: 0, skipped_reason: "rate_limited" })?.tone).toBe("warning");
+    expect(limited()).toBe("Not notified — the room was notified recently; try again in a few minutes");
+    expect(limited(null)).toBe("Not notified — the room was notified recently; try again in a few minutes");
+    expect(limited(0)).toBe("Not notified — the room was notified recently; you can notify again in less than a minute");
+    expect(limited(59)).toBe("Not notified — the room was notified recently; you can notify again in less than a minute");
+    expect(limited(60)).toBe("Not notified — the room was notified recently; you can notify again in 1 min");
+    expect(limited(61)).toBe("Not notified — the room was notified recently; you can notify again in 2 min");
+    expect(limited(180)).toBe("Not notified — the room was notified recently; you can notify again in 3 min");
     expect(notifiedNote({ sent: 0, skipped_reason: "disabled" })).toBeNull();
     expect(notifiedNote(undefined)).toBeNull();
     expect(notifiedNote(null)).toBeNull();

@@ -54,21 +54,30 @@ export function notifiedNote(notified: Notified | null | undefined): { tone: "su
   if (!notified) return null;
   switch (notified.skipped_reason) {
     case "rate_limited":
-      return { tone: "warning", text: "Not notified — the room was notified recently; try again in a few minutes" };
+      return { tone: "warning", text: `Not notified — the room was notified recently; ${retryWait(notified.retry_after)}` };
     case "nobody_checked_in":
       return { tone: "success", text: "Nobody is checked in yet" };
+    case "all_muted":
+      return { tone: "success", text: "Not notified — everyone checked in has muted these notifications" };
     case "disabled":
       return null;
     default:
-      return { tone: "success", text: `Sent to ${notified.sent}` };
+      return { tone: "success", text: notified.sent ? `Sent to ${notified.sent}` : "Nobody to notify" };
   }
+}
+
+/** The wait in whole minutes, rounded up; a server that does not say gets the general wording. */
+function retryWait(seconds: number | null | undefined) {
+  if (seconds == null) return "try again in a few minutes";
+  if (seconds < 60) return "you can notify again in less than a minute";
+  return `you can notify again in ${Math.ceil(seconds / 60)} min`;
 }
 
 /** The action's toast, unchanged, with the push's outcome as its second line. */
 export function announce(title: string, notified: Notified | null | undefined) {
   const note = notifiedNote(notified);
   if (!note) return void toast.success(title);
-  // Skipped is the one a host must not miss: it stays up longer, in amber.
+  // Rate-limited is the one a host must not miss: it stays up longer, in amber.
   if (note.tone === "warning") return void toast.warning(title, { description: note.text, duration: 8_000 });
   toast.success(title, { description: note.text });
 }

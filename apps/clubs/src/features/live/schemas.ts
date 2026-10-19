@@ -7,7 +7,9 @@ import { z } from "zod";
 /** What a quiz start or a poll launch says about the push to checked-in phones. */
 export const notifiedSchema = z.object({
   sent: z.number(),
-  skipped_reason: z.enum(["rate_limited", "nobody_checked_in", "disabled"]).nullish(),
+  skipped_reason: z.enum(["rate_limited", "nobody_checked_in", "all_muted", "disabled"]).nullish(),
+  /** Whole seconds until the room can be notified again; sent with `rate_limited`. */
+  retry_after: z.number().nullish(),
 });
 export type Notified = z.infer<typeof notifiedSchema>;
 
