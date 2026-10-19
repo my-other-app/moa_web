@@ -98,8 +98,8 @@ export function DuplicateDialog({
               [
                 [
                   "copy_merch",
-                  "Merchandise",
-                  "Items and sizes, with their stock; nothing handed out.",
+                  "Merchandise and swag",
+                  "The same store items, sharing their stock; swag copied with its sizes. Nothing handed out.",
                 ],
                 ["copy_doors", "Doors", "Names and kinds; no gate links."],
                 ["copy_team", "Team", "Volunteers and their duties."],
