@@ -25,6 +25,7 @@ import {
   toast,
 } from "@moa/ui";
 
+import { AiKeyCard } from "@/features/ai";
 import { SALES_EMAIL, mailto } from "@/features/billing/schemas";
 
 import { gatewayErrorMessage, isGatewayDisabled, isRoleForbidden, useDisconnectGateway, useGateway, useSaveGateway, useVerifyGateway, type KeysProblem } from "../queries";
@@ -105,6 +106,9 @@ export function PaymentsPage() {
           </div>
         </>
       )}
+
+      {/* The club's own AI key sits with its other keys. Owner and admins only; nothing while AI is off. */}
+      <AiKeyCard />
     </div>
   );
 }

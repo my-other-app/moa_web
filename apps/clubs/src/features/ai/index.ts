@@ -1,5 +1,6 @@
 export { WriteWithAi, type WriteWithAiProps } from "./components/write-with-ai";
 export { FeedbackSummaryCard } from "./components/feedback-summary-card";
+export { AiKeyCard } from "./components/ai-key-card";
 export { AiUsageMeter, AiUsagePanel } from "./components/ai-usage";
 export { AiFilledProvider, AiFilledTag, aiFilledClass, useAiFilled } from "./components/ai-filled";
 export { useAiGate, useAiStatus, useEventDraft, useAiWrite, useFeedbackSummary, useRefreshFeedbackSummary, useAiKey, useCanManageAiKey, AI_QUERY, type AiGate } from "./queries";
