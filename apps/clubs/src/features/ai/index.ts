@@ -1,5 +1,6 @@
 export { WriteWithAi, type WriteWithAiProps } from "./components/write-with-ai";
 export { AiUsageMeter, AiUsagePanel } from "./components/ai-usage";
+export { AiFilledProvider, AiFilledTag, aiFilledClass, useAiFilled } from "./components/ai-filled";
 export { useAiGate, useAiStatus, useEventDraft, useAiWrite, useFeedbackSummary, useRefreshFeedbackSummary, useAiKey, useCanManageAiKey, AI_QUERY, type AiGate } from "./queries";
 export { draftEvent, fetchAiStatus, writeWithAi } from "./api";
 export { shrinkForUpload, SEND_MAX_BYTES } from "./upload";

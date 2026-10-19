@@ -11,6 +11,7 @@ import { ApiError } from "@moa/api";
 import { useObjectUrl } from "@moa/ui/hooks";
 import { Form, InlineAlert, Notice, ProgressBar, cn } from "@moa/ui";
 
+import { AiFilledProvider, AiFilledTag } from "@/features/ai";
 import { useMyClub } from "@/features/club";
 import { LimitMeter, isPlanLockError, lockCopy, useLimitGate } from "@/features/plan";
 
@@ -18,6 +19,7 @@ import { useCreateEvent, usePublishEvent, useUpdateEvent } from "../queries";
 import { readiness, spanLabel } from "../readiness";
 import { eventFormSchema, type EventFormValues } from "../schemas";
 import { STEPS } from "../steps";
+import { DraftFromPoster, type DraftApplied } from "./draft-from-poster";
 import { EntryStep } from "./steps/entry-step";
 import { EventStep } from "./steps/event-step";
 import { PeopleStep } from "./steps/people-step";
@@ -70,7 +72,48 @@ export const emptyEventForm: EventFormValues = {
   event_guidelines: "",
   additional_details: [],
   speakers: [],
+  agenda: [],
 };
+
+/** Fields a draft sets alongside another, not counted on their own. */
+const COUNTED_WITH_ANOTHER = new Set(["lat", "lng", "geo_source", "reg_fee", "duration"]);
+
+/** What AI did to the form, said once over it: what to check first, then how many fields it filled. */
+function DraftSummary({ result, onDismiss, ref }: { result: DraftApplied; onDismiss: () => void; ref: React.Ref<HTMLDivElement> }) {
+  const checks = [...result.warnings, ...result.notes];
+  const n = Object.keys(result.patch).filter((k) => !COUNTED_WITH_ANOTHER.has(k)).length;
+  return (
+    <div ref={ref} tabIndex={-1} role="region" aria-label="What AI filled in" className="grid gap-2 outline-none">
+      {checks.length ? (
+        <Notice tone="caution" tag="Check">
+          <strong className="font-semibold">{checks.length === 1 ? "Check this before you publish:" : "Check these before you publish:"}</strong>
+          <ul className="m-0 mt-1 grid list-disc gap-0.5 pl-5">
+            {checks.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </Notice>
+      ) : null}
+      <Notice
+        tone={n ? "accent" : "neutral"}
+        tag="AI"
+        action={
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onDismiss}>
+            Got it
+          </button>
+        }
+      >
+        {n ? (
+          <>
+            AI filled {n} {n === 1 ? "field" : "fields"}, marked <AiFilledTag on className="ml-0" /> until you change them. Check each one: nothing is saved until you save or publish.
+          </>
+        ) : (
+          "AI didn't find anything to add to what you've typed."
+        )}
+      </Notice>
+    </div>
+  );
+}
 
 function Preview({ values, posterUrl, clubName }: { values: EventFormValues; posterUrl?: string | null; clubName: string }) {
   const preview = useObjectUrl(values.posterFile) ?? posterUrl ?? null;
@@ -195,6 +238,17 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
   const isSaving = create.isPending || update.isPending || form.formState.isSubmitting;
   const ready = readiness(values);
   const isDraft = mode === "edit" && context?.status === "draft";
+  // What AI put in each field, so the steps can mark them until they are changed.
+  const [aiFilled, setAiFilled] = React.useState<Record<string, unknown>>({});
+  const [drafted, setDrafted] = React.useState<DraftApplied | null>(null);
+  const summaryRef = React.useRef<HTMLDivElement>(null);
+
+  const applyDraft = (result: DraftApplied) => {
+    // Dirty, so the form counts as changed; not validated, so nothing turns red before the organiser has looked.
+    for (const [name, value] of Object.entries(result.patch)) form.setValue(name as keyof EventFormValues, value as never, { shouldDirty: true });
+    setAiFilled((prev) => ({ ...prev, ...result.patch }));
+    setDrafted(result);
+  };
   // A new event counts against the month's events; at the cap, saving opens the upgrade dialog instead.
   const monthly = useLimitGate("events_per_month");
   const capped = mode === "create" && monthly.locked;
@@ -246,8 +300,8 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
   const actionProps: ActionsProps = { mode, isSaving, intent, canDraft: Boolean(values.name?.trim()), publishable: ready.publishable, isDirty, isDraft, publishing: publish.isPending, submitAs, onPublish: () => publish.mutate(undefined, { onSuccess: () => router.push(`/events/${eventId}`) }) };
 
   const sections: Record<string, React.ReactNode> = {
-    event: <EventStep posterUrl={context?.posterUrl} />,
-    when: <WhenStep />,
+    event: <EventStep posterUrl={context?.posterUrl} eventId={mode === "edit" ? eventId : undefined} />,
+    when: <WhenStep withAgenda={mode === "create"} />,
     where: <WhereStep />,
     entry: <EntryStep eventId={mode === "edit" ? eventId : undefined} />,
     people: <PeopleStep />,
@@ -285,6 +339,9 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
           </Notice>
         ) : null}
 
+        {mode === "create" ? <DraftFromPoster onApplied={applyDraft} onDone={() => requestAnimationFrame(() => summaryRef.current?.focus())} /> : null}
+        {drafted ? <DraftSummary ref={summaryRef} result={drafted} onDismiss={() => setDrafted(null)} /> : null}
+
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
           <div className="flex min-w-0 flex-col gap-4">
             {STEPS.map((s, i) => (
@@ -298,7 +355,9 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
                     <p className="text-ink-3 mt-0.5 text-[12.5px]">{s.description}</p>
                   </div>
                 </div>
-                {sections[s.id]}
+                <AiFilledProvider filled={aiFilled} values={values as Record<string, unknown>}>
+                  {sections[s.id]}
+                </AiFilledProvider>
               </section>
             ))}
             {formError ? (

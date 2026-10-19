@@ -6,20 +6,33 @@ import { ImagePlusIcon, XIcon } from "lucide-react";
 import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Skeleton, Textarea, cn } from "@moa/ui";
 import { useObjectUrl } from "@moa/ui/hooks";
 
+import { AiFilledTag, WriteWithAi, aiFilledClass, useAiFilled } from "@/features/ai";
+
 import { useEventCategories } from "../../queries";
+import { spanLabel } from "../../readiness";
 import type { EventFormValues } from "../../schemas";
+
+/** What the form already says, for words written before the event is saved. */
+function contextOf(v: Partial<EventFormValues>, kind: string | undefined): string {
+  const when = v.event_datetime ? spanLabel(v.event_datetime, v.duration) : "";
+  const where = v.is_online ? "online" : v.location_name?.trim();
+  return [v.name?.trim(), kind, when, where ? `at ${where}` : "", v.has_fee && v.reg_fee ? `₹${v.reg_fee} entry` : ""].filter(Boolean).join(", ");
+}
 
 /**
  * The event: the four things people see first, together. The poster sits
  * beside the words because that is how the card is read — picture, name,
  * kind, a line — and an organiser writing one should see the other.
  */
-export function EventStep({ posterUrl }: { posterUrl?: string | null }) {
+export function EventStep({ posterUrl, eventId }: { posterUrl?: string | null; eventId?: number }) {
   const form = useFormContext<EventFormValues>();
   const categories = useEventCategories();
+  const ai = useAiFilled();
   const posterFile = form.watch("posterFile");
   const preview = useObjectUrl(posterFile) ?? posterUrl ?? null;
   const about = form.watch("about") ?? "";
+  const categoryId = form.watch("category_id");
+  const kind = categories.data?.find((c) => c.id === Number(categoryId))?.name;
 
   return (
     <div className="grid gap-5 sm:grid-cols-[168px_1fr]">
@@ -27,8 +40,11 @@ export function EventStep({ posterUrl }: { posterUrl?: string | null }) {
         control={form.control}
         name="posterFile"
         render={({ field }) => (
-          <FormItem>
-            <FormLabel>Poster</FormLabel>
+          <FormItem className={aiFilledClass(ai.has("posterFile"))}>
+            <FormLabel>
+              Poster
+              <AiFilledTag on={ai.has("posterFile")} />
+            </FormLabel>
             <FormControl>
               <div className="grid gap-2">
                 <label className={cn("border-line hover:border-brand hover:bg-sunken relative grid aspect-[4/5] w-full cursor-pointer place-items-center overflow-hidden rounded-xl border border-dashed transition-colors")}>
@@ -61,8 +77,11 @@ export function EventStep({ posterUrl }: { posterUrl?: string | null }) {
           control={form.control}
           name="name"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
+            <FormItem className={aiFilledClass(ai.has("name"))}>
+              <FormLabel>
+                Name
+                <AiFilledTag on={ai.has("name")} />
+              </FormLabel>
               <FormControl>
                 <Input {...field} placeholder="Hack Night 05: Edge AI" autoFocus className="text-[16px] font-semibold" />
               </FormControl>
@@ -74,8 +93,11 @@ export function EventStep({ posterUrl }: { posterUrl?: string | null }) {
           control={form.control}
           name="category_id"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Kind of event</FormLabel>
+            <FormItem className={aiFilledClass(ai.has("category_id"))}>
+              <FormLabel>
+                Kind of event
+                <AiFilledTag on={ai.has("category_id")} />
+              </FormLabel>
               {categories.isPending ? (
                 <Skeleton className="h-9 w-full" />
               ) : (
@@ -102,10 +124,21 @@ export function EventStep({ posterUrl }: { posterUrl?: string | null }) {
           control={form.control}
           name="about"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                About <span className="text-ink-3 font-normal">· the first two lines are what the card shows</span>
-              </FormLabel>
+            <FormItem className={aiFilledClass(ai.has("about"))}>
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <FormLabel>
+                  About <span className="text-ink-3 font-normal">· the first two lines are what the card shows</span>
+                  <AiFilledTag on={ai.has("about")} />
+                </FormLabel>
+                <WriteWithAi
+                  kind="event_description"
+                  eventId={eventId}
+                  value={field.value ?? ""}
+                  onChange={(next) => form.setValue("about", next, { shouldDirty: true, shouldValidate: true })}
+                  context={() => contextOf(form.getValues(), kind)}
+                  maxLength={5000}
+                />
+              </div>
               <FormControl>
                 <Textarea {...field} value={field.value ?? ""} rows={5} placeholder="What happens, who it is for, what to bring. Short paragraphs read best on a phone." />
               </FormControl>

@@ -4,6 +4,7 @@ import { useFormContext } from "react-hook-form";
 import { GiftIcon, IndianRupeeIcon, ShoppingBagIcon, TrophyIcon } from "lucide-react";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, Switch, cn } from "@moa/ui";
 
+import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
 import { PaymentsToNote } from "@/features/payments";
 import { LockBadge, openUpgrade, useEventPlan, type PlanLock } from "@/features/plan";
 
@@ -22,12 +23,14 @@ import type { EventFormValues } from "../../schemas";
 function Offer({ name, icon, title, hint, lock, children }: { name: "has_fee" | "has_prize" | "merch_enabled" | "swag_enabled"; icon: React.ReactNode; title: string; hint: string; lock?: PlanLock | null; children?: React.ReactNode }) {
   const form = useFormContext<EventFormValues>();
   const on = form.watch(name);
+  const ai = useAiFilled();
+  const filled = ai.has(name) || (name === "has_fee" && ai.has("reg_fee"));
   return (
     <FormField
       control={form.control}
       name={name}
       render={({ field }) => (
-        <FormItem className={cn("rounded-xl border p-3.5 transition-colors", on ? "border-brand-line bg-brand-soft/40" : "border-line")}>
+        <FormItem className={cn("rounded-xl border p-3.5 transition-colors", on ? "border-brand-line bg-brand-soft/40" : "border-line", aiFilledClass(filled))}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-start gap-3">
               <span className={cn("mt-0.5", on ? "text-brand" : "text-ink-3")}>{icon}</span>
@@ -35,6 +38,7 @@ function Offer({ name, icon, title, hint, lock, children }: { name: "has_fee" | 
                 <span className="flex flex-wrap items-center gap-1.5">
                   <FormLabel className="text-[13.5px]">{title}</FormLabel>
                   <LockBadge lock={lock ?? null} />
+                  <AiFilledTag on={filled} className="ml-0" />
                 </span>
                 <FormDescription className="mt-0.5">{hint}</FormDescription>
               </div>
@@ -52,6 +56,7 @@ function Offer({ name, icon, title, hint, lock, children }: { name: "has_fee" | 
 
 export function EntryStep({ eventId }: { eventId?: number } = {}) {
   const form = useFormContext<EventFormValues>();
+  const ai = useAiFilled();
   // While editing, the event's own view of the plan: a grandfathered event is exempt.
   const plan = useEventPlan(eventId);
   const feeLock = plan.featureLock("tickets");
@@ -61,8 +66,11 @@ export function EntryStep({ eventId }: { eventId?: number } = {}) {
         control={form.control}
         name="max_participants"
         render={({ field }) => (
-          <FormItem className="sm:max-w-[320px]">
-            <FormLabel>Places</FormLabel>
+          <FormItem className={cn("sm:max-w-[320px]", aiFilledClass(ai.has("max_participants")))}>
+            <FormLabel>
+              Places
+              <AiFilledTag on={ai.has("max_participants")} />
+            </FormLabel>
             <FormControl>
               <Input {...field} value={field.value ?? ""} type="number" min="1" step="1" inputMode="numeric" placeholder="Unlimited" />
             </FormControl>

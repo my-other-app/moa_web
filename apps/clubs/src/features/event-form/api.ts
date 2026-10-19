@@ -1,9 +1,11 @@
 import { api } from "@moa/app-kit";
 import { z } from "zod";
 
+// The api module, not the feature's surface: the agenda page imports events, which imports this form.
+import { createAgendaItem } from "@/features/agenda/api";
 import { pinWireFields } from "@/features/venue";
 
-import type { EventFormParsed } from "./schemas";
+import type { AgendaDraftItem, EventFormParsed } from "./schemas";
 
 /**
  * Encodes the form for POST /events/create and PUT /events/update/{id}.
@@ -132,6 +134,30 @@ const createdSchema = z.object({ id: z.coerce.number(), name: z.string() }).pass
 export async function createEvent(values: EventFormParsed, status: "draft" | "published" = "published") {
   const raw = await api.post<unknown>("/api/v1/events/create", toEventFormData(values, status));
   return createdSchema.parse(raw);
+}
+
+/**
+ * The running order typed (or drafted by AI) on a new event, saved to its
+ * agenda once the event exists: each block at its time on the event's day,
+ * in order, one request each (POST /events/{id}/agenda). The event is
+ * already saved, so a block that fails is counted rather than thrown.
+ */
+export async function saveDraftAgenda(eventId: number, eventDatetime: string, items: readonly AgendaDraftItem[]): Promise<{ saved: number; failed: number }> {
+  if (!items.length) return { saved: 0, failed: 0 };
+  const day = /^\d{4}-\d{2}-\d{2}/.exec(eventDatetime)?.[0];
+  if (!day) return { saved: 0, failed: items.length };
+  let saved = 0;
+  for (const item of items) {
+    const starts = new Date(`${day}T${item.at}`);
+    if (Number.isNaN(starts.getTime())) continue;
+    try {
+      await createAgendaItem(eventId, { starts_at: starts.toISOString(), ends_at: null, title: item.title, description: null, speaker: item.by?.trim() || null, location: null });
+      saved++;
+    } catch {
+      // Counted below; the rest still go.
+    }
+  }
+  return { saved, failed: items.length - saved };
 }
 
 /** A draft goes live from the console; the status clock lives under closeout. */

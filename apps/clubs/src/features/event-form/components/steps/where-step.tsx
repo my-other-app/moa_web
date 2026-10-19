@@ -4,6 +4,7 @@ import { useFormContext, useFormState, useWatch } from "react-hook-form";
 import { GlobeIcon, MapPinIcon } from "lucide-react";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, cn } from "@moa/ui";
 
+import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
 import { PinPreview, VenuePicker, pinAt, pinFieldsOf, pinOf, type PinState } from "@/features/venue";
 import { PUBLIC_SITE_HOST } from "@/lib/public-site";
 
@@ -44,6 +45,7 @@ function VenuePin() {
 /** Where: one choice, then the one field it needs. */
 export function WhereStep() {
   const form = useFormContext<EventFormValues>();
+  const ai = useAiFilled();
   const setPin = usePinSetter();
   const isOnline = form.watch("is_online");
   const pick = (online: boolean) => form.setValue("is_online", online, { shouldDirty: true, shouldValidate: true });
@@ -53,7 +55,13 @@ export function WhereStep() {
         control={form.control}
         name="is_online"
         render={() => (
-          <FormItem>
+          <FormItem className={aiFilledClass(ai.has("is_online"))}>
+            {ai.has("is_online") ? (
+              <p className="text-ink-3 m-0 text-[12px]">
+                {isOnline ? "Online" : "In person"}, as AI read it
+                <AiFilledTag on />
+              </p>
+            ) : null}
             <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="In person or online">
               <button type="button" onClick={() => pick(false)} aria-pressed={!isOnline} className={cn("flex items-start gap-3 rounded-xl border p-3 text-left transition-colors", !isOnline ? "border-brand-line bg-brand-soft" : "border-line hover:bg-sunken")}>
                 <MapPinIcon className={cn("mt-0.5 size-4 shrink-0", !isOnline ? "text-brand" : "text-ink-3")} />
@@ -78,8 +86,11 @@ export function WhereStep() {
           control={form.control}
           name="url"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Joining link</FormLabel>
+            <FormItem className={aiFilledClass(ai.has("url"))}>
+              <FormLabel>
+                Joining link
+                <AiFilledTag on={ai.has("url")} />
+              </FormLabel>
               <FormControl>
                 <Input {...field} value={field.value ?? ""} type="url" inputMode="url" placeholder="https://meet.google.com/…" />
               </FormControl>
@@ -94,8 +105,11 @@ export function WhereStep() {
             control={form.control}
             name="location_name"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Venue</FormLabel>
+              <FormItem className={aiFilledClass(ai.has("location_name"))}>
+                <FormLabel>
+                  Venue
+                  <AiFilledTag on={ai.has("location_name")} />
+                </FormLabel>
                 <FormControl>
                   <VenuePicker {...field} value={field.value ?? ""} onPick={(place) => setPin(pinAt(place.point))} placeholder="Search for the venue, or type it" />
                 </FormControl>

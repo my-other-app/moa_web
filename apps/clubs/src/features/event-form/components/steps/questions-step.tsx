@@ -2,19 +2,12 @@
 
 import { useFieldArray, useFormContext } from "react-hook-form";
 import { PlusIcon, Trash2Icon } from "lucide-react";
-import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch } from "@moa/ui";
+import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, cn } from "@moa/ui";
+
+import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
 
 import { ANSWER_TYPES } from "../../readiness";
-import type { EventFormValues } from "../../schemas";
-
-/** Turns a label into a stable snake_case key so organisers never type one. */
-function toKey(label: string): string {
-  return label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 40);
-}
+import { questionKey as toKey, type EventFormValues } from "../../schemas";
 
 const NEEDS_OPTIONS = new Set(["radio", "checkbox"]);
 const STARTERS = [
@@ -32,11 +25,18 @@ const STARTERS = [
 export function QuestionsStep() {
   const form = useFormContext<EventFormValues>();
   const questions = useFieldArray({ control: form.control, name: "additional_details" });
+  const ai = useAiFilled();
   const add = (q: { label: string; field_type: string; options?: readonly string[] }) =>
     questions.append({ key: toKey(q.label), label: q.label, field_type: q.field_type as "text", required: true, ...(q.options ? { options: [...q.options] } : {}) });
 
   return (
-    <div className="grid gap-4">
+    <div className={cn("grid gap-4", aiFilledClass(ai.has("additional_details")))}>
+      {ai.has("additional_details") ? (
+        <p className="text-ink-3 m-0 text-[12px]">
+          Questions from the draft
+          <AiFilledTag on />
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-ink-3 text-[12px]">Add one:</span>
         {STARTERS.map((s) => (
