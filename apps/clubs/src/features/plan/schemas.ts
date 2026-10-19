@@ -36,6 +36,7 @@ export const GATED_FEATURES = [
   "rounds",
   "finance",
   "custom_domain",
+  "ai_assist",
 ] as const;
 export type GatedFeature = (typeof GATED_FEATURES)[number];
 export type PlanFeature = GatedFeature | (typeof ALWAYS_ON)[number];
@@ -62,13 +63,15 @@ export const FEATURE_LABEL: Record<GatedFeature, string> = {
   rounds: "Competition rounds",
   finance: "Finance and expenses",
   custom_domain: "Your own domain for the club website",
+  ai_assist: "AI assist",
 };
 
 /**
  * The cheapest plan that has each flag, as the backend seeds them
  * (migrations/club_plans.py). Only a fallback: the live catalogue says.
+ * AI assist has none: until the catalogue lists it, its lock names no plan.
  */
-const FALLBACK_TIER: Record<GatedFeature, { key: string; name: string }> = {
+const FALLBACK_TIER: Partial<Record<GatedFeature, { key: string; name: string }>> = {
   tickets: { key: "starter", name: "Starter" },
   website: { key: "starter", name: "Starter" },
   quiz: { key: "growth", name: "Growth" },

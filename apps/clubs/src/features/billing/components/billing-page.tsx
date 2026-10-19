@@ -26,6 +26,7 @@ import {
 } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
+import { AiUsagePanel } from "@/features/ai";
 import { useMyClub } from "@/features/club";
 
 import { billingErrorMessage, isComplimentaryRefusal, useCancelSubscription, useEntitlements, usePlans, useRefreshBilling, useStartSubscription, useSubscription } from "../queries";
@@ -330,6 +331,9 @@ export function BillingPage() {
           <Usage ent={ent} />
         </div>
       )}
+
+      {/* AI assist: the month's actions, or the club's own key. Nothing while AI is off. */}
+      <AiUsagePanel />
 
       <section aria-labelledby="plans-title" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-end justify-between gap-3 pt-2">
