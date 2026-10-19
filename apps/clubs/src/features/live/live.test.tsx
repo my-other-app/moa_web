@@ -30,6 +30,18 @@ const feedback = {
 };
 const updates = { audience: { registered: 148, checked_in: 88 }, items: [{ id: "u1", kind: "general", text: "Doors are open — collect your board at the front desk", audience: "registered", recipients: 148, pushed: 120, sent_at: "2026-10-13T13:00:00Z" }] };
 const agenda = { items: [{ id: "a1", event_id: 37, starts_at: "2026-10-13T13:30:00Z", ends_at: "2026-10-13T14:00:00Z", title: "Keynote", description: null, speaker: null, speaker_photo_key: null, speaker_photo_url: null, location: null, sort_order: 0, parallel: false }], timezone: "Asia/Kolkata", has_programme: false };
+const hostState = { status: "live", join_code: "4821", title: "Edge AI warm-up quiz", players: 0, current_index: -1, total: 2, question: null, leaderboard: [] };
+/** What a start or a launch adds to its reply: `{ notified }` from a server that notifies the room, nothing from today's. */
+const reply: { start: Record<string, unknown>; poll: Record<string, unknown> } = { start: {}, poll: {} };
+
+// Node's own localStorage shadows jsdom's and has no backing file here; the screens read through a plain one.
+const store = new Map<string, string>();
+vi.stubGlobal("localStorage", {
+  getItem: (k: string) => store.get(k) ?? null,
+  setItem: (k: string, v: string) => void store.set(k, String(v)),
+  removeItem: (k: string) => void store.delete(k),
+  clear: () => store.clear(),
+});
 
 vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
@@ -49,7 +61,9 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       post: vi.fn(async (path: string, body: unknown) => {
         calls.push({ method: "POST", path, body });
         if (path.includes("/questions/")) return { ...board.to_review[0], status: "approved" };
-        if (path.endsWith("/status")) return { ...polls[2], status: "live" };
+        if (path.endsWith("/quiz/host/start")) return { ...hostState, ...reply.start };
+        if (path.includes("/quiz/host/")) return hostState;
+        if (path.endsWith("/status")) return { ...polls[2], status: (body as { status: string }).status, ...reply.poll };
         if (path.endsWith("/updates")) return { ...updates.items[0], id: "u2", text: (body as { text: string }).text, recipients: 88 };
         if (path.endsWith("/schedule/shift")) return { update: { ...updates.items[0], id: "u3", kind: "schedule", text: "Keynote now starts at 7:10 PM (+10 min)." }, items: [] };
         return {};
@@ -72,9 +86,20 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 
 const { render } = await import("@/test/render");
 const { LivePage } = await import("./components/live-page");
+const { hostAction, setPollStatus } = await import("./api");
+const { notifiedNote } = await import("./notify");
+const { Toaster, toast } = await import("@moa/ui");
+
+const success = vi.spyOn(toast, "success");
+const warning = vi.spyOn(toast, "warning");
 
 beforeEach(() => {
   calls.length = 0;
+  store.clear();
+  reply.start = {};
+  reply.poll = {};
+  success.mockClear();
+  warning.mockClear();
   window.history.replaceState(null, "", "/events/37/live");
 });
 
@@ -108,7 +133,8 @@ describe("the live room", () => {
     expect(screen.getByText("40%")).toBeInTheDocument();
     const card = screen.getByText("Rate the keynote").closest("div")!.parentElement!;
     fireEvent.click(within(card).getByRole("button", { name: /Launch/ }));
-    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p3/status"))?.body).toEqual({ status: "live" }));
+    // A launch now says whether to notify the room (off for polls unless the host turns it on).
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p3/status"))?.body).toEqual({ status: "live", notify: false }));
   });
 
   it("shows last time's results until this event's replies arrive", async () => {
@@ -133,5 +159,191 @@ describe("the live room", () => {
     expect(await screen.findByText("Keynote")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Push Keynote/ }));
     await waitFor(() => expect(calls.find((c) => c.path.endsWith("/schedule/shift"))?.body).toEqual({ item_id: "a1", minutes: 10 }));
+  });
+});
+
+describe("notifying the room", () => {
+  const opened = "The quiz is open — players join with 4821";
+  const up = "The poll is up on every phone";
+  const notifySwitch = (name: string | RegExp = /^Notify checked-in attendees/) => screen.findByRole("switch", { name });
+  const launchKeynote = async () => {
+    const card = (await screen.findByText("Rate the keynote")).closest("div")!.parentElement!;
+    const launch = within(card).getByRole("button", { name: /Launch/ });
+    await waitFor(() => expect(launch).toBeEnabled());
+    fireEvent.click(launch);
+  };
+  const openPolls = async () => {
+    fireEvent.click(await screen.findByRole("button", { name: /Polls/ }));
+    await screen.findByText("wake word");
+  };
+
+  it("is on beside Host live and off beside the polls, with the room's checked-in count", async () => {
+    render(<LivePage eventId={37} />);
+    const quiz = await notifySwitch("Notify checked-in attendees (88)");
+    expect(quiz).toHaveAttribute("aria-checked", "true");
+    expect(quiz).toHaveAccessibleDescription("A push to join, as the quiz opens");
+    await openPolls();
+    const poll = await notifySwitch("Notify checked-in attendees (88)");
+    expect(poll).toHaveAttribute("aria-checked", "false");
+    expect(poll).toHaveAccessibleDescription("A push to vote, as each poll launches");
+  });
+
+  it("remembers the host's last choice for the event, and only that event", async () => {
+    const first = render(<LivePage eventId={37} />);
+    fireEvent.click(await notifySwitch());
+    expect(store.get("moa.live.37.notify.quiz")).toBe("0");
+    await openPolls();
+    fireEvent.click(await notifySwitch());
+    expect(store.get("moa.live.37.notify.poll")).toBe("1");
+    first.unmount();
+
+    window.history.replaceState(null, "", "/events/37/live");
+    const again = render(<LivePage eventId={37} />);
+    expect(await notifySwitch()).toHaveAttribute("aria-checked", "false");
+    await openPolls();
+    expect(await notifySwitch()).toHaveAttribute("aria-checked", "true");
+    again.unmount();
+
+    // Another event keeps the defaults.
+    window.history.replaceState(null, "", "/events/38/live");
+    render(<LivePage eventId={38} />);
+    expect(await notifySwitch()).toHaveAttribute("aria-checked", "true");
+    await openPolls();
+    expect(await notifySwitch()).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("still works when the browser keeps nothing", async () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("denied");
+      },
+      setItem: () => {
+        throw new Error("denied");
+      },
+    });
+    try {
+      render(<LivePage eventId={37} />);
+      const quiz = await notifySwitch();
+      expect(quiz).toHaveAttribute("aria-checked", "true");
+      fireEvent.click(quiz);
+      expect(quiz).toHaveAttribute("aria-checked", "false");
+    } finally {
+      vi.stubGlobal("localStorage", { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, String(v)), removeItem: (k: string) => void store.delete(k), clear: () => store.clear() });
+    }
+  });
+
+  it("sends the switch with Host live and with Launch, and nothing new with any other move", async () => {
+    render(<LivePage eventId={37} />);
+    const host = await screen.findByRole("button", { name: "Host live" });
+    fireEvent.click(host);
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/quiz/host/start"))?.body).toEqual({ notify: true }));
+    calls.length = 0;
+    fireEvent.click(await notifySwitch());
+    await waitFor(() => expect(host).toBeEnabled());
+    fireEvent.click(host);
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/quiz/host/start"))?.body).toEqual({ notify: false }));
+
+    await openPolls();
+    await launchKeynote();
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p3/status"))?.body).toEqual({ status: "live", notify: false }));
+    calls.length = 0;
+    fireEvent.click(await notifySwitch());
+    await launchKeynote();
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p3/status"))?.body).toEqual({ status: "live", notify: true }));
+    fireEvent.click(screen.getByRole("button", { name: /Close poll/ }));
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p1/status"))?.body).toEqual({ status: "closed" }));
+
+    calls.length = 0;
+    await hostAction(37, "next", true);
+    await hostAction(37, "end", true);
+    await hostAction(37, "reset");
+    await setPollStatus(37, "p1", "closed", true);
+    expect(calls.map((c) => c.body)).toEqual([{}, {}, {}, { status: "closed" }]);
+  });
+
+  it.each([
+    ["sent", { sent: 42, skipped_reason: null }, success, "Sent to 42"],
+    ["nobody checked in", { sent: 0, skipped_reason: "nobody_checked_in" }, success, "Nobody is checked in yet"],
+    ["rate limited", { sent: 0, skipped_reason: "rate_limited" }, warning, "Not notified — the room was notified recently; try again in a few minutes"],
+  ] as const)("says what came of the push when the quiz opens: %s", async (_, notified, said, text) => {
+    reply.start = { notified };
+    render(<LivePage eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Host live" }));
+    await waitFor(() => expect(said).toHaveBeenCalledWith(opened, expect.objectContaining({ description: text })));
+  });
+
+  it("says what came of the push when a poll launches", async () => {
+    store.set("moa.live.37.notify.poll", "1");
+    reply.poll = { notified: { sent: 61, skipped_reason: null } };
+    render(<LivePage eventId={37} />);
+    await openPolls();
+    await launchKeynote();
+    await waitFor(() => expect(success).toHaveBeenCalledWith(up, { description: "Sent to 61" }));
+  });
+
+  it("puts the outcome on screen, in the toasts' live region", async () => {
+    reply.start = { notified: { sent: 57, skipped_reason: null } };
+    render(
+      <>
+        <Toaster theme="light" />
+        <LivePage eventId={37} />
+      </>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Host live" }));
+    const line = await screen.findByText("Sent to 57");
+    expect(line.closest("[aria-live]")).toHaveAttribute("aria-live", "polite");
+    // Sonner keeps earlier tests' toasts in its own store, so look inside this one.
+    expect(within(line.closest("[data-sonner-toast]") as HTMLElement).getByText(opened)).toBeInTheDocument();
+  });
+
+  it("says nothing more when the server has notifying switched off, or the host did", async () => {
+    reply.start = { notified: { sent: 0, skipped_reason: "disabled" } };
+    const first = render(<LivePage eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Host live" }));
+    await waitFor(() => expect(success).toHaveBeenCalled());
+    expect(success.mock.calls).toEqual([[opened]]);
+    first.unmount();
+
+    success.mockClear();
+    store.set("moa.live.37.notify.quiz", "0");
+    reply.start = { notified: { sent: 0, skipped_reason: null } };
+    render(<LivePage eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Host live" }));
+    await waitFor(() => expect(success).toHaveBeenCalled());
+    expect(success.mock.calls).toEqual([[opened]]);
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  it("against today's server, which sends no `notified`, toasts exactly as before", async () => {
+    render(<LivePage eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Host live" }));
+    await waitFor(() => expect(success).toHaveBeenCalled());
+    expect(success.mock.calls).toEqual([[opened]]);
+
+    success.mockClear();
+    store.set("moa.live.37.notify.poll", "1");
+    await openPolls();
+    await launchKeynote();
+    await waitFor(() => expect(success).toHaveBeenCalled());
+    expect(success.mock.calls).toEqual([[up]]);
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  it("does not let a `notified` it cannot read fail the quiz that already opened", async () => {
+    reply.start = { notified: { sent: "lots", skipped_reason: "on_holiday" } };
+    render(<LivePage eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Host live" }));
+    await waitFor(() => expect(success).toHaveBeenCalled());
+    expect(success.mock.calls).toEqual([[opened]]);
+  });
+
+  it("words each outcome", () => {
+    expect(notifiedNote({ sent: 42, skipped_reason: null })).toEqual({ tone: "success", text: "Sent to 42" });
+    expect(notifiedNote({ sent: 42 })).toEqual({ tone: "success", text: "Sent to 42" });
+    expect(notifiedNote({ sent: 0, skipped_reason: "nobody_checked_in" })).toEqual({ tone: "success", text: "Nobody is checked in yet" });
+    expect(notifiedNote({ sent: 0, skipped_reason: "rate_limited" })).toEqual({ tone: "warning", text: "Not notified — the room was notified recently; try again in a few minutes" });
+    expect(notifiedNote({ sent: 0, skipped_reason: "disabled" })).toBeNull();
+    expect(notifiedNote(undefined)).toBeNull();
+    expect(notifiedNote(null)).toBeNull();
   });
 });

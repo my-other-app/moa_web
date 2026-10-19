@@ -2,6 +2,22 @@ import { z } from "zod";
 
 /** The live room, as the console sees it. Field names are the API's. */
 
+// --- notifying the room ----------------------------------------------------------------------
+
+/** What a quiz start or a poll launch says about the push to checked-in phones. */
+export const notifiedSchema = z.object({
+  sent: z.number(),
+  skipped_reason: z.enum(["rate_limited", "nobody_checked_in", "disabled"]).nullish(),
+});
+export type Notified = z.infer<typeof notifiedSchema>;
+
+/*
+ * Optional: a server from before notifying the room sends none. And the quiz
+ * or poll has already gone through by the time this is read, so a shape this
+ * console does not know reads as no answer rather than failing the action.
+ */
+const notifiedField = notifiedSchema.nullish().catch(null);
+
 // --- quiz ----------------------------------------------------------------------
 
 export const quizOptionSchema = z.object({ key: z.string(), label: z.string() });
@@ -43,6 +59,11 @@ export const hostStateSchema = z.object({
   leaderboard: z.array(z.object({ rank: z.number(), name: z.string(), score: z.number() })),
 });
 export type HostState = z.infer<typeof hostStateSchema>;
+
+export type HostAction = "start" | "next" | "end" | "reset";
+
+/** The host state a start · next · end · reset returns; a start also says who was notified. */
+export const hostActionSchema = hostStateSchema.extend({ notified: notifiedField });
 
 export const SECONDS = [10, 20, 30, 60] as const;
 export const OPTION_KEYS = ["a", "b", "c", "d", "e", "f"] as const;
@@ -93,6 +114,9 @@ export const pollSchema = z.object({
   my_response: z.string().nullish(),
 });
 export type Poll = z.infer<typeof pollSchema>;
+
+/** The poll a launch or close returns; a launch also says who was notified. */
+export const pollStatusSchema = pollSchema.extend({ notified: notifiedField });
 
 export const POLL_KINDS = [
   { value: "choice", label: "Multiple choice", hint: "Pick one of your answers" },

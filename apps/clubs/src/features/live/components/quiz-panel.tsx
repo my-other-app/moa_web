@@ -24,8 +24,10 @@ import {
 
 import { useFeatureGate } from "@/features/plan";
 
+import { useNotifyChoice } from "../notify";
 import { useHostState, useQuiz, useQuizMutations } from "../queries";
 import { OPTION_KEYS, SECONDS, type QuizQuestion } from "../schemas";
+import { NotifySwitch } from "./notify-switch";
 
 /**
  * The quiz: the host writes questions here, then drives the run from the
@@ -287,10 +289,11 @@ function NewQuestion({
   );
 }
 
-function HostConsole({ eventId }: { eventId: number }) {
+function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: number | null }) {
   const { host } = useQuizMutations(eventId);
   const gate = useFeatureGate("quiz", { eventId });
   const state = useHostState(eventId, true);
+  const [notify, setNotify] = useNotifyChoice(eventId, "quiz");
   const s = state.data;
   if (!s) return <Skeleton className="h-64" />;
   const q = s.question;
@@ -304,11 +307,24 @@ function HostConsole({ eventId }: { eventId: number }) {
             <p className="text-ink mt-2 text-[15px] font-semibold">
               That is the quiz. The board on the right stands.
             </p>
-            <div className="mt-4 flex gap-2">
-              <Button onClick={gate.guard(() => host.mutate("start"))}>Run it again</Button>
-              <Button variant="outline" onClick={() => host.mutate("reset")}>
-                Back to editing
-              </Button>
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
+              <div className="flex gap-2">
+                <Button
+                  onClick={gate.guard(() => host.mutate({ action: "start", notify }))}
+                  disabled={host.isPending}
+                >
+                  Run it again
+                </Button>
+                <Button variant="outline" onClick={() => host.mutate({ action: "reset" })}>
+                  Back to editing
+                </Button>
+              </div>
+              <NotifySwitch
+                checked={notify}
+                onCheckedChange={setNotify}
+                checkedIn={checkedIn}
+                hint="A push to join, as the quiz opens"
+              />
             </div>
           </>
         ) : q ? (
@@ -365,12 +381,12 @@ function HostConsole({ eventId }: { eventId: number }) {
             </p>
             <div className="mt-4 flex gap-2">
               <Button
-                onClick={() => host.mutate("next")}
+                onClick={() => host.mutate({ action: "next" })}
                 disabled={host.isPending}
               >
                 {last ? "Finish and show the board" : "Next question"}
               </Button>
-              <Button variant="ghost" onClick={() => host.mutate("end")}>
+              <Button variant="ghost" onClick={() => host.mutate({ action: "end" })}>
                 End early
               </Button>
             </div>
@@ -393,12 +409,12 @@ function HostConsole({ eventId }: { eventId: number }) {
             </p>
             <div className="mt-4 flex gap-2">
               <Button
-                onClick={() => host.mutate("next")}
+                onClick={() => host.mutate({ action: "next" })}
                 disabled={host.isPending}
               >
                 <PlayIcon className="size-4" /> Ask the first question
               </Button>
-              <Button variant="ghost" onClick={() => host.mutate("end")}>
+              <Button variant="ghost" onClick={() => host.mutate({ action: "end" })}>
                 Cancel
               </Button>
             </div>
@@ -446,11 +462,19 @@ function HostConsole({ eventId }: { eventId: number }) {
   );
 }
 
-export function QuizPanel({ eventId }: { eventId: number }) {
+export function QuizPanel({
+  eventId,
+  checkedIn,
+}: {
+  eventId: number;
+  /** The room's checked-in count, when the console already has it. */
+  checkedIn?: number | null;
+}) {
   const quiz = useQuiz(eventId);
   const { host, rename } = useQuizMutations(eventId);
   const [adding, setAdding] = React.useState(false);
   const [title, setTitle] = React.useState<string | null>(null);
+  const [notify, setNotify] = useNotifyChoice(eventId, "quiz");
   // Not on the plan: what was written stays readable; writing and hosting open the upgrade dialog.
   const gate = useFeatureGate("quiz", { eventId });
   if (quiz.isPending) return <Skeleton className="h-72" />;
@@ -490,26 +514,34 @@ export function QuizPanel({ eventId }: { eventId: number }) {
           </p>
         </div>
         {!running ? (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={gate.guard(() => setAdding(true))}
-              disabled={adding}
-            >
-              {gate.locked ? <LockIcon className="size-4" /> : <PlusIcon className="size-4" />} Add question
-            </Button>
-            <Button
-              onClick={gate.guard(() => host.mutate("start"))}
-              disabled={q.questions.length === 0 || host.isPending}
-            >
-              {gate.locked ? <LockIcon className="size-4" /> : <ZapIcon className="size-4" />} Host live
-            </Button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <NotifySwitch
+              checked={notify}
+              onCheckedChange={setNotify}
+              checkedIn={checkedIn}
+              hint="A push to join, as the quiz opens"
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={gate.guard(() => setAdding(true))}
+                disabled={adding}
+              >
+                {gate.locked ? <LockIcon className="size-4" /> : <PlusIcon className="size-4" />} Add question
+              </Button>
+              <Button
+                onClick={gate.guard(() => host.mutate({ action: "start", notify }))}
+                disabled={q.questions.length === 0 || host.isPending}
+              >
+                {gate.locked ? <LockIcon className="size-4" /> : <ZapIcon className="size-4" />} Host live
+              </Button>
+            </div>
           </div>
         ) : null}
       </div>
 
       {running ? (
-        <HostConsole eventId={eventId} />
+        <HostConsole eventId={eventId} checkedIn={checkedIn} />
       ) : (
         <div className="grid gap-3">
           {q.questions.map((question, i) => (

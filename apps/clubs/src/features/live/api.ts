@@ -3,8 +3,10 @@ import { z } from "zod";
 
 import {
   feedbackSchema,
+  hostActionSchema,
   hostStateSchema,
   pollSchema,
+  pollStatusSchema,
   qaBoardSchema,
   questionSchema,
   quizQuestionSchema,
@@ -14,6 +16,7 @@ import {
   surveySchema,
   updateSchema,
   updatesPageSchema,
+  type HostAction,
   type LiveUpdate,
   type ModerateAction,
   type Poll,
@@ -50,8 +53,14 @@ export async function fetchHostState(eventId: number) {
   return hostStateSchema.parse(await api.get<unknown>(`${base(eventId)}/quiz/host`));
 }
 
-export async function hostAction(eventId: number, action: "start" | "next" | "end" | "reset") {
-  return hostStateSchema.parse(await api.post<unknown>(`${base(eventId)}/quiz/host/${action}`, {}));
+/**
+ * A start says whether to notify the room; the other moves send `{}` as they
+ * always have. Servers from before notifying the room take no body here and
+ * ignore it, so the same request is safe against either.
+ */
+export async function hostAction(eventId: number, action: HostAction, notify?: boolean) {
+  const body = action === "start" && notify !== undefined ? { notify } : {};
+  return hostActionSchema.parse(await api.post<unknown>(`${base(eventId)}/quiz/host/${action}`, body));
 }
 
 // --- Q&A ----------------------------------------------------------------------
@@ -78,8 +87,14 @@ export async function createPoll(eventId: number, body: { kind: Poll["kind"]; pr
   return pollSchema.parse(await api.post<unknown>(`${base(eventId)}/polls`, body));
 }
 
-export async function setPollStatus(eventId: number, id: string, status: "live" | "closed") {
-  return pollSchema.parse(await api.post<unknown>(`${base(eventId)}/polls/${id}/status`, { status }));
+/**
+ * A launch says whether to notify the room; a close sends `{ status }` alone.
+ * Servers from before notifying the room drop fields they do not know from
+ * this body, so `notify` is safe against either.
+ */
+export async function setPollStatus(eventId: number, id: string, status: "live" | "closed", notify?: boolean) {
+  const body = status === "live" && notify !== undefined ? { status, notify } : { status };
+  return pollStatusSchema.parse(await api.post<unknown>(`${base(eventId)}/polls/${id}/status`, body));
 }
 
 export async function deletePoll(eventId: number, id: string) {
