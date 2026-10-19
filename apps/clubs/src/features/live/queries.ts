@@ -28,7 +28,8 @@ import {
   shiftSchedule,
   type QuizQuestionBody,
 } from "./api";
-import type { LiveUpdate, ModerateAction, Poll, SurveyQuestion } from "./schemas";
+import { announce } from "./notify";
+import type { HostAction, LiveUpdate, ModerateAction, Poll, SurveyQuestion } from "./schemas";
 
 export const liveKey = (eventId: number) => ["live", eventId] as const;
 
@@ -55,9 +56,9 @@ export function useQuizMutations(eventId: number) {
   const edit = useMutation({ mutationFn: ({ id, patch }: { id: string; patch: Partial<QuizQuestionBody> }) => patchQuizQuestion(eventId, id, patch), onSuccess: refresh });
   const remove = useMutation({ mutationFn: (id: string) => deleteQuizQuestion(eventId, id), onSuccess: () => (toast.success("Question removed"), refresh()) });
   const host = useMutation({
-    mutationFn: (action: "start" | "next" | "end" | "reset") => hostAction(eventId, action),
-    onSuccess: (s, action) => {
-      if (action === "start") toast.success(`The quiz is open — players join with ${s.join_code}`);
+    mutationFn: ({ action, notify }: { action: HostAction; notify?: boolean }) => hostAction(eventId, action, notify),
+    onSuccess: (s, { action, notify }) => {
+      if (action === "start") announce(`The quiz is open — players join with ${s.join_code}`, notify ? s.notified : null);
       if (action === "end") toast.success("Quiz finished");
       refresh();
     },
@@ -94,8 +95,8 @@ export function usePollMutations(eventId: number) {
   const refresh = useRefresh(eventId, "polls");
   const create = useMutation({ mutationFn: (body: { kind: Poll["kind"]; prompt: string; options: string[] }) => createPoll(eventId, body), onSuccess: () => (toast.success("Poll saved as a draft"), refresh()) });
   const status = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: "live" | "closed" }) => setPollStatus(eventId, id, status),
-    onSuccess: (p) => (toast.success(p.status === "live" ? "The poll is up on every phone" : "Poll closed"), refresh()),
+    mutationFn: ({ id, status, notify }: { id: string; status: "live" | "closed"; notify?: boolean }) => setPollStatus(eventId, id, status, notify),
+    onSuccess: (p, { notify }) => (p.status === "live" ? announce("The poll is up on every phone", notify ? p.notified : null) : toast.success("Poll closed"), refresh()),
   });
   const remove = useMutation({ mutationFn: (id: string) => deletePoll(eventId, id), onSuccess: () => (toast.success("Poll removed"), refresh()) });
   return { create, status, remove };

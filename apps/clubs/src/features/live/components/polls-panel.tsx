@@ -17,8 +17,10 @@ import {
 
 import { useFeatureGate } from "@/features/plan";
 
+import { useNotifyChoice } from "../notify";
 import { usePollMutations, usePolls } from "../queries";
 import { POLL_KINDS, type Poll } from "../schemas";
+import { NotifySwitch } from "./notify-switch";
 
 /**
  * Polls and word clouds. One is live at a time: launching one closes the one
@@ -135,7 +137,7 @@ const STATUS: Record<Poll["status"], string> = {
   draft: "Draft",
 };
 
-function PollCard({ eventId, poll }: { eventId: number; poll: Poll }) {
+function PollCard({ eventId, poll, notify }: { eventId: number; poll: Poll; notify: boolean }) {
   const { status, remove } = usePollMutations(eventId);
   const gate = useFeatureGate("polls", { eventId });
   const kind =
@@ -172,7 +174,7 @@ function PollCard({ eventId, poll }: { eventId: number; poll: Poll }) {
           <Button
             size="sm"
             variant={poll.status === "draft" ? "default" : "outline"}
-            onClick={gate.guard(() => status.mutate({ id: poll.id, status: "live" }))}
+            onClick={gate.guard(() => status.mutate({ id: poll.id, status: "live", notify }))}
             disabled={status.isPending}
           >
             <PlayIcon className="size-3.5" />{" "}
@@ -284,9 +286,17 @@ function NewPoll({ eventId, onDone }: { eventId: number; onDone: () => void }) {
   );
 }
 
-export function PollsPanel({ eventId }: { eventId: number }) {
+export function PollsPanel({
+  eventId,
+  checkedIn,
+}: {
+  eventId: number;
+  /** The room's checked-in count, when the console already has it. */
+  checkedIn?: number | null;
+}) {
   const polls = usePolls(eventId);
   const [adding, setAdding] = React.useState(false);
+  const [notify, setNotify] = useNotifyChoice(eventId, "poll");
   const gate = useFeatureGate("polls", { eventId });
   if (polls.isPending) return <Skeleton className="h-72" />;
   if (polls.isError || !polls.data)
@@ -308,9 +318,18 @@ export function PollsPanel({ eventId }: { eventId: number }) {
             on the host screen.
           </p>
         </div>
-        <Button onClick={gate.guard(() => setAdding(true))} disabled={adding}>
-          {gate.locked ? <LockIcon className="size-4" /> : <PlusIcon className="size-4" />} New poll
-        </Button>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          {/* One switch for every Launch and Reopen below. */}
+          <NotifySwitch
+            checked={notify}
+            onCheckedChange={setNotify}
+            checkedIn={checkedIn}
+            hint="A push to vote, as each poll launches"
+          />
+          <Button onClick={gate.guard(() => setAdding(true))} disabled={adding}>
+            {gate.locked ? <LockIcon className="size-4" /> : <PlusIcon className="size-4" />} New poll
+          </Button>
+        </div>
       </div>
       {adding ? (
         <NewPoll eventId={eventId} onDone={() => setAdding(false)} />
@@ -327,7 +346,7 @@ export function PollsPanel({ eventId }: { eventId: number }) {
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {list.map((p) => (
-            <PollCard key={p.id} eventId={eventId} poll={p} />
+            <PollCard key={p.id} eventId={eventId} poll={p} notify={notify} />
           ))}
         </div>
       )}

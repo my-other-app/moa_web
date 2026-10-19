@@ -114,6 +114,8 @@ export function LivePage({ eventId }: { eventId: number }) {
   const live = polls.data?.some((p) => p.status === "live") ?? false;
   const replies = feedback.data?.results.responses ?? 0;
   const sent = updates.data?.items.length ?? 0;
+  // Who a quiz or poll would notify: already in hand from the updates and feedback rooms.
+  const checkedIn = updates.data?.audience.checked_in ?? feedback.data?.checked_in;
   return (
     <div className="grid gap-5">
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Live">
@@ -163,11 +165,11 @@ export function LivePage({ eventId }: { eventId: number }) {
       </div>
       {VIEW_FEATURE[view] ? <LockedNotice feature={VIEW_FEATURE[view]!} eventId={eventId} /> : null}
       {view === "quiz" ? (
-        <QuizPanel eventId={eventId} />
+        <QuizPanel eventId={eventId} checkedIn={checkedIn} />
       ) : view === "qa" ? (
         <QAPanel eventId={eventId} />
       ) : view === "polls" ? (
-        <PollsPanel eventId={eventId} />
+        <PollsPanel eventId={eventId} checkedIn={checkedIn} />
       ) : view === "feedback" ? (
         <FeedbackPanel eventId={eventId} />
       ) : (
