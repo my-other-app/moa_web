@@ -1,3 +1,4 @@
+export { WriteWithAi, type WriteWithAiProps } from "./components/write-with-ai";
 export { AiUsageMeter, AiUsagePanel } from "./components/ai-usage";
 export { useAiGate, useAiStatus, useEventDraft, useAiWrite, useFeedbackSummary, useRefreshFeedbackSummary, useAiKey, useCanManageAiKey, AI_QUERY, type AiGate } from "./queries";
 export { draftEvent, fetchAiStatus, writeWithAi } from "./api";

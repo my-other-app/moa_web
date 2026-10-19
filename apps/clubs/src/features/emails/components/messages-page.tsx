@@ -37,6 +37,7 @@ import {
   ToolbarEnd,
 } from "@moa/ui";
 
+import { WriteWithAi } from "@/features/ai";
 import { tallyFigures, useDeliveryTally } from "@/features/deliveries";
 
 import {
@@ -155,6 +156,15 @@ function Composer({
                 tokens={tokens}
                 samples={samples}
                 placeholder="Hi {{first_name}}, …"
+                extra={
+                  <WriteWithAi
+                    kind="email"
+                    eventId={eventId}
+                    value={body}
+                    onChange={setBody}
+                    subject={{ value: subject, onChange: setSubject }}
+                  />
+                }
               />
               <p className={cn(ui.note, "mt-1")}>
                 **bold**, _italic_ and [links](https://…) work. A blank line
