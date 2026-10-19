@@ -33,7 +33,7 @@ import { useCan } from "@/hooks/use-can";
  *
  * It was deliberately not built until the audit log existed.
  */
-const CLUBS_APP = "https://clubs-next.myotherapp.in";
+const CLUBS_APP = "https://club-dashboard.myotherapp.in";
 
 export function ImpersonateButton({
   userId,
