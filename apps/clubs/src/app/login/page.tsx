@@ -3,17 +3,24 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getSessionQuietly } from "@moa/auth/server";
-import { LoginForm } from "@moa/app-kit";
+import { LoginForm, safeNext } from "@moa/app-kit";
 import { Skeleton } from "@moa/ui";
 
 import { AuthFrame } from "@/components/auth-frame";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-/** The front door. A club not on MyOtherApp yet finds its way in from here too. */
-export default async function LoginPage() {
+/**
+ * The front door. A club not on MyOtherApp yet finds its way in from here too.
+ * Already signed in, it goes where `?next=` said (a path on this site only):
+ * an assistant's "Confirm in dashboard" link lands back on its request.
+ */
+export default async function LoginPage({ searchParams }: { searchParams?: Promise<{ next?: string | string[] }> } = {}) {
   const session = await getSessionQuietly();
-  if (session?.user_type === "club") redirect("/");
+  if (session?.user_type === "club") {
+    const { next } = (await searchParams) ?? {};
+    redirect(safeNext(Array.isArray(next) ? next[0] : next));
+  }
 
   return (
     <AuthFrame
