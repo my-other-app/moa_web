@@ -9,7 +9,7 @@ import { createGatewayHandlers } from "@moa/auth/gateway";
 export const { GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS } =
   createGatewayHandlers({});
 
-// Auth-bearing proxy: never cache, and always Node so request bodies can be
-// streamed through unchanged (logo, poster and template uploads go via here).
+// Auth-bearing proxy: never cache, and always Node so request bodies pass
+// through unchanged (logo, poster and template uploads go via here).
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

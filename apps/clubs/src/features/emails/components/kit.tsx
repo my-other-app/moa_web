@@ -166,6 +166,7 @@ export const TemplateField = ({
   samples,
   placeholder,
   single,
+  extra,
 }: {
   id: string;
   label: string;
@@ -177,6 +178,8 @@ export const TemplateField = ({
   placeholder?: string;
   /** One line: a subject, a label. */
   single?: boolean;
+  /** Beside the token menu: "Write with AI". */
+  extra?: React.ReactNode;
 }) => {
   const ref = React.useRef<HTMLTextAreaElement | HTMLInputElement>(null);
   const insert = (snippet: string) => {
@@ -196,7 +199,10 @@ export const TemplateField = ({
         <label htmlFor={id} className="eyebrow">
           {label}
         </label>
-        <TokenMenu onInsert={insert} tokens={tokens} samples={samples} />
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {extra}
+          <TokenMenu onInsert={insert} tokens={tokens} samples={samples} />
+        </div>
       </div>
       {single ? (
         <input

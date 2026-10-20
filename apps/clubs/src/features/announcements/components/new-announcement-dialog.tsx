@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@moa/ui";
 
+import { WriteWithAi } from "@/features/ai";
 import { useClubEvents } from "@/features/events";
 import { useLimitGate } from "@/features/plan";
 
@@ -189,9 +190,20 @@ export function NewAnnouncementDialog() {
               )}
             </div>
             <div>
-              <label htmlFor="ann-body" className={label}>
-                Message
-              </label>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <label htmlFor="ann-body" className="eyebrow">
+                  Message
+                </label>
+                <WriteWithAi
+                  kind="announcement"
+                  eventId={eventId ? Number(eventId) : null}
+                  value={body}
+                  onChange={setBody}
+                  // The reply's subject is the push's title.
+                  subject={{ value: title, onChange: (t) => setTitle(t.slice(0, 120)) }}
+                  maxLength={1000}
+                />
+              </div>
               <textarea
                 id="ann-body"
                 rows={4}

@@ -4,8 +4,11 @@ import * as React from "react";
 import { useFormContext } from "react-hook-form";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, cn } from "@moa/ui";
 
+import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
+
 import { hoursBetween, joinLocal, spanLabel, splitLocal } from "../../readiness";
 import type { EventFormValues } from "../../schemas";
+import { AgendaField } from "./agenda-field";
 
 /**
  * When: a day, a start and an end, the way people say it — not a datetime
@@ -15,8 +18,10 @@ import type { EventFormValues } from "../../schemas";
  */
 const field = "input h-9 w-full";
 
-export function WhenStep() {
+export function WhenStep({ withAgenda = false }: { withAgenda?: boolean } = {}) {
   const form = useFormContext<EventFormValues>();
+  const ai = useAiFilled();
+  const timed = ai.has("event_datetime") || ai.has("duration");
   const start = form.watch("event_datetime") ?? "";
   const duration = form.watch("duration");
   const regStart = form.watch("reg_startdate") ?? "";
@@ -45,10 +50,13 @@ export function WhenStep() {
         control={form.control}
         name="event_datetime"
         render={() => (
-          <FormItem>
+          <FormItem className={aiFilledClass(timed)}>
             <div className="grid gap-3 sm:grid-cols-[1.3fr_1fr_1fr]">
               <div>
-                <FormLabel htmlFor="ev-date">Day</FormLabel>
+                <FormLabel htmlFor="ev-date">
+                  Day
+                  <AiFilledTag on={timed} />
+                </FormLabel>
                 <FormControl>
                   <input id="ev-date" type="date" className={cn(field, "mt-2")} value={date} onChange={(e) => setStart(e.target.value, time || "17:00")} />
                 </FormControl>
@@ -125,6 +133,8 @@ export function WhenStep() {
           </div>
         ) : null}
       </div>
+
+      {withAgenda ? <AgendaField /> : null}
     </div>
   );
 }

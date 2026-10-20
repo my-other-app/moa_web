@@ -9,7 +9,7 @@ import { ENTITLEMENTS_KEY } from "@/features/billing/queries";
 import { toastError } from "@/features/plan/errors";
 import { skippedNotice } from "@/features/plan/schemas";
 
-import { createEvent, deleteEvent, fetchCategories, fetchEvent, publishEvent, updateEvent, duplicateEvent, type DuplicateInput } from "./api";
+import { createEvent, deleteEvent, fetchCategories, fetchEvent, publishEvent, saveDraftAgenda, updateEvent, duplicateEvent, type DuplicateInput } from "./api";
 import type { EventFormParsed } from "./schemas";
 
 export function useEventCategories() {
@@ -31,9 +31,15 @@ export function useEvent(eventId: number | undefined) {
 export function useCreateEvent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ values, status }: { values: EventFormParsed; status: "draft" | "published" }) => createEvent(values, status),
-    onSuccess: async (_made, { status }) => {
+    mutationFn: async ({ values, status }: { values: EventFormParsed; status: "draft" | "published" }) => {
+      const made = await createEvent(values, status);
+      // The running order goes to the agenda once there is an event to hang it on.
+      const agenda = await saveDraftAgenda(made.id, values.event_datetime, values.agenda);
+      return { ...made, agenda };
+    },
+    onSuccess: async (made, { status }) => {
       toast.success(status === "draft" ? "Saved as a draft" : "Event published");
+      if (made.agenda.failed > 0) toast.warning(`The event is saved, but ${made.agenda.failed === 1 ? "one agenda block wasn't" : `${made.agenda.failed} agenda blocks weren't`}. Add ${made.agenda.failed === 1 ? "it" : "them"} on the event's Agenda tab.`);
       // The month's count of events moved.
       void queryClient.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
       await queryClient.invalidateQueries({ queryKey: qk.events.all });

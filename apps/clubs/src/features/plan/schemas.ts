@@ -36,6 +36,7 @@ export const GATED_FEATURES = [
   "rounds",
   "finance",
   "custom_domain",
+  "ai_assist",
   "mcp",
 ] as const;
 export type GatedFeature = (typeof GATED_FEATURES)[number];
@@ -63,14 +64,16 @@ export const FEATURE_LABEL: Record<GatedFeature, string> = {
   rounds: "Competition rounds",
   finance: "Finance and expenses",
   custom_domain: "Your own domain for the club website",
+  ai_assist: "AI assist",
   mcp: "Connecting AI assistants",
 };
 
 /**
  * The cheapest plan that has each flag, as the backend seeds them
  * (migrations/club_plans.py). Only a fallback: the live catalogue says.
+ * AI assist has none: until the catalogue lists it, its lock names no plan.
  */
-const FALLBACK_TIER: Record<GatedFeature, { key: string; name: string }> = {
+const FALLBACK_TIER: Partial<Record<GatedFeature, { key: string; name: string }>> = {
   tickets: { key: "starter", name: "Starter" },
   website: { key: "starter", name: "Starter" },
   quiz: { key: "growth", name: "Growth" },
@@ -88,6 +91,8 @@ const FALLBACK_TIER: Record<GatedFeature, { key: string; name: string }> = {
   rounds: { key: "pro", name: "Pro" },
   finance: { key: "campus", name: "Campus" },
   custom_domain: { key: "growth", name: "Growth" },
+  // plan_features.ai_assist: Starter and up (the backend's ai_assist migration).
+  ai_assist: { key: "starter", name: "Starter" },
   // plan_features.mcp: Growth, Pro, Campus and Enterprise (docs/MCP.md).
   mcp: { key: "growth", name: "Growth" },
 };

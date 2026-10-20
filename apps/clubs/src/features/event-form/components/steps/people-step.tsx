@@ -4,6 +4,8 @@ import { useFieldArray, useFormContext } from "react-hook-form";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, InitialsAvatar, Textarea, cn } from "@moa/ui";
 
+import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
+
 import { SPEAKER_BIO_MAX, type EventFormValues } from "../../schemas";
 
 /**
@@ -14,12 +16,16 @@ import { SPEAKER_BIO_MAX, type EventFormValues } from "../../schemas";
 export function PeopleStep() {
   const form = useFormContext<EventFormValues>();
   const speakers = useFieldArray({ control: form.control, name: "speakers" });
+  const ai = useAiFilled();
   return (
     <div className="grid gap-6">
-      <div>
+      <div className={aiFilledClass(ai.has("speakers"))}>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-ink text-[13.5px] font-medium">Speakers and mentors</p>
+            <p className="text-ink text-[13.5px] font-medium">
+              Speakers and mentors
+              <AiFilledTag on={ai.has("speakers")} />
+            </p>
             <p className="text-ink-3 text-[12px]">Shown on the event page with their photo. Skip it for a members-only night.</p>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => speakers.append({ name: "", designation: "", bio: "", link: "" })}>

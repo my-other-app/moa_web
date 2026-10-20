@@ -3,6 +3,7 @@
 import { useFormContext } from "react-hook-form";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, Textarea } from "@moa/ui";
 
+import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
 import { TopicPicker } from "@/features/topics";
 
 import type { EventFormValues } from "../../schemas";
@@ -14,14 +15,18 @@ import type { EventFormValues } from "../../schemas";
  */
 export function ReachStep() {
   const form = useFormContext<EventFormValues>();
+  const ai = useAiFilled();
   return (
     <div className="grid gap-6">
       <FormField
         control={form.control}
         name="interest_ids"
         render={({ field }) => (
-          <FormItem>
-            <FormLabel>Interests</FormLabel>
+          <FormItem className={aiFilledClass(ai.has("interest_ids"))}>
+            <FormLabel>
+              Interests
+              <AiFilledTag on={ai.has("interest_ids")} />
+            </FormLabel>
             <FormDescription>Students who follow an interest see this event in their feed, and it is listed under that interest&apos;s topic. Pick the two or three it is really about.</FormDescription>
             <FormControl>
               <TopicPicker
@@ -55,8 +60,11 @@ export function ReachStep() {
           control={form.control}
           name="event_guidelines"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Rules and what to bring</FormLabel>
+            <FormItem className={aiFilledClass(ai.has("event_guidelines"))}>
+              <FormLabel>
+                Rules and what to bring
+                <AiFilledTag on={ai.has("event_guidelines")} />
+              </FormLabel>
               <FormControl>
                 <Textarea {...field} value={field.value ?? ""} rows={4} placeholder="Teams of up to four. Bring a laptop and a charger. College ID at the door." />
               </FormControl>
