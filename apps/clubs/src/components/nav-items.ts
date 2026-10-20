@@ -12,6 +12,7 @@ import {
   MessagesSquareIcon,
   PaletteIcon,
   ShieldCheckIcon,
+  ShoppingBagIcon,
   UsersIcon,
   WalletIcon,
   type LucideIcon,
@@ -59,6 +60,8 @@ export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
 export const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboardIcon, exact: true },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
+  // The club's catalogue: items made once and offered on any event, which share their stock.
+  { href: "/merchandise", label: "Merchandise", icon: ShoppingBagIcon, needs: "edit_events", feature: "merch" },
   { href: "/followers", label: "Followers", icon: UsersIcon, needs: "edit_events" },
   { href: "/threads", label: "Threads", icon: MessagesSquareIcon, needs: "edit_events" },
   { href: "/announcements", label: "Announcements", icon: BellIcon, needs: "edit_events" },

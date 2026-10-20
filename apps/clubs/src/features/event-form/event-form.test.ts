@@ -54,6 +54,16 @@ describe("toEventFormData — wire format", () => {
     expect(fd.get("is_online")).toBe("false");
   });
 
+  it("sends the club's items the event sells as a JSON list, only with merchandise on and the list known", () => {
+    expect(toEventFormData(parse({ merch_enabled: true, store_item_ids: ["b", "a"] })).get("store_item_ids")).toBe('["b","a"]');
+    expect(toEventFormData(parse({ merch_enabled: true, store_item_ids: [] })).get("store_item_ids")).toBe("[]");
+    // Off: the choice is kept for when it comes back on.
+    expect(toEventFormData(parse({ merch_enabled: false, store_item_ids: ["a"] })).get("store_item_ids")).toBeNull();
+    // Unknown (an edit that could not read the offers): nothing, so they stay as they are.
+    expect(toEventFormData(parse({ merch_enabled: true })).get("store_item_ids")).toBeNull();
+    expect(toEventFormData(parse({ merch_enabled: true })).get("merch_enabled")).toBe("true");
+  });
+
   it("omits optional numbers rather than sending empty strings", () => {
     // FastAPI's Optional[float] = Form(None) rejects "" with a 422.
     const fd = toEventFormData(parse());

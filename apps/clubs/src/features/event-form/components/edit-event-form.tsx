@@ -4,6 +4,8 @@ import { AlertTriangleIcon } from "lucide-react";
 import { ApiError } from "@moa/api";
 import { Card, CardContent, Skeleton } from "@moa/ui";
 
+import { useEventOffers } from "@/features/catalogue";
+
 import { useEvent } from "../queries";
 import { eventDetailToFormValues } from "../mapper";
 import { EventForm, type EventFormContext } from "./event-form";
@@ -20,8 +22,12 @@ function contextOf(raw: unknown): EventFormContext {
 
 export function EditEventForm({ eventId }: { eventId: number }) {
   const { data, isPending, isError, error } = useEvent(eventId);
+  // Which of the club's items it sells, ticked in the form. Waited for, so
+  // the ticks are the form's starting point rather than an edit; when it
+  // cannot be read the form opens anyway and leaves them as they are.
+  const offers = useEventOffers(eventId);
 
-  if (isPending) {
+  if (isPending || offers.isLoading) {
     return (
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <Skeleton className="h-[40rem] w-full rounded-2xl" />
@@ -46,7 +52,7 @@ export function EditEventForm({ eventId }: { eventId: number }) {
 
   let defaultValues;
   try {
-    defaultValues = eventDetailToFormValues(data);
+    defaultValues = { ...eventDetailToFormValues(data), store_item_ids: offers.data?.item_ids };
   } catch {
     // A shape the mapper cannot read is better surfaced than half-filled: a
     // partially populated form would silently blank fields on save.
