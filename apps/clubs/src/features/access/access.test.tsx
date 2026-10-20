@@ -48,9 +48,9 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         calls.push({ method: "POST", path, body });
         if (path.endsWith("/clubs/access/invite")) {
           const b = body as { email: string; role: string };
-          return { member: { ...invited, id: 9, email: b.email, role: b.role, role_label: "Admin", invite_expired: false }, invite_url: "https://clubs-next.myotherapp.in/join?token=abc" };
+          return { member: { ...invited, id: 9, email: b.email, role: b.role, role_label: "Admin", invite_expired: false }, invite_url: "https://club-dashboard.myotherapp.in/join?token=abc" };
         }
-        if (path.endsWith("/resend")) return { member: invited, invite_url: "https://clubs-next.myotherapp.in/join?token=fresh" };
+        if (path.endsWith("/resend")) return { member: invited, invite_url: "https://club-dashboard.myotherapp.in/join?token=fresh" };
         if (path.endsWith("/accept")) return { email: "new@example.com", club_name: "Circuit Society" };
         throw new Error(`unstubbed POST ${path}`);
       }),
@@ -96,7 +96,7 @@ describe("the access page", () => {
     fireEvent.click(within(dialog).getByRole("radio", { name: /Admin/ }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Send invite" }));
     await waitFor(() => expect(calls.find((c) => c.path.endsWith("/clubs/access/invite"))).toMatchObject({ body: { email: "lead@example.com", role: "admin" } }));
-    expect(await within(dialog).findByText("https://clubs-next.myotherapp.in/join?token=abc")).toBeInTheDocument();
+    expect(await within(dialog).findByText("https://club-dashboard.myotherapp.in/join?token=abc")).toBeInTheDocument();
   });
 
   it("changes a role, resends an invite, and asks before taking access away", async () => {
@@ -105,7 +105,7 @@ describe("the access page", () => {
     await waitFor(() => expect(calls.find((c) => c.method === "PATCH")).toMatchObject({ path: "/api/v1/clubs/access/7", body: { role: "door" } }));
 
     fireEvent.click(screen.getByRole("button", { name: /Resend/ }));
-    expect(await screen.findByText("https://clubs-next.myotherapp.in/join?token=fresh")).toBeInTheDocument();
+    expect(await screen.findByText("https://club-dashboard.myotherapp.in/join?token=fresh")).toBeInTheDocument();
 
     const remove = screen.getAllByRole("button", { name: /Remove/ })[0]!;
     fireEvent.click(remove);

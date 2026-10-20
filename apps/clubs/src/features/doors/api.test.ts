@@ -9,7 +9,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
   const record = (method: string) => async (path: string, body?: unknown, options?: unknown) => {
     calls.push({ method, path, body, options });
     if (path.endsWith("/team") || path.includes("/team/")) return team;
-    if (path.endsWith("/link")) return { url: "https://clubs-next.myotherapp.in/gate/42?key=abc", key: "abc", door_id: "d1", expires_at: null, can_walkup: true };
+    if (path.endsWith("/link")) return { url: "https://club-dashboard.myotherapp.in/gate/42?key=abc", key: "abc", door_id: "d1", expires_at: null, can_walkup: true };
     if (path.endsWith("/gate-settings")) return team.settings;
     if (path.endsWith("/check-ins")) return { items: [], total: 0, page: 1, page_size: 50, facets: { total: 0, doors: [], methods: [], staff: [], first_at: null, last_at: null } };
     if (method === "DELETE") return {};
