@@ -18,6 +18,7 @@ import { IconToggle, Notice } from "@moa/ui";
 
 import { useLogin } from "../queries";
 import { loginSchema, type LoginInput } from "../schemas";
+import { safeNext } from "../next";
 
 /**
  * The codes /auth/token refuses with when the answer is not "wrong
@@ -73,13 +74,11 @@ export function LoginForm({
       await login.mutateAsync(
         step === "code" ? { ...values, totp_code: code.trim() } : values
       );
-      // `next` is validated below before use: an open redirect here would let
-      // a crafted link bounce an admin to an attacker's page after a genuine
-      // sign-in.
-      const next = searchParams.get("next");
-      const safeNext =
-        next && next.startsWith("/") && !next.startsWith("//") ? next : redirectTo;
-      router.replace(safeNext);
+      // `next` is checked before use: an open redirect here would let a
+      // crafted link bounce an admin to an attacker's page after a genuine
+      // sign-in (safeNext also refuses `/\evil.com`, which browsers read as
+      // another site).
+      router.replace(safeNext(searchParams.get("next"), redirectTo));
       router.refresh();
     } catch (error) {
       if (!(error instanceof ApiError)) {

@@ -17,7 +17,7 @@ const RULES: { test: (path: string) => boolean; needs: Cap; what: string }[] = [
   { test: (p) => /^\/(followers|threads|announcements|emails|links|website|templates|merchandise)(\/|$)/.test(p), needs: "edit_events", what: "this page" },
 ];
 
-export function blockedBy(path: string, can: Record<Cap, boolean>) {
+export function blockedBy(path: string, can: Partial<Record<Cap, boolean>>) {
   return RULES.find((r) => r.test(path) && !can[r.needs]) ?? null;
 }
 

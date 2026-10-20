@@ -37,15 +37,22 @@ export const accessListSchema = z.object({
 });
 export type AccessList = z.infer<typeof accessListSchema>;
 
-export const capsSchema = z.object({
-  manage_access: z.boolean(),
-  see_access: z.boolean(),
-  money: z.boolean(),
-  club_profile: z.boolean(),
-  edit_events: z.boolean(),
-  delete_events: z.boolean(),
-  door: z.boolean(),
-});
+export const capsSchema = z
+  .object({
+    manage_access: z.boolean(),
+    see_access: z.boolean(),
+    money: z.boolean(),
+    club_profile: z.boolean(),
+    edit_events: z.boolean(),
+    delete_events: z.boolean(),
+    door: z.boolean(),
+    /** Every connected AI assistant, not only one's own (owner and admin). */
+    connected_apps: z.boolean().optional(),
+    /** Approving what an assistant asked for: publishing, sending (owner, admin, editor). */
+    approve_actions: z.boolean().optional(),
+  })
+  // A server from before connected assistants does not send the last two: they follow the roles they mirror.
+  .transform((c) => ({ ...c, connected_apps: c.connected_apps ?? c.see_access, approve_actions: c.approve_actions ?? c.edit_events }));
 export type Caps = z.infer<typeof capsSchema>;
 export type Cap = keyof Caps;
 
@@ -89,6 +96,8 @@ export const OWNER_CAN: Caps = {
   edit_events: true,
   delete_events: true,
   door: true,
+  connected_apps: true,
+  approve_actions: true,
 };
 
 export const MIN_PASSWORD = 8;
