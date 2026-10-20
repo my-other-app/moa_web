@@ -61,4 +61,4 @@ export const RESULTS: Record<string, { label: string; tone: "admit" | "caution" 
 };
 export const resultOf = (r: string) => RESULTS[r] ?? { label: r.replace(/_/g, " "), tone: "neutral" as const, failed: false };
 
-export const METHODS: Record<string, string> = { password: "Password", google: "Google", apple: "Apple" };
+export const METHODS: Record<string, string> = { password: "Password", google: "Google", apple: "Apple", mcp: "Connected an AI assistant" };

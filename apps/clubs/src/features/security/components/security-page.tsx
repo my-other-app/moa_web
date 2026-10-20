@@ -10,6 +10,7 @@ import { CardLabel, Chip, EmptyState, FigurePanel, ProgressBar, Skeleton, StatTi
 
 import { MemberAccount, useMyAccess } from "@/features/access";
 import { changePasswordSchema, useChangePassword, type ChangePasswordForm } from "@/features/club";
+import { ConnectedAppsSection } from "@/features/mcp";
 
 import { useDisableTwoFactor, useEnableTwoFactor, useNotifyNewDevice, useRevokeSession, useSecurity, useSignOutOthers, useStartTwoFactor } from "../queries";
 import { METHODS, resultOf, type ActiveSession, type SecurityOverview } from "../schemas";
@@ -340,7 +341,14 @@ function HistoryPanel({ s }: { s: SecurityOverview }) {
 
 export function SecurityPage() {
   const me = useMyAccess().data;
-  if (me?.member) return <MemberAccount me={{ ...me, member: me.member }} />;
+  if (me?.member)
+    return (
+      <div className="flex flex-col gap-6">
+        <MemberAccount me={{ ...me, member: me.member }} />
+        {/* A member sees the assistants they connected; the server decides which. */}
+        <ConnectedAppsSection />
+      </div>
+    );
   return <ClubSecurity />;
 }
 
@@ -402,6 +410,7 @@ function ClubSecurity() {
               <PlacesCard s={s} />
             </div>
           </div>
+          <ConnectedAppsSection />
           <HistoryPanel s={s} />
         </>
       )}
