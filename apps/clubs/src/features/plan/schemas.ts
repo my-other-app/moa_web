@@ -36,6 +36,7 @@ export const GATED_FEATURES = [
   "rounds",
   "finance",
   "custom_domain",
+  "mcp",
 ] as const;
 export type GatedFeature = (typeof GATED_FEATURES)[number];
 export type PlanFeature = GatedFeature | (typeof ALWAYS_ON)[number];
@@ -62,6 +63,7 @@ export const FEATURE_LABEL: Record<GatedFeature, string> = {
   rounds: "Competition rounds",
   finance: "Finance and expenses",
   custom_domain: "Your own domain for the club website",
+  mcp: "Connecting AI assistants",
 };
 
 /**
@@ -86,6 +88,8 @@ const FALLBACK_TIER: Record<GatedFeature, { key: string; name: string }> = {
   rounds: { key: "pro", name: "Pro" },
   finance: { key: "campus", name: "Campus" },
   custom_domain: { key: "growth", name: "Growth" },
+  // plan_features.mcp: Growth, Pro, Campus and Enterprise (docs/MCP.md).
+  mcp: { key: "growth", name: "Growth" },
 };
 
 /** The limits the server holds a club to. Storage, ticket types and coupons are not among them. */
