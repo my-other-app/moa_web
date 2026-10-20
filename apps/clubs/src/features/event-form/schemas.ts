@@ -102,6 +102,12 @@ export const eventFormSchema = z
     max_participants: z.coerce.number().int().positive().optional(),
     /** Sell merchandise at registration, paid with the ticket. */
     merch_enabled: z.boolean().default(false),
+    /**
+     * Which of the club's items it sells, in the order they were ticked.
+     * Undefined while editing when the event's offers could not be read:
+     * then nothing is sent, and what the event offers stays as it is.
+     */
+    store_item_ids: z.array(z.string()).optional(),
     /** Free giveaways counted out at the door. */
     swag_enabled: z.boolean().default(false),
 

@@ -29,6 +29,12 @@ import type { EventFormParsed } from "./schemas";
  *   clear_point        "true" to drop the club's own pin: Remove pin, a
  *                      pasted map link replacing it, or an online event.
  *   booleans           sent as "true"/"false".
+ *   store_item_ids     JSON array string of the club's items the event
+ *                      sells, in the order ticked. Sent only with
+ *                      merch_enabled on and the list known: switching
+ *                      merchandise off leaves the choice for when it comes
+ *                      back on, and an edit that could not read the offers
+ *                      must not wipe them.
  *
  * Optional fields are omitted entirely rather than sent empty: FastAPI's
  * Optional[float] = Form(None) rejects "" with a validation error.
@@ -59,6 +65,7 @@ export function toEventFormData(values: EventFormParsed, status?: "draft" | "pub
   fd.append("has_fee", String(values.has_fee));
   fd.append("has_prize", String(values.has_prize));
   fd.append("merch_enabled", String(values.merch_enabled));
+  if (values.merch_enabled && values.store_item_ids) fd.append("store_item_ids", JSON.stringify(values.store_item_ids));
   fd.append("swag_enabled", String(values.swag_enabled));
 
   put("location_name", values.is_online ? undefined : values.location_name);

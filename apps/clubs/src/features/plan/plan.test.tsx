@@ -427,8 +427,9 @@ describe("the fee toggle", () => {
     expect(screen.getByLabelText("has fee")).toHaveTextContent("false");
     fireEvent.click(feeSwitch());
     expect(screen.getByLabelText("has fee")).toHaveTextContent("true");
-    fireEvent.click(screen.getByRole("switch", { name: "Merchandise for sale" }));
-    expect(screen.getByRole("switch", { name: "Merchandise for sale" })).toBeChecked();
+    // Merchandise is a check mark rather than a switch, and as open.
+    fireEvent.click(screen.getByRole("checkbox", { name: "Merchandise for sale" }));
+    expect(screen.getByRole("checkbox", { name: "Merchandise for sale" })).toBeChecked();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 

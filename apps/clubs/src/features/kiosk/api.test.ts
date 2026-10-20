@@ -10,7 +10,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
   const record = (method: string) => async (path: string, body?: unknown) => {
     calls.push({ method, path, body });
     if (path.endsWith("/settings")) return settings;
-    if (method === "POST") return { device, token: "kiosk_jTCuFSxxxxxxxxxxxxxxxxxxxxxxxxxx", url: "https://clubs-next.myotherapp.in/kiosk?token=kiosk_jTCuFSxxxxxxxxxxxxxxxxxxxxxxxxxx" };
+    if (method === "POST") return { device, token: "kiosk_jTCuFSxxxxxxxxxxxxxxxxxxxxxxxxxx", url: "https://club-dashboard.myotherapp.in/kiosk?token=kiosk_jTCuFSxxxxxxxxxxxxxxxxxxxxxxxxxx" };
     if (method === "DELETE") return { ...device, revoked_at: "2026-10-11T01:00:00Z", active: false };
     return [device];
   };

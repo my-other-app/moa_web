@@ -4,10 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { CATALOGUE_KEY } from "@/features/catalogue";
 import { toastError } from "@/features/plan/errors";
 
-import { createStoreItem, deleteStoreItem, fetchStoreItems, fetchStoreOrders, fetchStoreSummary, handOverOrder, setStoreSettings, updateStoreItem } from "./api";
-import type { ItemForm } from "./schemas";
+import { fetchStoreItems, fetchStoreOrders, fetchStoreSummary, fulfilOrder, handOverOrder, removeFromEvent, setStoreSettings } from "./api";
+import type { OrderFilter } from "./schemas";
 
 const KEY = (eventId: number) => ["store", eventId] as const;
 
@@ -19,8 +20,8 @@ export function useStoreSummary(eventId: number) {
   return useQuery({ queryKey: [...KEY(eventId), "summary"], queryFn: () => fetchStoreSummary(eventId), staleTime: 10_000, refetchInterval: 60_000 });
 }
 
-export function useStoreOrders(eventId: number, params: { q?: string; page: number; page_size: number }) {
-  return useQuery({ queryKey: [...KEY(eventId), "orders", params.q ?? "", params.page, params.page_size], queryFn: () => fetchStoreOrders(eventId, params), staleTime: 10_000 });
+export function useStoreOrders(eventId: number, params: { q?: string; status?: OrderFilter; page: number; page_size: number }) {
+  return useQuery({ queryKey: [...KEY(eventId), "orders", params.q ?? "", params.status ?? "", params.page, params.page_size], queryFn: () => fetchStoreOrders(eventId, params), staleTime: 10_000 });
 }
 
 function useRefresh(eventId: number) {
@@ -44,34 +45,16 @@ export function useStoreSettings(eventId: number) {
   });
 }
 
-export function useCreateStoreItem(eventId: number) {
+export function useRemoveFromEvent(eventId: number) {
   const refresh = useRefresh(eventId);
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (form: ItemForm) => createStoreItem(eventId, form),
-    onSuccess: (item) => {
-      toast.success(`${item.name} is on the shelf`);
+    mutationFn: ({ id }: { id: string; name: string }) => removeFromEvent(eventId, id),
+    onSuccess: (_r, { name }) => {
+      toast.success(`${name} is no longer offered on this event`, { description: "It stays in your merchandise." });
       refresh();
-    },
-    onError: toastError,
-  });
-}
-
-export function useUpdateStoreItem(eventId: number) {
-  const refresh = useRefresh(eventId);
-  return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) => updateStoreItem(eventId, id, patch),
-    onSuccess: refresh,
-    onError: toastError,
-  });
-}
-
-export function useDeleteStoreItem(eventId: number) {
-  const refresh = useRefresh(eventId);
-  return useMutation({
-    mutationFn: (id: string) => deleteStoreItem(eventId, id),
-    onSuccess: () => {
-      toast.success("Taken off the shelf");
-      refresh();
+      // The catalogue says which events offer each item.
+      void queryClient.invalidateQueries({ queryKey: CATALOGUE_KEY });
     },
     onError: toastError,
   });
@@ -84,6 +67,21 @@ export function useHandOver(eventId: number) {
     onSuccess: (o) => {
       toast.success(o.handed_over_at ? `Handed over to ${o.guest}` : "Handover taken back");
       refresh();
+    },
+    onError: toastError,
+  });
+}
+
+/** Settles an oversold order (the server refuses while the pieces are still not there), then reads the orders again. */
+export function useFulfil(eventId: number) {
+  const refresh = useRefresh(eventId);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => fulfilOrder(eventId, orderId),
+    onSuccess: (o) => {
+      toast.success(`${o.guest}'s order is settled`, { description: "It is paid and ready to hand over." });
+      refresh();
+      void queryClient.invalidateQueries({ queryKey: CATALOGUE_KEY });
     },
     onError: toastError,
   });
