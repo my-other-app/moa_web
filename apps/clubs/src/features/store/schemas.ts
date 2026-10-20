@@ -1,37 +1,45 @@
 import { z } from "zod";
 
-export const ROLES = [
-  { value: "attendee", label: "Attendees" },
-  { value: "speaker", label: "Speakers & mentors" },
-  { value: "staff", label: "Volunteers" },
-] as const;
-export type Role = (typeof ROLES)[number]["value"];
-export const roleLabel = (r: string) => ROLES.find((x) => x.value === r)?.label ?? r;
+/**
+ * An event's Merchandise tab: the club's items this event offers, what they
+ * sold here, and the orders. The items themselves (price, stock, photo, who
+ * may buy) are the club's and are changed on the Merchandise page.
+ */
+export { ROLES, roleLabel, audienceLine, type Role } from "@/features/catalogue/schemas";
 
-export const variantSchema = z.object({ id: z.string(), label: z.string(), stock: z.number(), sold: z.number(), left: z.number() });
+export const variantSchema = z.object({ id: z.string(), label: z.string(), stock: z.number(), sold: z.number(), held: z.number().catch(0), left: z.number() });
 
+/**
+ * An item as this event sees it: `sold` and `earned` are this event's, and
+ * `left` is the club's, shared by every event that offers the item. The
+ * fields only the per-event shelf had are optional, for the club-level one.
+ */
 export const storeItemSchema = z.object({
   id: z.string(),
-  event_id: z.number(),
+  event_id: z.number().nullish(),
   name: z.string(),
-  description: z.string().nullable(),
-  photo_key: z.string().nullable(),
-  photo_url: z.string().nullable(),
-  price: z.number(),
+  description: z.string().nullish().transform((v) => v ?? null),
+  photo_key: z.string().nullish().transform((v) => v ?? null),
+  photo_url: z.string().nullish().transform((v) => v ?? null),
+  price: z.coerce.number(),
   stock: z.number().nullable(),
   sold: z.number(),
-  total: z.number(),
+  held: z.number().catch(0),
+  total: z.number().nullish(),
   left: z.number(),
-  earned: z.number(),
+  earned: z.coerce.number(),
   available_roles: z.array(z.string()).nullable(),
   free_roles: z.array(z.string()),
   on_sale: z.boolean(),
-  sold_out: z.boolean(),
-  sort_order: z.number(),
+  sold_out: z.boolean().optional(),
+  sort_order: z.number().catch(0),
   variants: z.array(variantSchema),
-  created_at: z.string(),
+  created_at: z.string().nullish(),
 });
 export type StoreItem = z.infer<typeof storeItemSchema>;
+
+/** Nothing left anywhere: of the item, or of every size. */
+export const isSoldOut = (item: StoreItem) => item.sold_out ?? (item.variants.length > 0 ? item.variants.every((v) => v.left <= 0) : item.left <= 0);
 
 export const lineSchema = z.object({ item_id: z.string(), item_name: z.string(), variant_label: z.string().nullable(), qty: z.number(), unit_price: z.number(), line_total: z.number(), is_free: z.boolean() });
 export const orderSchema = z.object({
@@ -39,6 +47,7 @@ export const orderSchema = z.object({
   registration_id: z.string(),
   guest: z.string(),
   ticket_id: z.string().nullable(),
+  /** pending | paid | cancelled | refunded | oversold */
   status: z.string(),
   total: z.number(),
   lines: z.array(lineSchema),
@@ -50,6 +59,19 @@ export const orderSchema = z.object({
 export type StoreOrder = z.infer<typeof orderSchema>;
 export const ordersPageSchema = z.object({ items: z.array(orderSchema), total: z.number(), page: z.number(), page_size: z.number() });
 
+/**
+ * The orders list's filter, as the server takes `status`. Oversold is an
+ * order paid for when its pieces had gone: it cannot be handed over until
+ * it is settled (stock raised, then `fulfil`) or refunded.
+ */
+export const ORDER_FILTERS = [
+  { value: "", label: "All" },
+  { value: "paid", label: "Paid" },
+  { value: "oversold", label: "Oversold" },
+  { value: "refunded", label: "Refunded" },
+] as const;
+export type OrderFilter = (typeof ORDER_FILTERS)[number]["value"];
+
 export const summarySchema = z.object({
   enabled: z.boolean(),
   items_total: z.number(),
@@ -60,31 +82,10 @@ export const summarySchema = z.object({
   revenue: z.number(),
   ticket_revenue: z.number(),
   to_hand_over: z.number(),
+  /** Paid for when the pieces had gone; settled by handing over after all, or refunded. */
+  oversold: z.number().catch(0),
   sizes: z.array(z.object({ label: z.string(), sold: z.number() })),
   sizes_item: z.string().nullable(),
   latest_orders: z.array(orderSchema),
 });
 export type StoreSummary = z.infer<typeof summarySchema>;
-
-export const itemFormSchema = z
-  .object({
-    name: z.string().trim().min(1, "Name the item").max(120),
-    price: z.coerce.number({ message: "Enter the price" }).min(0, "The price cannot be negative").max(99_999_999.99),
-    stock: z.union([z.literal(""), z.coerce.number().int().min(0, "Stock cannot be negative")]),
-    variants: z.string().trim(),
-    available_roles: z.array(z.string()),
-    free_roles: z.array(z.string()),
-  })
-  .superRefine((v, ctx) => {
-    const sizes = v.variants ? v.variants.split(",").map((s) => s.trim()).filter(Boolean) : [];
-    if (sizes.length === 0 && v.stock === "") ctx.addIssue({ code: "custom", path: ["stock"], message: "Give it a stock, or sizes with a stock each" });
-    if (sizes.length > 0 && new Set(sizes.map((s) => s.toLowerCase())).size !== sizes.length) ctx.addIssue({ code: "custom", path: ["variants"], message: "Two sizes have the same label" });
-  });
-export type ItemForm = z.infer<typeof itemFormSchema>;
-
-/** "All ticket types · free with Professional" → our roles, in the same spirit. */
-export function audienceLine(item: StoreItem): string {
-  const who = item.available_roles && item.available_roles.length > 0 ? `Only ${item.available_roles.map(roleLabel).join(", ")}` : "Everyone";
-  const free = item.free_roles.length > 0 ? ` · free for ${item.free_roles.map(roleLabel).join(", ")}` : "";
-  return who + free;
-}
