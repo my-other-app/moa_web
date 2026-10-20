@@ -20,6 +20,8 @@ import {
   cn,
 } from "@moa/ui";
 
+import { FeedbackSummaryCard } from "@/features/ai";
+
 import { useFeedback, useFeedbackMutations } from "../queries";
 import {
   DELAYS,
@@ -303,21 +305,25 @@ export function FeedbackPanel({ eventId }: { eventId: number }) {
           )}
         </div>
       </FigurePanel>
-      {f.results.responses > 0 ? (
-        <Results title="Results so far" r={f.results} />
-      ) : f.previous ? (
-        <Results
-          title={`Results from ${f.previous.event_name}`}
-          r={f.previous}
-          note="Last time, for the shape of things. This event's replies take over as they come."
-        />
-      ) : (
-        <Results
-          title="Results"
-          r={f.results}
-          note="Replies land here within minutes of the survey going out."
-        />
-      )}
+      <div className="flex min-w-0 flex-col gap-4">
+        {/* What the comments add up to, by AI; nothing at all while AI is off. */}
+        <FeedbackSummaryCard eventId={eventId} />
+        {f.results.responses > 0 ? (
+          <Results title="Results so far" r={f.results} />
+        ) : f.previous ? (
+          <Results
+            title={`Results from ${f.previous.event_name}`}
+            r={f.previous}
+            note="Last time, for the shape of things. This event's replies take over as they come."
+          />
+        ) : (
+          <Results
+            title="Results"
+            r={f.results}
+            note="Replies land here within minutes of the survey going out."
+          />
+        )}
+      </div>
     </div>
   );
 }

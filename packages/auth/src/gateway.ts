@@ -68,18 +68,23 @@ export function createGatewayHandlers(options: GatewayOptions) {
       if (!stripped.has(key.toLowerCase())) headers.set(key, value);
     });
 
-    // GET/HEAD must not carry a body, and duplex is required by undici when
-    // streaming one.
+    // GET/HEAD must not carry a body. Any other body is read in full and sent
+    // as bytes rather than streamed: Node's fetch answers a 401 to a request
+    // whose body was a stream with a network error ("expected non-null body
+    // source", the Fetch spec's retry-with-credentials step), so an API 401
+    // on a POST -- an AI key the provider rejected -- reached the browser as a
+    // bare 500. The bytes are unchanged (a multipart upload keeps its boundary
+    // in the forwarded Content-Type), and the platform caps the size anyway.
     const hasBody = !["GET", "HEAD"].includes(request.method);
+    const bytes = hasBody ? await request.arrayBuffer() : null;
 
     const upstream = await fetch(target, {
       method: request.method,
       headers,
-      body: hasBody ? request.body : undefined,
-      ...(hasBody ? { duplex: "half" } : {}),
+      body: bytes && bytes.byteLength > 0 ? bytes : undefined,
       redirect: "manual",
       cache: "no-store",
-    } as RequestInit);
+    });
 
     // Pass the response through, including Set-Cookie so login/refresh/logout
     // keep working. Headers.getSetCookie() preserves multiple cookies, which a

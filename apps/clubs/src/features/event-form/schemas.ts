@@ -18,6 +18,15 @@ export const FIELD_TYPES = [
 
 export type FieldType = (typeof FIELD_TYPES)[number];
 
+/** Turns a label into a stable snake_case key so organisers never type one. */
+export function questionKey(label: string): string {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+}
+
 /** A custom registration question — one entry of `additional_details`. */
 export const questionSchema = z
   .object({
@@ -64,6 +73,18 @@ export const speakerSchema = z.object({
   photo_url: z.string().nullish(),
   photoFile: z.instanceof(File).optional(),
 });
+
+/**
+ * One block of the running order, while the event is being made: a time on
+ * the event's day, what happens, and who leads it. Saved to the event's
+ * agenda once the event exists (the Agenda tab edits it from then on).
+ */
+export const agendaDraftItemSchema = z.object({
+  at: z.string().regex(/^\d{2}:\d{2}$/, "Pick a time"),
+  title: z.string().trim().min(1, "Say what happens").max(200),
+  by: z.string().trim().max(100).optional(),
+});
+export type AgendaDraftItem = z.infer<typeof agendaDraftItemSchema>;
 
 export const eventFormSchema = z
   .object({
@@ -119,6 +140,8 @@ export const eventFormSchema = z
     event_guidelines: z.string().trim().max(5000).optional(),
     additional_details: z.array(questionSchema).default([]),
     speakers: z.array(speakerSchema).default([]),
+    /** New events only; not part of the event's own form data. */
+    agenda: z.array(agendaDraftItemSchema).default([]),
   })
   .superRefine((value, ctx) => {
     refinePin(value, ctx);
