@@ -213,9 +213,9 @@ export function appHost(uri: string | null | undefined): string | null {
   }
 }
 
-/** Who connected it: "Eddie Editor (editor)", or "The club account". */
+/** Who connected it, after "Connected by": "Eddie Editor (editor)", or "the club account". */
 export function connectedByLabel(c: ConnectedApp["connected_by"]): string {
-  if (c.type === "owner") return "The club account";
+  if (c.type === "owner") return "the club account";
   const who = c.name || c.email || "A team member";
   return c.role ? `${who} (${ROLE_WORD[c.role] ?? c.role})` : who;
 }

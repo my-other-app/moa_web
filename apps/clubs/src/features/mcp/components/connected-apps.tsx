@@ -180,7 +180,7 @@ function AppRow({ app }: { app: ConnectedApp }) {
         {app.scopes.length ? (
           <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0" aria-label={`What ${app.app.name} may do`}>
             {app.scopes.map((s) => (
-              <li key={s.key} className="tag" title={s.key}>
+              <li key={s.key} className="border-line-soft bg-sunken text-ink-2 rounded-full border px-2.5 py-0.5 text-[12px]" title={s.key}>
                 {s.label}
               </li>
             ))}

@@ -222,6 +222,21 @@ function Request({ token, action: a }: { token: string; action: PendingAction })
   };
 
   const badge = STATUS_BADGE[a.status];
+  const refusedNotice = refused ? (
+    <Notice
+      tone={refused.plan ? "caution" : "refuse"}
+      tag={refused.plan ? "Plan" : "Not done"}
+      action={
+        refused.plan ? (
+          <Link href={upgradeHref(decide.error)} className="btn btn-secondary btn-sm">
+            See plans
+          </Link>
+        ) : null
+      }
+    >
+      {refused.text}
+    </Notice>
+  ) : null;
   // The refusal notice is an alert of its own; this only says the wait.
   const live = decide.isPending ? (choice === "confirm" ? "Approving…" : "Turning it down…") : "";
 
@@ -230,13 +245,16 @@ function Request({ token, action: a }: { token: string; action: PendingAction })
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="bg-brand-soft text-brand inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium">
-            <BotIcon className="size-3.5" aria-hidden="true" /> {a.requested.app} is asking
+            <BotIcon className="size-3.5" aria-hidden="true" /> {pending ? `${a.requested.app} is asking` : `From ${a.requested.app}`}
           </span>
           <StatusBadge label={badge.label} tone={badge.tone} />
         </div>
         <h1 className="text-ink m-0 text-[24px] leading-[1.2] font-semibold tracking-[-0.02em] text-balance sm:text-[28px]">{a.title}</h1>
         {pending ? <p className="text-ink-2 m-0 text-[15px] leading-[1.5]">{askLine(a)}</p> : null}
       </div>
+
+      {/* Decided, expired or replaced: what became of it comes first, then what it was about. */}
+      {!pending ? <Outcome a={a} headingRef={outcomeRef} /> : null}
 
       {a.target?.type === "event" ? <EventCard event={a.target} /> : a.target?.type === "announcement" ? <AnnouncementCard note={a.target} /> : <GoneCard kind={a.kind} />}
 
@@ -256,36 +274,26 @@ function Request({ token, action: a }: { token: string; action: PendingAction })
 
       <RequestFacts a={a} />
 
-      {!pending ? (
-        <Outcome a={a} headingRef={outcomeRef} />
-      ) : !a.can_decide ? (
+      {pending && !a.can_decide ? (
         <Notice tone="neutral" tag="Can't decide">
           {a.cannot_decide_reason ?? "You can't approve this one. Ask an admin or the club's owner."}
         </Notice>
       ) : null}
 
-      {refused ? (
-        <Notice
-          tone={refused.plan ? "caution" : "refuse"}
-          tag={refused.plan ? "Plan" : "Not done"}
-          action={
-            refused.plan ? (
-              <Link href={upgradeHref(decide.error)} className="btn btn-secondary btn-sm">
-                See plans
-              </Link>
-            ) : null
-          }
-        >
-          {refused.text}
-        </Notice>
-      ) : null}
+      {/* With the buttons gone, the refusal says why here; with them, it sits on their bar (below). */}
+      {refused && !showButtons ? refusedNotice : null}
 
       <p className="sr-only" role="status" aria-live="polite">
         {live}
       </p>
 
+      {/* Room under the content for the phone's bar when it carries a refusal too. */}
+      {showButtons && refused ? <div aria-hidden="true" className="h-36 sm:hidden" /> : null}
+
       {showButtons ? (
         <div className="border-line-soft bg-surface/95 fixed inset-x-0 bottom-0 z-20 border-t px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-sm sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+          {/* On a phone the bar is where the tap was: why it didn't go through shows right above the buttons. */}
+          {refused ? <div className="mx-auto mb-2.5 w-full max-w-[620px] sm:mb-3">{refusedNotice}</div> : null}
           <div className="mx-auto flex w-full max-w-[620px] gap-2.5 sm:justify-end">
             <button type="button" className="btn btn-secondary btn-lg flex-1 sm:flex-none" disabled={decide.isPending} onClick={() => go("reject")}>
               {decide.isPending && choice === "reject" ? <Loader2Icon className="size-4 animate-spin" /> : <XCircleIcon className="size-4" />} Turn down
@@ -330,7 +338,7 @@ function EventCard({ event: e }: { event: EventTarget }) {
   return (
     <FigurePanel className="overflow-hidden p-0" role="region" aria-label="The event">
       <div className="flex gap-4 p-4 sm:p-5">
-        <div className="bg-sunken relative aspect-[4/5] w-[84px] shrink-0 overflow-hidden rounded-xl sm:w-[112px]">
+        <div className="bg-sunken relative aspect-[4/5] w-[84px] shrink-0 self-start overflow-hidden rounded-xl sm:w-[112px]">
           {poster ? (
             <Image src={poster} alt={`Poster for ${e.name}`} fill sizes="112px" className="object-cover" unoptimized />
           ) : (

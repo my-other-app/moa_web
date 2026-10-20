@@ -83,7 +83,14 @@ const ANNOUNCEMENT_ACTION = {
 };
 
 const OWNER = { name: null, email: null, role: "owner" };
-const CONFIRMED_EVENT = { ...EVENT_ACTION, status: "confirmed", can_decide: false, target: { ...EVENT_ACTION.target, status: "published" }, decided: { at: "2026-10-20T02:00:00+05:30", by: OWNER }, result: { event_id: 2, status: "published", public_url: "https://myotherapp.in/events/draft-demo-day-39b0a7" } };
+const CONFIRMED_EVENT = {
+  ...EVENT_ACTION,
+  status: "confirmed",
+  can_decide: false,
+  target: { ...EVENT_ACTION.target, status: "published" },
+  decided: { at: "2026-10-20T02:00:00+05:30", by: OWNER },
+  result: { event_id: 2, status: "published", public_url: "https://myotherapp.in/events/draft-demo-day-39b0a7" },
+};
 const REJECTED_EVENT = { ...EVENT_ACTION, status: "rejected", can_decide: false, decided: { at: "2026-10-20T02:00:00+05:30", by: { name: "Asha Admin", email: "a@example.com", role: "admin" } } };
 
 type Answer = unknown | (() => unknown);
@@ -184,7 +191,11 @@ describe("a request waiting for approval", () => {
     expect(within(card).getByRole("link", { name: /Check the whole event/ })).toHaveAttribute("href", "/events/2");
 
     const effects = screen.getByRole("region", { name: "What approving does" });
-    expect(within(effects).getAllByRole("listitem").map((li) => li.textContent)).toEqual(EVENT_ACTION.effects);
+    expect(
+      within(effects)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(EVENT_ACTION.effects);
 
     expect(screen.getByText(/Claude, for Eddie Editor \(editor\)/)).toBeInTheDocument();
     expect(screen.getByText(/in 23 h/)).toBeInTheDocument();
@@ -243,8 +254,18 @@ describe("every other state", () => {
     ["rejected", REJECTED_EVENT, "Turned down", "Nothing was published"],
     ["expired", { ...EVENT_ACTION, status: "expired", expired: true, can_decide: false }, "This request expired", "Ask the assistant again"],
     ["superseded", { ...EVENT_ACTION, status: "superseded", can_decide: false }, "A newer request replaced this one", "Open the newest link"],
-    ["failed", { ...EVENT_ACTION, status: "failed", can_decide: false, result: { error: "EVENT_NOT_DRAFT", message: "The event is not a draft any more (it is published)." } }, "This couldn't be done", "The event is not a draft any more"],
-    ["disconnected", { ...ANNOUNCEMENT_ACTION, status: "rejected", can_decide: false, result: { reason: "app_disconnected" } }, "Turned down", "The app was disconnected, so its request was turned down."],
+    [
+      "failed",
+      { ...EVENT_ACTION, status: "failed", can_decide: false, result: { error: "EVENT_NOT_DRAFT", message: "The event is not a draft any more (it is published)." } },
+      "This couldn't be done",
+      "The event is not a draft any more",
+    ],
+    [
+      "disconnected",
+      { ...ANNOUNCEMENT_ACTION, status: "rejected", can_decide: false, result: { reason: "app_disconnected" } },
+      "Turned down",
+      "The app was disconnected, so its request was turned down.",
+    ],
   ])("shows %s", async (_name, action, title, line) => {
     state.get = action;
     page();
@@ -294,9 +315,9 @@ describe("when deciding is refused", () => {
     };
     page();
     fireEvent.click(await screen.findByRole("button", { name: /Approve/ }));
-    expect(await screen.findByText("Someone has already decided this one. Here is what happened.")).toBeInTheDocument();
     const done = await screen.findByRole("region", { name: "What happened" });
     expect(within(done).getByRole("heading", { name: "Approved" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Someone has already decided this one. Here is what happened.");
   });
 
   it("reloads an expired one (410 ACTION_EXPIRED)", async () => {
@@ -313,7 +334,8 @@ describe("when deciding is refused", () => {
 
   it("reloads one whose event changed, which failed (409 EVENT_NOT_DRAFT)", async () => {
     let failed = false;
-    state.get = () => (failed ? { ...EVENT_ACTION, status: "failed", can_decide: false, result: { error: "EVENT_NOT_DRAFT", message: "The event is not a draft any more (it is published)." } } : EVENT_ACTION);
+    state.get = () =>
+      failed ? { ...EVENT_ACTION, status: "failed", can_decide: false, result: { error: "EVENT_NOT_DRAFT", message: "The event is not a draft any more (it is published)." } } : EVENT_ACTION;
     state.confirm = () => {
       failed = true;
       return refusal(409, "EVENT_NOT_DRAFT", "The event is not a draft any more (it is published).");
@@ -326,7 +348,15 @@ describe("when deciding is refused", () => {
 
   it("explains the month's announcements are used up, and keeps the request waiting (403 PLAN_LIMIT_REACHED)", async () => {
     state.get = ANNOUNCEMENT_ACTION;
-    state.confirm = () => refusal(403, "PLAN_LIMIT_REACHED", "You've sent this month's announcements.", { limit: "announcements_per_month", limit_value: 4, used: 4, required_plan: "starter", required_plan_name: "Starter", upgrade_url: "https://club-dashboard.myotherapp.in/billing?plan=starter" });
+    state.confirm = () =>
+      refusal(403, "PLAN_LIMIT_REACHED", "You've sent this month's announcements.", {
+        limit: "announcements_per_month",
+        limit_value: 4,
+        used: 4,
+        required_plan: "starter",
+        required_plan_name: "Starter",
+        upgrade_url: "https://club-dashboard.myotherapp.in/billing?plan=starter",
+      });
     page();
     fireEvent.click(await screen.findByRole("button", { name: /Approve/ }));
     const alert = await screen.findByRole("alert");

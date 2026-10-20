@@ -42,16 +42,65 @@ const CURSOR = {
   pending_actions: 0,
 };
 
-const ACCESS_OWNER = { role: "owner", role_label: "Owner", role_description: "", can: { manage_access: true, see_access: true, money: true, club_profile: true, edit_events: true, delete_events: true, door: true, connected_apps: true, approve_actions: true }, club_id: 1, club_name: "Circuit Society", member: null };
-const MEMBER_ROW = { id: 7, email: "editor@example.com", full_name: "Eddie Editor", role: "editor", role_label: "Editor", status: "active", invite_expired: false, invited_at: null, accepted_at: null, last_seen_at: null };
-const ACCESS_EDITOR = { ...ACCESS_OWNER, role: "editor", role_label: "Editor", can: { ...ACCESS_OWNER.can, manage_access: false, see_access: false, money: false, club_profile: false, delete_events: false, connected_apps: false }, member: MEMBER_ROW };
+const ACCESS_OWNER = {
+  role: "owner",
+  role_label: "Owner",
+  role_description: "",
+  can: { manage_access: true, see_access: true, money: true, club_profile: true, edit_events: true, delete_events: true, door: true, connected_apps: true, approve_actions: true },
+  club_id: 1,
+  club_name: "Circuit Society",
+  member: null,
+};
+const MEMBER_ROW = {
+  id: 7,
+  email: "editor@example.com",
+  full_name: "Eddie Editor",
+  role: "editor",
+  role_label: "Editor",
+  status: "active",
+  invite_expired: false,
+  invited_at: null,
+  accepted_at: null,
+  last_seen_at: null,
+};
+const ACCESS_EDITOR = {
+  ...ACCESS_OWNER,
+  role: "editor",
+  role_label: "Editor",
+  can: { ...ACCESS_OWNER.can, manage_access: false, see_access: false, money: false, club_profile: false, delete_events: false, connected_apps: false },
+  member: MEMBER_ROW,
+};
 
 const CATALOG = {
   currency: "INR",
   yearly_months_free: 2,
   plans: [
-    { id: 1, key: "free", name: "Free", tagline: null, price_monthly_paise: 0, price_yearly_paise: 0, trial_days: 0, contact_sales: false, featured: false, limits: {}, features: [{ key: "mcp", label: "Connecting AI assistants", included: false }] },
-    { id: 2, key: "growth", name: "Growth", tagline: null, price_monthly_paise: 99900, price_yearly_paise: 999000, trial_days: 0, contact_sales: false, featured: true, limits: {}, features: [{ key: "mcp", label: "Connecting AI assistants", included: true }] },
+    {
+      id: 1,
+      key: "free",
+      name: "Free",
+      tagline: null,
+      price_monthly_paise: 0,
+      price_yearly_paise: 0,
+      trial_days: 0,
+      contact_sales: false,
+      featured: false,
+      limits: {},
+      features: [{ key: "mcp", label: "Connecting AI assistants", included: false }],
+    },
+    {
+      id: 2,
+      key: "growth",
+      name: "Growth",
+      tagline: null,
+      price_monthly_paise: 99900,
+      price_yearly_paise: 999000,
+      trial_days: 0,
+      contact_sales: false,
+      featured: true,
+      limits: {},
+      features: [{ key: "mcp", label: "Connecting AI assistants", included: true }],
+    },
   ],
 };
 const ENT_FREE = { plan_key: "free", plan_name: "Free", limits: {}, features: { mcp: false }, usage: {}, enforced: true, configured: true };
@@ -116,7 +165,7 @@ describe("Connected apps", () => {
     expect(claude).toHaveTextContent("1 request waiting");
     expect(claude).toHaveTextContent("Connected 3 h ago · Last used 2 min ago");
     const cursor = within(list).getByRole("region", { name: "Cursor" });
-    expect(cursor).toHaveTextContent("Connected by The club account");
+    expect(cursor).toHaveTextContent("Connected by the club account");
     expect(cursor).toHaveTextContent("Last used never");
     expect(cursor).not.toHaveTextContent("waiting");
     expect(screen.getByText(/AI assistants that can read your events and draft for you/)).toBeInTheDocument();
@@ -193,7 +242,7 @@ describe("Connected apps", () => {
     expect(appHost("https://www.chatgpt.com/x")).toBe("chatgpt.com");
     expect(appHost("cursor://callback")).toBeNull();
     expect(appHost(null)).toBeNull();
-    expect(connectedByLabel({ type: "owner" })).toBe("The club account");
+    expect(connectedByLabel({ type: "owner" })).toBe("the club account");
     expect(connectedByLabel({ type: "member", name: null, email: "d@x.in", role: "door" })).toBe("d@x.in (door team)");
   });
 });
