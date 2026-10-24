@@ -24,7 +24,22 @@ export {
   EVENT_TIMEZONE,
 } from "./format";
 export * from "./analytics";
-export { imageFieldSchema, namedRefSchema, pickImage, type ImageField } from "./image";
+export {
+  imageFieldSchema,
+  namedRefSchema,
+  pickImage,
+  pictureSchema,
+  profilePicturesSchema,
+  type ImageField,
+  type ProfilePictures,
+} from "./image";
+export {
+  PersonAvatar,
+  pictureUrls,
+  type Picture,
+  type PictureSize,
+  type PersonAvatarProps,
+} from "./components/person-avatar";
 export * from "./topics";
 export { useListParams, type ListParams } from "./hooks/use-list-params";
 export { useLocalPage } from "./hooks/use-local-page";
