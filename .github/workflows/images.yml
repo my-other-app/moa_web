@@ -1,0 +1,250 @@
+name: Images
+
+# Both dashboards as container images for the self-hosted Oracle box
+# (moa_backend: ops/server, docs/MOVE_TO_ORACLE.md), built for linux/amd64
+# and linux/arm64 from the one Dockerfile (APP=clubs | admin):
+#   ghcr.io/my-other-app/moa-clubs   club-dashboard.myotherapp.in
+#   ghcr.io/my-other-app/moa-admin   main-portal.myotherapp.in
+# tagged
+#   production  <sha>, <short sha>, latest            (deploy/build/<app>.production.env)
+#   staging     staging-<sha>, staging-<short sha>, staging   (deploy/build/<app>.staging.env)
+# NEXT_PUBLIC_* values are baked into the bundles, so each environment has
+# its own image; MOA_API_URL is read at run time. The Vercel deploys
+# (deploy.yml) are unaffected until the cutover.
+#
+# On a push to main it runs once the repository variable ORACLE_IMAGES is
+# "true" (after the build files are filled in), building production, and
+# staging too when STAGING_ENABLED is "true"; with AUTO_DEPLOY_STAGING
+# "true" as well, the staging box is then deployed. By hand (Run workflow) it
+# builds the chosen environment and can deploy it.
+#
+# Secrets (names only): SENTRY_AUTH_TOKEN (source maps, optional); for
+# deploys, on the production and staging Environments: ORACLE_SSH_HOST,
+# ORACLE_SSH_USER, ORACLE_SSH_KEY, ORACLE_SSH_KNOWN_HOSTS, and optionally
+# TS_OAUTH_CLIENT_ID and TS_OAUTH_SECRET (Tailscale).
+#
+# arm64 builds natively on GitHub's arm64 runners (free in public
+# repositories; in private ones since January 2026, against the plan's
+# minutes); the repository variable ARM64_RUNNER=qemu emulates it on x86.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Which images"
+        type: choice
+        options: [production, staging, both]
+        default: production
+      deploy:
+        description: "Then deploy both dashboards to that environment's box (not with both)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: images-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: github.event_name == 'workflow_dispatch' || vars.ORACLE_IMAGES == 'true'
+    runs-on: ubuntu-24.04
+    outputs:
+      environments: ${{ steps.plan.outputs.environments }}
+    steps:
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          CHOSEN: ${{ inputs.environment }}
+          STAGING: ${{ vars.STAGING_ENABLED }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            case "$CHOSEN" in
+              both) envs='["production","staging"]' ;;
+              staging) envs='["staging"]' ;;
+              *) envs='["production"]' ;;
+            esac
+          elif [ "$STAGING" = "true" ]; then
+            envs='["production","staging"]'
+          else
+            envs='["production"]'
+          fi
+          echo "environments=$envs" >> "$GITHUB_OUTPUT"
+          echo "Building: $envs"
+
+  # Typecheck and tests once, before anything is built for a box.
+  verify:
+    needs: plan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test
+
+  build:
+    name: build (${{ matrix.app }}, ${{ matrix.environment }}, ${{ matrix.arch }})
+    needs: [plan, verify]
+    strategy:
+      fail-fast: true
+      matrix:
+        app: [clubs, admin]
+        environment: ${{ fromJSON(needs.plan.outputs.environments) }}
+        arch: [amd64, arm64]
+    runs-on: ${{ (matrix.arch == 'arm64' && vars.ARM64_RUNNER != 'qemu') && (vars.ARM64_RUNNER || 'ubuntu-24.04-arm') || 'ubuntu-24.04' }}
+    timeout-minutes: 45
+    env:
+      IMAGE: ghcr.io/my-other-app/moa-${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the build values (deploy/build/${{ matrix.app }}.${{ matrix.environment }}.env)
+        env:
+          APP: ${{ matrix.app }}
+          ENVIRONMENT: ${{ matrix.environment }}
+        run: |
+          set -euo pipefail
+          file="deploy/build/$APP.$ENVIRONMENT.env"
+          [ -f "$file" ] || { echo "::error::$file is missing"; exit 1; }
+          if grep -nvE '^\s*(#.*)?$|^[A-Z_][A-Z0-9_]*=[^"'"'"']*$' "$file"; then
+            echo "::error::$file: every line must be KEY=value with no quotes (the lines above)"
+            exit 1
+          fi
+          if [ "$ENVIRONMENT" = "production" ]; then
+            for key in NEXT_PUBLIC_SENTRY_DSN $([ "$APP" = clubs ] && echo NEXT_PUBLIC_RAZORPAY_KEY_ID); do
+              grep -qE "^$key=.+" "$file" || echo "::warning::$file has no $key (Vercel's Production value, if it has one, is lost on this image)"
+            done
+          fi
+
+      - name: Emulate arm64
+        if: matrix.arch == 'arm64' && vars.ARM64_RUNNER == 'qemu'
+        uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          labels: |
+            org.opencontainers.image.title=moa-${{ matrix.app }}
+            org.opencontainers.image.description=MyOtherApp ${{ matrix.app }} dashboard (${{ matrix.environment }})
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP=${{ matrix.app }}
+            GIT_SHA=${{ github.sha }}
+            BUILD_ENVIRONMENT=${{ matrix.environment }}
+          secret-files: |
+            build_env=deploy/build/${{ matrix.app }}.${{ matrix.environment }}.env
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.app }}-${{ matrix.environment }}-${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ matrix.app }}-${{ matrix.environment }}-${{ matrix.arch }},mode=max
+          provenance: false
+
+      - name: Keep the digest for the publish job
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.app }}-${{ matrix.environment }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: publish (${{ matrix.app }}, ${{ matrix.environment }})
+    needs: [plan, build]
+    strategy:
+      matrix:
+        app: [clubs, admin]
+        environment: ${{ fromJSON(needs.plan.outputs.environments) }}
+    runs-on: ubuntu-24.04
+    env:
+      IMAGE: ghcr.io/my-other-app/moa-${{ matrix.app }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.app }}-${{ matrix.environment }}-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag both architectures as one image
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+        run: |
+          set -euo pipefail
+          prefix=""
+          [ "$ENVIRONMENT" = "staging" ] && prefix="staging-"
+          tags=(-t "$IMAGE:$prefix$GITHUB_SHA" -t "$IMAGE:$prefix${GITHUB_SHA::7}")
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            if [ "$ENVIRONMENT" = "staging" ]; then tags+=(-t "$IMAGE:staging"); else tags+=(-t "$IMAGE:latest"); fi
+          fi
+          sources=()
+          for digest in *; do sources+=("$IMAGE@sha256:$digest"); done
+          [ "${#sources[@]}" -eq 2 ] || { echo "::error::expected 2 digests (amd64, arm64), found ${#sources[@]}"; exit 1; }
+          docker buildx imagetools create "${tags[@]}" "${sources[@]}"
+          docker buildx imagetools inspect "$IMAGE:$prefix$GITHUB_SHA"
+          echo "### $IMAGE:$prefix${GITHUB_SHA::7} ($ENVIRONMENT, amd64 + arm64)" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: deploy ${{ matrix.app }} (${{ github.event_name == 'push' && 'staging' || inputs.environment }})
+    needs: publish
+    if: >-
+      (github.event_name == 'push' && vars.STAGING_ENABLED == 'true' && vars.AUTO_DEPLOY_STAGING == 'true') ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy && inputs.environment != 'both')
+    strategy:
+      max-parallel: 1
+      matrix:
+        app: [clubs, admin]
+    runs-on: ubuntu-24.04
+    environment: ${{ github.event_name == 'push' && 'staging' || inputs.environment }}
+    concurrency:
+      group: oracle-${{ github.event_name == 'push' && 'staging' || inputs.environment }}-${{ matrix.app }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/oracle-deploy
+        with:
+          command: deploy ${{ matrix.app }} ${{ (github.event_name == 'push' || inputs.environment == 'staging') && 'staging-' || '' }}${{ github.sha }}
+          host: ${{ secrets.ORACLE_SSH_HOST }}
+          user: ${{ secrets.ORACLE_SSH_USER }}
+          ssh-key: ${{ secrets.ORACLE_SSH_KEY }}
+          known-hosts: ${{ secrets.ORACLE_SSH_KNOWN_HOSTS }}
+          tailscale-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          tailscale-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
