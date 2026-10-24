@@ -4,6 +4,7 @@ export { SubscribersTab } from "./components/subscribers-tab";
 export { CompareTab } from "./components/compare-tab";
 export { GivePlanDialog, givablePlans } from "./components/give-plan-dialog";
 export { ClubPlanPanel } from "./components/club-plan-panel";
+export { EnterpriseTrialDialog, EndTrialDialog } from "./components/trial-dialogs";
 export { FreeBadge } from "./components/subscribers-tab";
 export {
   usePlans,
@@ -20,6 +21,8 @@ export {
   useRetryCharge,
   useExtendGrace,
   useCancelSubscription,
+  useGrantEnterpriseTrial,
+  useEndTrial,
 } from "./queries";
 export {
   planSchema,
@@ -42,6 +45,10 @@ export {
   GRACE_DAYS,
   freeBadgeText,
   freePlanNote,
+  runningTrial,
+  trialBadgeText,
+  trialDaysProblem,
+  ENTERPRISE_TRIAL_DAYS,
   givePlanProblems,
   givePlanPayload,
   givePlanSummary,

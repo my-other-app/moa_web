@@ -118,6 +118,20 @@ export async function assignPlan(input: { clubId: number; plan: GivePlanInput; c
   );
 }
 
+/**
+ * Lay Enterprise over a club for `days` (default 30) after a sales call.
+ * Nothing is charged and nothing the club has is touched; when it ends the
+ * club is back on what it had. Granting again sets a new end.
+ */
+export async function grantEnterpriseTrial(clubId: number, days: number) {
+  return subscriptionSchema.parse(await api.post(`/api/v1/admin/subscriptions/club/${clubId}/enterprise-trial`, { days }));
+}
+
+/** End a trial now: the Enterprise trial when one runs, else the free trial (409 NO_TRIAL when none). */
+export async function endTrial(clubId: number, trial?: "enterprise" | "free") {
+  return subscriptionSchema.parse(await api.post(`/api/v1/admin/subscriptions/club/${clubId}/end-trial`, trial ? { trial } : {}));
+}
+
 /** The 409 that asks whether to cancel the club's Razorpay subscription first. */
 export const LIVE_SUBSCRIPTION = "LIVE_SUBSCRIPTION";
 

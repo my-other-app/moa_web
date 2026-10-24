@@ -17,7 +17,9 @@ import {
   cancelSubscription,
   createPlan,
   duplicatePlan,
+  endTrial,
   extendGrace,
+  grantEnterpriseTrial,
   fetchClubSubscription,
   fetchPlan,
   fetchPlans,
@@ -226,5 +228,29 @@ export function useCancelSubscription() {
       await invalidate();
     },
     // The dialog shows the server's refusal itself, where the admin is looking.
+  });
+}
+
+export function useGrantEnterpriseTrial() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ clubId, days }: { clubId: number; days: number }) => grantEnterpriseTrial(clubId, days),
+    onSuccess: async (subscription) => {
+      const ends = subscription.enterprise_trial?.ends_at;
+      toast.success(`${subscription.club?.name ?? "The club"} is on an Enterprise trial${ends ? ` until ${formatDate(ends)}` : ""}`);
+      await invalidate();
+    },
+    // The dialog shows the server's refusal itself.
+  });
+}
+
+export function useEndTrial() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ clubId, trial }: { clubId: number; trial?: "enterprise" | "free" }) => endTrial(clubId, trial),
+    onSuccess: async (subscription, { trial }) => {
+      toast.success(`${subscription.club?.name ?? "The club"}'s ${trial === "free" ? "free" : "Enterprise"} trial has ended`);
+      await invalidate();
+    },
   });
 }
