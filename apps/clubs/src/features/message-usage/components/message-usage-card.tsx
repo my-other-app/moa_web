@@ -30,7 +30,10 @@ import {
  * On Billing (`variant="billing"`) it also lists the closed months; on the
  * overview it is the same card, its upgrade leading to Billing. Nothing is
  * shown on the overview when the answer cannot be had: the card is a
- * convenience there, never a reason for the page to look broken.
+ * convenience there, never a reason for the page to look broken. On a
+ * backend from before message quotas (the route answers a bare 404) it is
+ * shown on neither page: there is nothing to count yet, and it appears by
+ * itself once that backend is deployed.
  */
 export function MessageUsageCard({ variant = "overview" }: { variant?: "overview" | "billing" }) {
   const usage = useMessageUsage();
@@ -38,6 +41,8 @@ export function MessageUsageCard({ variant = "overview" }: { variant?: "overview
   const u = usage.data;
 
   if (usage.isPending) return <Skeleton className="h-[180px] rounded-2xl" />;
+  // null: the backend has no message quotas yet.
+  if (u === null) return null;
   if (usage.isError || !u) {
     return variant === "billing" ? (
       <FigurePanel className="p-4" role="region" aria-label="Messages this month">

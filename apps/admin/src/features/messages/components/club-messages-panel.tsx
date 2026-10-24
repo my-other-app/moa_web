@@ -40,6 +40,9 @@ export function ClubMessagesPanel({ clubId }: { clubId: number }) {
   const retry = useRetryStatement(clubId);
   const data = q.data;
 
+  // A backend from before message quotas: nothing to show, so no section at all.
+  if (data === null) return null;
+
   return (
     <section className="space-y-3" aria-label="Messages">
       <SectionTitle>Messages</SectionTitle>
