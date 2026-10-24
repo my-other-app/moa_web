@@ -10,6 +10,19 @@
         ".next/**",
         "!.next/cache/**",
         "dist/**"
+      ],
+      "env": [
+        "NEXT_PUBLIC_SENTRY_*",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_RELEASE",
+        "VERCEL_ENV",
+        "VERCEL_GIT_COMMIT_SHA",
+        "VERCEL_DEPLOYMENT_ID"
+      ],
+      "passThroughEnv": [
+        "SENTRY_AUTH_TOKEN",
+        "CI"
       ]
     },
     "dev": {

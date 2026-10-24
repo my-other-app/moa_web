@@ -1,5 +1,8 @@
 "use client";
 
+import * as React from "react";
+import * as Sentry from "@sentry/nextjs";
+
 /**
  * Last resort: a failure in the root layout itself, which `error.tsx` sits
  * inside and therefore cannot catch. It replaces the whole document, so it
@@ -13,6 +16,13 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  React.useEffect(() => {
+    // A server failure was reported where it happened (it carries a digest);
+    // only a failure in the browser is reported from here. A no-op when
+    // Sentry is off.
+    if (!error.digest) Sentry.captureException(error);
+  }, [error]);
+
   return (
     <html lang="en">
       <body

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { AlertTriangleIcon, RefreshCwIcon } from "lucide-react";
 import { Button } from "@moa/ui";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * What the admin sees when a server render fails.
@@ -23,10 +24,11 @@ export default function AdminError({
   reset: () => void;
 }) {
   React.useEffect(() => {
-    // No error tracking is wired up yet, so the browser console is the only
-    // place this is recoverable from. Replace with the reporter when there
-    // is one.
     console.error("Admin render failed", error);
+    // A server failure was reported where it happened (it carries a digest);
+    // only a failure in the browser is reported from here. A no-op when
+    // Sentry is off.
+    if (!error.digest) Sentry.captureException(error);
   }, [error]);
 
   return (

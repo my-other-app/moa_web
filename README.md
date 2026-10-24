@@ -8,6 +8,7 @@ apps/clubs        organiser dashboard (not built yet)
 packages/ui       design system — shadcn primitives + CVA variants
 packages/api      types generated from the API's OpenAPI schema, typed client
 packages/auth     BFF gateway + server-side session helpers
+packages/observability  Sentry options and the scrubbing of what is sent
 ```
 
 ## Running it locally
@@ -77,9 +78,50 @@ shape changes.
 tiers: volatile lists (30s), analytics (60s), reference data (10min). 4xx is
 never retried — retrying a 401 only delays the sign-in redirect.
 
+## Error tracking (Sentry)
+
+Both apps report to Sentry through `@sentry/nextjs` (pinned to 10.76.2, as
+on the public site), configured in `packages/observability`. It is **off
+unless `NEXT_PUBLIC_SENTRY_DSN` is set**: with no DSN, `next.config.ts` skips
+the Sentry wrapper and the runtime never calls `Sentry.init`, so nothing is
+patched or sent.
+
+Set these per Vercel project (`moa-clubs-next`, `moa-admin-next`), each with
+its own Sentry project:
+
+| Variable | When | What |
+|---|---|---|
+| `NEXT_PUBLIC_SENTRY_DSN` | runtime + build | The project's DSN. Empty means off. |
+| `SENTRY_AUTH_TOKEN` | build only, secret | Uploads source maps. |
+| `SENTRY_ORG` | build only | Sentry organisation slug. |
+| `SENTRY_PROJECT` | build only | Sentry project slug. |
+| `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | optional | 0–1; defaults to `0.05`. |
+| `NEXT_PUBLIC_SENTRY_ENVIRONMENT` | optional | Defaults to `VERCEL_ENV` (production / preview). |
+| `SENTRY_RELEASE` | optional | Defaults to `moa-clubs@<commit>` / `moa-admin@<commit>`. |
+
+Source maps are uploaded only when the token, org and project are all set,
+and are deleted from the build afterwards, so they are never served.
+
+What is sent, and what is not:
+
+- **No personal data.** No cookies, no `Authorization` or other headers
+  beyond content type, length and user agent, no request or response bodies,
+  no user fields or IP, no query parameters, no stack-frame variables. Emails
+  and phone numbers are masked in breadcrumbs, messages and exceptions.
+- **No credentials from links.** The door key on `/gate/{id}?key=`, the
+  tokens on `/kiosk?token=`, `/join?token=` and `/impersonate?token=`, and
+  the token segment of `/s/{token}` and `/confirm/{token}` are filtered out
+  of every URL before it leaves (`packages/observability/src/scrub.ts`).
+- **No session replay**, and the browser adds no trace headers to requests.
+- **Gateway:** an upstream 5xx through `/api/gateway` is reported, grouped
+  by endpoint; a 4xx is the API answering the caller and is not.
+- Browser errors caught by `error.tsx` / `global-error.tsx` are reported;
+  server errors are reported once, where they happen (`onRequestError`).
+
 ## Deploying
 
-Each app deploys independently. Set `MOA_API_URL` in the host's environment.
+Each app deploys independently. Set `MOA_API_URL` in the host's environment,
+and the Sentry variables above to turn error tracking on.
 Next.js handles its own routing, so no SPA rewrite rule is needed (the absence
 of one is what made the previous Vite dashboard 404 on every deep link).
 
