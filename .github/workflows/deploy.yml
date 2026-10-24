@@ -73,11 +73,22 @@ jobs:
         # one. Thirty minutes, with max-parallel above so the two apps are
         # not queued behind each other inside it.
         timeout-minutes: 30
+        id: deploy
+        # bash, not the default `bash -e`: the deploy is piped through tee,
+        # and without pipefail the pipeline's status is tee's -- always 0.
+        # That is how the 2026-10-24 deploys reported success while both
+        # Vercel deployments had errored and production stayed on the
+        # previous build.
+        shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets[matrix.project_id_secret] }}
+          PREVIEW_ONLY: ${{ github.event.inputs.preview_only }}
+          LOCAL_CONFIG: ${{ matrix.config }}
+          APP: ${{ matrix.app }}
         run: |
+          set -euo pipefail
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "VERCEL_TOKEN is not set — add it in Settings → Secrets → Actions." >&2
             exit 1
@@ -88,17 +99,59 @@ jobs:
           # domains stayed on whatever was last promoted by hand -- while the
           # run still reported success.
           PROD="--prod"
-          if [ "${{ github.event.inputs.preview_only }}" = "true" ]; then
+          if [ "$PREVIEW_ONLY" = "true" ]; then
             PROD=""
           fi
-          echo "Deploying ${{ matrix.app }} ${PROD:+to production}${PROD:-as a preview}"
-          npx vercel@latest deploy $PROD \
-            --local-config ${{ matrix.config }} \
+          echo "Deploying $APP ${PROD:+to production}${PROD:-as a preview}"
+
+          # 1. The CLI. It exits non-zero when the deployment errors.
+          #    Pinned rather than @latest, so a CLI release can't change a
+          #    deploy between two pushes.
+          status=0
+          npx --yes vercel@65.2.0 deploy $PROD \
+            --local-config "$LOCAL_CONFIG" \
             --token "$VERCEL_TOKEN" \
-            --yes | tee deploy-url.txt
+            --yes | tee deploy-out.txt || status=$?
+          URL="$(grep -oE 'https://[a-z0-9.-]+\.vercel\.app' deploy-out.txt | head -1 || true)"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          if [ "$status" -ne 0 ]; then
+            echo "::error::vercel deploy exited $status for $APP (${URL:-no URL}). Production still serves the previous build."
+            exit "$status"
+          fi
+          if [ -z "$URL" ]; then
+            echo "::error::vercel deploy printed no deployment URL for $APP."
+            exit 1
+          fi
+
+          # 2. Vercel's own word on it, independent of the CLI's exit code:
+          #    the deployment must be READY. Waits while it is still queued
+          #    or building (the CLI normally returns only once it is done).
+          state="UNKNOWN"
+          for _ in $(seq 1 60); do
+            state="$(curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v13/deployments/${URL#https://}?teamId=$VERCEL_ORG_ID" \
+              | jq -r '.readyState // .status // "UNKNOWN"')" || state="UNKNOWN"
+            case "$state" in
+              QUEUED|BUILDING|INITIALIZING) sleep 10 ;;
+              *) break ;;
+            esac
+          done
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          if [ "$state" != "READY" ]; then
+            echo "::error::$APP deployment $URL is $state, not READY. Production still serves the previous build."
+            exit 1
+          fi
+          echo "$APP deployment $URL is READY"
 
       - name: Summary
+        if: always()
+        env:
+          PREVIEW_ONLY: ${{ github.event.inputs.preview_only }}
+          APP: ${{ matrix.app }}
+          URL: ${{ steps.deploy.outputs.url }}
+          STATE: ${{ steps.deploy.outputs.state }}
+          OUTCOME: ${{ steps.deploy.outcome }}
         run: |
           ENV="production"
-          [ "${{ github.event.inputs.preview_only }}" = "true" ] && ENV="preview"
-          echo "**${{ matrix.app }}** ($ENV) → $(tail -1 deploy-url.txt)" >> "$GITHUB_STEP_SUMMARY"
+          [ "$PREVIEW_ONLY" = "true" ] && ENV="preview"
+          echo "**$APP** ($ENV) → ${URL:-no deployment}: ${STATE:-not checked} (deploy step: $OUTCOME)" >> "$GITHUB_STEP_SUMMARY"
