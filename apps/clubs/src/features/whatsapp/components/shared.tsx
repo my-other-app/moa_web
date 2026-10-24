@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CopyIcon, LockIcon } from "lucide-react";
+import { CopyIcon, LockIcon, MessageCircleIcon } from "lucide-react";
 import { formatDateTime, relativeTime } from "@moa/app-kit";
 import { FigurePanel, Notice, StatusBadge, TabRail, cn, toast } from "@moa/ui";
 
@@ -59,6 +59,35 @@ export function NoAccessPanel({ title, body }: { title: string; body: string }) 
       <h3 className="text-ink m-0 text-[16px] font-semibold tracking-[-0.01em]">{title}</h3>
       <p className="text-ink-2 m-0 text-[13px] leading-[1.55]">{body}</p>
     </FigurePanel>
+  );
+}
+
+/**
+ * Any of the section's pages on a server without clubs' own WhatsApp (its
+ * routes aren't there yet): the rail doesn't offer it, so only an old link
+ * or a typed address gets here. Nothing is locked and nothing is broken --
+ * it just isn't there yet. No tabs: none of them would open.
+ */
+export function WhatsAppUnavailable() {
+  return (
+    <div className="flex flex-col gap-3.5">
+      <header className="min-w-0">
+        <h2 className="page-title m-0 font-semibold tracking-[-0.02em]">WhatsApp</h2>
+        <p className="text-ink-2 mt-1 text-[13px]">Your club&apos;s own WhatsApp Business number</p>
+      </header>
+      <FigurePanel className="flex max-w-[560px] flex-col items-start gap-3 p-5" role="region" aria-label="WhatsApp">
+        <span className="bg-sunken text-ink-2 grid size-10 place-items-center rounded-xl">
+          <MessageCircleIcon className="size-4" aria-hidden="true" />
+        </span>
+        <h3 className="text-ink m-0 text-[16px] font-semibold tracking-[-0.01em]">Not available yet</h3>
+        <p className="text-ink-2 m-0 text-[13px] leading-[1.55]">
+          Connecting your club&apos;s own WhatsApp number isn&apos;t open yet. Tickets and reminders go out from MyOtherApp&apos;s number in the meantime.
+        </p>
+        <Link href="/" className="btn btn-secondary btn-sm">
+          Back to the dashboard
+        </Link>
+      </FigurePanel>
+    </div>
   );
 }
 

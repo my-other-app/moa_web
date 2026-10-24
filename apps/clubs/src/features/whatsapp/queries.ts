@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
-import { ApiError } from "@moa/api";
+import { ApiError, isRouteMissing } from "@moa/api";
 
 import {
   createTemplate,
@@ -55,8 +55,15 @@ export const CONVERSATIONS_KEY = [...WA_KEY, "conversations"] as const;
 export const MESSAGES_KEY = [...WA_KEY, "messages"] as const;
 export const TEMPLATES_KEY = [...WA_KEY, "templates"] as const;
 
-/** A server from before clubs could connect their own number: nothing to connect. */
+/**
+ * A server from before clubs could connect their own number (its
+ * /clubs/whatsapp routes answer FastAPI's bare 404): nothing to connect,
+ * and the section stays out of sight -- the rail, the dashboard's card, the
+ * pages -- until the backend that has it is deployed. No dashboard deploy
+ * is needed then: the next read of the account finds it.
+ */
 export const NOT_ON_THIS_SERVER: Account = {
+  on_server: false,
   available: false,
   plan_allows: true,
   upgrade: null,
@@ -91,14 +98,30 @@ async function readAccount(): Promise<Account> {
   try {
     return await fetchAccount();
   } catch (error) {
-    // A bare 404 (no code) is a server without the feature.
-    if (error instanceof ApiError && error.isNotFound && !error.errorCode) return NOT_ON_THIS_SERVER;
+    // Only FastAPI's own 404 for a route that isn't there is a server without the feature;
+    // a 404 the backend raised itself (it always carries a message) is an error like any other.
+    if (isRouteMissing(error)) return NOT_ON_THIS_SERVER;
     throw error;
   }
 }
 
-export function useAccount() {
-  return useQuery({ queryKey: ACCOUNT_KEY, queryFn: readAccount, staleTime: 30_000, retry: false });
+export function useAccount(enabled = true) {
+  return useQuery({ queryKey: ACCOUNT_KEY, queryFn: readAccount, staleTime: 30_000, retry: false, enabled });
+}
+
+/**
+ * Whether this API has clubs' own WhatsApp at all, from the account's read
+ * (shared with the pages, so it costs no request of its own):
+ * - `false`: the route isn't there (a route-level 404) -- hide the section;
+ * - `true`: it answered, even with a refusal or an error, which a missing
+ *   route never gives;
+ * - `undefined`: not asked yet (still reading, or `enabled` is false).
+ */
+export function useWhatsAppOnServer(enabled = true): boolean | undefined {
+  const q = useAccount(enabled);
+  if (q.data) return q.data.on_server;
+  if (q.isError) return true;
+  return undefined;
 }
 
 export function useOverview(days = 7, enabled = true) {

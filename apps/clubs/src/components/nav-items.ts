@@ -38,6 +38,12 @@ export interface NavItem {
    * already made there stays readable.
    */
   feature?: string;
+  /**
+   * A section whose backend may not be deployed yet: shown only once the API
+   * is known to have its routes (see SidebarNav). The dashboard can then go
+   * out ahead of its backend, and the item appears when the backend does.
+   */
+  server?: "whatsapp";
 }
 
 export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
@@ -68,8 +74,8 @@ export const navItems: NavItem[] = [
   { href: "/announcements", label: "Announcements", icon: BellIcon, needs: "edit_events" },
   { href: "/emails", label: "Emails", icon: MailIcon, needs: "edit_events" },
   // The club's own WhatsApp number (Enterprise): its inbox, templates and settings. Owners and admins
-  // (the connection) and members given the WhatsApp permission (the inbox) see it.
-  { href: "/whatsapp", label: "WhatsApp", icon: MessageCircleIcon, needs: "whatsapp", feature: "whatsapp_own" },
+  // (the connection) and members given the WhatsApp permission (the inbox) see it -- once the API has it.
+  { href: "/whatsapp", label: "WhatsApp", icon: MessageCircleIcon, needs: "whatsapp", feature: "whatsapp_own", server: "whatsapp" },
   { href: "/links", label: "Tracking links", icon: LinkIcon, group: "grow", needs: "edit_events", feature: "links" },
   { href: "/website", label: "Website", icon: GlobeIcon, group: "grow", needs: "edit_events", feature: "website" },
   { href: "/templates", label: "Templates", icon: PaletteIcon, group: "grow", needs: "edit_events" },

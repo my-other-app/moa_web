@@ -43,7 +43,7 @@ import {
 } from "../queries";
 import { META_STEPS, STATUS_LABEL, STATUS_TONE, TIER_LIMIT_NOTE, WEBHOOK_STEPS, keysSchema, tierWords, type Account, type KeyField, type Keys } from "../schemas";
 import { OverviewFigures } from "./overview-card";
-import { CopyRow, Field, NoAccessPanel, QualityBadge, Step, UpgradeNotice, When, WhatsAppHeader } from "./shared";
+import { CopyRow, Field, NoAccessPanel, QualityBadge, Step, UpgradeNotice, WhatsAppHeader, WhatsAppUnavailable, When } from "./shared";
 
 /**
  * WhatsApp settings: the club's own WhatsApp Business number.
@@ -61,6 +61,9 @@ import { CopyRow, Field, NoAccessPanel, QualityBadge, Step, UpgradeNotice, When,
 export function WhatsAppSettingsPage() {
   const q = useAccount();
   const a = q.data;
+
+  // A server without the feature (its routes answer a bare 404): nothing here to set up yet.
+  if (a && !a.on_server) return <WhatsAppUnavailable />;
 
   return (
     <div className="flex flex-col gap-3.5">

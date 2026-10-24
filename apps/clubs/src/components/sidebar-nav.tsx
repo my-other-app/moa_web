@@ -7,6 +7,7 @@ import { cn } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
 import { usePlan } from "@/features/plan";
+import { useWhatsAppOnServer } from "@/features/whatsapp";
 
 import { NAV_GROUPS, isActive, navItems, type NavItem } from "./nav-items";
 
@@ -26,8 +27,12 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
   const pathname = usePathname();
   const { can } = useAccess();
   const plan = usePlan();
-  // A role sees only what it can open; the club's own account sees everything.
-  const visible = navItems.filter((i) => !i.needs || can[i.needs]);
+  // Asked only of those who may open WhatsApp; shared with its pages' read of the account.
+  const whatsapp = useWhatsAppOnServer(Boolean(can.whatsapp));
+  const onServer = { whatsapp };
+  // A role sees only what it can open; the club's own account sees everything. A section
+  // whose backend isn't deployed yet waits until the API is known to have it.
+  const visible = navItems.filter((i) => (!i.needs || can[i.needs]) && (!i.server || onServer[i.server] === true));
   const sections: { key: string; label: string; items: NavItem[] }[] = [
     { key: "main", label: "Menu", items: visible.filter((i) => !i.group) },
     ...NAV_GROUPS.map((g) => ({ key: g.key, label: g.label, items: visible.filter((i) => i.group === g.key) })),

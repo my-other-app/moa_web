@@ -18,7 +18,7 @@ import {
 
 import { LimitMeter, openUpgrade, usePlan } from "@/features/plan";
 
-import { useAccessList, useChangeRole, useRemoveMember, useResendInvite, useSetMemberWhatsApp } from "../queries";
+import { useAccess, useAccessList, useChangeRole, useRemoveMember, useResendInvite, useSetMemberWhatsApp } from "../queries";
 import { DEFAULT_MEMBER_ROLE, type AccessList, type MemberRole, type MemberRow } from "../schemas";
 import { InviteDialog, InviteLink } from "./invite-dialog";
 
@@ -46,7 +46,20 @@ function Avatar({ name }: { name: string }) {
   return <span className="bg-brand-soft text-brand grid size-9 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">{initials(name)}</span>;
 }
 
-function MemberLine({ m, roles, canManage, now }: { m: MemberRow; roles: AccessList["roles"]; canManage: boolean; now: number }) {
+function MemberLine({
+  m,
+  roles,
+  canManage,
+  now,
+  whatsappOn,
+}: {
+  m: MemberRow;
+  roles: AccessList["roles"];
+  canManage: boolean;
+  now: number;
+  /** The server has clubs' own WhatsApp: only then is there a permission to give. */
+  whatsappOn: boolean;
+}) {
   const changeRole = useChangeRole();
   const remove = useRemoveMember();
   const resend = useResendInvite();
@@ -79,7 +92,7 @@ function MemberLine({ m, roles, canManage, now }: { m: MemberRow; roles: AccessL
         </div>
         {/* Wraps under the name on a phone: the WhatsApp switch, the role, Resend and Remove don't fit one 375px row. */}
         <div className="flex min-w-0 flex-wrap items-center gap-2" data-slot="member-actions">
-          {canManage ? (
+          {!whatsappOn ? null : canManage ? (
             <label className="text-ink-2 inline-flex shrink-0 items-center gap-1.5 text-[12px]" title="Reads and answers the club's WhatsApp messages">
               <MessageCircleIcon className="size-3.5" aria-hidden="true" />
               WhatsApp
@@ -162,6 +175,8 @@ export function AccessPage() {
   // counted); the list's own count is only for a server that does not send it.
   const plan = usePlan();
   const seatsUsed = plan.used("committee_seats") ?? active.length + waiting.length;
+  // A server from before clubs' own WhatsApp has no such permission: no switch, no row about it.
+  const whatsappOn = useAccess().can.whatsapp_known !== false;
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -215,7 +230,7 @@ export function AccessPage() {
                   <span className="tag">Owner</span>
                 </li>
                 {members.map((m) => (
-                  <MemberLine key={m.id} m={m} roles={a.roles} canManage={a.can_manage} now={now} />
+                  <MemberLine key={m.id} m={m} roles={a.roles} canManage={a.can_manage} now={now} whatsappOn={whatsappOn} />
                 ))}
               </ul>
               {members.length === 0 ? (
@@ -236,7 +251,9 @@ export function AccessPage() {
                   rows={[
                     { k: "Owner", v: "Everything, including who can sign in." },
                     ...a.roles.map((r) => ({ k: r.label, v: r.description })),
-                    { k: "WhatsApp", v: "Given person by person, whatever the role: reads and answers the club's WhatsApp messages." },
+                    ...(whatsappOn
+                      ? [{ k: "WhatsApp", v: "Given person by person, whatever the role: reads and answers the club's WhatsApp messages." }]
+                      : []),
                   ]}
                 />
               </div>

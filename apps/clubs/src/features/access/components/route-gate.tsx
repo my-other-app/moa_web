@@ -9,17 +9,21 @@ import { Button, FigurePanel } from "@moa/ui";
 import { useAccess } from "../queries";
 import type { Cap } from "../schemas";
 
-/** Pages a role may not open, by path. Mirrors the server's rules; the server refusing is what holds. */
-const RULES: { test: (path: string) => boolean; needs: Cap; what: string }[] = [
+/**
+ * Pages a role may not open, by path. Mirrors the server's rules; the server refusing is what holds.
+ * `appliesIf`: the rule holds only when the server says so -- one without WhatsApp (its caps don't
+ * mention it, `whatsapp_known` false) refuses no role there; the pages say it isn't available yet.
+ */
+const RULES: { test: (path: string) => boolean; needs: Cap; what: string; appliesIf?: Cap }[] = [
   { test: (p) => p === "/finance" || /^\/events\/\d+\/finance(\/|$)/.test(p), needs: "money", what: "Finance" },
   { test: (p) => p === "/access" || p.startsWith("/access/"), needs: "see_access", what: "Access" },
   { test: (p) => p === "/profile" || p.startsWith("/profile/"), needs: "club_profile", what: "the club profile" },
   { test: (p) => /^\/(followers|threads|announcements|emails|links|website|templates|merchandise)(\/|$)/.test(p), needs: "edit_events", what: "this page" },
-  { test: (p) => p === "/whatsapp" || p.startsWith("/whatsapp/"), needs: "whatsapp", what: "WhatsApp" },
+  { test: (p) => p === "/whatsapp" || p.startsWith("/whatsapp/"), needs: "whatsapp", what: "WhatsApp", appliesIf: "whatsapp_known" },
 ];
 
 export function blockedBy(path: string, can: Partial<Record<Cap, boolean>>) {
-  return RULES.find((r) => r.test(path) && !can[r.needs]) ?? null;
+  return RULES.find((r) => r.test(path) && !can[r.needs] && !(r.appliesIf && can[r.appliesIf] === false)) ?? null;
 }
 
 /** Wraps every dashboard page: a page the signed-in role cannot use says so instead of failing request by request. */

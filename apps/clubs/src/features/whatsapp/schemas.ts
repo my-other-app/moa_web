@@ -72,6 +72,12 @@ export const accountSchema = z.object({
   impersonated: z.boolean().default(false).catch(false),
   /** Meta's cautions about the account (billing, currency), in words. Newer servers only. */
   warnings: z.array(z.string()).default([]).catch([]),
+  /**
+   * Never read from the server: any answer at all means the API has the
+   * WhatsApp routes. Only NOT_ON_THIS_SERVER (queries.ts), what a route-level
+   * 404 reads as, says false -- and then the section isn't shown anywhere.
+   */
+  on_server: z.unknown().transform((): boolean => true),
 });
 export type Account = z.infer<typeof accountSchema>;
 

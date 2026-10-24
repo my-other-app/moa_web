@@ -10,11 +10,13 @@ import { QUALITY_LABEL, STATUS_TEXT, qualityTone, tierWords } from "../schemas";
 /**
  * Whether the club sends from its own WhatsApp Business number, and how Meta
  * rates it. What its number says to people is the club's alone: nothing of a
- * message is here, nor in the endpoint behind it.
+ * message is here, nor in the endpoint behind it. Not shown at all against a
+ * backend from before clubs' own WhatsApp (its route answers a bare 404).
  */
 export function ClubWhatsAppCard({ clubId }: { clubId: number }) {
   const { data: w, isPending, isError } = useClubWhatsApp(clubId);
   const status = w?.status ? STATUS_TEXT[w.status] : null;
+  if (w === null) return null;
   return (
     <section className="space-y-3" aria-label="WhatsApp">
       <SectionTitle>WhatsApp</SectionTitle>

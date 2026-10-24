@@ -67,6 +67,12 @@ export const capsSchema = z
     whatsapp_inbox: c.whatsapp_inbox ?? false,
     /** Either: the WhatsApp section opens at all. */
     whatsapp: Boolean(c.whatsapp_account || c.whatsapp_inbox),
+    /**
+     * The server sent either WhatsApp cap: it has clubs' own WhatsApp. When it
+     * sent neither (it predates it), a WhatsApp address is not a role's to be
+     * refused: the page says the section isn't available yet (RouteGate).
+     */
+    whatsapp_known: c.whatsapp_account !== undefined || c.whatsapp_inbox !== undefined,
   }));
 export type Caps = z.infer<typeof capsSchema>;
 export type Cap = keyof Caps;
@@ -115,6 +121,7 @@ export const OWNER_CAN: Caps = {
   whatsapp_account: true,
   whatsapp_inbox: true,
   whatsapp: true,
+  whatsapp_known: true,
 };
 
 export const MIN_PASSWORD = 8;

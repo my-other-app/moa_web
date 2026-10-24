@@ -9,7 +9,7 @@ import { Chip, EmptyState, FigurePanel, SearchField, Skeleton, cn } from "@moa/u
 import { conversationsOf, forbiddenText, isPermissionError, isPrivateError, useAccount, useApplyRefresh, useConversations } from "../queries";
 import { FILTERS, FILTER_LABEL, PRIVATE_MESSAGE, contactName, initialsOf, type Conversation, type InboxFilter } from "../schemas";
 import { RESYNC, planRefresh, pollEvery, useCoalesced, useInboxStream, type StreamChange, type StreamMode } from "../stream";
-import { NoAccessPanel, UpgradeNotice, WhatsAppHeader } from "./shared";
+import { NoAccessPanel, UpgradeNotice, WhatsAppHeader, WhatsAppUnavailable } from "./shared";
 import { StatusTicks, Thread } from "./thread";
 
 /** The search, a moment after the typing stops. */
@@ -150,6 +150,9 @@ export function WhatsAppInboxPage() {
   React.useEffect(() => {
     onScreen.current = new Set(items.map((c) => c.id));
   }, [items]);
+
+  // A server without the feature (its routes answer a bare 404): no inbox to open yet.
+  if (a && !a.on_server) return <WhatsAppUnavailable />;
 
   return (
     <div className="flex flex-col gap-3.5">
