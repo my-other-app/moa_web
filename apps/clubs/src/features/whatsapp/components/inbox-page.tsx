@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Loader2Icon, MessageCircleIcon, RadioIcon } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { BanIcon, BellOffIcon, Loader2Icon, MessageCircleIcon, RadioIcon, UserRoundIcon } from "lucide-react";
 import { formatTime, relativeTime } from "@moa/app-kit";
-import { Chip, EmptyState, FigurePanel, SearchField, Skeleton, cn } from "@moa/ui";
+import { Chip, EmptyState, FigurePanel, NativeSelect, SearchField, Skeleton, cn } from "@moa/ui";
 
-import { conversationsOf, forbiddenText, isPermissionError, isPrivateError, useAccount, useApplyRefresh, useConversations } from "../queries";
+import { useNewMessageNotifier } from "../alerts";
+import { conversationsOf, forbiddenText, isPermissionError, isPrivateError, useAccount, useApplyRefresh, useConversations, useTeam } from "../queries";
 import { FILTERS, FILTER_LABEL, PRIVATE_MESSAGE, contactName, initialsOf, type Conversation, type InboxFilter } from "../schemas";
 import { RESYNC, planRefresh, pollEvery, useCoalesced, useInboxStream, type StreamChange, type StreamMode } from "../stream";
 import { NoAccessPanel, UpgradeNotice, WhatsAppHeader, WhatsAppUnavailable } from "./shared";
@@ -58,7 +60,24 @@ function ConversationRow({ c, active, onPick, now }: { c: Conversation; active: 
             ) : null}
           </span>
           <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-            {c.awaiting_reply ? <span className="text-caution font-medium">Waiting for a reply</span> : null}
+            {c.blocked ? (
+              <span className="text-refuse inline-flex items-center gap-1 font-medium">
+                <BanIcon className="size-3" aria-hidden="true" /> Blocked
+              </span>
+            ) : null}
+            {c.opt_out?.scope === "all" ? (
+              <span className="text-caution inline-flex items-center gap-1 font-medium">
+                <BellOffIcon className="size-3" aria-hidden="true" /> Opted out
+              </span>
+            ) : null}
+            {c.assignee ? (
+              <span className="text-ink-3 inline-flex items-center gap-1" title={`Assigned to ${c.assignee.name ?? "someone"}`}>
+                <UserRoundIcon className="size-3" aria-hidden="true" />
+                <span className="sr-only">Assigned to </span>
+                {c.assignee.name ?? "Someone"}
+              </span>
+            ) : null}
+            {c.awaiting_reply && !c.blocked ? <span className="text-caution font-medium">Waiting for a reply</span> : null}
             {event ? (
               <span className="text-ink-3 truncate">
                 {event.name ?? "An event"}
@@ -124,9 +143,19 @@ export function WhatsAppInboxPage() {
   const account = useAccount();
   const a = account.data;
   const [filter, setFilter] = React.useState<InboxFilter>("all");
+  const [assignee, setAssignee] = React.useState<string>("");
   const [search, setSearch] = React.useState("");
   const q = useDebounced(search);
-  const [openId, setOpenId] = React.useState<number | null>(null);
+  // A bell notice, a mail or a browser notification leads here as /whatsapp?c=<id>: that conversation opens.
+  const params = useSearchParams();
+  const asked = Number(params?.get("c") ?? "") || null;
+  const [openId, setOpenId] = React.useState<number | null>(asked);
+  // A new ?c= while the inbox is open (a bell notice followed from here): that one opens.
+  const [seenAsk, setSeenAsk] = React.useState(asked);
+  if (asked !== seenAsk) {
+    setSeenAsk(asked);
+    if (asked) setOpenId(asked);
+  }
   const allowed = Boolean(a?.can_inbox);
   // Only a connected number on a plan that has it can receive anything: only then is the stream opened, or the inbox polled.
   const live = allowed && Boolean(a?.connected && a?.plan_allows);
@@ -138,7 +167,8 @@ export function WhatsAppInboxPage() {
   const applyRefresh = useApplyRefresh();
   const push = useCoalesced<StreamChange>((batch) => applyRefresh(planRefresh(batch, onScreen.current)));
   const mode = useInboxStream({ enabled: live, onChange: push, onReady: () => push(RESYNC) });
-  const list = useConversations(filter, q, live ? pollEvery(mode, "list") : false, listable);
+  const list = useConversations(filter, q, live ? pollEvery(mode, "list") : false, listable, assignee || null);
+  const team = useTeam(listable);
   const [now] = React.useState(() => new Date());
 
   const forbidden = (account.isError && (isPermissionError(account.error) || isPrivateError(account.error))) || (list.isError && (isPermissionError(list.error) || isPrivateError(list.error)));
@@ -150,6 +180,8 @@ export function WhatsAppInboxPage() {
   React.useEffect(() => {
     onScreen.current = new Set(items.map((c) => c.id));
   }, [items]);
+  // This browser's own notifications, while the tab is hidden (opted into on Settings): who wrote, never what.
+  useNewMessageNotifier(items, setOpenId);
 
   // A server without the feature (its routes answer a bare 404): no inbox to open yet.
   if (a && !a.on_server) return <WhatsAppUnavailable />;
@@ -217,6 +249,16 @@ export function WhatsAppInboxPage() {
                       </Chip>
                     ))}
                   </div>
+                  {(team.data?.items.length ?? 0) > 1 ? (
+                    <NativeSelect size="sm" aria-label="Show whose" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+                      <option value="">Anyone&apos;s</option>
+                      {team.data!.items.map((p) => (
+                        <option key={p.key} value={p.key}>
+                          {p.me ? `${p.name} (you)` : p.name}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  ) : null}
                 </div>
                 {list.isPending ? (
                   <div className="flex flex-col gap-2 p-3">
@@ -226,7 +268,17 @@ export function WhatsAppInboxPage() {
                 ) : list.isError && !list.data ? (
                   <p className="text-ink-3 m-0 p-3 text-[12.5px]">Couldn&apos;t load the conversations.</p>
                 ) : items.length === 0 ? (
-                  <p className="text-ink-3 m-0 p-3 text-[12.5px]">{q ? "Nobody matches that." : filter === "all" ? "No conversations yet." : `No ${FILTER_LABEL[filter].toLowerCase()} conversations.`}</p>
+                  <p className="text-ink-3 m-0 p-3 text-[12.5px]">
+                    {q
+                      ? "Nobody matches that."
+                      : filter === "all" && !assignee
+                        ? "No conversations yet."
+                        : filter === "mine"
+                          ? "Nothing assigned to you."
+                          : filter === "all"
+                            ? "Nothing assigned to them."
+                            : `No ${FILTER_LABEL[filter].toLowerCase()} conversations.`}
+                  </p>
                 ) : (
                   <div className="min-h-0 flex-1 overflow-y-auto">
                     <ul className="m-0 flex list-none flex-col p-0">
