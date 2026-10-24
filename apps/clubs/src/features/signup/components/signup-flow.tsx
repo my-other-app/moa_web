@@ -541,7 +541,9 @@ function ReviewStep({ form, logo, catalog, plansFailed, onEdit, disabled }: { fo
             {plansFailed ? " — you'll confirm it after approval." : ""}
           </p>
         )}
-        <p className="micro text-ink-3 mt-2">Nothing is charged now. Once you&apos;re approved, you choose and pay for the plan from Plan &amp; billing.</p>
+        <p className="micro text-ink-3 mt-2">
+          Nothing is charged now. Once you&apos;re approved, your club gets {catalog?.trial?.days ?? 14} days of {catalog?.trial?.plan_name ?? "Pro"} free, no card needed. Pick a plan any time from Plan &amp; billing; billing starts when the trial ends.
+        </p>
       </div>
     </>
   );
@@ -555,7 +557,7 @@ function Applied({ name, email }: { name: string; email: string }) {
       <CheckCircle2Icon className="text-admit size-8" aria-hidden="true" />
       <h1 className="page-title">Application sent</h1>
       <p className="text-ink-2 m-0 text-[14px] leading-[1.6]">
-        Thanks — <strong className="text-ink">{name}</strong> is under review. We&apos;ll email <strong className="text-ink">{email}</strong> when it&apos;s approved, usually within a day. Then log in to choose your plan.
+        Thanks — <strong className="text-ink">{name}</strong> is under review. We&apos;ll email <strong className="text-ink">{email}</strong> when it&apos;s approved, usually within a day. Then log in: your 14 days of Pro start then, free and with no card.
       </p>
       <Button asChild>
         <Link href="/login">Go to sign in</Link>

@@ -24,8 +24,8 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
     <AuthFrame
       wide
       headline="Bring your club to MyOtherApp."
-      points={["Apply in a few minutes", "We review it, usually within a day", "Then sign in and pick your plan"]}
-      foot="Free to start. Paid plans only when you choose one."
+      points={["Apply in a few minutes", "We review it, usually within a day", "Then 14 days of Pro free, no card needed"]}
+      foot="14 days of Pro free, no card needed. After it, a free plan for small events, or pick a paid one."
     >
       <SignupFlow initialPlan={planKeyOf(first(params.plan))} initialCycle={cycleOf(first(params.cycle))} />
     </AuthFrame>

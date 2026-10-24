@@ -114,6 +114,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 
 const { render } = await import("@/test/render");
 const { BillingPage, cancelConsequence } = await import("./components/billing-page");
+const { TrialBanner, freeLimits } = await import("./components/trial-banner");
 const { entitlementsSchema, catalogSchema, subscriptionSchema, priceLine, blocksCheckout, cancellable } = await import("./schemas");
 const { billingErrorMessage } = await import("./queries");
 
@@ -167,7 +168,7 @@ const currentPanel = () => screen.findByRole("region", { name: "Current plan" })
 
 describe("the shapes", () => {
   it("parses the catalogue, a subscription and entitlements with usage", () => {
-    expect(catalogSchema.parse(plans).plans.map((p) => p.key)).toEqual(["free", "starter", "growth", "pro", "campus", "enterprise"]);
+    expect(catalogSchema.parse(plans).plans.map((p) => p.key)).toEqual(["free", "starter", "growth", "pro", "enterprise"]);
     const sub = subscriptionSchema.parse(GROWTH_PENDING);
     expect(sub).toMatchObject({ status: "pending", entitled: false, checkout_expires_at: GROWTH_PENDING.checkout_expires_at });
     const ent = entitlementsSchema.parse({ ...FREE_ENTITLEMENTS, requested_plan: "growth", requested_cycle: "yearly", subscription_status: "pending" });
@@ -259,7 +260,8 @@ describe("the plan the club is on", () => {
     expect(within(usage).getByText("120 used · Unlimited")).toBeInTheDocument();
     expect(within(usage).getByRole("progressbar", { name: "Announcements: 0 of 4 included" })).toBeInTheDocument();
     // Not counted: the cap alone, no bar.
-    expect(within(usage).getByText("1 GB included")).toBeInTheDocument();
+    // Storage was never metered and is no longer a limit: not listed.
+    expect(within(usage).queryByText("Storage")).not.toBeInTheDocument();
     expect(within(usage).getByText("100 included")).toBeInTheDocument();
     expect(within(usage).getAllByRole("progressbar")).toHaveLength(3);
     // Nothing offers ticket types or coupons yet, so they are not listed at all.
@@ -322,7 +324,7 @@ describe("plans", () => {
       throw new ApiError({ status: 409, message: "This club already has a subscription.", errorCode: "SUBSCRIPTION_EXISTS" });
     };
     render(<BillingPage />);
-    fireEvent.click(await within(await screen.findByRole("article", { name: "Campus" })).findByRole("button", { name: /Upgrade to Campus/ }));
+    fireEvent.click(await within(await screen.findByRole("article", { name: "Pro" })).findByRole("button", { name: /Upgrade to Pro/ }));
     expect(await screen.findByText("You already have a subscription; cancel it first or talk to us to switch.")).toBeInTheDocument();
     expect(opened).toHaveLength(0);
   });
@@ -566,10 +568,139 @@ describe("a plan given free by MyOtherApp", () => {
       throw new ApiError({ status: 409, message: "This club's plan is complimentary.", errorCode: "COMPLIMENTARY_PLAN" });
     };
     render(<BillingPage />);
-    fireEvent.click(await within(await screen.findByRole("article", { name: "Campus" })).findByRole("button", { name: /Upgrade to Campus/ }));
+    fireEvent.click(await within(await screen.findByRole("article", { name: "Pro" })).findByRole("button", { name: /Upgrade to Pro/ }));
     expect(await screen.findByText(/MyOtherApp provides your plan free, so there is nothing to buy or cancel here/)).toBeInTheDocument();
     expect(opened).toHaveLength(0);
     expect(await screen.findByText("Growth — provided free by MyOtherApp until 31 Mar 2027")).toBeInTheDocument();
     expect(billingErrorMessage(new ApiError({ status: 409, message: "x", errorCode: "COMPLIMENTARY_PLAN" }))).toMatch(/^MyOtherApp provides your plan free/);
+  });
+});
+
+
+// ─── The free trial, and the team's Enterprise trial ─────────────────────
+
+const pro = plans.plans[3]!;
+const TRIAL_ENDS = "2026-11-07T10:00:00+05:30";
+/** A new club eleven days into nothing: 12 days of its Pro trial left, no plan picked. */
+const TRIAL_SUB = {
+  ...GROWTH_ACTIVE,
+  plan: { ...GROWTH_PLAN_OUT, ...pro, key: "pro", name: "Pro" },
+  cycle: "monthly",
+  status: "trial",
+  current_period_end: TRIAL_ENDS,
+  mrr_paise: 0,
+  razorpay_subscription_id: null,
+  trial_ends_at: TRIAL_ENDS,
+  free_trial: true,
+  trial_plan: { key: "pro", name: "Pro" },
+  billing_starts_at: null,
+  enterprise_trial: null,
+};
+const TRIAL_ENT = {
+  ...FREE_ENTITLEMENTS,
+  plan_key: "pro",
+  plan_name: "Pro",
+  status: "trial",
+  cycle: "monthly",
+  current_period_end: TRIAL_ENDS,
+  limits: pro.limits,
+  subscription_status: "trial",
+  trial: { kind: "free_trial", plan_key: "pro", plan_name: "Pro", ends_at: TRIAL_ENDS, days_left: 12 },
+  chosen_plan: null,
+  trial_ended: false,
+  free_trial_days: 14,
+};
+const TRIAL_STARTED = { ...STARTED, plan_key: "growth", cycle: "monthly", trial_days: 12, billing_starts_at: TRIAL_ENDS };
+
+describe("the trial banner", () => {
+  it("counts the days of the Pro trial and points to the plans", async () => {
+    state.ent = TRIAL_ENT;
+    render(<TrialBanner />);
+    const banner = await screen.findByRole("note");
+    expect(banner).toHaveTextContent("Pro trial · 12 days left · Choose a plan any time");
+    expect(within(banner).getByRole("link", { name: "Choose a plan" })).toHaveAttribute("href", "/billing");
+  });
+
+  it("says it louder in the last three days", async () => {
+    state.ent = { ...TRIAL_ENT, trial: { ...TRIAL_ENT.trial, days_left: 2 } };
+    render(<TrialBanner />);
+    const banner = await screen.findByRole("alert");
+    expect(banner).toHaveTextContent("Pro trial · 2 days left");
+    expect(banner).toHaveTextContent(/before 07 Nov 2026 to keep everything Pro includes\. After that the club moves to Free/);
+  });
+
+  it("names the plan picked during the trial and when it starts", async () => {
+    state.ent = { ...TRIAL_ENT, chosen_plan: { plan_key: "growth", plan_name: "Growth", cycle: "monthly", price_paise: 99900, billing_starts_at: TRIAL_ENDS, status: "trial" } };
+    render(<TrialBanner />);
+    expect(await screen.findByRole("note")).toHaveTextContent("Pro trial · 12 days left · Growth starts on 07 Nov 2026");
+  });
+
+  it("says what Free limits once the trial is over", async () => {
+    state.ent = { ...FREE_ENTITLEMENTS, trial_ended: true, features: { tickets: false, website: false, checkin: true } };
+    render(<TrialBanner />);
+    const banner = await screen.findByRole("note");
+    expect(banner).toHaveTextContent("You're on Free.");
+    expect(banner).toHaveTextContent("Free covers 2 events and 200 registrations a month and 1 team seat; paid tickets and a club website need a plan.");
+  });
+
+  it("shows the team's Enterprise trial with its end", async () => {
+    state.ent = { ...TRIAL_ENT, plan_key: "enterprise", plan_name: "Enterprise", trial: { kind: "enterprise_trial", plan_key: "enterprise", plan_name: "Enterprise", ends_at: TRIAL_ENDS, days_left: 20 } };
+    render(<TrialBanner />);
+    expect(await screen.findByRole("note")).toHaveTextContent("Enterprise trial · 20 days left · ends 07 Nov 2026");
+  });
+
+  it("is not there for a club with no trial", async () => {
+    state.ent = GROWTH_ENTITLEMENTS;
+    const { container } = render(<TrialBanner />);
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/clubs/entitlements")).toBe(true));
+    expect(container).toBeEmptyDOMElement();
+    expect(freeLimits({ limits: {}, features: {} })).toBe("Free has smaller limits.");
+  });
+});
+
+describe("billing during the free trial", () => {
+  it("offers every paid tier, each billed from the trial's end", async () => {
+    state.sub = TRIAL_SUB;
+    state.ent = TRIAL_ENT;
+    render(<BillingPage />);
+    const panel = await currentPanel();
+    expect(panel).toHaveTextContent("Free trial · no card needed");
+    expect(panel).toHaveTextContent("Pro trial · 12 days left");
+    for (const name of ["Starter", "Growth", "Pro"]) {
+      const tier = await screen.findByRole("article", { name });
+      expect(within(tier).getByRole("button", { name: `Choose ${name} — ${name}` })).toBeInTheDocument();
+      expect(within(tier).getByText("Billing starts on 07 Nov 2026")).toBeInTheDocument();
+    }
+    expect(within(card("Free")).getByText("Where the club goes when the trial ends, unless you pick a plan.")).toBeInTheDocument();
+    expect(screen.queryByText(/day free trial on a first subscription/)).toBeNull();
+  });
+
+  it("says nothing is charged until the trial ends when a plan is picked", async () => {
+    state.sub = TRIAL_SUB;
+    state.ent = TRIAL_ENT;
+    state.start = () => TRIAL_STARTED;
+    render(<BillingPage />);
+    fireEvent.click(await within(await screen.findByRole("article", { name: "Growth" })).findByRole("button", { name: "Choose Growth — Growth" }));
+    expect(await screen.findByText("Payment method authorised. Nothing is charged now: billing starts on 07 Nov 2026, when your trial ends.")).toBeInTheDocument();
+    expect(posts()[0]?.body).toEqual({ plan_key: "growth", cycle: "monthly" });
+  });
+
+  it("shows the picked plan, and cancelling it keeps the trial", async () => {
+    const picked = { ...TRIAL_SUB, plan: GROWTH_PLAN_OUT, razorpay_subscription_id: "sub_picked", billing_starts_at: TRIAL_ENDS };
+    state.sub = picked;
+    state.ent = { ...TRIAL_ENT, chosen_plan: { plan_key: "growth", plan_name: "Growth", cycle: "monthly", price_paise: 99900, billing_starts_at: TRIAL_ENDS, status: "trial" } };
+    render(<BillingPage />);
+    const panel = await currentPanel();
+    expect(panel).toHaveTextContent("Growth starts on 07 Nov 2026 at ₹999 a month. Until then you keep your Pro trial, and nothing is charged.");
+    expect(within(card("Growth")).getByText("Picked · starts on 07 Nov 2026")).toBeInTheDocument();
+    expect(cancelConsequence(subscriptionSchema.parse(picked), "Pro")).toBe("Growth won't start and nothing is charged. You keep your Pro trial until 07 Nov 2026, then the club moves to Free.");
+  });
+
+  it("parses the trial fields, and the catalogue's trial offer with no storage anywhere", () => {
+    const catalog = catalogSchema.parse(plans);
+    expect(catalog.trial).toEqual({ days: 14, plan_key: "pro", plan_name: "Pro", card_required: false, then_plan_key: "free" });
+    expect(JSON.stringify(catalog)).not.toMatch(/storage/);
+    expect(entitlementsSchema.parse(TRIAL_ENT).trial).toMatchObject({ kind: "free_trial", days_left: 12 });
+    expect(subscriptionSchema.parse(TRIAL_SUB)).toMatchObject({ free_trial: true, trial_plan: { key: "pro" } });
   });
 });
