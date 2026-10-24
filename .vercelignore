@@ -15,3 +15,20 @@ coverage
 .git
 *.log
 .env.local
+
+# The self-hosted image's build files (Oracle box: .github/workflows/
+# images.yml). Vercel must never receive a Dockerfile: with one at the root
+# of the upload, every deploy of these projects fails at "Deploying
+# outputs..." with
+#   Cannot patch preview comments when immutable static file upload is
+#   enabled. Upgrade to next@v16.3.0-canary.32 or newer to resolve this.
+#   (errorCode IMMUTABLE_STATIC_PATCH_PREVIEW_COMMENTS)
+# -- although Next here is newer than that. Proven on 2026-10-24: the same
+# commit failed with the Dockerfile uploaded and was READY without it. The
+# image build is unaffected: Docker reads the Dockerfile from the
+# repository, never through this file.
+Dockerfile
+**/Dockerfile
+*.Dockerfile
+.dockerignore
+deploy/build
