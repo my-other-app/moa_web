@@ -28,6 +28,8 @@ import {
   cn,
 } from "@moa/ui";
 
+import { MessageUsageCard } from "@/features/message-usage";
+
 import { fetchClubOverview } from "../api";
 import { useClubDashboard, useMyClub } from "../queries";
 import {
@@ -725,6 +727,9 @@ export function ClubDashboardV2() {
         <AudiencePanel o={o} />
         <ReachPanel rows={o.reach} />
       </section>
+
+      {/* The month's emails and WhatsApp against the plan; upgrade from here when it helps. */}
+      <MessageUsageCard />
 
       {d && d.stats.retention_due > 0 ? (
         <p className="text-ink-3 flex items-center gap-1.5 text-[12px]">

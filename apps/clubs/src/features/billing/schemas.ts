@@ -44,6 +44,9 @@ export const catalogPlanSchema = z.object({
   trial_days: z.number().catch(0),
   contact_sales: z.boolean().catch(false),
   featured: z.boolean().catch(false),
+  /** Each email / WhatsApp message past the monthly limit, in paise (₹0.10, ₹1). */
+  email_overage_paise: z.number().catch(10),
+  whatsapp_overage_paise: z.number().catch(100),
   /** null is unlimited, 0 is none allowed. */
   limits: z.record(z.string(), z.number().nullable()).catch({}),
   features: z.array(featureRowSchema).catch([]),
@@ -278,8 +281,13 @@ export const LIMIT_FIELDS = [
   { key: "committee_seats", label: "Committee seats", unit: "logins with roles" },
   { key: "announcements_per_month", label: "Announcements", unit: "this month" },
   { key: "website_templates", label: "Website templates", unit: "to choose from" },
+  { key: "emails_per_month", label: "Emails a month", unit: "a month" },
+  { key: "whatsapp_per_month", label: "WhatsApp a month", unit: "a month" },
 ] as const;
 export type LimitKey = (typeof LIMIT_FIELDS)[number]["key"];
+
+/** The message limits: shown on their own card, with the extra and what it costs. */
+export const MESSAGE_LIMITS: readonly string[] = ["emails_per_month", "whatsapp_per_month"];
 
 export const STATUS_LABEL: Record<SubscriptionStatus, string> = {
   pending: "Waiting for payment",

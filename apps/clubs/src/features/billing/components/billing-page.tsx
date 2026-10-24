@@ -28,6 +28,7 @@ import {
 import { useAccess } from "@/features/access";
 import { AiUsagePanel } from "@/features/ai";
 import { useMyClub } from "@/features/club";
+import { MessageUsageCard } from "@/features/message-usage";
 
 import { billingErrorMessage, isComplimentaryRefusal, useCancelSubscription, useEntitlements, usePlans, useRefreshBilling, useStartSubscription, useSubscription } from "../queries";
 import { checkoutKey, openSubscriptionCheckout } from "../razorpay";
@@ -35,6 +36,7 @@ import { freeLimits } from "./trial-banner";
 import {
   FREE_PLAN,
   LIMIT_FIELDS,
+  MESSAGE_LIMITS,
   SALES_EMAIL,
   STATUS_LABEL,
   STATUS_TONE,
@@ -371,6 +373,9 @@ export function BillingPage() {
         </div>
       )}
 
+      {/* The month's emails and WhatsApp against the plan, the extra and the earlier months. */}
+      <MessageUsageCard variant="billing" />
+
       {/* AI assist: the month's actions, or the club's own key. Nothing while AI is off. */}
       <AiUsagePanel />
 
@@ -678,7 +683,8 @@ function TrialNotice({ ent, sub }: { ent: Entitlements; sub: Subscription | null
 // ─── Usage against what the plan includes ────────────────────────────────
 
 function Usage({ ent }: { ent: Entitlements }) {
-  const rows = LIMIT_FIELDS.filter((f) => f.key in ent.limits);
+  // The month's messages have a card of their own (MessageUsageCard), with the extra and its cost.
+  const rows = LIMIT_FIELDS.filter((f) => f.key in ent.limits && !MESSAGE_LIMITS.includes(f.key));
   return (
     <FigurePanel className="flex flex-col gap-1 p-4" role="region" aria-label="Usage">
       <CardLabel right={<span className="text-ink-3 text-[11px]">Included in your plan</span>}>Usage</CardLabel>
@@ -713,7 +719,7 @@ function Usage({ ent }: { ent: Entitlements }) {
 
 // ─── A plan on sale ──────────────────────────────────────────────────────
 
-const LIMIT_PREVIEW = ["events_per_month", "registrations_per_month", "committee_seats"] as const;
+const LIMIT_PREVIEW = ["events_per_month", "registrations_per_month", "committee_seats", "emails_per_month", "whatsapp_per_month"] as const;
 const FEATURE_PREVIEW = 6;
 
 function PlanCard({
