@@ -1,0 +1,23 @@
+{
+  "name": "@moa/observability",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./gateway": "./src/gateway.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@sentry/nextjs": "^10.76.2"
+  },
+  "devDependencies": {
+    "@sentry/nextjs": "10.76.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.12"
+  }
+}
