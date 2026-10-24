@@ -34,7 +34,7 @@ function ConversationRow({ c, active, onPick, now }: { c: Conversation; active: 
         aria-current={active || undefined}
         className={cn("border-line-soft hover:bg-sunken flex w-full items-start gap-2.5 border-b px-3 py-2.5 text-left transition-colors", active && "bg-sunken")}
       >
-        <span className="bg-brand-soft text-brand mt-0.5 grid size-8 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">
+        <span aria-hidden="true" className="bg-brand-soft text-brand mt-0.5 grid size-8 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">
           {initialsOf(name)}
         </span>
         <span className="min-w-0 flex-1">
@@ -50,8 +50,10 @@ function ConversationRow({ c, active, onPick, now }: { c: Conversation; active: 
             {last?.direction === "out" ? <StatusTicks status={last.status} /> : null}
             <span className="text-ink-2 min-w-0 flex-1 truncate text-[12.5px]">{last?.preview ?? "No messages yet"}</span>
             {c.unread_count > 0 ? (
-              <span className="bg-brand text-brand-foreground shrink-0 rounded-full px-1.5 font-mono text-[10.5px] font-semibold tabular-nums" aria-label={`${c.unread_count} unread`}>
+              // Its words are part of the row's name: "… 2 unread".
+              <span className="bg-brand text-brand-foreground shrink-0 rounded-full px-1.5 font-mono text-[10.5px] font-semibold tabular-nums">
                 {c.unread_count}
+                <span className="sr-only"> unread</span>
               </span>
             ) : null}
           </span>

@@ -143,13 +143,25 @@ export function Step({ n, children }: { n: number; children: React.ReactNode }) 
   );
 }
 
+/**
+ * A labelled control with its help, or its error in place of the help. The
+ * control is described by whichever is shown (aria-describedby), added to
+ * any description it already has.
+ */
 export function Field({ id, label, error, help, children, className }: { id: string; label: string; error?: string | null; help?: React.ReactNode; children: React.ReactNode; className?: string }) {
+  const describedBy = error ? `${id}-error` : help ? `${id}-help` : null;
+  const control =
+    describedBy && React.isValidElement<{ "aria-describedby"?: string }>(children)
+      ? React.cloneElement(children, {
+          "aria-describedby": [...new Set([...(children.props["aria-describedby"] ?? "").split(" "), describedBy])].filter(Boolean).join(" "),
+        })
+      : children;
   return (
     <div className={cn("min-w-0", className)}>
       <label htmlFor={id} className="eyebrow mb-1.5 block">
         {label}
       </label>
-      {children}
+      {control}
       {error ? (
         <p id={`${id}-error`} className="text-refuse mt-1 text-[12px]">
           {error}

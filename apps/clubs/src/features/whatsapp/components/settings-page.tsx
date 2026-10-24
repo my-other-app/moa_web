@@ -434,13 +434,14 @@ function Behaviour({ a }: { a: Account }) {
           <label htmlFor="wa-routing" className="text-ink text-[13.5px] font-medium">
             Send tickets, certificates and reminders from this number
           </label>
-          <p className="text-ink-3 m-0 mt-0.5 text-[12px] leading-[1.5]">
+          <p id="wa-routing-help" className="text-ink-3 m-0 mt-0.5 text-[12px] leading-[1.5]">
             Once your account has MyOtherApp&apos;s ticket, reminder and certificate templates approved (see Templates). Anything your number can&apos;t send goes
             from MyOtherApp&apos;s number instead.
           </p>
         </div>
         <Switch
           id="wa-routing"
+          aria-describedby="wa-routing-help"
           checked={a.routing}
           disabled={!a.can_manage || update.isPending}
           onCheckedChange={(on) => change({ routing: on }, on ? "Tickets will go from your number." : "Tickets will go from MyOtherApp's number.")}
@@ -451,10 +452,13 @@ function Behaviour({ a }: { a: Account }) {
           <label htmlFor="wa-retention" className="text-ink text-[13.5px] font-medium">
             Keep messages for
           </label>
-          <p className="text-ink-3 m-0 mt-0.5 text-[12px] leading-[1.5]">Older messages are deleted from the inbox for good.</p>
+          <p id="wa-retention-help" className="text-ink-3 m-0 mt-0.5 text-[12px] leading-[1.5]">
+            Older messages are deleted from the inbox for good.
+          </p>
         </div>
         <NativeSelect
           id="wa-retention"
+          aria-describedby="wa-retention-help"
           size="sm"
           className="w-[140px]"
           value={String(a.retention_months)}

@@ -387,7 +387,8 @@ export function TemplateFormPanel({ onDone }: { onDone: () => void }) {
             </NativeSelect>
           </Field>
         </div>
-        <div>
+        {/* Segmented takes no description of its own: the group around it carries it. */}
+        <div role="group" aria-describedby="tpl-category-help">
           <span className="eyebrow mb-1.5 block">Category</span>
           <Segmented
             label="Category"
@@ -399,7 +400,9 @@ export function TemplateFormPanel({ onDone }: { onDone: () => void }) {
             onChange={(category) => set({ category })}
             className="max-w-[320px]"
           />
-          <p className="text-ink-3 m-0 mt-1 text-[12px]">Utility: about something they signed up for. Marketing: anything promotional (Meta charges more).</p>
+          <p id="tpl-category-help" className="text-ink-3 m-0 mt-1 text-[12px]">
+            Utility: about something they signed up for. Marketing: anything promotional (Meta charges more).
+          </p>
         </div>
 
         <Field id="tpl-header" label="Header (optional)" error={errorFor("header")} help="A short line in bold, at most 60 characters. One variable at most.">
@@ -425,7 +428,7 @@ export function TemplateFormPanel({ onDone }: { onDone: () => void }) {
           <Textarea id="tpl-body" rows={4} value={form.body} maxLength={1024} onChange={(e) => set({ body: e.target.value })} aria-invalid={problem?.field === "body" || undefined} />
         </Field>
         {bodyVars ? (
-          <div className="flex flex-col gap-2" role="group" aria-label="Examples">
+          <div className="flex flex-col gap-2" role="group" aria-label="Examples" aria-describedby={problem?.field === "body_examples" ? "tpl-body-examples-error" : undefined}>
             <span className="eyebrow">Examples, for Meta&apos;s review</span>
             {Array.from({ length: bodyVars }, (_, i) => (
               <input
@@ -437,7 +440,11 @@ export function TemplateFormPanel({ onDone }: { onDone: () => void }) {
                 onChange={(e) => set({ bodyExamples: fit(form.bodyExamples, bodyVars).map((x, j) => (j === i ? e.target.value : x)) })}
               />
             ))}
-            {problem?.field === "body_examples" ? <p className="text-refuse m-0 text-[12px]">{problem.text}</p> : null}
+            {problem?.field === "body_examples" ? (
+              <p id="tpl-body-examples-error" className="text-refuse m-0 text-[12px]">
+                {problem.text}
+              </p>
+            ) : null}
           </div>
         ) : null}
 

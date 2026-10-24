@@ -521,6 +521,23 @@ describe("WhatsApp settings", () => {
     }
   });
 
+  it("describes each field with its help, and with its error in place of the help", async () => {
+    state.account = NOT_CONNECTED;
+    render(<WhatsAppSettingsPage />);
+    const form = await screen.findByRole("form", { name: "Connect WhatsApp" });
+    expect(screen.getByLabelText("Access token")).toHaveAccessibleDescription("A system user's permanent token. Never shown again once saved.");
+    expect(screen.getByLabelText("App ID (optional)")).toHaveAccessibleDescription("Needed to submit templates with a document, like tickets.");
+    fireEvent.click(within(form).getByRole("button", { name: /Connect WhatsApp/ }));
+    await screen.findByText("Paste the app secret.");
+    expect(screen.getByLabelText("App secret")).toHaveAccessibleDescription("Paste the app secret.");
+  });
+
+  it("describes the routing switch and the retention choice", async () => {
+    render(<WhatsAppSettingsPage />);
+    expect(await screen.findByRole("switch", { name: /Send tickets, certificates and reminders/ })).toHaveAccessibleDescription(/Anything your number can't send goes/);
+    expect(screen.getByLabelText("Keep messages for")).toHaveAccessibleDescription("Older messages are deleted from the inbox for good.");
+  });
+
   it("keeps the token and secret out of autofill and password managers", async () => {
     state.account = NOT_CONNECTED;
     render(<WhatsAppSettingsPage />);
@@ -595,7 +612,9 @@ describe("the inbox", () => {
     // No registration matched: the WhatsApp profile name.
     expect(within(list).getByText("Bala K")).toBeInTheDocument();
     expect(within(list).getByText("Build Night")).toBeInTheDocument();
-    expect(within(list).getByLabelText("2 unread")).toBeInTheDocument();
+    // The count is part of the row's name, not an aria-label on a bare span.
+    expect(within(list).getByRole("button", { name: /Ananya Iyer.*2 unread/ })).toBeInTheDocument();
+    expect(within(list).queryByLabelText("2 unread")).toBeNull();
     expect(within(list).getByText("Waiting for a reply")).toBeInTheDocument();
   });
 
@@ -652,8 +671,10 @@ describe("the inbox", () => {
     expect(await within(thread).findByText("Is there parking?")).toBeInTheDocument();
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.path.endsWith("/conversations/11/read"))).toBe(true));
     expect(within(thread).getByTestId("window-indicator")).toHaveTextContent(/You can reply freely for/);
-    // A message Meta refused shows why, in the thread.
+    // A message Meta refused shows why, in the thread -- read in its turn, not announced as an alert.
     expect(within(thread).getByText("Not delivered: WhatsApp says this number cannot receive messages")).toBeInTheDocument();
+    expect(within(within(thread).getByRole("log")).queryByRole("alert")).toBeNull();
+    expect(within(thread).getByRole("button", { name: "Close conversation" })).toHaveTextContent("Close");
     expect(within(thread).getByRole("img", { name: "Read" })).toBeInTheDocument();
 
     fireEvent.change(within(thread).getByLabelText("Message"), { target: { value: "  Hall B car park  " } });
@@ -1284,6 +1305,8 @@ describe("the templates page", () => {
     render(<WhatsAppTemplatesPage />);
     fireEvent.click(await screen.findByRole("button", { name: /New template/ }));
     const panel = await screen.findByRole("form", { name: "New template" });
+    expect(within(panel).getByLabelText("Name")).toHaveAccessibleDescription("Lowercase letters, numbers and underscores, like event_update.");
+    expect(within(panel).getByLabelText("Message")).toHaveAccessibleDescription(/Use \{\{1\}\}, \{\{2\}\}/);
     fireEvent.change(within(panel).getByLabelText("Name"), { target: { value: "Event Update" } });
     fireEvent.change(within(panel).getByLabelText("Message"), { target: { value: "Hi {{1}}, it's moved." } });
     fireEvent.click(within(panel).getByRole("button", { name: /Submit for review/ }));

@@ -161,8 +161,9 @@ export function Bubble({ m }: { m: Message }) {
           </time>
           {out ? <StatusTicks status={m.status} title={m.error?.title} /> : null}
         </div>
+        {/* Not an alert: a failure in the history is read in its turn, not announced when the log loads. */}
         {m.status === "failed" ? (
-          <p className="text-refuse m-0 text-[12px]" role="alert">
+          <p className="text-refuse m-0 text-[12px]">
             Not delivered{m.error?.title ? `: ${m.error.title}` : ""}
           </p>
         ) : null}
@@ -320,6 +321,7 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
           type="button"
           className="btn btn-secondary btn-sm"
           disabled={status.isPending}
+          aria-label={conv.status === "open" ? "Close conversation" : "Reopen conversation"}
           onClick={() => status.mutate({ id: conv.id, status: conv.status === "open" ? "closed" : "open" })}
         >
           {conv.status === "open" ? "Close" : "Reopen"}
