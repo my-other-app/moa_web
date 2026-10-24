@@ -31,7 +31,16 @@ export const LIMIT_FIELDS = [
   { key: "committee_seats", label: "Committee seats", scope: "separate logins with roles" },
   { key: "announcements_per_month", label: "Announcements", scope: "per month" },
   { key: "website_templates", label: "Website templates", scope: "to choose from" },
+  { key: "emails_per_month", label: "Emails", scope: "per month, everything a club sends" },
+  { key: "whatsapp_per_month", label: "WhatsApp messages", scope: "per month, on the platform's number" },
 ] as const;
+
+/** The message limits: past them a paid plan pays the overage prices below, Free stops announcements. */
+export const MESSAGE_LIMIT_KEYS = ["emails_per_month", "whatsapp_per_month"] as const;
+
+/** The owner's overage prices, in paise: ₹0.10 an email, ₹1 a WhatsApp message. */
+export const DEFAULT_EMAIL_OVERAGE_PAISE = 10;
+export const DEFAULT_WHATSAPP_OVERAGE_PAISE = 100;
 
 export type LimitKey = (typeof LIMIT_FIELDS)[number]["key"];
 
@@ -91,6 +100,10 @@ export const planSchema = z.object({
   /* Priced on request: the pricing page says "Talk to us" instead of a price,
      and a club cannot check out on it. */
   contact_sales: z.boolean().default(false),
+  /* What each email / WhatsApp message past the monthly limit costs, in
+     paise, added to the club's next Razorpay invoice. */
+  email_overage_paise: z.number().default(DEFAULT_EMAIL_OVERAGE_PAISE),
+  whatsapp_overage_paise: z.number().default(DEFAULT_WHATSAPP_OVERAGE_PAISE),
   /* False when a paid plan has no Razorpay plan behind it. The editor says so
      rather than letting someone publish it and find out at checkout. */
   billable: z.boolean().default(false),
@@ -363,6 +376,9 @@ export const planFormSchema = z.object({
   sort_order: z.number().int().min(0).default(0),
   featured: z.boolean(),
   contact_sales: z.boolean(),
+  /** Each extra email and WhatsApp message, in rupees (₹0.10, ₹1). */
+  email_overage_rupees: z.number().min(0),
+  whatsapp_overage_rupees: z.number().min(0),
   limits: z.record(z.string(), z.number().nullable()),
   features: z.record(z.string(), z.boolean()),
 });
@@ -381,6 +397,8 @@ export function toForm(plan: Plan): PlanFormInput {
     sort_order: plan.sort_order,
     featured: plan.featured,
     contact_sales: plan.contact_sales,
+    email_overage_rupees: rupees(plan.email_overage_paise),
+    whatsapp_overage_rupees: rupees(plan.whatsapp_overage_paise),
     limits: { ...plan.limits },
     features: { ...plan.features },
   };
@@ -398,9 +416,17 @@ export function toPayload(form: PlanFormInput) {
     sort_order: form.sort_order,
     featured: form.featured,
     contact_sales: form.contact_sales,
+    email_overage_paise: paise(form.email_overage_rupees),
+    whatsapp_overage_paise: paise(form.whatsapp_overage_rupees),
     limits: form.limits,
     features: form.features,
   };
+}
+
+/** "₹0.10", "₹1", "₹1.50": a per-message price, to the paisa. */
+export function perMessage(paiseValue: number): string {
+  const r = rupees(paiseValue);
+  return Number.isInteger(r) ? `₹${r}` : `₹${r.toFixed(2)}`;
 }
 
 /** The rule the API enforces, checked here so the form says so before saving. */

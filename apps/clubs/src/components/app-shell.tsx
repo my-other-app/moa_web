@@ -28,6 +28,7 @@ import {
 
 import { RouteGate, useAccess } from "@/features/access";
 import { TrialBanner } from "@/features/billing";
+import { ClubBell } from "@/features/club-alerts";
 import { PlanLockHost } from "@/features/plan";
 
 import { AwaitingApproval, useClubNotVerified } from "./awaiting-approval";
@@ -206,6 +207,8 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
             <div className="bg-sunken flex min-w-0 flex-1 items-center gap-2 rounded-full px-4 py-[10px]">
               <Breadcrumbs />
             </div>
+            {/* What MyOtherApp told the club: a month's messages at 80% and 100%. */}
+            <ClubBell />
           </div>
           <main ref={mainRef} className="scroll-thin min-h-0 flex-1 overflow-auto">
             <div className="mx-auto max-w-[1180px] px-6 pt-5 pb-16 max-sm:px-4">

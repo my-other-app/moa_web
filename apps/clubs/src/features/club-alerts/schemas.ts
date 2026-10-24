@@ -1,0 +1,42 @@
+import { z } from "zod";
+
+/**
+ * What MyOtherApp tells the club in its dashboard: the bell. Shared by
+ * everyone who signs in to the club (the owner and the team).
+ *
+ * Kinds (club_alerts.service.KINDS on the server):
+ * message_quota_80   80% of a month's emails or WhatsApp messages used
+ * message_quota_100  all of them used
+ */
+export const clubAlertSchema = z.object({
+  id: z.coerce.number(),
+  kind: z.string(),
+  title: z.string(),
+  body: z.string().catch(""),
+  /** Where in the dashboard it leads ("/billing"), or null. */
+  link: z.string().nullish().catch(null),
+  data: z.record(z.string(), z.unknown()).catch({}),
+  created_at: z.string(),
+  read: z.boolean().catch(false),
+});
+export type ClubAlert = z.infer<typeof clubAlertSchema>;
+
+export const clubAlertsSchema = z.object({
+  items: z.array(clubAlertSchema).catch([]),
+  unread: z.number().catch(0),
+});
+export type ClubAlerts = z.infer<typeof clubAlertsSchema>;
+
+/** A link the bell may follow: a dashboard path, never somewhere else. */
+export function safeLink(link: string | null | undefined): string | null {
+  return link && link.startsWith("/") && !link.startsWith("//") ? link : null;
+}
+
+/** "just now", "5 min ago", "3 h ago", "2 d ago". */
+export function ago(iso: string, now: Date = new Date()): string {
+  const s = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86_400) return `${Math.floor(s / 3600)} h ago`;
+  return `${Math.floor(s / 86_400)} d ago`;
+}

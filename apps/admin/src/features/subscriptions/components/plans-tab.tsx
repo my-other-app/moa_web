@@ -28,6 +28,8 @@ import {
   useUpdatePlan,
 } from "../queries";
 import {
+  DEFAULT_EMAIL_OVERAGE_PAISE,
+  DEFAULT_WHATSAPP_OVERAGE_PAISE,
   FEATURE_LABELS,
   GROUP_LABELS,
   LIMIT_FIELDS,
@@ -57,6 +59,8 @@ const BLANK: PlanFormInput = {
   sort_order: 0,
   featured: false,
   contact_sales: false,
+  email_overage_rupees: DEFAULT_EMAIL_OVERAGE_PAISE / 100,
+  whatsapp_overage_rupees: DEFAULT_WHATSAPP_OVERAGE_PAISE / 100,
   limits: Object.fromEntries(LIMIT_FIELDS.map((f) => [f.key, null])),
   features: {},
 };
@@ -442,6 +446,43 @@ export function PlansTab() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* What a message past the monthly limits costs */}
+            <div className="flex flex-col gap-2">
+              <span className="micro">Extra messages</span>
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                <div className="field">
+                  <label htmlFor="plan-email-overage">Each extra email (₹)</label>
+                  <input
+                    id="plan-email-overage"
+                    className="input"
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={form.email_overage_rupees}
+                    disabled={!canEdit}
+                    onChange={(e) => patch({ email_overage_rupees: Math.max(0, +e.target.value || 0) })}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="plan-whatsapp-overage">Each extra WhatsApp message (₹)</label>
+                  <input
+                    id="plan-whatsapp-overage"
+                    className="input"
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={form.whatsapp_overage_rupees}
+                    disabled={!canEdit}
+                    onChange={(e) => patch({ whatsapp_overage_rupees: Math.max(0, +e.target.value || 0) })}
+                  />
+                </div>
+              </div>
+              <span className="text-[12px] text-ink-3">
+                Past the monthly email and WhatsApp limits, a plan Razorpay bills keeps sending and the extra goes on the club&apos;s next invoice at these prices.
+                Free has no card to charge: past its limit, announcements, campaigns and reminders stop; tickets and certificates still go.
+              </span>
             </div>
 
             {/* Features */}
