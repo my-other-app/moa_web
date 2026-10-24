@@ -6,6 +6,18 @@ export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 export const DELIVERY_OUTCOMES = ["delivered", "read", "undelivered", "bounced", "complained"] as const;
 export type DeliveryOutcome = (typeof DELIVERY_OUTCOMES)[number];
 
+/**
+ * Which number a WhatsApp send went from: "club" (the club's own) or
+ * "platform" (MyOtherApp's) -- and, from MyOtherApp's when the club wanted its
+ * own, why (`fallback_reason`, with Meta's code or ours). Newer servers only:
+ * an older one leaves them out, and nothing is shown.
+ */
+const via = {
+  via: z.enum(["club", "platform"]).nullish().catch(null),
+  fallback_code: z.string().nullish().catch(null),
+  fallback_reason: z.string().nullish().catch(null),
+};
+
 /** One channel's state for one guest, as the attendee list carries it. */
 export const deliveryBriefSchema = z.object({
   channel: z.string(),
@@ -15,6 +27,7 @@ export const deliveryBriefSchema = z.object({
   reason: z.string().nullish(),
   attempts: z.number().default(0),
   sent_at: z.string().nullish(),
+  ...via,
 });
 export type DeliveryBrief = z.infer<typeof deliveryBriefSchema>;
 
@@ -80,8 +93,22 @@ export const deliveryLogRowSchema = z.object({
   attempts: z.number().default(0),
   sent_at: z.string().nullish(),
   outcome_at: z.string().nullish(),
+  ...via,
 });
 export type DeliveryLogRow = z.infer<typeof deliveryLogRowSchema>;
+
+/**
+ * "From your number", or "From MyOtherApp (fallback: <reason>)" when the club
+ * wanted its own and it went from MyOtherApp's; plain "From MyOtherApp" when
+ * that was the club's choice. Null when the server doesn't say (an email, an
+ * older server).
+ */
+export function viaText(d: { via?: "club" | "platform" | null; fallback_code?: string | null; fallback_reason?: string | null }): string | null {
+  if (d.via === "club") return "From your number";
+  if (d.via !== "platform") return null;
+  const why = d.fallback_reason?.trim() || d.fallback_code?.trim();
+  return why ? `From MyOtherApp (fallback: ${why})` : "From MyOtherApp";
+}
 
 export const deliveryLogSchema = z.object({
   items: z.array(deliveryLogRowSchema),
