@@ -198,8 +198,14 @@ function StandardTemplates({ missing }: { missing: string[] }) {
           {Object.entries(results).map(([name, said]) => (
             <li key={name} className="flex flex-wrap gap-1.5">
               <span className="text-ink font-medium">{STANDARD_LABEL[name] ?? name}:</span>
-              <span className={said === "submitted" || said === "exists" ? "text-admit" : "text-refuse"}>
-                {said === "submitted" ? "submitted for review" : said === "exists" ? "already there" : said}
+              <span className={said === "submitted" || said === "exists" ? "text-admit" : said === "pending" ? "text-info" : "text-refuse"}>
+                {said === "submitted"
+                  ? "submitted for review"
+                  : said === "exists"
+                    ? "already there"
+                    : said === "pending"
+                      ? "already submitted, waiting for Meta's review"
+                      : said}
               </span>
             </li>
           ))}
@@ -279,6 +285,11 @@ function TemplateList({ items }: { items: Template[] }) {
             {t.header?.format === "TEXT" && t.header.text ? <p className="text-ink m-0 text-[12.5px] font-semibold">{t.header.text}</p> : null}
             {t.header && t.header.format !== "TEXT" ? <p className="text-ink-3 m-0 text-[12px]">Header: {t.header.format?.toLowerCase()}</p> : null}
             <p className="text-ink-2 m-0 text-[12.5px] whitespace-pre-wrap">{t.body}</p>
+            {t.parameter_format === "NAMED" && t.body_names.length ? (
+              <p className="text-ink-3 m-0 text-[11.5px]">
+                Filled by name: {t.body_names.map((n) => `{{${n}}}`).join(", ")}
+              </p>
+            ) : null}
             {t.buttons.length ? (
               <div className="flex flex-wrap gap-1.5">
                 {t.buttons.map((b) => (

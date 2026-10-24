@@ -41,7 +41,22 @@ import {
   useVerifyAccount,
   type KeysProblem,
 } from "../queries";
-import { META_STEPS, STATUS_LABEL, STATUS_TONE, TIER_LIMIT_NOTE, WEBHOOK_STEPS, keysSchema, tierWords, type Account, type KeyField, type Keys } from "../schemas";
+import {
+  META_STEPS,
+  STATUS_LABEL,
+  STATUS_TONE,
+  TIER_LIMIT_NOTE,
+  WEBHOOK_STEPS,
+  keysSchema,
+  nameStatusWords,
+  numberStatusWords,
+  restrictionWords,
+  tierWords,
+  type Account,
+  type KeyField,
+  type Keys,
+} from "../schemas";
+import { InboxSettingsPanels } from "./inbox-settings";
 import { OverviewFigures } from "./overview-card";
 import { CopyRow, Field, NoAccessPanel, QualityBadge, Step, UpgradeNotice, WhatsAppHeader, WhatsAppUnavailable, When } from "./shared";
 
@@ -84,7 +99,25 @@ export function WhatsAppSettingsPage() {
         </Notice>
       ) : (
         <>
+          {a.locked ? (
+            // Connected, but the plan lapsed: what still happens and what doesn't, plainly.
+            <Notice tone="refuse" tag="Plan lapsed">
+              Your plan no longer includes your own WhatsApp number. Messages people send it still arrive and are kept in the inbox, but nothing is sent from
+              it -- no replies, no templates -- and your tickets go from MyOtherApp&apos;s number. Upgrade to Enterprise to use it again.
+            </Notice>
+          ) : null}
           {!a.plan_allows ? <UpgradeNotice upgrade={a.upgrade} /> : null}
+          {/* Meta's restrictions on the account, each with what it stops and until when. */}
+          {a.connected
+            ? a.restrictions.map((r) => (
+                <Notice key={`${r.type}-${r.expires_at ?? ""}`} tone="refuse" tag="Meta restriction">
+                  <strong className="font-semibold">{restrictionWords(r.type)}</strong>{" "}
+                  <span className="text-ink-3 font-mono text-[11.5px]">({r.type})</span>
+                  {r.expires_at ? ` until ${new Date(r.expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : ""}.
+                  {r.remediation ? ` ${r.remediation}` : " Open WhatsApp Manager to see why and what to do."}
+                </Notice>
+              ))
+            : null}
           {/* Meta's cautions about the account: a payment method missing, a currency to move to. */}
           {a.warnings.map((w) => (
             <Notice key={w} tone="caution" tag="Meta">
@@ -102,6 +135,7 @@ export function WhatsAppSettingsPage() {
               {a.connected ? <ConnectedOverview /> : null}
               {a.connected ? <WebhookSetup a={a} /> : null}
               {a.connected ? <Behaviour a={a} /> : null}
+              {a.can_inbox && (a.connected || a.status !== null) ? <InboxSettingsPanels /> : null}
             </div>
             <Help />
           </div>
@@ -286,7 +320,11 @@ function Connected({ a }: { a: Account }) {
           <h3 className="text-ink m-0 text-[17px] font-semibold tracking-[-0.01em]">{a.display_phone_number ?? "Your number"}</h3>
           <p className="text-ink-2 m-0 mt-1 text-[13px] leading-[1.55]">
             {a.verified_name ? `${a.verified_name} · ` : ""}
-            {status === "active" ? "Connected and working." : "Meta refused it on the last check: nothing goes out from it until it's fixed."}
+            {a.locked
+              ? "Connected, but your plan no longer includes it: messages are kept, nothing is sent from it."
+              : status === "active"
+                ? "Connected and working."
+                : "Meta refused it on the last check: nothing goes out from it until it's fixed."}
           </p>
         </div>
         <QualityBadge rating={a.quality_rating} />
@@ -304,6 +342,22 @@ function Connected({ a }: { a: Account }) {
         <dd className="text-ink m-0 font-mono break-all">{a.phone_number_id ?? "—"}</dd>
         <dt className="eyebrow sm:pt-0.5">Access token</dt>
         <dd className="text-ink m-0 font-mono">{a.token_last4 ? `ends …${a.token_last4}` : "—"}</dd>
+        <dt className="eyebrow sm:pt-0.5">App ID</dt>
+        <dd className="text-ink m-0">
+          <AppIdRow a={a} />
+        </dd>
+        {numberStatusWords(a.number_status) ? (
+          <>
+            <dt className="eyebrow sm:pt-0.5">Number at Meta</dt>
+            <dd className={cn("m-0", numberStatusWords(a.number_status)!.warn ? "text-caution font-medium" : "text-ink")}>{numberStatusWords(a.number_status)!.text}</dd>
+          </>
+        ) : null}
+        {nameStatusWords(a.name_status) ? (
+          <>
+            <dt className="eyebrow sm:pt-0.5">Display name</dt>
+            <dd className={cn("m-0", nameStatusWords(a.name_status)!.warn ? "text-caution font-medium" : "text-ink")}>{nameStatusWords(a.name_status)!.text}</dd>
+          </>
+        ) : null}
         <dt className="eyebrow sm:pt-0.5">Checked with Meta</dt>
         <dd className="text-ink m-0">
           <When iso={a.verified_at} fallback="Not yet" />
@@ -400,6 +454,11 @@ function WebhookSetup({ a }: { a: Account }) {
                 <CopyRow label="Callback URL" value={a.webhook_url} hidden="Not given yet — click Check again." />
                 <CopyRow label="Verify token" value={a.verify_token} hidden={a.can_manage ? "Not given yet — click Check again." : "Only the club's owner and admins can see it."} />
               </>
+            ) : null}
+            {i === 2 && a.last_webhook_at && a.webhook_fields.includes("user_preferences") ? (
+              <p className="text-caution m-0 mt-1 text-[12px]">
+                New: tick <code className="font-mono">user_preferences</code> too, so someone stopping your marketing in WhatsApp itself reaches your inbox.
+              </p>
             ) : null}
             {i === 2 ? (
               a.webhook_fields.length ? (
@@ -508,5 +567,87 @@ function Help() {
         </p>
       </section>
     </FigurePanel>
+  );
+}
+
+// ─── The app ID, on its own ──────────────────────────────────────────────
+
+/**
+ * The club's Meta app ID, added (or changed) without pasting the token and
+ * secret again: the server checks with Meta that it's the token's own app
+ * (WHATSAPP_APP_MISMATCH otherwise). Only needed for templates with a
+ * document header, such as the ticket.
+ */
+function AppIdRow({ a }: { a: Account }) {
+  const update = useUpdateAccount();
+  const [editing, setEditing] = React.useState(false);
+  const [value, setValue] = React.useState(a.app_id ?? "");
+  const [problem, setProblem] = React.useState<string | null>(null);
+  if (!editing) {
+    return (
+      <span className="flex flex-wrap items-center gap-2">
+        <span className={a.app_id ? "font-mono" : "text-ink-3"}>{a.app_id ?? "Not added: needed only for templates with a document, like tickets"}</span>
+        {a.can_manage && a.plan_allows ? (
+          <button
+            type="button"
+            className="text-brand hover:text-ink text-[12px] font-medium"
+            onClick={() => {
+              setValue(a.app_id ?? "");
+              setProblem(null);
+              setEditing(true);
+            }}
+          >
+            {a.app_id ? "Change" : "Add"}
+          </button>
+        ) : null}
+      </span>
+    );
+  }
+  const save = (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = value.trim();
+    if (!/^\d{5,25}$/.test(id)) {
+      setProblem("It's the long number at the top of your app's dashboard.");
+      return;
+    }
+    setProblem(null);
+    update.mutate(
+      { app_id: id },
+      {
+        onSuccess: () => {
+          setEditing(false);
+          toast.success("App ID saved.");
+        },
+        onError: (error) => {
+          if (!isPlanLockError(error)) setProblem(keysErrorMessage(error).text);
+        },
+      },
+    );
+  };
+  return (
+    <form onSubmit={save} className="flex flex-col gap-1.5" aria-label="App ID" noValidate>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          className="input h-9 w-[200px] font-mono"
+          inputMode="numeric"
+          aria-label="App ID"
+          aria-invalid={problem ? true : undefined}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          disabled={update.isPending}
+        />
+        <button type="submit" className="btn btn-primary btn-sm" disabled={update.isPending}>
+          {update.isPending ? <Loader2Icon className="size-3.5 animate-spin" /> : null} {update.isPending ? "Checking with Meta…" : "Save"}
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(false)} disabled={update.isPending}>
+          Cancel
+        </button>
+      </div>
+      {problem ? (
+        <p className="text-refuse m-0 text-[12px]" role="alert">
+          {problem}
+        </p>
+      ) : null}
+    </form>
   );
 }
