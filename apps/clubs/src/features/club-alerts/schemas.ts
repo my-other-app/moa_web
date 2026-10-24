@@ -5,8 +5,11 @@ import { z } from "zod";
  * everyone who signs in to the club (the owner and the team).
  *
  * Kinds (club_alerts.service.KINDS on the server):
- * message_quota_80   80% of a month's emails or WhatsApp messages used
- * message_quota_100  all of them used
+ * message_quota_80     80% of a month's emails or WhatsApp messages used
+ * message_quota_100    all of them used
+ * whatsapp_failed      the club's own WhatsApp number stopped working
+ * whatsapp_quality     its quality rating or messaging limit dropped
+ * whatsapp_restricted  Meta restricted its WhatsApp account
  */
 export const clubAlertSchema = z.object({
   id: z.coerce.number(),
@@ -30,6 +33,30 @@ export type ClubAlerts = z.infer<typeof clubAlertsSchema>;
 /** A link the bell may follow: a dashboard path, never somewhere else. */
 export function safeLink(link: string | null | undefined): string | null {
   return link && link.startsWith("/") && !link.startsWith("//") ? link : null;
+}
+
+export type AlertTone = "caution" | "refuse";
+
+/**
+ * What each kind is about, as the bell labels it, and where it leads when
+ * the notice names no page of its own. A kind this build does not know is
+ * shown with its title alone.
+ */
+export const KIND_INFO: Record<string, { label: string; link: string; tone: AlertTone }> = {
+  message_quota_80: { label: "Messages", link: "/billing", tone: "caution" },
+  message_quota_100: { label: "Messages", link: "/billing", tone: "refuse" },
+  whatsapp_failed: { label: "WhatsApp number", link: "/whatsapp/settings", tone: "refuse" },
+  whatsapp_quality: { label: "WhatsApp quality", link: "/whatsapp/settings", tone: "caution" },
+  whatsapp_restricted: { label: "WhatsApp account", link: "/whatsapp/settings", tone: "refuse" },
+};
+
+/**
+ * Where a notice leads: the page it names, when that is a dashboard path
+ * (one that is not is never followed); with none named, its kind's page.
+ */
+export function alertLink(a: Pick<ClubAlert, "kind" | "link">): string | null {
+  if (a.link) return safeLink(a.link);
+  return KIND_INFO[a.kind]?.link ?? null;
 }
 
 /** "just now", "5 min ago", "3 h ago", "2 d ago". */
