@@ -10,17 +10,28 @@ import { FigurePanel, Notice, StatusBadge, TabRail, cn, toast } from "@moa/ui";
 import { UPGRADE_PATH } from "@/features/plan";
 
 import { qualityLabel, qualityTone, type Upgrade } from "../schemas";
+import { useReach } from "../reach/queries";
 
-/** The section's three pages. */
+/** The section's pages. */
 const TABS = [
   { key: "inbox", label: "Inbox", href: "/whatsapp" },
   { key: "templates", label: "Templates", href: "/whatsapp/templates" },
   { key: "settings", label: "Settings", href: "/whatsapp/settings" },
 ];
+/** Broadcasts, once the API has them (its reach answers): before Templates. */
+const BROADCASTS_TAB = { key: "broadcasts", label: "Broadcasts", href: "/whatsapp/broadcasts" };
 
 export function WhatsAppHeader({ title, sub, right }: { title: string; sub: string; right?: React.ReactNode }) {
   const pathname = usePathname();
-  const value = pathname.startsWith("/whatsapp/templates") ? "templates" : pathname.startsWith("/whatsapp/settings") ? "settings" : "inbox";
+  const reach = useReach();
+  const tabs = reach.data ? [TABS[0]!, BROADCASTS_TAB, ...TABS.slice(1)] : TABS;
+  const value = pathname.startsWith("/whatsapp/templates")
+    ? "templates"
+    : pathname.startsWith("/whatsapp/settings")
+      ? "settings"
+      : pathname.startsWith("/whatsapp/broadcasts")
+        ? "broadcasts"
+        : "inbox";
   return (
     <div className="flex flex-col gap-3">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -32,7 +43,7 @@ export function WhatsAppHeader({ title, sub, right }: { title: string; sub: stri
       </header>
       <TabRail
         label="WhatsApp sections"
-        items={TABS}
+        items={tabs}
         value={value}
         renderLink={(item, props) => (
           <Link href={item.href!} className={props.className} aria-current={props["aria-current"]}>
