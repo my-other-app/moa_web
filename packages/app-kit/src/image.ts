@@ -36,6 +36,30 @@ export function pickImage(
   return null;
 }
 
+/**
+ * A picture that must never fail the row it is on: anything malformed reads
+ * as no picture. A list that refused to render over a bad thumbnail would
+ * be a worse bug than a missing face.
+ */
+export const pictureSchema = imageFieldSchema.catch(null);
+
+/**
+ * A person's two pictures under `profile`, as the user endpoints send them:
+ * the photo they uploaded and the preset avatar they picked (`{id, name,
+ * image}`). Both can be set; the photo wins (PersonAvatar applies that).
+ * Only the pictures are typed -- the rest of a profile passes through.
+ */
+export const profilePicturesSchema = z
+  .object({
+    profile_pic: pictureSchema,
+    avatar: z.object({ image: pictureSchema }).passthrough().nullish().catch(null),
+  })
+  .passthrough()
+  .nullish()
+  .catch(null);
+
+export type ProfilePictures = z.infer<typeof profilePicturesSchema>;
+
 /** Minimal nested reference returned inside event rows. */
 export const namedRefSchema = z
   .object({ id: z.coerce.number().nullish(), name: z.string().nullish() })

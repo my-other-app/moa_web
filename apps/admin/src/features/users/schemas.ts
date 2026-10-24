@@ -1,5 +1,5 @@
 import { paginatedSchema } from "@moa/api";
-import { imageFieldSchema } from "@moa/app-kit";
+import { imageFieldSchema, pictureSchema, profilePicturesSchema } from "@moa/app-kit";
 import { z } from "zod";
 
 /**
@@ -27,6 +27,10 @@ export const adminUserSchema = z.object({
      The column is NOT NULL and defaults to `owner`, so the backend nulls it
      per row -- read raw, every signup looks like a platform owner. */
   admin_role: z.string().nullish(),
+  /* The person's pictures: the photo they uploaded and the avatar they
+     picked. The API has always sent them on every row; this schema used to
+     strip them, so the list could only ever draw initials. */
+  profile: profilePicturesSchema,
 });
 
 export const adminUserPageSchema = paginatedSchema(adminUserSchema);
@@ -55,11 +59,13 @@ export const adminUserDetailSchema = adminUserSchema.extend({
       id: z.coerce.number().nullish(),
       full_name: z.string().nullish(),
       whatsapp: z.string().nullish(),
-      profile_pic: imageFieldSchema,
+      // A picture that does not parse is no picture, not a page that fails.
+      profile_pic: pictureSchema,
       avatar: z
-        .object({ id: z.coerce.number(), name: z.string(), image: imageFieldSchema })
+        .object({ id: z.coerce.number(), name: z.string(), image: pictureSchema })
         .passthrough()
-        .nullish(),
+        .nullish()
+        .catch(null),
       org: z
         .object({ id: z.coerce.number(), name: z.string() })
         .passthrough()

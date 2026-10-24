@@ -1,3 +1,4 @@
+import { pictureSchema } from "@moa/app-kit";
 import { z } from "zod";
 
 /**
@@ -81,7 +82,12 @@ export function isTargetType(value: string | undefined | null): value is TargetT
   return (TARGET_TYPES as readonly string[]).includes(value ?? "");
 }
 
-const person = z.object({ id: z.coerce.number(), name: z.string().catch("") });
+const person = z.object({
+  id: z.coerce.number(),
+  name: z.string().catch(""),
+  /** Their picture, resolved by the API: a club account's logo, else their photo, else the avatar they picked. */
+  avatar: pictureSchema,
+});
 
 export const reportSchema = z.object({
   id: z.coerce.number(),

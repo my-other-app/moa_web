@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import {
   PageHeader,
+  PersonAvatar,
   SectionTitle,
   formatCurrency,
   formatDate,
@@ -427,10 +428,6 @@ export function UserDetail({ userId }: { userId: number }) {
     );
   }
 
-  const avatar =
-    pickImage(user?.profile?.profile_pic, ["medium", "thumbnail", "original"]) ??
-    pickImage(user?.profile?.avatar?.image, ["medium", "thumbnail", "original"]);
-
   const stats = user?.stats;
 
   const cards = [
@@ -503,22 +500,14 @@ export function UserDetail({ userId }: { userId: number }) {
       <div className="space-y-6">
         <Card>
           <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            {avatar ? (
-              <Image
-                src={avatar}
-                alt=""
-                width={64}
-                height={64}
-                className="size-16 shrink-0 rounded-xl object-cover"
-                unoptimized
-              />
-            ) : (
-              <Avatar className="size-16 rounded-xl">
-                <AvatarFallback className="rounded-xl text-lg">
-                  {initials(user?.full_name ?? user?.username ?? "?")}
-                </AvatarFallback>
-              </Avatar>
-            )}
+            <PersonAvatar
+              name={user?.full_name || user?.username}
+              photo={user?.profile?.profile_pic}
+              avatar={user?.profile?.avatar?.image}
+              size="medium"
+              className="size-16 rounded-xl"
+              fallbackClassName="rounded-xl text-lg"
+            />
 
             <div className="min-w-0 flex-1 space-y-1">
               {isPending ? (

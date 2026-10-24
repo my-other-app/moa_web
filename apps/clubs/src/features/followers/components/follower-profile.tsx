@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { formatDate, formatDateTime, pickImage, relativeTime } from "@moa/app-kit";
-import { CardLabel, Chip, EmptyState, FigurePanel, InitialsAvatar, Skeleton, StatTile } from "@moa/ui";
+import { PersonAvatar, formatDate, formatDateTime, relativeTime } from "@moa/app-kit";
+import { CardLabel, Chip, EmptyState, FigurePanel, Skeleton, StatTile } from "@moa/ui";
 
 import { useMyClub } from "@/features/club";
 
@@ -41,7 +40,6 @@ export function FollowerProfileView({ userId }: { userId: number }) {
     );
   }
   const name = p.user.full_name || p.user.username || "Someone";
-  const avatar = pickImage(p.user.avatar, ["medium", "thumbnail", "large", "original"]);
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -49,7 +47,7 @@ export function FollowerProfileView({ userId }: { userId: number }) {
         <ArrowLeftIcon className="size-3.5" /> All followers
       </Link>
       <FigurePanel className="flex flex-wrap items-center gap-4 p-4">
-        {avatar ? <Image src={avatar} alt="" width={64} height={64} className="size-16 shrink-0 rounded-2xl object-cover" unoptimized /> : <InitialsAvatar name={name} size={64} className="rounded-2xl" />}
+        <PersonAvatar name={name} avatar={p.user.avatar} size="medium" className="size-16 rounded-2xl" fallbackClassName="bg-brand/10 text-brand rounded-2xl font-mono text-[24px] font-semibold" />
         <div className="min-w-0 flex-1">
           <h2 className="page-title m-0 font-semibold tracking-[-0.02em]">{name}</h2>
           <p className="text-ink-2 mt-1 text-[13px]">

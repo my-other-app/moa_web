@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+
+import { shownPicture, stubImageLoading } from "@/test/images";
 
 import recipientsFixture from "../__fixtures__/badge-recipients.json";
 import statsFixture from "../__fixtures__/badge-stats.json";
@@ -106,6 +108,24 @@ describe("badge detail page", () => {
     render(<BadgeDetail badgeId={4} />);
     const holder = await screen.findByRole("link", { name: "Test Person" });
     expect(holder).toHaveAttribute("href", "/users/412");
+  });
+
+  it("shows each holder's picture, and initials for one without", async () => {
+    stubImageLoading();
+    try {
+      render(<BadgeDetail badgeId={4} />);
+      const rowOf = async (name: string) => (await screen.findByRole("link", { name })).closest<HTMLElement>("div.flex")!;
+      await waitFor(async () =>
+        expect(shownPicture(await rowOf("Test Person"))).toBe(
+          "https://cdn.test/users/profile_pic/test-person.thumbnail.png"
+        )
+      );
+      const second = await rowOf("Second Person");
+      expect(shownPicture(second)).toBeNull();
+      expect(within(second).getByText("SP")).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("offers a revoke control per holder", async () => {

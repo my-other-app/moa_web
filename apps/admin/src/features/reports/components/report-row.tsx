@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { CheckIcon, EyeOffIcon, ShieldBanIcon, Trash2Icon } from "lucide-react";
-import { formatDateTime, relativeTime } from "@moa/app-kit";
+import { PersonAvatar, formatDateTime, relativeTime, type Picture } from "@moa/app-kit";
 import { Button, cn } from "@moa/ui";
 
 import {
@@ -41,9 +41,13 @@ export function ReasonChip({ reason, className }: { reason: string; className?: 
 /** Whose it is: a comment's writer, the club account a thread was posted from, the account a person or club is. */
 const AUTHOR_WORD: Record<string, string> = { comment: "By", thread: "Posted by", user: "Account", club: "Account" };
 
-function PersonLink({ person }: { person: { id: number; name: string } }) {
+function PersonLink({ person }: { person: { id: number; name: string; avatar?: Picture | null } }) {
   return (
-    <Link href={`/users/${person.id}`} className="text-ink-2 hover:text-ink underline-offset-2 hover:underline">
+    <Link
+      href={`/users/${person.id}`}
+      className="text-ink-2 hover:text-ink inline-flex items-center gap-1 align-bottom underline-offset-2 hover:underline"
+    >
+      <PersonAvatar name={person.name} avatar={person.avatar} className="size-[18px]" fallbackClassName="text-[8px]" />
       {person.name || `User ${person.id}`}
     </Link>
   );

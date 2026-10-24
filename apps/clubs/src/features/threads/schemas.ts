@@ -1,4 +1,4 @@
-import { imageFieldSchema } from "@moa/app-kit";
+import { imageFieldSchema, pictureSchema } from "@moa/app-kit";
 import { z } from "zod";
 
 export const pollOptionSchema = z.object({ id: z.string(), label: z.string(), votes: z.number(), share: z.number() });
@@ -32,7 +32,13 @@ export const threadPageSchema = z.object({
 export const commentSchema = z.object({
   id: z.string(),
   body: z.string(),
-  author: z.object({ id: z.number().nullable(), name: z.string(), is_club: z.boolean().default(false) }),
+  author: z.object({
+    id: z.number().nullable(),
+    name: z.string(),
+    is_club: z.boolean().default(false),
+    /** The club's logo, or the writer's photo, else the avatar they picked: resolved by the API, always sent. */
+    avatar: pictureSchema,
+  }),
   created_at: z.string(),
 });
 

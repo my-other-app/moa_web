@@ -24,7 +24,7 @@ import {
   Skeleton,
   toast,
 } from "@moa/ui";
-import { formatDate, initials } from "@moa/app-kit";
+import { PersonAvatar, formatDate } from "@moa/app-kit";
 
 import { useCan } from "@/hooks/use-can";
 import { ImpersonateButton } from "./impersonate-button";
@@ -270,9 +270,14 @@ export function UserDrawer({
             </div>
 
             <div className="flex items-center gap-3.5">
-              <span className="grid size-14 shrink-0 place-items-center rounded-full bg-brand-soft text-[20px] text-brand">
-                {initials(name)}
-              </span>
+              <PersonAvatar
+                name={name}
+                photo={user.profile?.profile_pic}
+                avatar={user.profile?.avatar?.image}
+                size="medium"
+                className="size-14"
+                fallbackClassName="bg-brand-soft text-[20px] text-brand"
+              />
               <div className="flex min-w-0 flex-col gap-0.5">
                 <SheetTitle className="truncate text-[20px] font-normal">{name}</SheetTitle>
                 <span className="truncate text-[13px] text-ink-2">

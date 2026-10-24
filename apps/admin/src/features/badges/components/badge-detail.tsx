@@ -14,7 +14,7 @@ import {
   UsersIcon,
   XIcon,
 } from "lucide-react";
-import { PageHeader, SectionTitle, formatDate, formatNumber, initials } from "@moa/app-kit";
+import { PageHeader, PersonAvatar, SectionTitle, formatDate, formatNumber } from "@moa/app-kit";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,8 +24,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  Avatar,
-  AvatarFallback,
   Badge as BadgePill,
   Button,
   Card,
@@ -117,11 +115,13 @@ function RecipientRow({
         hoverLift
       )}
     >
-      <Avatar className="size-9">
-        <AvatarFallback className="text-[11px]">
-          {initials(recipient.entity_name ?? "?")}
-        </AvatarFallback>
-      </Avatar>
+      <PersonAvatar
+        name={recipient.entity_name}
+        avatar={recipient.avatar}
+        // A club's logo is square art; a person is a disc.
+        className={cn("size-9", isClub && "rounded-md")}
+        fallbackClassName={cn("text-[11px]", isClub && "rounded-md")}
+      />
       <div className="min-w-0 flex-1">
         <Link
           href={href}

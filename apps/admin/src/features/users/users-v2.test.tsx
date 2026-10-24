@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
+import { shownPicture, stubImageLoading } from "@/test/images";
 import usersFixture from "../__fixtures__/users.json";
 
 /**
@@ -153,6 +154,56 @@ describe("users screen", () => {
     // useSearchParams is stubbed empty in setup.ts, so no filter is applied
     // and this is the genuinely-empty wording.
     expect(await screen.findByText("No users yet")).toBeInTheDocument();
+  });
+});
+
+describe("each person's picture", () => {
+  /*
+   * The owner's report: no profile pictures anywhere in the portal. The API
+   * sent `profile.profile_pic` and `profile.avatar` on every row all along;
+   * the row schema stripped `profile` and the row drew initials only.
+   */
+  const photo = { thumbnail: "https://cdn.test/users/profile_pic/jose.thumbnail.png", medium: "https://cdn.test/users/profile_pic/jose.medium.png" };
+  const fox = { thumbnail: "https://cdn.test/avatars/fox.thumbnail.png", medium: "https://cdn.test/avatars/fox.medium.png" };
+
+  function withPictures(): Row[] {
+    const [admin, jose, arafa] = usersFixture.items;
+    return [
+      admin!,
+      // A photo and an avatar: the photo wins.
+      { ...jose!, profile: { full_name: "Jose", profile_pic: photo, avatar: { id: 2, name: "Fox", image: fox } } },
+      // Only the avatar they picked.
+      { ...arafa!, profile: { full_name: "Arafa", profile_pic: null, avatar: { id: 2, name: "Fox", image: fox } } },
+    ] as unknown as Row[];
+  }
+
+  beforeEach(() => stubImageLoading());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("keeps the pictures on the parsed row", () => {
+    const parsed = adminUserSchema.parse(withPictures()[1]);
+    expect(parsed.profile?.profile_pic?.thumbnail).toBe(photo.thumbnail);
+    expect(parsed.profile?.avatar?.image?.thumbnail).toBe(fox.thumbnail);
+  });
+
+  it("shows the photo, else the avatar, else the initials, at thumbnail size", async () => {
+    rows = withPictures();
+    render(<UsersV2 />);
+    const rowOf = async (username: string) => (await screen.findByText(`@${username}`)).closest("button")!;
+
+    await waitFor(async () => expect(shownPicture(await rowOf("jose_thomas"))).toBe(photo.thumbnail));
+    await waitFor(async () => expect(shownPicture(await rowOf("arafa_n"))).toBe(fox.thumbnail));
+    const admin = await rowOf("platform_admin");
+    expect(shownPicture(admin)).toBeNull();
+    expect(within(admin).getByText("TP")).toBeInTheDocument();
+  });
+
+  it("shows the picture in the drawer a row opens, at the larger size", async () => {
+    rows = withPictures();
+    render(<UsersV2 />);
+    fireEvent.click((await screen.findByText("@jose_thomas")).closest("button")!);
+    const drawer = await screen.findByRole("dialog");
+    await waitFor(() => expect(shownPicture(drawer)).toBe(photo.medium));
   });
 });
 

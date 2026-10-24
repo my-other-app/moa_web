@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 
+import { shownPicture, stubImageLoading } from "@/test/images";
+
 import fixture from "../__fixtures__/threads.json";
 import clubInfoFixture from "../__fixtures__/club-info.json";
 
@@ -30,7 +32,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path.endsWith("/clubs/threads/page")) return { ...fixture, items: fixture.items.map((t, k) => ({ ...t, awaiting_reply: k === 0, engagement: t.likes + t.comments })), counts: { all: 3, awaiting: 1, pinned: 1, polls: 1, photos: 0 } };
         if (path.endsWith("/clubs/threads")) return fixture;
         if (path.includes("/clubs/info")) return { ...clubInfoFixture, followers_count: 1284 };
-        if (/\/threads\/t1\/comments$/.test(path)) return [{ id: "c1", body: "Can't wait!", author: { id: 9, name: "Ananya Iyer", is_club: false }, created_at: "2026-10-12T11:00:00+00:00" }];
+        if (/\/threads\/t1\/comments$/.test(path)) return [{ id: "c1", body: "Can't wait!", author: { id: 9, name: "Ananya Iyer", is_club: false, avatar: { thumbnail: "https://cdn.test/users/profile_pic/ananya.thumbnail.png" } }, created_at: "2026-10-12T11:00:00+00:00" }];
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(async (path: string, body: unknown) => {
@@ -91,6 +93,18 @@ describe("threads", () => {
     render(<ThreadsPage />);
     expect(await screen.findByText("Can't wait!")).toBeInTheDocument();
     expect(calls.find((c) => c.path.endsWith("/clubs/threads/page"))).toBeTruthy();
+  });
+
+  it("shows a commenter's picture beside their comment", async () => {
+    qs = "scope=awaiting";
+    stubImageLoading();
+    try {
+      render(<ThreadsPage />);
+      const comment = (await screen.findByText("Can't wait!")).closest("li")!;
+      await waitFor(() => expect(shownPicture(comment)).toBe("https://cdn.test/users/profile_pic/ananya.thumbnail.png"));
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("posts text with a poll and the notify switch, as one multipart request", async () => {

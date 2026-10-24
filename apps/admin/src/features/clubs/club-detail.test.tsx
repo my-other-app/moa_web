@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+
+import { shownPicture, stubImageLoading } from "@/test/images";
 
 import detailFixture from "../__fixtures__/club-detail.json";
 import eventsFixture from "../__fixtures__/club-events.json";
@@ -10,6 +12,7 @@ import topicsFixture from "../__fixtures__/topics.json";
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
 let detail: unknown = detailFixture;
+let followers: unknown = followersFixture;
 
 vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
@@ -18,7 +21,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     api: {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
-        if (/\/clubs\/followers\//.test(path)) return followersFixture;
+        if (/\/clubs\/followers\//.test(path)) return followers;
         if (/\/clubs\/\d+\/events/.test(path)) return eventsFixture;
         if (/\/clubs\/admin\/\d+\/lifetime$/.test(path)) return lifetimeFixture;
         if (/\/clubs\/admin\/\d+$/.test(path)) return detail;
@@ -46,7 +49,10 @@ const { updateClub } = await import("./api");
 beforeEach(() => {
   calls.length = 0;
   detail = detailFixture;
+  followers = followersFixture;
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("club detail schema", () => {
   it("parses a verified club with its admin stats", () => {
@@ -146,6 +152,30 @@ describe("club detail page", () => {
     render(<ClubDetail clubId={14} />);
     expect(await screen.findByText("Requested plan: Pro · monthly")).toBeInTheDocument();
     expect(adminClubDetailSchema.parse(pendingFixture)).toMatchObject({ requested_plan: "pro", requested_cycle: "monthly" });
+  });
+
+  it("shows each follower's picture: photo, else avatar, else initials", async () => {
+    const photo = { thumbnail: "https://cdn.test/users/profile_pic/f.thumbnail.png" };
+    const fox = { thumbnail: "https://cdn.test/avatars/fox.thumbnail.png" };
+    const [first] = followersFixture.items;
+    followers = {
+      ...followersFixture,
+      total: 3,
+      items: [
+        { ...first, user: { ...first!.user, id: 1, full_name: "Photo Person", username: "photo", profile: { profile_pic: photo, avatar: { id: 2, name: "Fox", image: fox } } } },
+        { ...first, user: { ...first!.user, id: 2, full_name: "Fox Person", username: "fox", profile: { profile_pic: null, avatar: { id: 2, name: "Fox", image: fox } } } },
+        { ...first, user: { ...first!.user, id: 3, full_name: "Plain Person", username: "plain", profile: null } },
+      ],
+    };
+    stubImageLoading();
+    render(<ClubDetail clubId={5} />);
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Followers" }), { button: 0, ctrlKey: false });
+    const rowOf = async (name: string) => (await screen.findByRole("link", { name })).closest<HTMLElement>("div.flex")!;
+    await waitFor(async () => expect(shownPicture(await rowOf("Photo Person"))).toBe(photo.thumbnail));
+    await waitFor(async () => expect(shownPicture(await rowOf("Fox Person"))).toBe(fox.thumbnail));
+    const plain = await rowOf("Plain Person");
+    expect(shownPicture(plain)).toBeNull();
+    expect(within(plain).getByText("PP")).toBeInTheDocument();
   });
 
   it("shows the three sub-tabs", async () => {

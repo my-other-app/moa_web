@@ -4,7 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { BarChart3Icon, EyeIcon, HeartIcon, ImagePlusIcon, Loader2Icon, MessageCircleIcon, PinIcon, PinOffIcon, SendIcon, Trash2Icon, XIcon } from "lucide-react";
-import { formatDateTime, formatNumber, pickImage, relativeTime, useListParams } from "@moa/app-kit";
+import { PersonAvatar, formatDateTime, formatNumber, pickImage, relativeTime, useListParams } from "@moa/app-kit";
 import { CardLabel, Chip, EmptyState, FigurePanel, InitialsAvatar, Notice, Pager, ProgressBar, Skeleton, StatTile, cn, toast } from "@moa/ui";
 import { useObjectUrl } from "@moa/ui/hooks";
 
@@ -143,7 +143,12 @@ function Comments({ thread }: { thread: Thread }) {
         <ul className="flex flex-col gap-2.5">
           {q.data.map((c) => (
             <li key={c.id} className="flex items-start gap-2">
-              <InitialsAvatar name={c.author.name} size={28} tone={c.author.is_club ? "accent" : "muted"} className="shrink-0 rounded-lg" />
+              <PersonAvatar
+                name={c.author.name}
+                avatar={c.author.avatar}
+                className="size-7 rounded-lg"
+                fallbackClassName={cn("rounded-lg font-mono text-[11px] font-semibold", c.author.is_club ? "bg-brand/10 text-brand" : "bg-muted text-muted-foreground")}
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline gap-2">
                   <span className="text-ink text-[13px] font-medium">{c.author.name}</span>

@@ -1,3 +1,4 @@
+import { pictureSchema } from "@moa/app-kit";
 import { z } from "zod";
 
 export const badgeSchema = z.object({
@@ -68,6 +69,8 @@ export const badgeRecipientSchema = z.object({
   entity_name: z.string().nullish(),
   entity_email: z.string().nullish(),
   awarded_at: z.string().nullish(),
+  /** The recipient's picture, resolved by the API: a club's logo, a person's photo, else the avatar they picked. */
+  avatar: pictureSchema,
 });
 
 export const badgeRecipientsSchema = z.object({

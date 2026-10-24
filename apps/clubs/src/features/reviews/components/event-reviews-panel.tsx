@@ -1,9 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { Loader2Icon, MessageSquareQuoteIcon, StarIcon } from "lucide-react";
-import { formatDate, formatNumber, pickImage } from "@moa/app-kit";
-import { Button, CardLabel, EmptyState, FigurePanel, InitialsAvatar, ProgressBar, Skeleton, cn } from "@moa/ui";
+import { PersonAvatar, formatDate, formatNumber } from "@moa/app-kit";
+import { Button, CardLabel, EmptyState, FigurePanel, ProgressBar, Skeleton, cn } from "@moa/ui";
 
 import { REVIEW_PAGE_SIZE, useEventReviews } from "../queries";
 import { ratingDistribution, type Review } from "../schemas";
@@ -37,15 +36,18 @@ function Stars({ value, size = "sm" }: { value: number; size?: "sm" | "md" }) {
 
 function ReviewRow({ review }: { review: Review }) {
   const name = review.user?.profile?.full_name || review.user?.full_name || review.user?.username || "Someone";
-  const avatar = pickImage(review.user?.profile?.avatar, ["thumbnail", "medium"]);
 
   return (
     <li className="border-line-soft flex gap-3 border-t px-4 py-3 first:border-t-0">
-      {avatar ? (
-        <Image src={avatar} alt="" width={32} height={32} className="size-8 shrink-0 rounded-full object-cover" unoptimized />
-      ) : (
-        <InitialsAvatar name={name} size={32} tone="muted" />
-      )}
+      {/* Their photo first: a reviewer with one used to show as initials,
+          since only the avatar they picked was read. */}
+      <PersonAvatar
+        name={name}
+        photo={review.user?.profile?.profile_pic}
+        avatar={review.user?.profile?.avatar}
+        className="size-8"
+        fallbackClassName="bg-muted text-muted-foreground font-mono text-[12px] font-semibold"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <span className="text-ink truncate text-[13px] font-medium">{name}</span>

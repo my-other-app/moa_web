@@ -15,14 +15,21 @@
       "entity_id": 412,
       "entity_name": "Test Person",
       "entity_email": "testperson@example.com",
-      "awarded_at": "2026-03-02T19:30:00"
+      "awarded_at": "2026-03-02T19:30:00",
+      "avatar": {
+        "thumbnail": "https://cdn.test/users/profile_pic/test-person.thumbnail.png",
+        "medium": "https://cdn.test/users/profile_pic/test-person.medium.png",
+        "large": "https://cdn.test/users/profile_pic/test-person.large.png",
+        "original": "https://cdn.test/users/profile_pic/test-person.png"
+      }
     },
     {
       "id": 102,
       "entity_id": 413,
       "entity_name": "Second Person",
       "entity_email": "second@example.com",
-      "awarded_at": "2026-04-11T08:05:00"
+      "awarded_at": "2026-04-11T08:05:00",
+      "avatar": null
     }
   ],
   "total": 2

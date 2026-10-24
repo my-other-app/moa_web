@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Trash2Icon, UserPlusIcon, UsersIcon } from "lucide-react";
-import { formatNumber } from "@moa/app-kit";
+import { PersonAvatar, formatNumber } from "@moa/app-kit";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -156,10 +156,17 @@ export function PeoplePanel({
                   )}
                 >
                   <span className="flex min-w-0 items-center gap-3">
-                    <InitialsAvatar
+                    <PersonAvatar
                       name={name}
-                      size={32}
-                      tone={v.can_check_in ? "admit" : "accent"}
+                      avatar={v.avatar}
+                      className="size-8"
+                      // Green for someone who can admit, as the initials always were.
+                      fallbackClassName={cn(
+                        "font-mono text-[12px] font-semibold",
+                        v.can_check_in
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                          : "bg-brand/10 text-brand",
+                      )}
                     />
                     <span className="min-w-0">
                       <span className="flex flex-wrap items-center gap-1.5">

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { imageFieldSchema } from "@moa/app-kit";
+import { pictureSchema } from "@moa/app-kit";
 
 /**
  * Attendee reviews for one event.
@@ -21,7 +21,10 @@ export const reviewSchema = z.object({
       profile: z
         .object({
           full_name: z.string().nullish(),
-          avatar: imageFieldSchema.nullish(),
+          /* The avatar they picked: here the image itself, not `{id, name, image}`. */
+          avatar: pictureSchema,
+          /* The photo they uploaded, which wins over the avatar. */
+          profile_pic: pictureSchema,
         })
         .nullish(),
     })

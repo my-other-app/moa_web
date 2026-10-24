@@ -3,6 +3,8 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { focusManager } from "@tanstack/react-query";
 import { ApiError } from "@moa/api";
 
+import { shownPicture, stubImageLoading } from "@/test/images";
+
 /**
  * The Reports page against the backend's contract (moa_backend#68):
  * GET /admin/reports?status=open|resolved&target_type=&offset=&limit= → {items, total} (any admin),
@@ -151,6 +153,12 @@ const listCalls = () => gets.filter((g) => g.path === "/api/v1/admin/reports" &&
 const countCalls = () => gets.filter((g) => g.path === "/api/v1/admin/reports" && g.query?.limit === 1);
 const rowOf = (id: number) => document.querySelector<HTMLElement>(`[data-report="${id}"]`)!;
 const openList = () => screen.findByRole("list", { name: "Open reports" });
+/** The text a reader gets: without what is hidden from them (a picture's initials, beside the name they stand for). */
+const visibleText = (el: Element) => {
+  const copy = el.cloneNode(true) as Element;
+  copy.querySelectorAll('[aria-hidden="true"]').forEach((n) => n.remove());
+  return (copy.textContent ?? "").replace(/\s+/g, " ");
+};
 
 async function openDialog(id: number, button: string) {
   await openList();
@@ -238,9 +246,29 @@ describe("the list", () => {
     expect(within(rowOf(4)).getByText("Club", { selector: ".tag" })).toBeInTheDocument();
     // A club's author is its own account: the account's user page, then the club.
     expect(within(rowOf(4)).getAllByRole("link", { name: "Robotics" }).map((a) => a.getAttribute("href"))).toEqual(["/users/31", "/clubs/6"]);
-    expect(rowOf(2)).toHaveTextContent("Posted by Circuit");
-    expect(rowOf(3)).toHaveTextContent("Account Spam Bot 3000");
+    expect(visibleText(rowOf(2))).toContain("Posted by Circuit");
+    expect(visibleText(rowOf(3))).toContain("Account Spam Bot 3000");
     expect(within(rowOf(4)).getByText("Misinformation")).toHaveAttribute("data-tone", "info");
+  });
+
+  it("shows each person's picture beside their name, and initials for someone without one", async () => {
+    const photo = { thumbnail: "https://cdn.test/users/profile_pic/asha.thumbnail.png" };
+    const fox = { thumbnail: "https://cdn.test/avatars/fox.thumbnail.png" };
+    listItems = [report({ reporter: { id: 21, name: "Asha Nair", avatar: photo }, target_author: { id: 9, name: "Rahul K", avatar: fox } }), report({ id: 2, reporter: { id: 22, name: "No Picture" } })];
+    stubImageLoading();
+    try {
+      render(<ReportsPage />);
+      await openList();
+      const reporter = within(rowOf(1)).getByRole("link", { name: "Asha Nair" });
+      const author = within(rowOf(1)).getByRole("link", { name: "Rahul K" });
+      await waitFor(() => expect(shownPicture(reporter)).toBe(photo.thumbnail));
+      await waitFor(() => expect(shownPicture(author)).toBe(fox.thumbnail));
+      const plain = within(rowOf(2)).getByRole("link", { name: "No Picture" });
+      expect(shownPicture(plain)).toBeNull();
+      expect(within(plain).getByText("NP")).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("switches to Resolved and filters by the kind of thing through the URL", async () => {

@@ -1,3 +1,4 @@
+import { pictureSchema } from "@moa/app-kit";
 import { z } from "zod";
 
 export const DOOR_KINDS = ["door", "desk", "kiosk"] as const;
@@ -47,6 +48,8 @@ export const teamVolunteerSchema = z.object({
   can_merch: z.boolean(),
   door_id: z.string().nullish(),
   check_ins: z.number().default(0),
+  /** Their photo, else the avatar they picked (resolved by the API); null for an invite not yet accepted. */
+  avatar: pictureSchema,
 });
 export type TeamVolunteer = z.infer<typeof teamVolunteerSchema>;
 
