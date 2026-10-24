@@ -39,6 +39,8 @@ import {
   type Conversation,
   type ConversationList,
   type InboxFilter,
+  type Message,
+  type MessageList,
   type KeyField,
   type Keys,
   type TemplateForm,
@@ -206,15 +208,50 @@ export function conversationsOf(data: InfiniteData<ConversationList> | undefined
   return out;
 }
 
+/** A conversation's messages: the newest page first, then each older one (`before` its oldest). */
+export type MessagePages = InfiniteData<MessageList, number | null>;
+
+/**
+ * The newest page, and the older ones loaded by "Load older", each before
+ * the oldest of the page after it. A refresh reads them again from the
+ * newest, each from where the one after it now starts: as new messages
+ * arrive, none falls between two pages.
+ */
 export function useMessages(conversationId: number | null, poll: number | false) {
-  return useQuery({
+  return useInfiniteQuery<MessageList, Error, MessagePages, readonly unknown[], number | null>({
     queryKey: [...MESSAGES_KEY, conversationId],
-    queryFn: () => fetchMessages(conversationId!),
+    queryFn: ({ pageParam }) => fetchMessages(conversationId!, { before: pageParam ?? undefined }),
+    initialPageParam: null,
+    getNextPageParam: (last) => (last.has_more && last.items[0] ? last.items[0].id : undefined),
     enabled: conversationId !== null,
     staleTime: 3_000,
     refetchInterval: poll,
     retry: false,
   });
+}
+
+/** Every message loaded, oldest first, each once. */
+export function messagesOf(data: MessagePages | undefined): Message[] {
+  const seen = new Set<number>();
+  const out: Message[] = [];
+  for (const page of [...(data?.pages ?? [])].reverse()) {
+    for (const m of page.items) {
+      if (seen.has(m.id)) continue;
+      seen.add(m.id);
+      out.push(m);
+    }
+  }
+  return out;
+}
+
+/** A message as the server kept it, put where it belongs: replacing itself, or last in the newest page. */
+export function withMessage(data: MessagePages | undefined, m: Message): MessagePages | undefined {
+  if (!data?.pages.length) return data;
+  if (data.pages.some((p) => p.items.some((x) => x.id === m.id))) {
+    return { ...data, pages: data.pages.map((p) => ({ ...p, items: p.items.map((x) => (x.id === m.id ? m : x)) })) };
+  }
+  const [newest, ...rest] = data.pages;
+  return { ...data, pages: [{ ...newest!, items: [...newest!.items, m] }, ...rest] };
 }
 
 /** Everything the inbox shows again: after a send, a read, a change pushed by the stream. */
@@ -245,16 +282,49 @@ export function useApplyRefresh() {
   );
 }
 
+/**
+ * A reply. The message the server answers with goes straight into the
+ * conversation (no read of it to see it); a refusal reads it again, since
+ * what it said about the window may have changed.
+ */
 export function useSendMessage(conversationId: number) {
+  const queryClient = useQueryClient();
   const refresh = useRefreshInbox();
-  return useMutation({ mutationFn: (body: SendBody) => sendMessage(conversationId, body), onSettled: () => refresh(conversationId) });
+  return useMutation({
+    mutationFn: (body: SendBody) => sendMessage(conversationId, body),
+    onSuccess: async (m) => {
+      const key = [...MESSAGES_KEY, conversationId];
+      // A read already on its way began before this message: it would put back the conversation without it.
+      await queryClient.cancelQueries({ queryKey: key });
+      queryClient.setQueryData<MessagePages>(key, (data) => withMessage(data, m));
+      void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
+      void queryClient.invalidateQueries({ queryKey: OVERVIEW_KEY });
+    },
+    onError: () => refresh(conversationId),
+  });
+}
+
+/** The conversation as it now is, wherever it is shown: the thread's header and the list's row. */
+function useSetConversation() {
+  const queryClient = useQueryClient();
+  return (c: Conversation) => {
+    queryClient.setQueryData<MessagePages>([...MESSAGES_KEY, c.id], (data) =>
+      data?.pages.length ? { ...data, pages: data.pages.map((p, i) => (i === 0 ? { ...p, conversation: c } : p)) } : data,
+    );
+    queryClient.setQueriesData<InfiniteData<ConversationList>>({ queryKey: CONVERSATIONS_KEY }, (data) =>
+      data ? { ...data, pages: data.pages.map((p) => ({ ...p, items: p.items.map((x) => (x.id === c.id ? c : x)) })) } : data,
+    );
+  };
 }
 
 export function useMarkRead() {
   const queryClient = useQueryClient();
+  const set = useSetConversation();
   return useMutation({
     mutationFn: (conversationId: number) => markRead(conversationId),
-    onSuccess: () => {
+    onSuccess: (c) => {
+      set(c);
+      // The unread counts: the filter's and the overview's.
       void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
       void queryClient.invalidateQueries({ queryKey: OVERVIEW_KEY });
     },

@@ -207,7 +207,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         }
         if (path === "/api/v1/clubs/whatsapp/templates") return answer(state.templates);
         const m = /^\/api\/v1\/clubs\/whatsapp\/conversations\/(\d+)\/messages$/.exec(path);
-        if (m) return answer(state.messages[Number(m[1])]);
+        if (m) {
+          const c = state.messages[Number(m[1])];
+          return answer(typeof c === "function" ? (c as (query?: Record<string, unknown>) => unknown)(options?.query) : c);
+        }
         if (path === "/api/v1/clubs/access/me") throw new ApiError({ message: "Not Found", status: 404 });
         if (path === "/api/v1/clubs/access") {
           return { owner_email: "circuit@example.com", members: state.members, roles: [{ key: "editor", label: "Editor", description: "Events." }], can_manage: true };
@@ -229,7 +232,11 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
           return { results: { ticket_confirmed: "submitted", event_reminder: "submitted", certificate_ready: "Add your app ID in the connection settings first: a document header needs it." } };
         }
         if (path === "/api/v1/clubs/whatsapp/templates") return answer(state.createTemplate(body));
-        if (/\/conversations\/\d+\/read$/.test(path)) return ANANYA;
+        const r = /\/conversations\/(\d+)\/read$/.exec(path);
+        if (r) {
+          const kept = state.messages[Number(r[1])] as { conversation?: object } | undefined;
+          return { ...ANANYA, ...(typeof kept === "object" ? kept?.conversation : {}), unread_count: 0 };
+        }
         if (/\/conversations\/\d+\/messages$/.test(path)) return answer(state.send(body));
         throw new Error(`unstubbed POST ${path}`);
       }),
@@ -607,15 +614,67 @@ describe("the inbox", () => {
     expect(calls.some((c) => c.path === "/api/v1/clubs/whatsapp/templates" && c.query?.refresh === false)).toBe(true);
   });
 
-  it("says the window closed when the server says so", async () => {
-    state.send = () => new ApiError({ status: 409, errorCode: "WINDOW_CLOSED", message: "It's been more than 24 hours." });
+  it("says the window closed when the server says so, and keeps what was typed when the reply box changes", async () => {
+    state.send = () => {
+      // The server's answer, and the conversation as it now reads: the window shut.
+      const kept = state.messages[11] as { conversation: object };
+      state.messages[11] = { ...kept, conversation: { ...kept.conversation, window_open: false, window_expires_at: ago(MIN) } };
+      return new ApiError({ status: 409, errorCode: "WINDOW_CLOSED", message: "It's been more than 24 hours." });
+    };
     render(<WhatsAppInboxPage />);
     fireEvent.click(await screen.findByRole("button", { name: /Ananya Iyer/ }));
     const thread = await screen.findByLabelText("Conversation with Ananya Iyer");
     await within(thread).findByText("Is there parking?");
-    fireEvent.change(within(thread).getByLabelText("Message"), { target: { value: "Hi" } });
+    fireEvent.change(within(thread).getByLabelText("Message"), { target: { value: "See you at Hall B at 6" } });
     fireEvent.click(within(thread).getByRole("button", { name: "Send" }));
-    expect(await within(thread).findByText(/Send an approved template instead/)).toBeInTheDocument();
+    // The conversation is read again, the window has closed: the template picker, and the notice and draft kept.
+    expect(await within(thread).findByLabelText("Template")).toBeInTheDocument();
+    expect(within(thread).queryByLabelText("Message")).toBeNull();
+    expect(within(thread).getByText(/Send an approved template instead/).closest("[role=alert]")).toHaveTextContent("Not sent");
+    const kept = within(thread).getByRole("group", { name: "Your unsent message" });
+    expect(kept).toHaveTextContent("See you at Hall B at 6");
+    fireEvent.click(within(kept).getByRole("button", { name: /Copy/ }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("See you at Hall B at 6"));
+    fireEvent.click(within(kept).getByRole("button", { name: "Discard" }));
+    expect(within(thread).queryByRole("group", { name: "Your unsent message" })).toBeNull();
+  });
+
+  it("sends with Ctrl+Enter or Cmd+Enter, and says so", async () => {
+    render(<WhatsAppInboxPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /Ananya Iyer/ }));
+    const thread = await screen.findByLabelText("Conversation with Ananya Iyer");
+    const box = await within(thread).findByLabelText("Message");
+    expect(box).toHaveAccessibleDescription(/Ctrl \+ Enter to send/);
+    fireEvent.change(box, { target: { value: "On my way" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(calls.some((c) => c.method === "POST" && c.path.endsWith("/conversations/11/messages"))).toBe(false);
+    fireEvent.keyDown(box, { key: "Enter", ctrlKey: true });
+    await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.path.endsWith("/conversations/11/messages"))?.body).toEqual({ type: "text", text: "On my way" }));
+    fireEvent.change(box, { target: { value: "Here" } });
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(calls.filter((c) => c.method === "POST" && c.path.endsWith("/conversations/11/messages"))).toHaveLength(2));
+  });
+
+  it("counts the window down a minute at a time, and turns to templates when it ends", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      state.messages[11] = {
+        ...(state.messages[11] as object),
+        conversation: { ...ANANYA, unread_count: 0, window_expires_at: new Date(Date.now() + 2 * MIN + 40_000).toISOString() },
+      };
+      render(<WhatsAppInboxPage />);
+      fireEvent.click(await screen.findByRole("button", { name: /Ananya Iyer/ }));
+      const thread = await screen.findByLabelText("Conversation with Ananya Iyer");
+      const indicator = await within(thread).findByTestId("window-indicator");
+      expect(indicator).toHaveTextContent("You can reply freely for 3 min more");
+      act(() => vi.advanceTimersByTime(60_000));
+      expect(within(thread).getByTestId("window-indicator")).toHaveTextContent("You can reply freely for 2 min more");
+      act(() => vi.advanceTimersByTime(120_000));
+      expect(within(thread).getByTestId("window-indicator")).toHaveTextContent(/only an approved template can reach them/);
+      expect(within(thread).queryByLabelText("Message")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("needs the WhatsApp permission", async () => {
@@ -964,6 +1023,111 @@ describe("the inbox, live", () => {
       height.mockRestore();
       client.mockRestore();
     }
+  });
+
+  const reads = () => calls.filter((c) => c.method === "POST" && c.path.endsWith("/conversations/11/read")).length;
+  const messageReads = () => calls.filter((c) => c.method === "GET" && c.path.endsWith("/conversations/11/messages")).length;
+  async function openLive(name: RegExp) {
+    render(<WhatsAppInboxPage />);
+    fireEvent.click(await screen.findByRole("button", { name }));
+    const log = await screen.findByRole("log", { name: "Messages" });
+    await waitFor(() => expect(FakeSource.last).not.toBeNull());
+    act(() => FakeSource.last!.emit("ready", { club: 1 }));
+    await screen.findByText("Live");
+    return log;
+  }
+  function arrive(id: number, body: string, unread = 1) {
+    const conv = state.messages[11] as { conversation: object; items: unknown[] };
+    state.messages[11] = { ...conv, conversation: { ...conv.conversation, unread_count: unread }, items: [...conv.items, msg({ id, body })] };
+    act(() => FakeSource.last!.emit("changed", { conversation_id: 11, kind: "message" }));
+  }
+
+  it("marks the open conversation read again as each new message from them arrives", async () => {
+    const log = await openLive(/Ananya Iyer/);
+    await waitFor(() => expect(reads()).toBe(1));
+    arrive(40, "One more thing");
+    expect(await within(log).findByText("One more thing", {}, { timeout: 4_000 })).toBeInTheDocument();
+    await waitFor(() => expect(reads()).toBe(2));
+    // A status coming back is not a new message: no read.
+    act(() => FakeSource.last!.emit("changed", { conversation_id: 11, kind: "status" }));
+    await new Promise((r) => setTimeout(r, 1_700));
+    expect(reads()).toBe(2);
+  });
+
+  it("waits for the tab to be in front before marking read", async () => {
+    const hidden = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    try {
+      render(<WhatsAppInboxPage />);
+      fireEvent.click(await screen.findByRole("button", { name: /Ananya Iyer/ }));
+      await screen.findByText("Is there parking?");
+      await new Promise((r) => setTimeout(r, 50));
+      expect(reads()).toBe(0);
+      hidden.mockReturnValue("visible");
+      act(() => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await waitFor(() => expect(reads()).toBe(1));
+    } finally {
+      hidden.mockRestore();
+    }
+  });
+
+  it("keeps older pages joined to the newest as messages arrive: none falls between", async () => {
+    // 120 messages, ids 1..120; a page is the 50 before `before`.
+    let last = 120;
+    const all = () => Array.from({ length: last }, (_, i) => msg({ id: i + 1, body: `Message ${i + 1}`, wa_timestamp: ago(HOUR), created_at: ago(HOUR) }));
+    state.messages[11] = (query?: Record<string, unknown>) => {
+      const before = query?.before === undefined ? Infinity : Number(query.before);
+      const older = all().filter((m) => m.id < before);
+      const page = older.slice(-50);
+      return { conversation: { ...ANANYA, unread_count: 0 }, items: page, has_more: older.length > page.length };
+    };
+    const log = await openLive(/Ananya Iyer/);
+    expect(await within(log).findByText("Message 120")).toBeInTheDocument();
+    expect(within(log).queryByText("Message 70")).toBeNull();
+    fireEvent.click(within(log).getByRole("button", { name: "Load older" }));
+    expect(await within(log).findByText("Message 21")).toBeInTheDocument();
+    expect(calls.some((c) => c.path.endsWith("/conversations/11/messages") && c.query?.before === 71)).toBe(true);
+    // Three arrive: the newest page now starts at 74, and the older one is read again before it.
+    last = 123;
+    act(() => FakeSource.last!.emit("changed", { conversation_id: 11, kind: "message" }));
+    expect(await within(log).findByText("Message 123", {}, { timeout: 4_000 })).toBeInTheDocument();
+    await waitFor(() => expect(calls.some((c) => c.path.endsWith("/conversations/11/messages") && c.query?.before === 74)).toBe(true));
+    for (const n of [24, 71, 72, 73, 74, 100, 123]) expect(within(log).getByText(`Message ${n}`)).toBeInTheDocument();
+  });
+
+  it("says when older messages couldn't be loaded, and tries again on request", async () => {
+    let fail = true;
+    state.messages[11] = (query?: Record<string, unknown>) => {
+      if (query?.before !== undefined && fail) {
+        fail = false;
+        return new ApiError({ status: 502, message: "Bad gateway" });
+      }
+      if (query?.before !== undefined) return { conversation: ANANYA, items: [msg({ id: 0, body: "The very first" })], has_more: false };
+      return { conversation: { ...ANANYA, unread_count: 0 }, items: [msg({ id: 1 })], has_more: true };
+    };
+    render(<WhatsAppInboxPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /Ananya Iyer/ }));
+    const log = await screen.findByRole("log", { name: "Messages" });
+    fireEvent.click(await within(log).findByRole("button", { name: "Load older" }));
+    expect(await within(log).findByText("Couldn't load older messages.")).toBeInTheDocument();
+    // What was there stays.
+    expect(within(log).getByText("Is there parking?")).toBeInTheDocument();
+    fireEvent.click(within(log).getByRole("button", { name: "Try again" }));
+    expect(await within(log).findByText("The very first")).toBeInTheDocument();
+  });
+
+  it("puts a sent message in the conversation at once, without reading it again", async () => {
+    const log = await openLive(/Ananya Iyer/);
+    await within(log).findByText("Is there parking?");
+    await new Promise((r) => setTimeout(r, 1_700));
+    const before = messageReads();
+    const thread = screen.getByLabelText("Conversation with Ananya Iyer");
+    fireEvent.change(within(thread).getByLabelText("Message"), { target: { value: "Hall B car park" } });
+    fireEvent.click(within(thread).getByRole("button", { name: "Send" }));
+    expect(await within(log).findByText("Hall B car park")).toBeInTheDocument();
+    expect(within(thread).getByLabelText("Message")).toHaveValue("");
+    expect(messageReads()).toBe(before);
   });
 
   it("opens no stream and lists nothing for a club that never connected a number", async () => {

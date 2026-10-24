@@ -6,10 +6,11 @@ import { AlertCircleIcon, ArrowLeftIcon, CheckCheckIcon, CheckIcon, ClockIcon, F
 import { formatDate, formatDateTime, formatTime } from "@moa/app-kit";
 import { EmptyState, Skeleton, cn } from "@moa/ui";
 
-import { fetchMessages, mediaHref } from "../api";
-import { useMarkRead, useMessages, useSetConversationStatus } from "../queries";
+import { mediaHref } from "../api";
+import { messagesOf, useMarkRead, useMessages, useSetConversationStatus } from "../queries";
 import { contactName, handle, type Conversation, type Message, type MessageStatus } from "../schemas";
 import { Composer } from "./composer";
+import { useNow } from "./shared";
 
 /** The ticks WhatsApp shows: a clock while sending, one grey tick, two, two blue; a mark when it failed. */
 export function StatusTicks({ status, title }: { status: MessageStatus | string | null | undefined; title?: string | null }) {
@@ -131,21 +132,61 @@ function dayOf(iso: string): string {
   return iso ? formatDate(iso) : "";
 }
 
+/** Whether this tab is the one in front: a conversation is only marked read while someone can see it. */
+function subscribeVisibility(onChange: () => void) {
+  document.addEventListener("visibilitychange", onChange);
+  return () => document.removeEventListener("visibilitychange", onChange);
+}
+function useTabVisible(): boolean {
+  return React.useSyncExternalStore(
+    subscribeVisibility,
+    () => document.visibilityState === "visible",
+    () => true,
+  );
+}
+
+function newestInbound(items: Message[]): number | null {
+  for (let i = items.length - 1; i >= 0; i--) if (items[i]!.direction === "in") return items[i]!.id;
+  return null;
+}
+
 /**
  * One conversation: who it is (and which of the club's events they
  * registered for), the messages oldest first with "Load older" above, the
- * window, and the reply box. Opening it marks it read.
+ * window, and the reply box.
+ *
+ * It is marked read whenever something they sent is unread and the tab is
+ * in front: on opening, and again as each new message arrives.
  */
 export function Thread({ conversationId, poll, onBack }: { conversationId: number; poll: number | false; onBack?: () => void }) {
   const q = useMessages(conversationId, poll);
-  const markRead = useMarkRead();
+  const { mutate: markRead } = useMarkRead();
   const status = useSetConversationStatus();
-  const [older, setOlder] = React.useState<Message[]>([]);
-  const [more, setMore] = React.useState<boolean | null>(null);
-  const [loadingOlder, setLoadingOlder] = React.useState(false);
-  const read = React.useRef<number | null>(null);
-  const conv: Conversation | undefined = q.data?.conversation;
+  const now = useNow();
+  const visible = useTabVisible();
+  // The reply being written, and why the last one wasn't sent: kept here, so
+  // the reply box starting afresh (the window closing) loses neither.
+  const [draft, setDraft] = React.useState("");
+  const [problem, setProblem] = React.useState<string | null>(null);
+
+  const conv: Conversation | undefined = q.data?.pages[0]?.conversation;
+  const items = React.useMemo(() => messagesOf(q.data), [q.data]);
   const unread = conv?.unread_count ?? 0;
+
+  // Marked read once per message they sent: the newest one's id is the key, not the conversation's.
+  const lastIn = newestInbound(items);
+  const read = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (!visible || unread <= 0) return;
+    const key = lastIn ?? -1;
+    if (read.current === key) return;
+    read.current = key;
+    markRead(conversationId, {
+      onError: () => {
+        read.current = null;
+      },
+    });
+  }, [visible, unread, lastIn, conversationId, markRead]);
 
   // The log keeps the newest message in view: on opening, and as messages
   // arrive while the reader is at the bottom. Someone scrolled up to read
@@ -156,34 +197,41 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
     const el = log.current;
     if (el) atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   };
-  const latestItems = q.data?.items;
-  const newest = latestItems?.length ? latestItems[latestItems.length - 1]!.id : null;
+  const newest = items.length ? items[items.length - 1]!.id : null;
   React.useLayoutEffect(() => {
     const el = log.current;
     if (el && newest !== null && atBottom.current) el.scrollTop = el.scrollHeight;
   }, [newest]);
   // Older messages go in above: the one being read stays where it was on screen.
   const fromBottom = React.useRef<number | null>(null);
-  const keepPlace = () => {
-    const el = log.current;
-    fromBottom.current = el ? el.scrollHeight - el.scrollTop : null;
-  };
-  const oldest = older[0]?.id ?? null;
+  const oldest = items[0]?.id ?? null;
   React.useLayoutEffect(() => {
     const el = log.current;
     if (el && fromBottom.current !== null) el.scrollTop = el.scrollHeight - fromBottom.current;
     fromBottom.current = null;
   }, [oldest]);
+  const loadOlder = () => {
+    const el = log.current;
+    fromBottom.current = el ? el.scrollHeight - el.scrollTop : null;
+    // fetchNextPage never throws: a failure is q.isFetchNextPageError, shown with a retry.
+    void q.fetchNextPage();
+  };
 
-  React.useEffect(() => {
-    if (unread > 0 && read.current !== conversationId) {
-      read.current = conversationId;
-      markRead.mutate(conversationId);
-    }
-  }, [conversationId, unread, markRead]);
-
-  if (q.isError) return <EmptyState tone="muted" title="Could not load this conversation" description="Try again in a moment." />;
   if (!q.data || !conv) {
+    if (q.isError) {
+      return (
+        <EmptyState
+          tone="muted"
+          title="Could not load this conversation"
+          description="Try again in a moment."
+          action={
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void q.refetch()}>
+              Try again
+            </button>
+          }
+        />
+      );
+    }
     return (
       <div className="flex flex-col gap-2 p-4">
         <Skeleton className="h-12 rounded-xl" />
@@ -192,24 +240,9 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
     );
   }
 
-  const latest = q.data.items;
-  const seen = new Set(latest.map((m) => m.id));
-  const items = [...older.filter((m) => !seen.has(m.id)), ...latest];
-  const hasMore = more ?? q.data.has_more;
-
-  const loadOlder = async () => {
-    const first = items[0];
-    if (!first) return;
-    setLoadingOlder(true);
-    keepPlace();
-    try {
-      const page = await fetchMessages(conversationId, { before: first.id });
-      setOlder((o) => [...page.items, ...o]);
-      setMore(page.has_more);
-    } finally {
-      setLoadingOlder(false);
-    }
-  };
+  // The 24-hour window as of this minute: once it has passed, only a template, whatever the last read said.
+  const windowOpen = conv.window_open && (!conv.window_expires_at || new Date(conv.window_expires_at).getTime() > now.getTime());
+  const view = windowOpen === conv.window_open ? conv : { ...conv, window_open: false };
 
   const name = contactName(conv);
   const at = handle(conv);
@@ -217,7 +250,6 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
   const about = [conv.phone.trim(), at && at !== name ? at : "", conv.profile_name && conv.profile_name !== name ? `on WhatsApp as ${conv.profile_name}` : ""]
     .filter(Boolean)
     .join(" · ");
-  let lastDay = "";
   return (
     <div className="flex min-h-0 flex-1 flex-col" aria-label={`Conversation with ${name}`}>
       <div className="border-line-soft flex shrink-0 flex-wrap items-start gap-2 border-b p-3">
@@ -252,16 +284,23 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
       </div>
 
       <div ref={log} onScroll={onScroll} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-3" role="log" aria-label="Messages">
-        {hasMore ? (
-          <button type="button" className="btn btn-ghost btn-sm self-center" onClick={() => void loadOlder()} disabled={loadingOlder}>
-            {loadingOlder ? <Loader2Icon className="size-3.5 animate-spin" /> : null} Load older
+        {q.isFetchNextPageError ? (
+          <div className="flex flex-col items-center gap-1.5 self-center">
+            <p className="text-refuse m-0 text-[12px]">Couldn&apos;t load older messages.</p>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={loadOlder} disabled={q.isFetchingNextPage}>
+              Try again
+            </button>
+          </div>
+        ) : q.hasNextPage ? (
+          <button type="button" className="btn btn-ghost btn-sm self-center" onClick={loadOlder} disabled={q.isFetchingNextPage}>
+            {q.isFetchingNextPage ? <Loader2Icon className="size-3.5 animate-spin" /> : null} Load older
           </button>
         ) : null}
         {items.length === 0 ? <p className="text-ink-3 m-0 self-center text-[12.5px]">No messages yet.</p> : null}
-        {items.map((m) => {
+        {items.map((m, i) => {
           const day = dayOf(m.wa_timestamp ?? m.created_at);
-          const divider = day !== lastDay;
-          lastDay = day;
+          const prev = items[i - 1];
+          const divider = !prev || day !== dayOf(prev.wa_timestamp ?? prev.created_at);
           return (
             <React.Fragment key={m.id}>
               {divider ? <div className="text-ink-3 self-center font-mono text-[10.5px] tracking-[0.06em] uppercase">{day}</div> : null}
@@ -271,7 +310,19 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
         })}
       </div>
 
-      <Composer key={`${conv.id}-${conv.window_open}`} conversation={conv} />
+      <Composer
+        key={`${conv.id}-${windowOpen}`}
+        conversation={view}
+        now={now}
+        draft={draft}
+        onDraft={setDraft}
+        problem={problem}
+        onProblem={setProblem}
+        onSending={() => {
+          // What is sent shows at the bottom, wherever they had scrolled to.
+          atBottom.current = true;
+        }}
+      />
     </div>
   );
 }

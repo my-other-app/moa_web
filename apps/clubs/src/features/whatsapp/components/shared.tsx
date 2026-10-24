@@ -95,7 +95,17 @@ export function When({ iso, fallback = "—" }: { iso: string | null | undefined
   );
 }
 
-async function copy(text: string) {
+/** The time, again each `every` ms: what counts down (the 24-hour window) moves on by itself. */
+export function useNow(every = 60_000): Date {
+  const [now, setNow] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), every);
+    return () => clearInterval(t);
+  }, [every]);
+  return now;
+}
+
+export async function copy(text: string) {
   try {
     await navigator.clipboard.writeText(text);
     toast.success("Copied");
