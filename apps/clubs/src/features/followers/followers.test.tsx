@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
+import { shownPicture, stubImageLoading } from "@/test/images";
+
 const calls: Array<{ path: string; query?: Record<string, unknown> }> = [];
 const NOW = Date.now();
 const DAY = 86_400_000;
 const iso = (ms: number) => new Date(NOW + ms).toISOString();
 
 const rows = [
-  { user: { id: 9, full_name: "Ananya Iyer", username: "ananya", avatar: null }, org: "COEP Technological University", interests: ["Robotics", "IoT"], followed_at: iso(-200 * DAY), source: null, registrations: 3, attended: 2, last_registered_at: iso(-2 * DAY), upcoming: 1, segments: ["regulars"] },
+  { user: { id: 9, full_name: "Ananya Iyer", username: "ananya", avatar: { thumbnail: "https://cdn.test/users/profile_pic/ananya.thumbnail.png" } as { thumbnail: string } | null }, org: "COEP Technological University", interests: ["Robotics", "IoT"], followed_at: iso(-200 * DAY), source: null, registrations: 3, attended: 2, last_registered_at: iso(-2 * DAY), upcoming: 1, segments: ["regulars"] },
   { user: { id: 10, full_name: "Rohan Patil", username: "rohan", avatar: null }, org: null, interests: [], followed_at: iso(-50 * DAY), source: "Instagram bio", registrations: 1, attended: 1, last_registered_at: iso(-40 * DAY), upcoming: 0, segments: ["once"] },
   { user: { id: 11, full_name: "Old Timer", username: "old", avatar: null }, org: null, interests: ["AI"], followed_at: iso(-300 * DAY), source: null, registrations: 0, attended: 0, last_registered_at: null, upcoming: 0, segments: ["never", "quiet"] },
 ];
@@ -60,6 +62,20 @@ beforeEach(() => {
 });
 
 describe("the followers page", () => {
+  it("shows each follower's picture, and initials for one without, never a broken image", async () => {
+    stubImageLoading();
+    try {
+      render(<FollowersPage />);
+      const ananya = (await screen.findByRole("link", { name: "Open Ananya Iyer" })) as HTMLElement;
+      await waitFor(() => expect(shownPicture(ananya)).toBe("https://cdn.test/users/profile_pic/ananya.thumbnail.png"));
+      const rohan = screen.getByRole("link", { name: "Open Rohan Patil" });
+      expect(shownPicture(rohan)).toBeNull();
+      expect(within(rohan).getByText("RP")).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("reads the audience, its make-up, and each person's record with the club", async () => {
     render(<FollowersPage />);
     expect(await screen.findByText("3 people · 67% have been to an event · 0 new this month")).toBeInTheDocument();

@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DownloadIcon, MegaphoneIcon, UsersIcon } from "lucide-react";
-import { formatDate, formatNumber, pickImage, relativeTime, useListParams } from "@moa/app-kit";
-import { CardLabel, Chip, EmptyState, FigurePanel, InitialsAvatar, Notice, Pager, ProgressBar, Skeleton, StatTile, cn, SearchField } from "@moa/ui";
+import { PersonAvatar, formatDate, formatNumber, relativeTime, useListParams } from "@moa/app-kit";
+import { CardLabel, Chip, EmptyState, FigurePanel, Notice, Pager, ProgressBar, Skeleton, StatTile, cn, SearchField } from "@moa/ui";
 
 import { followersExportUrl } from "../api";
 import { useFollowersInsights, useFollowersList } from "../queries";
@@ -78,14 +77,14 @@ function Breakdown({ title, rows, total, empty }: { title: string; rows: { name:
 }
 
 function Row({ f, now }: { f: FollowerRow; now: number }) {
-  const avatar = pickImage(f.user.avatar, ["thumbnail", "medium"]);
   const seen = f.last_registered_at ?? f.followed_at;
   const did = f.registrations === 0 ? "No events yet" : `${f.attended} of ${f.registrations} ${f.registrations === 1 ? "event" : "events"} attended`;
   const tag = f.upcoming > 0 ? { text: "In for the next", tone: "text-admit" } : f.segments.includes("quiet") ? { text: "Gone quiet", tone: "text-caution" } : f.segments.includes("new") ? { text: "New", tone: "text-brand" } : null;
   return (
     <li className="border-line-soft border-t first:border-t-0">
       <Link href={`/followers/${f.user.id}`} className="hover:bg-sunken grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition-colors sm:grid-cols-[auto_minmax(0,1.4fr)_minmax(0,1fr)_120px_96px]" aria-label={`Open ${f.user.full_name}`}>
-        {avatar ? <Image src={avatar} alt="" width={36} height={36} className="size-9 shrink-0 rounded-full object-cover" unoptimized /> : <InitialsAvatar name={f.user.full_name} size={36} />}
+        {/* `avatar` is already their photo, else the avatar they picked (the API resolves it). */}
+        <PersonAvatar name={f.user.full_name} avatar={f.user.avatar} className="size-9" fallbackClassName="bg-brand/10 text-brand font-mono text-[14px] font-semibold" />
         <span className="min-w-0">
           <span className="text-ink block truncate text-[13.5px] font-medium">
             {f.user.full_name}

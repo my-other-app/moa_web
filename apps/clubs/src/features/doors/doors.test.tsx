@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
+import { shownPicture, stubImageLoading } from "@/test/images";
+
 import summary from "../__fixtures__/event-summary.json";
 
 type Call = { method: string; path: string; body?: unknown; options?: { query?: Record<string, unknown> } };
@@ -35,7 +37,7 @@ const doors = [
 const team = {
   owner: { name: "Hack Club", email: "club@example.com" },
   volunteers: [
-    { id: 7, email: "v@example.com", name: "Vani", user_id: 9, is_approved: true, scope: "event", can_check_in: true, can_walkup: false, can_merch: false, door_id: "d1", check_ins: 2 },
+    { id: 7, email: "v@example.com", name: "Vani", user_id: 9, is_approved: true, scope: "event", can_check_in: true, can_walkup: false, can_merch: false, door_id: "d1", check_ins: 2, avatar: { thumbnail: "https://cdn.test/users/profile_pic/vani.thumbnail.png" } },
     { id: 8, email: "ravi@example.com", name: null, user_id: null, is_approved: false, scope: "club", can_check_in: false, can_walkup: false, can_merch: true, door_id: null, check_ins: 0 },
   ],
   doors,
@@ -123,6 +125,22 @@ describe("check-ins", () => {
 });
 
 describe("doors", () => {
+  it("shows each volunteer's picture, and initials for an invite not yet accepted", async () => {
+    stubImageLoading();
+    try {
+      render(<TeamPage eventId={37} />);
+      // The person's row on the team, not a door's list of who is on it.
+      const rowOf = async (name: string) =>
+        (await screen.findAllByText(name)).map((el) => el.closest("li")).find((li) => li?.querySelector('[data-slot="avatar"]'))!;
+      await waitFor(async () => expect(shownPicture(await rowOf("Vani"))).toBe("https://cdn.test/users/profile_pic/vani.thumbnail.png"));
+      const ravi = await rowOf("Ravi Menon");
+      expect(shownPicture(ravi)).toBeNull();
+      expect(within(ravi).getByText("RM")).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("says whether the door is ready: open, its doors and links, who is on duty", async () => {
     render(<TeamPage eventId={37} />);
     expect(await screen.findByText("On check-in duty")).toBeInTheDocument();
