@@ -56,6 +56,19 @@ export function ClubWhatsAppCard({ clubId }: { clubId: number }) {
                   <dd className="text-foreground">{w.routing ? "Yes, when its templates are approved" : "No"}</dd>
                   <dt>Conversations</dt>
                   <dd className="text-foreground">{formatNumber(w.conversations)}</dd>
+                  {w.club_sends_this_month !== null || w.fallbacks_this_month !== null ? (
+                    <>
+                      <dt>This month</dt>
+                      <dd className="text-foreground">
+                        {formatNumber(w.club_sends_this_month ?? 0)} from its own number
+                        {w.fallbacks_this_month ? (
+                          <span className="text-destructive"> · {formatNumber(w.fallbacks_this_month)} fell back to MyOtherApp&apos;s</span>
+                        ) : (
+                          <span className="text-muted-foreground"> · none fell back</span>
+                        )}
+                      </dd>
+                    </>
+                  ) : null}
                   <dt>Last word from Meta</dt>
                   <dd className="text-foreground">{w.last_webhook_at ? formatDateTime(w.last_webhook_at) : "Nothing yet"}</dd>
                   <dt>Connected on</dt>
