@@ -20,6 +20,10 @@ beforeAll(async () => {
     for await (const c of req) chunks.push(c as Buffer);
     const body = Buffer.concat(chunks);
     seen.push({ method: req.method!, type: req.headers["content-type"], length: body.length, body: body.toString("latin1") });
+    if (req.url?.split("?")[0] === "/api/v1/events/42/figures") {
+      res.writeHead(502, { "content-type": "text/html" });
+      return res.end("<html>Bad Gateway</html>");
+    }
     if (req.url === "/api/v1/clubs/ai/write") {
       res.writeHead(401, { "content-type": "application/json" });
       return res.end(JSON.stringify({ message: "Your AI key was rejected.", error_code: "AI_KEY_INVALID" }));
@@ -62,5 +66,37 @@ describe("the gateway", () => {
     const res = await handlers().DELETE(new Request("http://localhost/api/gateway/api/v1/clubs/ai/key", { method: "DELETE" }), ctx("api/v1/clubs/ai/key"));
     expect(res.status).toBe(200);
     expect(seen.at(-1)).toMatchObject({ method: "DELETE", length: 0 });
+  });
+
+  describe("reporting what came back", () => {
+    it("tells the reporter the method, the path without its query, the status and the time", async () => {
+      const seenResults: Array<{ method: string; path: string; status: number; durationMs: number }> = [];
+      const gateway = createGatewayHandlers({ apiUrl, onUpstreamResponse: (r) => seenResults.push(r) });
+      const res = await gateway.GET(new Request("http://localhost/api/gateway/api/v1/events/42/figures?key=secret"), ctx("api/v1/events/42/figures"));
+      expect(res.status).toBe(502);
+      expect(await res.text()).toBe("<html>Bad Gateway</html>");
+      expect(seenResults).toEqual([{ method: "GET", path: "/api/v1/events/42/figures", status: 502, durationMs: expect.any(Number) }]);
+    });
+
+    it("hands over a 4xx too, so the reporter is the one deciding what is an error", async () => {
+      const statuses: number[] = [];
+      const gateway = createGatewayHandlers({ apiUrl, onUpstreamResponse: (r) => statuses.push(r.status) });
+      await gateway.POST(
+        new Request("http://localhost/api/gateway/api/v1/clubs/ai/write", { method: "POST", body: "{}" }),
+        ctx("api/v1/clubs/ai/write"),
+      );
+      expect(statuses).toEqual([401]);
+    });
+
+    it("still answers when the reporter throws", async () => {
+      const gateway = createGatewayHandlers({
+        apiUrl,
+        onUpstreamResponse: () => {
+          throw new Error("reporter down");
+        },
+      });
+      const res = await gateway.GET(new Request("http://localhost/api/gateway/api/v1/events/42/figures"), ctx("api/v1/events/42/figures"));
+      expect(res.status).toBe(502);
+    });
   });
 });

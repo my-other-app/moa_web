@@ -28,6 +28,14 @@ export interface GatewayOptions {
    * fetch and forwarding stale values corrupts the body.
    */
   stripRequestHeaders?: string[];
+  /**
+   * Told the outcome of every proxied call: method, API path (no query
+   * string), status and time taken. The apps pass Sentry's reporter here so
+   * an upstream 5xx is seen; the gateway itself stays free of any tracking
+   * dependency. Whatever it throws is swallowed -- reporting must never
+   * break the proxy.
+   */
+  onUpstreamResponse?: (result: { method: string; path: string; status: number; durationMs: number }) => void;
 }
 
 const DEFAULT_STRIPPED = [
@@ -78,6 +86,7 @@ export function createGatewayHandlers(options: GatewayOptions) {
     const hasBody = !["GET", "HEAD"].includes(request.method);
     const bytes = hasBody ? await request.arrayBuffer() : null;
 
+    const started = Date.now();
     const upstream = await fetch(target, {
       method: request.method,
       headers,
@@ -85,6 +94,19 @@ export function createGatewayHandlers(options: GatewayOptions) {
       redirect: "manual",
       cache: "no-store",
     });
+
+    if (options.onUpstreamResponse) {
+      try {
+        options.onUpstreamResponse({
+          method: request.method,
+          path: upstreamPath,
+          status: upstream.status,
+          durationMs: Date.now() - started,
+        });
+      } catch {
+        // A reporting fault is not the caller's problem.
+      }
+    }
 
     // Pass the response through, including Set-Cookie so login/refresh/logout
     // keep working. Headers.getSetCookie() preserves multiple cookies, which a
