@@ -10,7 +10,7 @@ import {
   Loader2Icon,
   SearchIcon,
 } from "lucide-react";
-import { formatNumber, initials, useListParams } from "@moa/app-kit";
+import { PersonAvatar, formatNumber, useListParams } from "@moa/app-kit";
 import { InlineAlert, Skeleton, cn } from "@moa/ui";
 
 import { useCan } from "@/hooks/use-can";
@@ -398,16 +398,18 @@ export function UsersV2() {
                       )}
                     >
                       <span className="flex min-w-0 items-center gap-2.5">
-                        <span
-                          className={cn(
-                            "grid size-[30px] shrink-0 place-items-center rounded-full text-[11px]",
+                        <PersonAvatar
+                          name={name}
+                          photo={user.profile?.profile_pic}
+                          avatar={user.profile?.avatar?.image}
+                          className="size-[30px]"
+                          fallbackClassName={cn(
+                            "text-[11px]",
                             user.user_type === "club"
                               ? "bg-brand-soft text-brand"
                               : "bg-raised text-ink"
                           )}
-                        >
-                          {initials(name)}
-                        </span>
+                        />
                         <span className="flex min-w-0 flex-col">
                           <span className="truncate">{name}</span>
                           <span className="flex items-center gap-1.5 truncate text-[11.5px] text-ink-3">

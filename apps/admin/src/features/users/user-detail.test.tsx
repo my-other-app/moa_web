@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+
+import { shownPicture, stubImageLoading } from "@/test/images";
 
 import badgesFixture from "../__fixtures__/user-badges.json";
 import clubsFixture from "../__fixtures__/user-clubs.json";
@@ -12,6 +14,7 @@ import eventsFixture from "../__fixtures__/user-events.json";
  * that answers it, and the query shapes it depends on.
  */
 const calls: string[] = [];
+let detail: unknown = detailFixture;
 
 vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
@@ -29,7 +32,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (/\/user\/admin\/\d+\/clubs/.test(path)) return clubsFixture;
         if (/\/user\/admin\/\d+\/events/.test(path)) return eventsFixture;
         if (/\/badges\/user\/\d+/.test(path)) return badgesFixture;
-        if (/\/user\/admin\/\d+$/.test(path)) return detailFixture;
+        if (/\/user\/admin\/\d+$/.test(path)) return detail;
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(),
@@ -114,6 +117,50 @@ describe("user detail page", () => {
     expect(await screen.findByText("UI/UX")).toBeInTheDocument();
   });
 
+});
+
+describe("the person's picture", () => {
+  const photo = { thumbnail: "https://cdn.test/users/profile_pic/p.thumbnail.png", medium: "https://cdn.test/users/profile_pic/p.medium.png" };
+  const fox = { thumbnail: "https://cdn.test/avatars/fox.thumbnail.png", medium: "https://cdn.test/avatars/fox.medium.png" };
+  const withProfile = (profile: Record<string, unknown>) => ({
+    ...detailFixture,
+    profile: { ...detailFixture.profile, ...profile },
+  });
+
+  beforeEach(() => {
+    stubImageLoading();
+    detail = detailFixture;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    detail = detailFixture;
+  });
+
+  it("shows the photo they uploaded, at the header's larger size", async () => {
+    detail = withProfile({ profile_pic: photo, avatar: { id: 2, name: "Fox", image: fox } });
+    const { container } = render(<UserDetail userId={412} />);
+    await waitFor(() => expect(shownPicture(container)).toBe(photo.medium));
+  });
+
+  it("shows the avatar they picked when there is no photo", async () => {
+    detail = withProfile({ profile_pic: null, avatar: { id: 2, name: "Fox", image: fox } });
+    const { container } = render(<UserDetail userId={412} />);
+    await waitFor(() => expect(shownPicture(container)).toBe(fox.medium));
+  });
+
+  it("shows initials for someone with neither", async () => {
+    const { container } = render(<UserDetail userId={412} />);
+    expect(await screen.findByText("@testperson")).toBeInTheDocument();
+    expect(screen.getByText("TP")).toBeInTheDocument();
+    expect(shownPicture(container)).toBeNull();
+  });
+
+  it("still opens the page when a picture is malformed", () => {
+    const odd = withProfile({ profile_pic: "not an image", avatar: { id: "x" } });
+    const parsed = adminUserDetailSchema.parse(odd);
+    expect(parsed.profile?.profile_pic).toBeNull();
+    expect(parsed.profile?.avatar).toBeNull();
+  });
 });
 
 describe("event list filters", () => {
