@@ -89,7 +89,12 @@ export function PlansTab() {
   const [draft, setDraft] = React.useState<PlanFormInput | null>(null);
   const [confirmWithdraw, setConfirmWithdraw] = React.useState(false);
 
-  const list = plans.data ?? [];
+  const [showArchived, setShowArchived] = React.useState(false);
+  const all = plans.data ?? [];
+  // A withdrawn plan nobody is on (Campus, folded into Enterprise) is out of
+  // the way unless asked for; one with subscribers stays listed.
+  const archived = all.filter((p) => p.visibility === "legacy" && p.subscriber_count === 0);
+  const list = showArchived ? all : all.filter((p) => !archived.includes(p));
 
   // Default to the first plan once they load, without an effect: picking a
   // selection during render avoids a frame showing an empty editor.
@@ -198,10 +203,17 @@ export function PlansTab() {
                   {!plan.billable ? (
                     <span className="text-brand">· not billable</span>
                   ) : null}
+                  {plan.trial_days > 0 ? <span>· {plan.trial_days}-day Razorpay trial</span> : null}
                 </span>
               </button>
             );
           })}
+
+          {archived.length ? (
+            <button type="button" className="btn btn-ghost btn-sm justify-start" onClick={() => setShowArchived((v) => !v)} aria-pressed={showArchived}>
+              {showArchived ? "Hide archived plans" : `Show ${archived.length} archived plan${archived.length === 1 ? "" : "s"}`}
+            </button>
+          ) : null}
 
           {canEdit ? (
             <button
@@ -260,7 +272,7 @@ export function PlansTab() {
                 />
               </div>
               <div className="field">
-                <label htmlFor="plan-trial">Free trial (days)</label>
+                <label htmlFor="plan-trial">Razorpay trial (days)</label>
                 <input
                   id="plan-trial"
                   className="input"
@@ -269,7 +281,11 @@ export function PlansTab() {
                   value={form.trial_days}
                   disabled={!canEdit}
                   onChange={(e) => patch({ trial_days: Math.max(0, +e.target.value || 0) })}
+                  aria-describedby="plan-trial-help"
                 />
+                <span id="plan-trial-help" className="text-[12px] text-ink-3">
+                  Usually 0: every new club already gets 14 days of Pro free, and a plan picked then bills from the trial&apos;s end.
+                </span>
               </div>
               <div className="field">
                 <label htmlFor="plan-monthly">Monthly price (₹)</label>

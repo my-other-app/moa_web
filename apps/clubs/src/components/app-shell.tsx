@@ -27,6 +27,7 @@ import {
 } from "@moa/ui";
 
 import { RouteGate, useAccess } from "@/features/access";
+import { TrialBanner } from "@/features/billing";
 import { PlanLockHost } from "@/features/plan";
 
 import { AwaitingApproval, useClubNotVerified } from "./awaiting-approval";
@@ -208,6 +209,8 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           </div>
           <main ref={mainRef} className="scroll-thin min-h-0 flex-1 overflow-auto">
             <div className="mx-auto max-w-[1180px] px-6 pt-5 pb-16 max-sm:px-4">
+              {/* The free trial's days left (or Free's limits once it is over), on every page. */}
+              <TrialBanner />
               <RouteGate>{children}</RouteGate>
             </div>
           </main>

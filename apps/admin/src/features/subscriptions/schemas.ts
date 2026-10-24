@@ -20,7 +20,7 @@ export function paise(rupeeValue: number): number {
   return Math.round(rupeeValue * PAISE_PER_RUPEE);
 }
 
-/** The ten caps, in the order the editor lists them. */
+/** The caps, in the order the editor lists them. (Storage was never metered and is no longer one.) */
 export const LIMIT_FIELDS = [
   { key: "events_per_month", label: "Events", scope: "per month" },
   { key: "registrations_per_month", label: "Registrations", scope: "per month, all events" },
@@ -29,7 +29,6 @@ export const LIMIT_FIELDS = [
   { key: "coupons_per_event", label: "Coupon codes", scope: "per event" },
   { key: "merch_items_per_event", label: "Merchandise items", scope: "per event" },
   { key: "committee_seats", label: "Committee seats", scope: "separate logins with roles" },
-  { key: "storage_gb", label: "Storage", scope: "GB for photos and artwork" },
   { key: "announcements_per_month", label: "Announcements", scope: "per month" },
   { key: "website_templates", label: "Website templates", scope: "to choose from" },
 ] as const;
@@ -167,9 +166,50 @@ export const subscriptionSchema = z.object({
   /* When the free plan ends; null is no end date. */
   comp_ends_at: z.string().nullish().catch(null),
   granted_by: z.object({ id: z.coerce.number(), name: z.string().nullish() }).nullish().catch(null),
+  /* The free trial (Pro, no card, once per club) is running: the club has
+     `trial_plan` until `trial_ends_at`, whatever `plan` and `status` say. */
+  free_trial: z.boolean().catch(false).default(false),
+  trial_plan: z.object({ key: z.string(), name: z.string() }).nullish().catch(null),
+  /* A paid plan picked during the free trial (`plan`), billed from this date. */
+  billing_starts_at: z.string().nullish().catch(null),
+  /* Whether the club has ever had its free trial. */
+  trial_used: z.boolean().catch(false).default(false),
+  trial_started_at: z.string().nullish().catch(null),
+  /* An Enterprise trial an admin granted, laid over everything above. */
+  enterprise_trial: z
+    .object({ plan: z.object({ key: z.string(), name: z.string() }).nullish(), started_at: z.string().nullish(), ends_at: z.string() })
+    .nullish()
+    .catch(null),
+  enterprise_trial_by: z.object({ id: z.coerce.number(), name: z.string().nullish() }).nullish().catch(null),
 });
 
 export type Subscription = z.infer<typeof subscriptionSchema>;
+
+/** The trial a row's club is on now: the team's Enterprise trial first, then the free trial. */
+export function runningTrial(row: Pick<Subscription, "free_trial" | "trial_plan" | "trial_ends_at" | "enterprise_trial"> | null | undefined):
+  | { kind: "enterprise"; planName: string; endsAt: string }
+  | { kind: "free"; planName: string; endsAt: string }
+  | null {
+  if (!row) return null;
+  if (row.enterprise_trial) return { kind: "enterprise", planName: row.enterprise_trial.plan?.name ?? "Enterprise", endsAt: row.enterprise_trial.ends_at };
+  if (row.free_trial && row.trial_ends_at) return { kind: "free", planName: row.trial_plan?.name ?? "Pro", endsAt: row.trial_ends_at };
+  return null;
+}
+
+/** "Enterprise trial · until 23 Nov 2026" for the badge a trial wears. */
+export function trialBadgeText(row: Parameters<typeof runningTrial>[0]): string | null {
+  const trial = runningTrial(row);
+  return trial ? `${trial.planName} trial · until ${formatDate(trial.endsAt)}` : null;
+}
+
+/** An Enterprise trial's length: the API's bounds, and the owner's default. */
+export const ENTERPRISE_TRIAL_DAYS = { min: 1, max: 365, default: 30 } as const;
+
+export function trialDaysProblem(days: number): string | null {
+  if (!Number.isInteger(days)) return "Whole days only.";
+  if (days < ENTERPRISE_TRIAL_DAYS.min || days > ENTERPRISE_TRIAL_DAYS.max) return `Between ${ENTERPRISE_TRIAL_DAYS.min} and ${ENTERPRISE_TRIAL_DAYS.max} days.`;
+  return null;
+}
 
 /**
  * "Free · until 31 Mar 2027", or "Free · no end date": the badge a free plan
@@ -293,6 +333,9 @@ export const totalsSchema = z.object({
   in_grace: z.number().default(0),
   /* Plans an admin gave free: on a plan, paying nothing, not revenue. */
   complimentary: z.number().catch(0).default(0),
+  /* Free Pro trials (no card) and the team's Enterprise trials, running. */
+  free_trials: z.number().catch(0).default(0),
+  enterprise_trials: z.number().catch(0).default(0),
 });
 
 export type SubscriptionTotals = z.infer<typeof totalsSchema>;

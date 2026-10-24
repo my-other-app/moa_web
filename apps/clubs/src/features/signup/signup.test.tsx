@@ -169,7 +169,7 @@ describe("step by step", () => {
 
     const done = await screen.findByRole("status");
     expect(done).toHaveTextContent(
-      "Thanks — Circuit Society is under review. We'll email circuit@example.com when it's approved, usually within a day. Then log in to choose your plan.",
+      "Thanks — Circuit Society is under review. We'll email circuit@example.com when it's approved, usually within a day. Then log in: your 14 days of Pro start then, free and with no card.",
     );
     expect(within(done).getByRole("link", { name: "Go to sign in" })).toHaveAttribute("href", "/login");
   });

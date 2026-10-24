@@ -50,8 +50,21 @@ export const catalogPlanSchema = z.object({
 });
 export type CatalogPlan = z.infer<typeof catalogPlanSchema>;
 
+/** The free trial every new club starts with (14 days of Pro, no card). */
+export const trialOfferSchema = z.object({
+  days: z.number(),
+  plan_key: z.string(),
+  plan_name: z.string(),
+  card_required: z.boolean().catch(false),
+  then_plan_key: z.string().catch("free"),
+});
+export type TrialOffer = z.infer<typeof trialOfferSchema>;
+
 export const catalogSchema = z.object({
   currency: z.string().catch("INR"),
+  trial: trialOfferSchema.nullish().catch(null),
+  /** How long an Enterprise trial (granted by the team after a call) runs. */
+  enterprise_trial_days: z.number().nullish().catch(null),
   yearly_months_free: z.number().nullish().catch(null),
   plans: z.array(catalogPlanSchema),
 });
@@ -120,6 +133,16 @@ export const subscriptionSchema = z.object({
   complimentary: z.boolean().catch(false),
   /** When the free plan ends; null is no end date. */
   comp_ends_at: z.string().nullish().catch(null),
+  /** The free trial (Pro, no card) is running: the club has `trial_plan` until `trial_ends_at`. */
+  free_trial: z.boolean().catch(false),
+  trial_plan: z.object({ key: z.string(), name: z.string() }).nullish().catch(null),
+  /** A paid plan picked during the free trial (`plan`), billed from this date. */
+  billing_starts_at: z.string().nullish().catch(null),
+  /** An Enterprise trial the team granted, laid over everything else. */
+  enterprise_trial: z
+    .object({ plan: z.object({ key: z.string(), name: z.string() }).nullish(), started_at: z.string().nullish(), ends_at: z.string() })
+    .nullish()
+    .catch(null),
 });
 export type Subscription = z.infer<typeof subscriptionSchema>;
 
@@ -168,8 +191,51 @@ export const entitlementsSchema = z.object({
   /** The plan is a gift from MyOtherApp: it cannot be bought, changed or cancelled here. */
   complimentary: z.boolean().catch(false),
   comp_ends_at: z.string().nullish().catch(null),
+  /** The trial the plan comes from: the free trial ("free_trial", Pro, no card) or the team's ("enterprise_trial"). */
+  trial: z
+    .object({ kind: z.enum(["free_trial", "enterprise_trial"]), plan_key: z.string(), plan_name: z.string(), ends_at: z.string(), days_left: z.number() })
+    .nullish()
+    .catch(null),
+  /** A paid plan picked during the free trial, billed from the trial's end. */
+  chosen_plan: z
+    .object({ plan_key: z.string(), plan_name: z.string(), cycle: z.enum(CYCLES).catch("monthly"), price_paise: z.number().catch(0), billing_starts_at: z.string(), status: z.string() })
+    .nullish()
+    .catch(null),
+  /** The free trial is over and the club is on Free. */
+  trial_ended: z.boolean().catch(false),
+  free_trial_days: z.number().catch(14),
 });
 export type Entitlements = z.infer<typeof entitlementsSchema>;
+
+/** The last days of a trial, when the banner says so louder. */
+export const TRIAL_URGENT_DAYS = 3;
+
+export type TrialView =
+  | { kind: "free_trial" | "enterprise_trial"; planName: string; endsAt: string; daysLeft: number; urgent: boolean; chosen: NonNullable<Entitlements["chosen_plan"]> | null }
+  | { kind: "ended" }
+  | null;
+
+/** What the trial banner says, from the entitlements: a trial running, the free trial over (on Free), or nothing. */
+export function trialView(ent: Entitlements | null | undefined): TrialView {
+  if (!ent) return null;
+  if (ent.trial) {
+    return {
+      kind: ent.trial.kind,
+      planName: ent.trial.plan_name,
+      endsAt: ent.trial.ends_at,
+      daysLeft: ent.trial.days_left,
+      urgent: ent.trial.days_left <= TRIAL_URGENT_DAYS,
+      chosen: ent.trial.kind === "free_trial" ? (ent.chosen_plan ?? null) : null,
+    };
+  }
+  if (ent.trial_ended && ent.plan_key === FREE_PLAN) return { kind: "ended" };
+  return null;
+}
+
+/** "1 day" / "5 days". */
+export function daysWord(n: number): string {
+  return `${n} day${n === 1 ? "" : "s"}`;
+}
 
 /**
  * Whether the club's plan was given free by MyOtherApp. Either source says
@@ -190,6 +256,8 @@ export const startSubscriptionSchema = z.object({
   plan_key: z.string(),
   cycle: z.enum(CYCLES).catch("monthly"),
   trial_days: z.number().catch(0),
+  /** When Razorpay first charges: the free trial's end for a plan picked during it. */
+  billing_starts_at: z.string().nullish().catch(null),
   /** When the checkout link stops working and the club falls back unpaid. */
   expires_at: z.string(),
 });
@@ -208,7 +276,6 @@ export const LIMIT_FIELDS = [
   { key: "registrations_per_event", label: "Registrations per event", unit: "for one event" },
   { key: "merch_items_per_event", label: "Merchandise items", unit: "per event" },
   { key: "committee_seats", label: "Committee seats", unit: "logins with roles" },
-  { key: "storage_gb", label: "Storage", unit: "GB" },
   { key: "announcements_per_month", label: "Announcements", unit: "this month" },
   { key: "website_templates", label: "Website templates", unit: "to choose from" },
 ] as const;

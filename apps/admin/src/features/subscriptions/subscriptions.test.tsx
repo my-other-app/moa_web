@@ -39,7 +39,7 @@ function plan(overrides: Record<string, unknown> = {}) {
     sort_order: 1,
     billable: true,
     subscriber_count: 12,
-    limits: { events_per_month: 10, storage_gb: null, coupons_per_event: 0 },
+    limits: { events_per_month: 10, announcements_per_month: null, coupons_per_event: 0 },
     features: { tickets: true, sso: false },
     feature_groups: FEATURE_GROUPS,
     ...overrides,
@@ -182,10 +182,10 @@ describe("limits", () => {
     const parsed = planSchema.parse(plan());
     const form = toForm(parsed);
 
-    expect(form.limits.storage_gb).toBeNull();
+    expect(form.limits.announcements_per_month).toBeNull();
     expect(form.limits.coupons_per_event).toBe(0);
     // And both survive the trip back.
-    expect(toPayload(form).limits.storage_gb).toBeNull();
+    expect(toPayload(form).limits.announcements_per_month).toBeNull();
     expect(toPayload(form).limits.coupons_per_event).toBe(0);
   });
 });

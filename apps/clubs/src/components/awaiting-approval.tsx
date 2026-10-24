@@ -31,8 +31,8 @@ export function AwaitingApproval() {
   return (
     <AuthFrame
       headline="Bring your club to MyOtherApp."
-      points={["Apply in a few minutes", "We review it, usually within a day", "Then sign in and pick your plan"]}
-      foot="Free to start. Paid plans only when you choose one."
+      points={["Apply in a few minutes", "We review it, usually within a day", "Then 14 days of Pro free, no card needed"]}
+      foot="Your 14 days of Pro start when you're approved, so none are spent waiting."
     >
       <span aria-hidden="true" className="bg-caution-soft text-caution grid size-11 place-items-center rounded-full">
         <HourglassIcon className="size-5" />

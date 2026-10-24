@@ -31,6 +31,7 @@ import { useMyClub } from "@/features/club";
 
 import { billingErrorMessage, isComplimentaryRefusal, useCancelSubscription, useEntitlements, usePlans, useRefreshBilling, useStartSubscription, useSubscription } from "../queries";
 import { checkoutKey, openSubscriptionCheckout } from "../razorpay";
+import { freeLimits } from "./trial-banner";
 import {
   FREE_PLAN,
   LIMIT_FIELDS,
@@ -40,6 +41,7 @@ import {
   blocksCheckout,
   cancellable,
   complimentaryPlan,
+  daysWord,
   formatPaise,
   inGrace,
   isFree,
@@ -91,6 +93,11 @@ interface Ctx {
   cycle: Cycle;
   /** MyOtherApp gave the club its plan free: nothing on sale here applies. */
   complimentary?: boolean;
+  /** The free trial is running: every paid plan can be picked, billed from `trialEndsAt`. */
+  freeTrial?: boolean;
+  trialEndsAt?: string | null;
+  /** The plan picked during the free trial, if one is. */
+  chosenKey?: string | null;
 }
 
 /** What every other plan's card says to a club on a plan given free. */
@@ -104,6 +111,16 @@ function actionFor(plan: CatalogPlan, ctx: Ctx): Action {
   }
   const pending = ctx.sub?.status === "pending" ? ctx.sub : null;
   if (pending && pending.plan?.key === plan.key && pending.cycle === ctx.cycle) return { kind: "pending" };
+  if (ctx.freeTrial) {
+    // The trial's plan is not "current": it is borrowed. Any paid plan can be
+    // picked, and none is charged before the trial ends.
+    const starts = ctx.trialEndsAt ? formatDate(ctx.trialEndsAt) : null;
+    if (ctx.chosenKey && plan.key === ctx.chosenKey) return { kind: "note", text: starts ? `Picked · starts on ${starts}` : "Picked · starts when the trial ends" };
+    if (plan.contact_sales) return { kind: "talk", label: "Talk to us", subject: `${plan.name} plan for our club` };
+    if (isFree(plan)) return { kind: "note", text: "Where the club goes when the trial ends, unless you pick a plan." };
+    if (blocksCheckout(ctx.sub)) return { kind: "talk", label: "Talk to us to switch", subject: `Switching our club to ${plan.name} (${ctx.cycle})` };
+    return { kind: "start", label: `Choose ${plan.name}` };
+  }
   const sameCycle = isFree(plan) || plan.contact_sales || ctx.currentCycle === null || ctx.currentCycle === ctx.cycle;
   if (plan.key === ctx.currentKey && sameCycle) return { kind: "current" };
   if (plan.contact_sales) return { kind: "talk", label: "Talk to us", subject: `${plan.name} plan for our club` };
@@ -126,6 +143,13 @@ function actionFor(plan: CatalogPlan, ctx: Ctx): Action {
 /** What cancelling does, in the words the confirm dialog uses, by the subscription's state. */
 export function cancelConsequence(sub: Subscription, onNow: string | null | undefined): string {
   const plan = sub.plan?.name ?? "The plan";
+  if (sub.free_trial && sub.status !== "pending") {
+    const trialEnd = sub.trial_ends_at ? formatDate(sub.trial_ends_at) : null;
+    const trialName = sub.trial_plan?.name ?? "trial";
+    return trialEnd
+      ? `${plan} won't start and nothing is charged. You keep your ${trialName} trial until ${trialEnd}, then the club moves to Free.`
+      : `${plan} won't start and nothing is charged. The club moves to Free when the trial ends.`;
+  }
   const end = sub.status === "trial" ? (sub.trial_ends_at ?? sub.current_period_end) : sub.current_period_end;
   const until = end ? formatDate(end) : null;
   switch (sub.status) {
@@ -192,15 +216,30 @@ export function BillingPage() {
   const requested = !comp && unsubscribed && ent?.requested_plan && ent.requested_plan !== currentKey ? ent.requested_plan : null;
   const requestedCycle = requested ? (ent?.requested_cycle ?? null) : null;
   const cycle: Cycle = cycleChoice ?? currentCycle ?? requestedCycle ?? "monthly";
-  const ctx: Ctx = { sub, currentKey, currentCycle, currentMonthly: currentPlan?.price_monthly_paise ?? 0, cycle, complimentary: comp !== null };
+  const freeTrial = ent?.trial?.kind === "free_trial";
+  const ctx: Ctx = {
+    sub,
+    currentKey,
+    currentCycle,
+    currentMonthly: currentPlan?.price_monthly_paise ?? 0,
+    cycle,
+    complimentary: comp !== null,
+    freeTrial,
+    trialEndsAt: freeTrial ? (ent?.trial?.ends_at ?? null) : null,
+    chosenKey: ent?.chosen_plan?.plan_key ?? null,
+  };
 
-  const authorise = async (subscriptionId: string, description: string, link: string | null | undefined, expires: string | null | undefined) => {
+  const authorise = async (subscriptionId: string, description: string, link: string | null | undefined, expires: string | null | undefined, startsAt?: string | null) => {
     const key = checkoutKey();
     const result = key
       ? await openSubscriptionCheckout({ key, subscriptionId, description, email: club?.contact_email, phone: club?.contact_phone })
       : ({ kind: "unavailable" } as const);
     if (result.kind === "authorised") {
-      setOutcome({ tone: "admit", text: "Payment authorised. Razorpay is confirming it, and your plan changes when it has — usually within a minute." });
+      setOutcome(
+        startsAt
+          ? { tone: "admit", text: `Payment method authorised. Nothing is charged now: billing starts on ${formatDate(startsAt)}, when your trial ends.` }
+          : { tone: "admit", text: "Payment authorised. Razorpay is confirming it, and your plan changes when it has — usually within a minute." },
+      );
       setWatchRound((r) => r + 1);
     } else if (result.kind === "dismissed") {
       setOutcome({
@@ -225,7 +264,7 @@ export function BillingPage() {
       const link = started.checkout_url;
       if (link) setLinks((l) => ({ ...l, [started.razorpay_subscription_id]: link }));
       void refresh();
-      await authorise(started.razorpay_subscription_id, `${plan.name} · ${started.cycle}`, link, started.expires_at);
+      await authorise(started.razorpay_subscription_id, `${plan.name} · ${started.cycle}`, link, started.expires_at, freeTrial ? started.billing_starts_at : null);
     } catch (error) {
       setOutcome({ tone: "refuse", text: billingErrorMessage(error) });
       // The plan was given free since this page loaded: read it again so the page says so.
@@ -341,7 +380,11 @@ export function BillingPage() {
             <h3 id="plans-title" className="text-ink m-0 text-[17px] font-semibold tracking-[-0.01em]">
               Plans
             </h3>
-            <p className="text-ink-3 mt-0.5 text-[12.5px]">Paid plans renew on their own each cycle until you cancel.</p>
+            <p className="text-ink-3 mt-0.5 text-[12.5px]">
+              {freeTrial && ctx.trialEndsAt
+                ? `Pick a plan now: billing starts on ${formatDate(ctx.trialEndsAt)}, when your trial ends. Paid plans then renew each cycle until you cancel.`
+                : "Paid plans renew on their own each cycle until you cancel."}
+            </p>
           </div>
           <Segmented
             label="Billing cycle"
@@ -375,6 +418,7 @@ export function BillingPage() {
                 requested={plan.key === requested}
                 busy={busy === `start:${plan.key}`}
                 disabled={busy !== null}
+                startsOn={freeTrial && ctx.trialEndsAt ? ctx.trialEndsAt : null}
                 onStart={() => choose(plan)}
                 onFree={() => setConfirming(true)}
               />
@@ -497,7 +541,8 @@ function CurrentPlan({
   const granting = sub?.entitled ? sub : null;
   const status = ent.status ?? null;
   const name = ent.plan_name ?? plan?.name ?? "Free";
-  const paid = granting?.plan ? priceFor(granting.plan, granting.cycle) : plan && ent.cycle ? priceFor(plan, ent.cycle) : 0;
+  // A trial is never paid for, whatever plan it lends.
+  const paid = ent.trial ? 0 : granting?.plan ? priceFor(granting.plan, granting.cycle) : plan && ent.cycle ? priceFor(plan, ent.cycle) : 0;
   const end = ent.current_period_end ? formatDate(ent.current_period_end) : null;
   const pending = sub?.status === "pending" ? sub : null;
 
@@ -516,7 +561,9 @@ function CurrentPlan({
         </span>
         <div className="min-w-0">
           <div className="text-ink text-[20px] leading-[1.2] font-semibold tracking-[-0.02em]">{name}</div>
-          <div className="text-ink-3 mt-0.5 text-[12.5px]">{status && paid > 0 && ent.cycle ? `${formatPaise(paid)} billed ${ent.cycle}` : "Nothing to pay"}</div>
+          <div className="text-ink-3 mt-0.5 text-[12.5px]">
+            {ent.trial ? (ent.trial.kind === "free_trial" ? "Free trial · no card needed" : "Enterprise trial from MyOtherApp") : status && paid > 0 && ent.cycle ? `${formatPaise(paid)} billed ${ent.cycle}` : "Nothing to pay"}
+          </div>
         </div>
       </div>
       <dl className="m-0 grid grid-cols-2 gap-3 text-[12.5px]">
@@ -530,12 +577,17 @@ function CurrentPlan({
         </div>
       </dl>
 
-      {granting?.cancel_at_period_end && status !== "cancelled" ? (
+      {ent.trial ? <TrialNotice ent={ent} sub={sub} /> : null}
+
+      {granting?.cancel_at_period_end && status !== "cancelled" && !ent.trial ? (
         <p className="text-ink-3 m-0 text-[12.5px]">
           You cancelled{granting.cancel_requested_at ? ` on ${formatDate(granting.cancel_requested_at)}` : ""}. The club moves to Free{end ? ` after ${end}` : " when this period ends"}.
         </p>
       ) : null}
       {status === "cancelled" ? <p className="text-ink-3 m-0 text-[12.5px]">This plan has been cancelled. The club moves to Free{end ? ` after ${end}` : ""}.</p> : null}
+      {ent.trial_ended && !ent.trial && ent.plan_key === FREE_PLAN ? (
+        <p className="text-ink-3 m-0 text-[12.5px]">Your trial has ended. {freeLimits(ent)}</p>
+      ) : null}
 
       {pending ? (
         <Notice
@@ -587,6 +639,42 @@ function CurrentPlan({
   );
 }
 
+// ─── A trial ─────────────────────────────────────────────────────────────
+
+/** What the trial is, when it ends, and what comes after it. */
+function TrialNotice({ ent, sub }: { ent: Entitlements; sub: Subscription | null }) {
+  const trial = ent.trial!;
+  const ends = formatDate(trial.ends_at);
+  if (trial.kind === "enterprise_trial") {
+    const underneath = sub?.entitled && sub.plan && !sub.free_trial ? sub.plan.name : null;
+    return (
+      <Notice tone="accent" tag="Enterprise trial">
+        <strong>Enterprise trial until {ends}</strong> ({daysWord(trial.days_left)} left), from the MyOtherApp team. Then the club is back on {underneath ?? "the plan it had"}. To stay on Enterprise, write to {SALES_EMAIL}.
+      </Notice>
+    );
+  }
+  const chosen = ent.chosen_plan;
+  if (chosen) {
+    return (
+      <Notice tone="admit" tag="Picked">
+        <strong>
+          {chosen.plan_name} starts on {formatDate(chosen.billing_starts_at)}
+        </strong>
+        {chosen.price_paise > 0 ? ` at ${formatPaise(chosen.price_paise)} a ${chosen.cycle === "yearly" ? "year" : "month"}` : ""}.{" "}
+        {chosen.status === "pending" ? "Finish checkout to authorise it; nothing is charged before then." : `Until then you keep your ${trial.plan_name} trial, and nothing is charged.`}
+      </Notice>
+    );
+  }
+  return (
+    <Notice tone={trial.days_left <= 3 ? "caution" : "accent"} tag="Trial">
+      <strong>
+        {trial.plan_name} trial · {daysWord(trial.days_left)} left
+      </strong>{" "}
+      — free until {ends}, no card needed. Choose a plan below and billing starts on {ends}. If you don&apos;t, the club moves to Free; its published events, tickets and data keep working.
+    </Notice>
+  );
+}
+
 // ─── Usage against what the plan includes ────────────────────────────────
 
 function Usage({ ent }: { ent: Entitlements }) {
@@ -605,7 +693,7 @@ function Usage({ ent }: { ent: Entitlements }) {
           if (cap === 0) text = "Not included";
           else if (cap === null) text = used !== null ? `${used.toLocaleString("en-IN")} used · Unlimited` : "Unlimited";
           else if (used !== null) text = `${used.toLocaleString("en-IN")} of ${cap.toLocaleString("en-IN")} included`;
-          else text = limitText(cap, f.key === "storage_gb" ? "GB" : undefined);
+          else text = limitText(cap);
           return (
             <li key={f.key} className="border-line-soft flex flex-col gap-1.5 border-b py-2.5 last:border-0">
               <div className="flex items-baseline justify-between gap-3 text-[13px]">
@@ -636,6 +724,7 @@ function PlanCard({
   requested,
   busy,
   disabled,
+  startsOn,
   onStart,
   onFree,
 }: {
@@ -646,6 +735,8 @@ function PlanCard({
   requested: boolean;
   busy: boolean;
   disabled: boolean;
+  /** During the free trial: when a plan picked now starts billing. */
+  startsOn?: string | null;
   onStart: () => void;
   onFree: () => void;
 }) {
@@ -689,7 +780,6 @@ function PlanCard({
           {price.per ? <span className="text-ink-3 text-[12.5px]">{price.per}</span> : null}
         </div>
         {price.note ? <p className="text-ink-3 m-0 mt-1 text-[12px]">{price.note}</p> : null}
-        {plan.trial_days > 0 && !plan.contact_sales ? <p className="text-brand m-0 mt-1 text-[12px] font-medium">{plan.trial_days}-day free trial on a first subscription</p> : null}
       </div>
 
       <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[12.5px]">
@@ -719,6 +809,9 @@ function PlanCard({
 
       <div className="mt-auto pt-1">
         <PlanAction action={action} plan={plan} canManage={canManage} busy={busy} disabled={disabled} onStart={onStart} onFree={onFree} />
+        {action.kind === "start" && startsOn && canManage ? (
+          <p className="text-ink-3 m-0 mt-1.5 text-center text-[12px]">Billing starts on {formatDate(startsOn)}</p>
+        ) : null}
       </div>
     </article>
   );

@@ -108,6 +108,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       }),
       post: vi.fn(async (path: string, body?: Record<string, unknown>) => {
         posts.push({ path, body });
+        if (path.endsWith("/enterprise-trial")) {
+          return row({ enterprise_trial: { plan: { key: "enterprise", name: "Enterprise" }, started_at: "2026-10-17T10:00:00+05:30", ends_at: "2026-11-16T10:00:00+05:30" } });
+        }
+        if (path.endsWith("/end-trial")) return row();
         return { ...FREE_ROW, status: "cancelled", complimentary: false };
       }),
       del: vi.fn(),
@@ -434,5 +438,71 @@ describe("free plans in the Subscribers list", () => {
     render(<SubscribersTab />);
     expect((await screen.findAllByText("Free · until 31 Mar 2027")).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: /Actions for/ })).not.toBeInTheDocument();
+  });
+});
+
+
+describe("trials on a club's page", () => {
+  /** A new club on its free Pro trial: no card, nothing at Razorpay. */
+  const TRIAL_ROW = row({
+    id: 21,
+    plan: plan({ id: 4, key: "pro", name: "Pro" }),
+    status: "trial",
+    mrr_paise: 0,
+    razorpay_subscription_id: null,
+    trial_ends_at: "2026-10-31T10:00:00+05:30",
+    current_period_end: "2026-10-31T10:00:00+05:30",
+    free_trial: true,
+    trial_plan: { key: "pro", name: "Pro" },
+    trial_used: true,
+  });
+
+  it("shows the free trial, and grants an Enterprise trial of 30 days by default", async () => {
+    rows = [TRIAL_ROW];
+    render(<ClubPlanPanel club={{ id: 5, name: "Circuit", is_verified: true }} />);
+    expect(await screen.findByText("Pro trial · until 31 Oct 2026")).toBeInTheDocument();
+    expect(screen.getByText(/Free trial · no card, ₹0/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Grant Enterprise trial" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("spinbutton")).toHaveValue(30);
+    expect(within(dialog).getByText("Enterprise until 16 Nov 2026, then back to Pro.")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Grant trial" }));
+    await waitFor(() => expect(posts).toContainEqual({ path: "/api/v1/admin/subscriptions/club/5/enterprise-trial", body: { days: 30 } }));
+  });
+
+  it("takes another length, and refuses one out of bounds before asking", async () => {
+    rows = [];
+    render(<ClubPlanPanel club={{ id: 5, name: "Circuit", is_verified: true }} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Grant Enterprise trial" }));
+    const dialog = await screen.findByRole("dialog");
+    const input = within(dialog).getByRole("spinbutton");
+    fireEvent.change(input, { target: { value: "400" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Grant trial" }));
+    expect(await within(dialog).findByText("Between 1 and 365 days.")).toBeInTheDocument();
+    expect(posts).toHaveLength(0);
+    fireEvent.change(input, { target: { value: "45" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Grant trial" }));
+    await waitFor(() => expect(posts.at(-1)).toEqual({ path: "/api/v1/admin/subscriptions/club/5/enterprise-trial", body: { days: 45 } }));
+  });
+
+  it("shows an Enterprise trial over a paying club and ends it early", async () => {
+    rows = [row({ enterprise_trial: { plan: { key: "enterprise", name: "Enterprise" }, started_at: "2026-10-10T10:00:00+05:30", ends_at: "2026-11-09T10:00:00+05:30" }, enterprise_trial_by: { id: 1, name: "Deepu" } })];
+    render(<ClubPlanPanel club={{ id: 5, name: "Circuit", is_verified: true }} />);
+    expect(await screen.findByText("Enterprise trial · until 09 Nov 2026")).toBeInTheDocument();
+    expect(screen.getByText(/Granted by Deepu on 10 Oct 2026\. Underneath: Growth \(active\)\./)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "End trial" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Ending it now puts the club on Growth");
+    fireEvent.click(within(dialog).getByRole("button", { name: "End trial" }));
+    await waitFor(() => expect(posts).toContainEqual({ path: "/api/v1/admin/subscriptions/club/5/end-trial", body: { trial: "enterprise" } }));
+  });
+
+  it("parses the trial fields", () => {
+    const parsed = subscriptionSchema.parse(TRIAL_ROW);
+    expect(parsed).toMatchObject({ free_trial: true, trial_plan: { name: "Pro" }, trial_used: true });
+    expect(parsed.enterprise_trial).toBeFalsy();
+    expect(totalsSchema.parse({ free_trials: 4, enterprise_trials: 1 })).toMatchObject({ free_trials: 4, enterprise_trials: 1 });
   });
 });
