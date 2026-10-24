@@ -9,4 +9,4 @@ export {
 } from "./queries";
 export { TwoFactorPanel } from "./components/two-factor-panel";
 export { SessionsPanel } from "./components/sessions-panel";
-export { totpStatusSchema, sessionSchema, type SessionInfo } from "./schemas";
+export { totpStatusSchema, sessionSchema } from "./schemas";

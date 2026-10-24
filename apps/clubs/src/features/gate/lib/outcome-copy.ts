@@ -1,4 +1,4 @@
-import { ADMISSION_NUMBER_HINT, ROLE_LABEL, type ScanOutcome, type ScanResult, type WalkupResult } from "../schemas";
+import { ADMISSION_NUMBER_HINT, ROLE_LABEL, type ScanResult, type WalkupResult } from "../schemas";
 
 export type Tone = "admit" | "caution" | "refuse" | "accent";
 
@@ -99,5 +99,3 @@ export const walkupCard = (res: WalkupResult, door: string, name: string): Outco
 };
 
 export const HAPTIC: Record<Tone, number[]> = { admit: [40], caution: [40, 60, 40], refuse: [40, 60, 40], accent: [40] };
-
-export const outcomeTone = (o: ScanOutcome): Tone => (o === "CHECKED_IN" ? "admit" : o === "ALREADY_CHECKED_IN" || o === "EVENT_NOT_OPEN" ? "caution" : "refuse");

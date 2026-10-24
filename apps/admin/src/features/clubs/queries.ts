@@ -14,7 +14,6 @@ import {
   fetchClubLifetime,
   fetchClubs,
   fetchDeletedClubs,
-  rejectClub,
   restoreClub,
   type ClubListQuery,
   type SubListQuery,
@@ -74,21 +73,6 @@ export function useApproveClub() {
         queryClient.invalidateQueries({ queryKey: qk.analytics.all }),
       ]);
       void clubId;
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-}
-
-export function useRejectClub() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: rejectClub,
-    onSuccess: async () => {
-      toast.success("Club rejected and removed");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: qk.clubs.all }),
-        queryClient.invalidateQueries({ queryKey: qk.analytics.all }),
-      ]);
     },
     onError: (error: Error) => toast.error(error.message),
   });

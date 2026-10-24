@@ -83,7 +83,6 @@ export const invitePreviewSchema = z.object({
   role_description: z.string(),
   expired: z.boolean(),
 });
-export type InvitePreview = z.infer<typeof invitePreviewSchema>;
 
 export const acceptedSchema = z.object({ email: z.string(), club_name: z.string() });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "@moa/app-kit";
-import { can, roleOf, type Capability } from "@moa/auth";
+import { can, type Capability } from "@moa/auth";
 
 /**
  * Whether the signed-in admin's role permits something.
@@ -12,10 +12,4 @@ import { can, roleOf, type Capability } from "@moa/auth";
 export function useCan(capability: Capability): boolean {
   const { data: user } = useSession();
   return can(user ?? null, capability);
-}
-
-/** The signed-in admin's role, for labelling rather than gating. */
-export function useAdminRole() {
-  const { data: user } = useSession();
-  return roleOf(user ?? null);
 }

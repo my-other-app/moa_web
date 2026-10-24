@@ -70,4 +70,3 @@ export function gatewayLabel(gateway: string | null | undefined): string | null 
 }
 
 export type Payment = z.infer<typeof paymentSchema>;
-export type PaymentTotals = z.infer<typeof paymentTotalsSchema>;

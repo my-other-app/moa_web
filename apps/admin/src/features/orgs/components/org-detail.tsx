@@ -21,7 +21,6 @@ import {
   formatNumber,
   initials,
   pickImage,
-  useListParams,
 } from "@moa/app-kit";
 import { pageCount } from "@moa/api";
 import {
@@ -79,7 +78,6 @@ export function OrgDetail({ orgId }: { orgId: number }) {
   // Each list pages independently; sharing one ?page= would move both.
   const [clubPage, setClubPage] = React.useState(1);
   const [eventPage, setEventPage] = React.useState(1);
-  const params = useListParams();
 
   const clubs = useClubs({
     orgId,

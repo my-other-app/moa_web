@@ -5,7 +5,7 @@ import { toast } from "@moa/ui";
 
 import { toastError } from "@/features/plan/errors";
 
-import { createThread, deleteComment, deleteThread, fetchComments, fetchThreadInsights, fetchThreads, fetchThreadsPage, replyAsClub, setPinned } from "./api";
+import { createThread, deleteComment, deleteThread, fetchComments, fetchThreadInsights, fetchThreadsPage, replyAsClub, setPinned } from "./api";
 import type { ComposeInput, ThreadScope, ThreadSort } from "./schemas";
 
 const KEY = ["threads"] as const;
@@ -16,10 +16,6 @@ export function useThreadsPage(params: { scope: ThreadScope; sort: ThreadSort; o
 
 export function useThreadInsights() {
   return useQuery({ queryKey: [...KEY, "insights"], queryFn: fetchThreadInsights, staleTime: 60_000 });
-}
-
-export function useThreads(params: { offset: number; limit: number }) {
-  return useQuery({ queryKey: [...KEY, params.offset, params.limit], queryFn: () => fetchThreads(params), staleTime: 15_000 });
 }
 
 function useRefresh() {

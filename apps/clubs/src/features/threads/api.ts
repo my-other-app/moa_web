@@ -1,14 +1,9 @@
 import { api } from "@moa/app-kit";
 
-import { commentSchema, threadInsightsSchema, threadPageSchema, threadSchema, threadsPageSchema, type ComposeInput, type ThreadScope, type ThreadSort } from "./schemas";
+import { commentSchema, threadInsightsSchema, threadSchema, threadsPageSchema, type ComposeInput, type ThreadScope, type ThreadSort } from "./schemas";
 import { z } from "zod";
 
 const BASE = "/api/v1/clubs/threads";
-
-export async function fetchThreads(params: { offset: number; limit: number }) {
-  const raw = await api.get<unknown>(BASE, { query: { offset: params.offset, limit: params.limit } });
-  return threadPageSchema.parse(raw);
-}
 
 /**
  * One multipart request: the text, the switch, the poll's options and the

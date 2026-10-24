@@ -5,18 +5,10 @@ import { toast } from "@moa/ui";
 
 import { toastError } from "@/features/plan/errors";
 
-import { createLink, deleteLink, fetchLinkDetail, fetchLinks, fetchLinksOverview, updateLink } from "./api";
+import { createLink, deleteLink, fetchLinkDetail, fetchLinksOverview } from "./api";
 import type { LinkForm, LinkScope } from "./schemas";
 
 const key = (scope: LinkScope) => (scope.kind === "event" ? (["links", "event", scope.eventId] as const) : (["links", "club"] as const));
-
-export function useLinks(scope: LinkScope, days: number) {
-  return useQuery({
-    queryKey: [...key(scope), days],
-    queryFn: () => fetchLinks(scope, days),
-    staleTime: 15_000,
-  });
-}
 
 export function useLinksOverview(scope: LinkScope, days: number) {
   return useQuery({
@@ -40,15 +32,6 @@ export function useCreateLink(scope: LinkScope) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ form, target }: { form: LinkForm; target?: LinkScope }) => createLink(target ?? scope, form),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["links"] }),
-    onError: toastError,
-  });
-}
-
-export function useUpdateLink(scope: LinkScope) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<LinkForm> }) => updateLink(scope, id, patch),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["links"] }),
     onError: toastError,
   });

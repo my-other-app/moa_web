@@ -85,10 +85,8 @@ export const competitionSchema = z.object({
 });
 
 export type Competition = z.infer<typeof competitionSchema>;
-export type CompetitionSettings = z.infer<typeof settingsSchema>;
 export type Track = z.infer<typeof trackSchema>;
 export type Team = z.infer<typeof teamSchema>;
-export type Seeker = z.infer<typeof seekerSchema>;
 export type Judge = z.infer<typeof judgeSchema>;
 export type Score = z.infer<typeof scoreSchema>;
 export type BoardRow = z.infer<typeof boardRowSchema>;

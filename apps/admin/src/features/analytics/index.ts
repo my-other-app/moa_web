@@ -5,10 +5,8 @@ export {
   useDashboardSignals,
 } from "./queries";
 export { fetchAdminAnalytics, fetchDashboardSignals } from "./api";
-export { adminAnalyticsSchema, type AdminAnalytics, type GrowthPoint } from "./schemas";
+export { adminAnalyticsSchema, type AdminAnalytics } from "./schemas";
 export { changeOf, comparisonCaption } from "./delta";
-export { GrowthChart } from "./components/growth-chart";
-export { GrowthChartPanel } from "./components/growth-chart-panel";
 export { DashboardView } from "./components/dashboard-view";
 export { MetricRail } from "./components/metric-rail";
 export { TrendsPanel } from "./components/trends-panel";
@@ -22,7 +20,6 @@ export {
   type AdminTrends,
   type ModerationQueue as ModerationQueueData,
   type DashboardSignals,
-  type TrendPoint,
 } from "./schemas";
 export { AdminOverviewV2 } from "./components/overview-v2";
 export { useAdminOverview } from "./queries";

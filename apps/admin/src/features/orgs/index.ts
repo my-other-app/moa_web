@@ -19,7 +19,6 @@ export {
   orgAnalyticsSchema,
   ORG_TYPES,
   type Org,
-  type OrgAnalytics,
   type OrgFormInput,
 } from "./schemas";
 export { fetchOrgs } from "./api";

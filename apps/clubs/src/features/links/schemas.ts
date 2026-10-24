@@ -44,7 +44,6 @@ export const linksSummarySchema = z.object({
 });
 
 export type TrackingLink = z.infer<typeof linkSchema>;
-export type LinksSummary = z.infer<typeof linksSummarySchema>;
 
 export const linkFormSchema = z.object({
   name: z.string().trim().min(1, "Name the link so you know where it went").max(80),
@@ -147,9 +146,7 @@ export const linkDetailSchema = z.object({
 });
 
 export type LinkRow = z.infer<typeof linkRowSchema>;
-export type LinkTarget = z.infer<typeof linkTargetSchema>;
 export type LinksOverview = z.infer<typeof linksOverviewSchema>;
-export type LinkDetail = z.infer<typeof linkDetailSchema>;
 
 export const TARGETS = ["all", "website", "club", "event"] as const;
 export type TargetFilter = (typeof TARGETS)[number];

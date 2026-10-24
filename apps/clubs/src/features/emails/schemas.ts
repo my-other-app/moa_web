@@ -99,7 +99,6 @@ export const emailBlockSchema = z.discriminatedUnion("kind", [
 ]);
 export type EmailBlock = z.infer<typeof emailBlockSchema>;
 export type BlockKind = EmailBlock["kind"];
-export type BlockOf<K extends BlockKind> = Extract<EmailBlock, { kind: K }>;
 
 export const BLOCK_META: Record<BlockKind, { label: string; note: string; glyph: string }> = {
   heading: { label: "Heading", note: "A title line.", glyph: "H" },
@@ -131,7 +130,6 @@ export const AUDIENCE_WHO = [
   { value: "CHECKED_IN", label: "Checked in", note: "Guests who came through the door." },
   { value: "NOT_CHECKED_IN", label: "Not yet inside", note: "Guests who have not checked in." },
 ] as const;
-export type AudienceWho = (typeof AUDIENCE_WHO)[number]["value"];
 export const emailAudienceSchema = z.object({
   who: z.enum(["ALL", "CHECKED_IN", "NOT_CHECKED_IN"]).default("ALL"),
   roles: z.array(z.string()).max(10).default([]),
@@ -144,7 +142,6 @@ export const TRIGGER_MODES = [
   { value: "BEFORE_START", label: "Before the start", note: "A timer, counted back from the event's start." },
   { value: "AFTER_END", label: "After the end", note: "A timer, counted on from the event's end." },
 ] as const;
-export type TriggerMode = (typeof TRIGGER_MODES)[number]["value"];
 export const emailTriggerSchema = z.object({
   mode: z.enum(["MANUAL", "ON_TICKETS", "BEFORE_START", "AFTER_END"]).default("MANUAL"),
   minutes: z.number().int().min(1).max(60 * 24 * 30).nullish(),
@@ -239,7 +236,6 @@ export type EmailPreview = z.infer<typeof previewResponseSchema>;
 
 export const testSendResponseSchema = z.object({ sent: z.boolean(), to: z.string(), subject: z.string() });
 export const audienceCountSchema = z.object({ recipients: z.number(), withoutEmail: z.number() });
-export type AudienceCount = z.infer<typeof audienceCountSchema>;
 
 export const messagePageSchema = z.object({
   items: z.array(messageSchema),
@@ -258,7 +254,6 @@ export const messageDeliverySchema = z.object({
   error: z.string().nullish(),
   sentAt: z.string().nullish(),
 });
-export type MessageDelivery = z.infer<typeof messageDeliverySchema>;
 
 export const messageDetailSchema = z.object({
   message: messageSchema,
@@ -267,7 +262,6 @@ export const messageDetailSchema = z.object({
   page: z.number(),
   pageSize: z.number(),
 });
-export type MessageDetail = z.infer<typeof messageDetailSchema>;
 
 export const uploadedEmailImageSchema = z.object({
   key: z.string(),
@@ -372,7 +366,6 @@ export const libraryFiguresSchema = z.object({
   delivery_rate: z.number().nullish(),
   open_rate: z.number().nullish(),
 });
-export type LibraryFigures = z.infer<typeof libraryFiguresSchema>;
 
 export const templateUsageSchema = z.object({
   events: z.number(),

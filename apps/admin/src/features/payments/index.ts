@@ -9,6 +9,5 @@ export {
   PAYMENT_GATEWAYS,
   gatewayLabel,
   type Payment,
-  type PaymentTotals,
   type PaymentTotalsSplit,
 } from "./schemas";

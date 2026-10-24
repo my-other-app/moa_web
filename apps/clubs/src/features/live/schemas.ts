@@ -60,7 +60,6 @@ export const hostStateSchema = z.object({
     .nullish(),
   leaderboard: z.array(z.object({ rank: z.number(), name: z.string(), score: z.number() })),
 });
-export type HostState = z.infer<typeof hostStateSchema>;
 
 export type HostAction = "start" | "next" | "end" | "reset";
 
@@ -91,7 +90,6 @@ export const qaBoardSchema = z.object({
   answered: z.array(questionSchema),
   rejected: z.number(),
 });
-export type QABoard = z.infer<typeof qaBoardSchema>;
 export type ModerateAction = "approve" | "reject" | "answered" | "reopen" | "pin" | "unpin";
 
 // --- polls ----------------------------------------------------------------------
@@ -125,8 +123,6 @@ export const POLL_KINDS = [
   { value: "words", label: "Word cloud", hint: "A word or two from everyone" },
   { value: "rating", label: "Rating 1–5", hint: "Stars for a talk or a demo" },
 ] as const;
-
-export const pollKindLabel = (kind: Poll["kind"]) => POLL_KINDS.find((k) => k.value === kind)?.label ?? kind;
 
 // --- feedback ----------------------------------------------------------------------
 

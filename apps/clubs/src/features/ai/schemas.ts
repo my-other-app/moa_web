@@ -140,7 +140,6 @@ export const draftResultSchema = z.object({
   draft: eventDraftSchema,
   warnings: z.array(z.string()).catch([]).default([]),
 });
-export type DraftResult = z.infer<typeof draftResultSchema>;
 
 // ─── POST /clubs/ai/write ───────────────────────────────────────────────
 

@@ -33,7 +33,6 @@ export const ticketStateSchema = z.object({
 });
 
 export const providerSchema = z.object({ channel: z.string(), name: z.string(), configured: z.boolean(), note: z.string() });
-export type ChannelProvider = z.infer<typeof providerSchema>;
 
 export const deliverySummarySchema = z.object({
   kind: z.string(),

@@ -9,7 +9,6 @@ export const admissionSettingsSchema = z.object({
   numbered: z.number(),
   unnumbered: z.number(),
 });
-export type AdmissionSettings = z.infer<typeof admissionSettingsSchema>;
 
 export const numberedResultSchema = z.object({ numbered: z.number(), first: z.string().nullable(), last: z.string().nullable() });
 

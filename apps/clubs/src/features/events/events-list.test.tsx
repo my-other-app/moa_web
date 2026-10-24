@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 
 const calls: Array<{ method: string; path: string; query?: Record<string, unknown> }> = [];
 const NOW = Date.now();

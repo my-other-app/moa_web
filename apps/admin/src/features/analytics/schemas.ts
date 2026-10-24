@@ -24,7 +24,6 @@ export const adminAnalyticsSchema = z.object({
 });
 
 export type AdminAnalytics = z.infer<typeof adminAnalyticsSchema>;
-export type GrowthPoint = z.infer<typeof growthPointSchema>;
 
 /** GET /admin/analytics/trends — one point per day, plus the prior window. */
 export const trendPointSchema = z.object({
@@ -49,7 +48,6 @@ export const adminTrendsSchema = z.object({
   previous_totals: trendTotalsSchema,
 });
 
-export type TrendPoint = z.infer<typeof trendPointSchema>;
 export type AdminTrends = z.infer<typeof adminTrendsSchema>;
 export type TrendMetric = keyof z.infer<typeof trendTotalsSchema>;
 

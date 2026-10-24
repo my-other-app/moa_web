@@ -14,7 +14,6 @@ import { ApiError } from "@moa/api";
 // ─── A pending action ────────────────────────────────────────────────────
 
 export const ACTION_KINDS = ["publish_event", "send_announcement"] as const;
-export type ActionKind = (typeof ACTION_KINDS)[number];
 
 export const ACTION_STATUSES = ["pending", "confirmed", "rejected", "expired", "superseded", "failed"] as const;
 export type ActionStatus = (typeof ACTION_STATUSES)[number];
@@ -200,7 +199,6 @@ export const connectedAppsSchema = z.object({
   can_manage_all: z.boolean().catch(false),
   apps: z.array(connectedAppSchema).catch([]),
 });
-export type ConnectedApps = z.infer<typeof connectedAppsSchema>;
 
 /** "claude.ai", from the app's own address; null when it has none worth showing. */
 export function appHost(uri: string | null | undefined): string | null {

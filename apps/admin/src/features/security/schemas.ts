@@ -24,6 +24,3 @@ export const sessionSchema = z.object({
   created_at: z.string().nullish(),
   current: z.boolean().default(false),
 });
-
-export type TotpStatus = z.infer<typeof totpStatusSchema>;
-export type SessionInfo = z.infer<typeof sessionSchema>;
