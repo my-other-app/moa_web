@@ -12,6 +12,16 @@ import { z } from "zod";
  *   GET  /clubs/whatsapp/stream               (server-sent events, or 404: poll)
  *   GET/POST /clubs/whatsapp/templates, DELETE /templates/{name}, POST /templates/standard
  *
+ * And the inbox worked as a team (newer servers; each absent field reads as its empty form):
+ *
+ *   GET  /clubs/whatsapp/summary              (counts only: the nav's badge, the tab's title)
+ *   GET  /clubs/whatsapp/team                 (who a conversation can be assigned to)
+ *   GET/PATCH /clubs/whatsapp/inbox-settings, PATCH /inbox-settings/me
+ *   POST /conversations/{id}/media            (multipart: size, then the file; streamed to Meta)
+ *   PUT  /conversations/{id}/assignee, POST/DELETE /{id}/block, POST/DELETE /{id}/optout
+ *   GET/POST /conversations/{id}/notes, DELETE /notes/{note_id}
+ *   GET/POST /clubs/whatsapp/saved-replies, PUT/DELETE /saved-replies/{id}
+ *
  * Every shape tolerates a field it does not know, or one missing: a value
  * this build cannot read becomes its empty form rather than failing the page.
  */
@@ -34,6 +44,14 @@ export const upgradeSchema = z.object({
   upgrade_url: str,
 });
 export type Upgrade = z.infer<typeof upgradeSchema>;
+
+/** A restriction Meta put on the account (its account_update): what, until when, and what to do. */
+export const restrictionSchema = z.object({
+  type: z.string().catch("RESTRICTED"),
+  expires_at: str,
+  remediation: str,
+});
+export type Restriction = z.infer<typeof restrictionSchema>;
 
 export const accountSchema = z.object({
   /** False: the server has no WHATSAPP_KEYS_SECRET, so nothing can be connected. */
@@ -72,6 +90,16 @@ export const accountSchema = z.object({
   impersonated: z.boolean().default(false).catch(false),
   /** Meta's cautions about the account (billing, currency), in words. Newer servers only. */
   warnings: z.array(z.string()).default([]).catch([]),
+  /**
+   * Connected, but the plan no longer includes it: messages still arrive and
+   * are kept, nothing is sent from it and Meta isn't asked about it.
+   */
+  locked: z.boolean().default(false).catch(false),
+  /** As Meta reports the number (CONNECTED, FLAGGED, RESTRICTED ...) and its display name's review. */
+  number_status: added,
+  name_status: added,
+  /** Meta's restrictions on the account that haven't expired. */
+  restrictions: z.array(restrictionSchema).default([]).catch([]),
   /**
    * Never read from the server: any answer at all means the API has the
    * WhatsApp routes. Only NOT_ON_THIS_SERVER (queries.ts), what a route-level
@@ -142,14 +170,17 @@ export type Overview = z.infer<typeof overviewSchema>;
 
 // ─── The inbox ───────────────────────────────────────────────────────────
 
-export const FILTERS = ["all", "open", "unanswered", "unread", "closed"] as const;
+export const FILTERS = ["all", "mine", "unassigned", "unread", "unanswered", "open", "closed", "blocked"] as const;
 export type InboxFilter = (typeof FILTERS)[number];
 export const FILTER_LABEL: Record<InboxFilter, string> = {
   all: "All",
-  open: "Open",
+  mine: "Mine",
+  unassigned: "Unassigned",
   unanswered: "Unanswered",
   unread: "Unread",
+  open: "Open",
   closed: "Closed",
+  blocked: "Blocked",
 };
 
 export const contactEventSchema = z.object({
@@ -173,11 +204,35 @@ const identity = {
   username: added,
 };
 
+export const assigneeSchema = z.object({
+  kind: z.enum(["owner", "member"]).catch("member"),
+  member_id: num,
+  name: str,
+  /** "owner" or "member:<id>": what ?assignee= takes. */
+  key: str,
+});
+export type Assignee = z.infer<typeof assigneeSchema>;
+
+export const blockedSchema = z.object({ at: z.string().catch(""), meta: z.boolean().catch(false), by: str });
+
+export const OPT_OUT_SOURCES = ["keyword", "user_preferences", "meta_131050", "team"] as const;
+export const optOutSchema = z.object({
+  scope: z.enum(["all", "marketing"]).catch("all"),
+  source: z.string().catch("keyword"),
+  at: str,
+  by: str,
+});
+export type OptOut = z.infer<typeof optOutSchema>;
+
 export const conversationSchema = z.object({
   id: z.number(),
   ...identity,
-  /** Their number to show ("+91 98470 12345"); empty when they share none. */
-  phone: z.string().catch(""),
+  /** Their number to show ("+91 98470 12345"); empty when they share none (the server's null). */
+  phone: z
+    .string()
+    .nullish()
+    .transform((v) => v ?? "")
+    .catch(""),
   profile_name: str,
   contact: z
     .object({
@@ -199,6 +254,14 @@ export const conversationSchema = z.object({
   last_inbound_at: str,
   window_open: z.boolean().catch(false),
   window_expires_at: str,
+  /** Who answers it: the owner, a member, or nobody yet. Newer servers only. */
+  assignee: assigneeSchema.nullish().default(null).catch(null),
+  /** Blocked by the club: at Meta too (`meta`), or here only. */
+  blocked: blockedSchema.nullish().default(null).catch(null),
+  /** They opted out (STOP, WhatsApp's marketing setting, or the team): the thread's banner. */
+  opt_out: optOutSchema.nullish().default(null).catch(null),
+  /** The team's notes on it. */
+  notes: z.number().default(0).catch(0),
 });
 export type Conversation = z.infer<typeof conversationSchema>;
 
@@ -211,6 +274,9 @@ export type ConversationList = z.infer<typeof conversationListSchema>;
 
 export const MESSAGE_STATUSES = ["received", "pending", "sent", "delivered", "read", "failed"] as const;
 export type MessageStatus = (typeof MESSAGE_STATUSES)[number];
+
+export const quotedSchema = z.object({ id: z.number(), direction: z.enum(["in", "out"]).catch("in"), type: z.string().catch("text"), preview: str });
+export type Quoted = z.infer<typeof quotedSchema>;
 
 export const messageSchema = z.object({
   id: z.number(),
@@ -235,6 +301,8 @@ export const messageSchema = z.object({
   sent_by: str,
   created_at: z.string().catch(""),
   wa_timestamp: str,
+  /** The message this one answers (or reacts to), as the quoted bubble shows it. Newer servers only. */
+  quoted: quotedSchema.nullish().default(null).catch(null),
 });
 export type Message = z.infer<typeof messageSchema>;
 
@@ -258,6 +326,12 @@ export const templateSchema = z.object({
   quality: str,
   /** Meta flagged it for low quality: it may be paused next. Newer servers only. */
   flagged: z.boolean().default(false).catch(false),
+  /**
+   * POSITIONAL ({{1}}) or NAMED ({{first_name}}): a named one is filled by
+   * name -- `body_names`, in order, are what the values are for.
+   */
+  parameter_format: z.enum(["POSITIONAL", "NAMED"]).default("POSITIONAL").catch("POSITIONAL"),
+  body_names: z.array(z.string()).default([]).catch([]),
   header: z
     .object({ format: str, text: str, variables: z.number().catch(0) })
     .nullish()
@@ -552,6 +626,9 @@ export const INVALID_WHATSAPP_KEYS = "INVALID_WHATSAPP_KEYS";
 /** Which field of the connect form each of Meta's refusals is about. */
 export const KEY_ERROR_FIELD: Record<string, KeyField | null> = {
   WHATSAPP_TOKEN_INVALID: "access_token",
+  WHATSAPP_TOKEN_EXPIRES: "access_token",
+  WHATSAPP_APP_MISMATCH: "app_id",
+  WHATSAPP_NUMBER_NOT_CONNECTED: "phone_number_id",
   WHATSAPP_PERMISSION_MISSING: "access_token",
   WHATSAPP_NUMBER_NOT_FOUND: "phone_number_id",
   WHATSAPP_NUMBER_NOT_IN_WABA: "phone_number_id",
@@ -585,3 +662,243 @@ export const WEBHOOK_STEPS = [
   "Paste the callback URL and the verify token below, then Verify and save.",
   "Under Webhook fields, subscribe to each field listed.",
 ] as const;
+
+// ─── The inbox as a team's ───────────────────────────────────────────────
+
+/** Counts only, never a name or a word: the nav's badge and the tab's "(n)". */
+export const summarySchema = z.object({
+  unread_total: z.number().catch(0),
+  unread_conversations: z.number().catch(0),
+  waiting: z.number().catch(0),
+  mine: z.number().catch(0),
+});
+export type Summary = z.infer<typeof summarySchema>;
+
+export const teamPersonSchema = z.object({
+  key: z.string(),
+  kind: z.enum(["owner", "member"]).catch("member"),
+  member_id: num,
+  name: z.string().catch("Someone"),
+  me: z.boolean().catch(false),
+});
+export type TeamPerson = z.infer<typeof teamPersonSchema>;
+export const teamSchema = z.object({ items: z.array(teamPersonSchema).catch([]), me: z.string().catch("owner") });
+export type Team = z.infer<typeof teamSchema>;
+
+export const noteSchema = z.object({
+  id: z.number(),
+  conversation_id: z.number().catch(0),
+  body: z.string().catch(""),
+  author: z.string().catch("Someone"),
+  created_at: z.string().catch(""),
+  mine: z.boolean().catch(false),
+  can_delete: z.boolean().catch(false),
+});
+export type Note = z.infer<typeof noteSchema>;
+export const noteListSchema = z.object({ items: z.array(noteSchema).catch([]) });
+export const NOTE_MAX = 2000;
+
+export const savedReplySchema = z.object({
+  id: z.number(),
+  title: z.string().catch(""),
+  body: z.string().catch(""),
+  shortcut: str,
+  updated_at: str,
+});
+export type SavedReply = z.infer<typeof savedReplySchema>;
+export const savedReplyListSchema = z.object({ items: z.array(savedReplySchema).catch([]) });
+export const REPLY_TITLE_MAX = 60;
+export const REPLY_BODY_MAX = 4096;
+export const SHORTCUT_RE = /^[a-z0-9][a-z0-9_-]{0,30}$/;
+
+export const myNotificationsSchema = z.object({
+  email_messages: z.boolean().catch(true),
+  email_assigned: z.boolean().catch(true),
+});
+export type MyNotifications = z.infer<typeof myNotificationsSchema>;
+
+export const inboxSettingsSchema = z.object({
+  alert_after_hours: z.number().catch(4),
+  stop_reply: str,
+  start_reply: str,
+  stop_reply_default: z.string().catch(""),
+  start_reply_default: z.string().catch(""),
+  me: myNotificationsSchema.catch({ email_messages: true, email_assigned: true }),
+});
+export type InboxSettings = z.infer<typeof inboxSettingsSchema>;
+export const ALERT_HOURS = [1, 2, 3, 4, 6, 8, 12, 24, 48] as const;
+
+/** "{name}" in a saved reply, as the contact's display name. */
+export function fillName(text: string, name: string): string {
+  return text.replace(/\{name\}/g, name);
+}
+
+/** The saved replies a "/word" finds, its shortcut first, then by title. */
+export function matchReplies(items: SavedReply[], typed: string): SavedReply[] {
+  const q = typed.replace(/^\//, "").trim().toLowerCase();
+  if (!q) return items.slice(0, 8);
+  const starts = items.filter((r) => r.shortcut?.startsWith(q));
+  const rest = items.filter((r) => !starts.includes(r) && (r.title.toLowerCase().includes(q) || r.shortcut?.includes(q)));
+  return [...starts, ...rest].slice(0, 8);
+}
+
+// ─── Files: what WhatsApp takes (Meta's media page) ──────────────────────
+
+export const MB = 1_000_000;
+export const MEDIA_KINDS = {
+  image: { types: ["image/jpeg", "image/png"], max: 5 * MB, words: "a JPEG or PNG photo" },
+  video: { types: ["video/mp4", "video/3gpp"], max: 16 * MB, words: "an MP4 or 3GP video" },
+  audio: { types: ["audio/aac", "audio/amr", "audio/mpeg", "audio/mp4", "audio/ogg"], max: 16 * MB, words: "an AAC, AMR, MP3, M4A or Ogg (Opus) sound" },
+  document: {
+    types: [
+      "text/plain",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ],
+    max: 100 * MB,
+    words: "a TXT, PDF, Word, Excel or PowerPoint document",
+  },
+} as const;
+export type MediaKind = keyof typeof MEDIA_KINDS;
+export const CAPTION_MAX = 1024;
+
+const BY_EXTENSION: Record<string, string> = {
+  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", mp4: "video/mp4", "3gp": "video/3gpp", aac: "audio/aac", amr: "audio/amr",
+  mp3: "audio/mpeg", m4a: "audio/mp4", ogg: "audio/ogg", opus: "audio/ogg", txt: "text/plain", pdf: "application/pdf",
+  doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ppt: "application/vnd.ms-powerpoint", pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+};
+
+/** "The accept list" for the file picker. */
+export const MEDIA_ACCEPT = [...Object.values(MEDIA_KINDS).flatMap((k) => k.types), ...Object.keys(BY_EXTENSION).map((e) => `.${e}`)].join(",");
+
+/** "4.2 MB" / "820 KB". */
+export function bytesText(n: number): string {
+  return n >= MB ? `${(n / MB).toFixed(n >= 10 * MB ? 0 : 1)} MB` : `${Math.max(1, Math.round(n / 1000))} KB`;
+}
+
+export type MediaCheck = { ok: true; kind: MediaKind; mime: string } | { ok: false; text: string };
+
+/** A file checked as the server (and Meta) will, before a byte is sent: its kind, or why not. */
+export function checkMedia(file: Pick<File, "name" | "type" | "size">): MediaCheck {
+  let mime = (file.type || "").split(";")[0]!.trim().toLowerCase();
+  if (!mime || mime === "application/octet-stream") mime = BY_EXTENSION[file.name.split(".").pop()?.toLowerCase() ?? ""] ?? mime;
+  if (mime === "audio/opus") mime = "audio/ogg";
+  const kind = (Object.keys(MEDIA_KINDS) as MediaKind[]).find((k) => (MEDIA_KINDS[k].types as readonly string[]).includes(mime));
+  if (!kind) {
+    return { ok: false, text: `WhatsApp can't send ${file.name}. Send ${Object.values(MEDIA_KINDS).map((k) => k.words).join(", ")}.` };
+  }
+  if (file.size > MEDIA_KINDS[kind].max) {
+    return { ok: false, text: `${file.name} is ${bytesText(file.size)}: WhatsApp sends a ${kind} of ${bytesText(MEDIA_KINDS[kind].max)} at most.` };
+  }
+  if (file.size === 0) return { ok: false, text: `${file.name} is empty.` };
+  return { ok: true, kind, mime };
+}
+
+// ─── Opt-outs and blocks, in words ───────────────────────────────────────
+
+export function optOutText(o: OptOut): string {
+  if (o.scope === "marketing") {
+    return o.source === "meta_131050"
+      ? "They stopped marketing messages from you in WhatsApp (Meta refused one). Utility templates and replies still reach them."
+      : "They stopped marketing messages from you in WhatsApp's settings. Utility templates and replies still reach them.";
+  }
+  if (o.source === "team") return `Opted out of your WhatsApp${o.by ? ` by ${o.by}` : ""}, on their word: no templates, and their tickets skip WhatsApp. You can still answer when they write.`;
+  return "They wrote STOP: no templates, and their tickets skip WhatsApp. You can still answer within 24 hours of a message they send. START opts them back in.";
+}
+
+export function blockedText(b: NonNullable<Conversation["blocked"]>): string {
+  return b.meta
+    ? `Blocked${b.by ? ` by ${b.by}` : ""}, at WhatsApp too: they can't write to your number, and nothing is sent to them.`
+    : `Blocked here${b.by ? ` by ${b.by}` : ""}: their messages go to Blocked with no alerts, and nothing is sent to them.`;
+}
+
+// ─── More refusals, in words ─────────────────────────────────────────────
+
+/** The server's codes this page explains, each in a plain sentence (its own message is preferred when it gives one). */
+export const ERROR_TEXT: Record<string, string> = {
+  WHATSAPP_TOKEN_EXPIRES: "That token expires. Make a system user's token with the expiry set to Never, and paste that.",
+  WHATSAPP_APP_MISMATCH: "That app ID isn't the app the access token was made in. Copy it from the same app's dashboard.",
+  WHATSAPP_NUMBER_NOT_CONNECTED: "Meta shows the number as not connected yet: it can't send or receive. Register it in your app's API setup first.",
+  MEDIA_OTHER_NUMBER: "This attachment came to the number you connected before. Only that number could fetch it.",
+  MEDIA_UNAVAILABLE: "WhatsApp gave an unexpected address for this attachment, so it wasn't fetched.",
+  LIVE_STREAM_FULL: "The server holds as many live streams as it can: the inbox refreshes every few seconds instead.",
+  PLAN_FEATURE_LOCKED: "Your own WhatsApp number isn't on your plan. Upgrade to Enterprise to use it.",
+  OPTED_OUT: "They opted out of your WhatsApp messages, so no template can be sent to them. You can answer in words within 24 hours of a message they send.",
+  OPTED_OUT_MARKETING: "They stopped marketing messages from you in WhatsApp. Pick a utility template.",
+  CONTACT_BLOCKED: "You blocked them, so nothing can be sent. Unblock them first.",
+  OPTOUT_IS_THEIRS: "They stopped marketing messages in WhatsApp's own settings; only they can turn them back on.",
+  BLOCK_WINDOW_CLOSED: "WhatsApp only lets you block someone who wrote to you in the last 24 hours. You can block them here instead.",
+  BLOCKLIST_FULL: "Your number's blocklist is full (WhatsApp allows 64,000). You can block them here instead.",
+  BLOCK_TRY_AGAIN: "WhatsApp couldn't do that just now. Try again in a minute.",
+  BLOCK_REFUSED: "WhatsApp wouldn't block them.",
+  BLOCK_NOT_POSSIBLE: "WhatsApp can't block them by the id it gave. You can block them here instead.",
+  MEDIA_TYPE: "WhatsApp can't send that kind of file.",
+  MEDIA_TOO_LARGE: "That file is larger than WhatsApp sends.",
+  MEDIA_SIZE_MISMATCH: "The file changed while it was being sent. Pick it again.",
+  CAPTION_TOO_LONG: `A caption is at most ${CAPTION_MAX} characters.`,
+  CAPTION_NOT_ALLOWED: "A sound can't have a caption on WhatsApp.",
+  MEDIA_REFUSED: "WhatsApp didn't take the file.",
+  CANT_REPLY_TO_IT: "That message can't be replied to.",
+  INVALID_ASSIGNEE: "Only the owner and members with the WhatsApp permission can be given a conversation.",
+  NOTE_NOT_YOURS: "Only whoever wrote a note, or the club's owner, can delete it.",
+  SHORTCUT_TAKEN: "Another saved reply has that shortcut.",
+  INVALID_SAVED_REPLY: "Check the saved reply.",
+  WINDOW_CLOSED: "It's been more than 24 hours since they last wrote. Send an approved template instead.",
+  UPLOAD_INTERRUPTED: "The file couldn't be sent: the connection dropped or your session ended. Sign in again if asked, and try again.",
+};
+
+// ─── Meta's word on the number and the account ───────────────────────────
+
+/** Meta's restriction types, in words; any other is shown as Meta wrote it. */
+export const RESTRICTION_WORDS: Record<string, string> = {
+  RESTRICTED_BIZ_INITIATED_MESSAGING: "Can't start conversations: no templates to people who haven't written",
+  RESTRICTED_CUSTOMER_INITIATED_MESSAGING: "Can't answer people who write",
+  RESTRICTED_ADD_PHONE_NUMBER_ACTION: "Can't add phone numbers",
+  RESTRICTED_UTILITY_TEMPLATES: "Can't make utility templates",
+  RESTRICTED_BIZ_INITIATED_AND_USER_INITIATED_CALLING: "Can't make or take calls",
+  RESTRICTED_BUSINESS_INITIATED_CALLING: "Can't make calls",
+  RESTRICTED_USER_INITIATED_CALLING: "Can't take calls",
+  ACCOUNT_RESTRICTION: "Restricted",
+};
+
+export function restrictionWords(type: string): string {
+  return RESTRICTION_WORDS[type] ?? type.replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase());
+}
+
+/** CONNECTED, FLAGGED, RESTRICTED ... in words, and whether to warn. */
+export function numberStatusWords(status: string | null | undefined): { text: string; warn: boolean } | null {
+  if (!status) return null;
+  const s = status.toUpperCase();
+  const words: Record<string, string> = {
+    CONNECTED: "Connected",
+    FLAGGED: "Flagged: its quality is low, and its limit may drop",
+    RESTRICTED: "Restricted by Meta",
+    RATE_LIMITED: "Rate limited: Meta is slowing what it sends",
+    PENDING: "Pending: not registered yet",
+    DISCONNECTED: "Disconnected at Meta",
+    BANNED: "Banned by Meta",
+  };
+  return { text: words[s] ?? status, warn: !["CONNECTED"].includes(s) };
+}
+
+/** The display name's review: APPROVED, PENDING_REVIEW, DECLINED ... in words, and whether to warn. */
+export function nameStatusWords(status: string | null | undefined): { text: string; warn: boolean } | null {
+  if (!status) return null;
+  const s = status.toUpperCase();
+  const words: Record<string, string> = {
+    APPROVED: "Approved",
+    AVAILABLE_WITHOUT_REVIEW: "Available without review",
+    PENDING_REVIEW: "Waiting for Meta's review",
+    DECLINED: "Declined by Meta",
+    EXPIRED: "Expired",
+    NONE: "Not set",
+  };
+  return { text: words[s] ?? status, warn: !["APPROVED", "AVAILABLE_WITHOUT_REVIEW"].includes(s) };
+}
