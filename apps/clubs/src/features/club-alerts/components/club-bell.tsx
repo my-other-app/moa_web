@@ -5,6 +5,8 @@ import Link from "next/link";
 import { BellIcon, CheckCheckIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger, cn } from "@moa/ui";
 
+import { blockedBy, useAccess } from "@/features/access";
+
 import { useClubAlerts, useMarkClubAlertsRead } from "../queries";
 import { KIND_INFO, ago, alertLink } from "../schemas";
 
@@ -13,7 +15,9 @@ import { KIND_INFO, ago, alertLink } from "../schemas";
  * or WhatsApp at 80% and at 100%; the club's own WhatsApp number failing,
  * dropping in quality or restricted by Meta, each labelled and leading to
  * its page), unread first in the count, newest first
- * in the list. Opening a notice marks it read; "Mark all read" clears the
+ * in the list. A notice leads only to a page the person signed in may open
+ * (a member without the WhatsApp permission sees WhatsApp's notices, not a
+ * link to a page that refuses them). Opening a notice marks it read; "Mark all read" clears the
  * badge for everyone at the club. Nothing is shown when the bell cannot be
  * read: it is never a reason for the page to look broken.
  */
@@ -21,6 +25,7 @@ export function ClubBell() {
   const [open, setOpen] = React.useState(false);
   const alerts = useClubAlerts();
   const mark = useMarkClubAlertsRead();
+  const { can } = useAccess();
   if (alerts.isError || !alerts.data) return null;
   const { items, unread } = alerts.data;
 
@@ -56,7 +61,8 @@ export function ClubBell() {
         ) : (
           <ul aria-label="Latest notifications" className="divide-line-soft max-h-[420px] divide-y overflow-y-auto">
             {items.map((a) => {
-              const href = alertLink(a);
+              const to = alertLink(a);
+              const href = to && !blockedBy(to, can) ? to : null;
               const info = KIND_INFO[a.kind];
               const body = (
                 <span className="flex flex-col gap-0.5">

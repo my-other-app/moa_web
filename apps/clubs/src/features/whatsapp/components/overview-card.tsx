@@ -31,8 +31,13 @@ export function OverviewFigures({ o, link = false, className }: { o: Overview; l
       <CardLabel
         right={
           link ? (
-            <Link href="/whatsapp" className="text-brand hover:text-ink inline-flex items-center gap-1 text-[12px] font-medium">
-              Open inbox <ArrowRightIcon className="size-3" />
+            // The inbox only for those it opens to; the owner's admins without the WhatsApp permission
+            // (and an admin acting as the club) manage the number in Settings instead.
+            <Link
+              href={a.can_inbox ? "/whatsapp" : "/whatsapp/settings"}
+              className="text-brand hover:text-ink inline-flex items-center gap-1 text-[12px] font-medium"
+            >
+              {a.can_inbox ? "Open inbox" : "WhatsApp settings"} <ArrowRightIcon className="size-3" aria-hidden="true" />
             </Link>
           ) : (
             <StatusBadge label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} />

@@ -77,9 +77,10 @@ function MemberLine({ m, roles, canManage, now }: { m: MemberRow; roles: AccessL
             {status}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        {/* Wraps under the name on a phone: the WhatsApp switch, the role, Resend and Remove don't fit one 375px row. */}
+        <div className="flex min-w-0 flex-wrap items-center gap-2" data-slot="member-actions">
           {canManage ? (
-            <label className="text-ink-2 inline-flex items-center gap-1.5 text-[12px]" title="Reads and answers the club's WhatsApp messages">
+            <label className="text-ink-2 inline-flex shrink-0 items-center gap-1.5 text-[12px]" title="Reads and answers the club's WhatsApp messages">
               <MessageCircleIcon className="size-3.5" aria-hidden="true" />
               WhatsApp
               <Switch

@@ -1394,6 +1394,13 @@ describe("around the dashboard", () => {
     expect(within(card).getByText("14")).toBeInTheDocument();
     expect(within(card).getByRole("link", { name: /Open inbox/ })).toHaveAttribute("href", "/whatsapp");
     first.unmount();
+    // An admin without the WhatsApp permission manages the number: Settings, not an inbox that refuses them.
+    state.overview = { account: { ...CONNECTED, can_inbox: false }, stats: STATS, quality_history: [] };
+    const admin = render(<WhatsAppOverviewCard />);
+    const theirs = await screen.findByRole("link", { name: /WhatsApp settings/ });
+    expect(theirs).toHaveAttribute("href", "/whatsapp/settings");
+    expect(screen.queryByRole("link", { name: /Open inbox/ })).toBeNull();
+    admin.unmount();
     state.overview = { account: NOT_CONNECTED, stats: null, quality_history: [] };
     const second = render(<WhatsAppOverviewCard />);
     await waitFor(() => expect(calls.filter((c) => c.path.endsWith("/overview")).length).toBeGreaterThan(1));
@@ -1410,6 +1417,10 @@ describe("around the dashboard", () => {
     render(<AccessPage />);
     const toggle = await screen.findByRole("switch", { name: "WhatsApp permission for Priya Nair" });
     expect(toggle).toHaveAttribute("aria-checked", "false");
+    // At 375px the switch, the role, Resend and Remove wrap under the name rather than overflowing.
+    const actions = toggle.closest("[data-slot=member-actions]")!;
+    expect(actions.className).toContain("flex-wrap");
+    expect(actions.className).not.toMatch(/(^|\s)shrink-0(\s|$)/);
     fireEvent.click(toggle);
     await waitFor(() => expect(calls.find((c) => c.method === "PUT" && c.path === "/api/v1/clubs/access/7/whatsapp")?.body).toEqual({ allowed: true }));
   });

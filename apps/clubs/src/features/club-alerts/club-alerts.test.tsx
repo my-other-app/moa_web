@@ -7,6 +7,8 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
  * them read.
  */
 let answer: Record<string, unknown> = {};
+/** Who is signed in (GET /clubs/access/me); null: a server that doesn't say, so the club's own account. */
+let me: unknown = null;
 const posts: Array<{ path: string; body: unknown }> = [];
 
 vi.mock("@moa/app-kit", async (importOriginal) => {
@@ -16,6 +18,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     api: {
       get: vi.fn(async (path: string) => {
         if (path === "/api/v1/clubs/alerts") return answer;
+        if (path === "/api/v1/clubs/access/me" && me) return me;
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(async (path: string, body: unknown) => {
@@ -35,6 +38,7 @@ const NOW = new Date("2026-10-24T12:00:00Z");
 
 beforeEach(() => {
   posts.length = 0;
+  me = null;
   answer = {
     unread: 1,
     items: [
@@ -111,5 +115,33 @@ describe("the bell", () => {
     expect(alertLink({ kind: "whatsapp_failed", link: "https://evil.example/" })).toBeNull();
     expect(alertLink({ kind: "something_new", link: null })).toBeNull();
     expect(alertLink({ kind: "message_quota_80", link: "/billing" })).toBe("/billing");
+  });
+
+  it("doesn't lead a member without the WhatsApp permission to a page that refuses them", async () => {
+    me = {
+      role: "editor",
+      role_label: "Editor",
+      role_description: "Events.",
+      can: { manage_access: false, see_access: false, money: false, club_profile: false, edit_events: true, delete_events: false, door: true, whatsapp_account: false, whatsapp_inbox: false },
+      club_id: 1,
+      club_name: "Circuit Society",
+      member: null,
+    };
+    answer = {
+      unread: 2,
+      items: [
+        { id: 7, kind: "whatsapp_failed", title: "+91 98470 12345 stopped working on MyOtherApp", body: "", link: "/whatsapp/settings", data: {}, created_at: "2026-10-24T11:58:00Z", read: false },
+        { id: 2, kind: "message_quota_100", title: "You've used all 1,000 emails for October 2026", body: "", link: "/billing", data: {}, created_at: "2026-10-24T11:55:00Z", read: false },
+      ],
+    };
+    render(<ClubBell />);
+    fireEvent.click(await screen.findByRole("button", { name: "Notifications: 2 unread" }));
+    const list = await screen.findByRole("list", { name: "Latest notifications" });
+    // Told, and it can be marked read; not linked.
+    const notice = await within(list).findByRole("button", { name: /stopped working on MyOtherApp/ });
+    expect(within(list).queryByRole("link", { name: /stopped working/ })).toBeNull();
+    expect(within(list).getByRole("link", { name: /You've used all 1,000 emails/ })).toHaveAttribute("href", "/billing");
+    fireEvent.click(notice);
+    await waitFor(() => expect(posts).toEqual([{ path: "/api/v1/clubs/alerts/read", body: { ids: [7] } }]));
   });
 });
