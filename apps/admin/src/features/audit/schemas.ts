@@ -1,4 +1,5 @@
 import { paginatedSchema } from "@moa/api";
+import { pictureSchema } from "@moa/app-kit";
 import { z } from "zod";
 
 /** GET /admin/audit-log — who did what. */
@@ -16,6 +17,8 @@ export const auditEntrySchema = z.object({
       id: z.coerce.number().nullish(),
       full_name: z.string().nullish(),
       email: z.string().nullish(),
+      /** Their picture, already resolved by the API: a photo, else the avatar they picked. */
+      avatar: pictureSchema,
     })
     .nullish(),
 });

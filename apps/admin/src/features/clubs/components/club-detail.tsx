@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import {
   PageHeader,
+  PersonAvatar,
   SectionTitle,
   TopicChips,
   formatCurrency,
@@ -130,11 +131,13 @@ function FollowersTab({ clubId }: { clubId: number }) {
               hoverLift
             )}
           >
-            <Avatar className="size-9">
-              <AvatarFallback className="text-[11px]">
-                {initials(row.user?.full_name ?? row.user?.username ?? "?")}
-              </AvatarFallback>
-            </Avatar>
+            <PersonAvatar
+              name={row.user?.full_name || row.user?.username}
+              photo={row.user?.profile?.profile_pic}
+              avatar={row.user?.profile?.avatar?.image}
+              className="size-9"
+              fallbackClassName="text-[11px]"
+            />
             <div className="min-w-0 flex-1">
               {row.user?.id ? (
                 <Link

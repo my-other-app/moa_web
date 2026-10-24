@@ -1,7 +1,7 @@
 "use client";
 
-import { ListFilters, ResourceList, formatDateTime, initials, useListParams } from "@moa/app-kit";
-import { Avatar, AvatarFallback, Badge, type DataTableColumn } from "@moa/ui";
+import { ListFilters, PersonAvatar, ResourceList, formatDateTime, useListParams } from "@moa/app-kit";
+import { Badge, type DataTableColumn } from "@moa/ui";
 
 import { useAuditActions, useAuditLog } from "../queries";
 import type { AuditEntry } from "../schemas";
@@ -19,11 +19,12 @@ const columns: DataTableColumn<AuditEntry>[] = [
     header: "Who",
     cell: (row) => (
       <div className="flex items-center gap-2">
-        <Avatar className="size-7">
-          <AvatarFallback className="text-[10px]">
-            {initials(row.actor?.full_name ?? row.actor?.email ?? "?")}
-          </AvatarFallback>
-        </Avatar>
+        <PersonAvatar
+          name={row.actor?.full_name ?? row.actor?.email}
+          avatar={row.actor?.avatar}
+          className="size-7"
+          fallbackClassName="text-[10px]"
+        />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">
             {row.actor?.full_name ?? "Unknown"}

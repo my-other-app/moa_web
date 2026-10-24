@@ -1,7 +1,7 @@
 import { paginatedSchema } from "@moa/api";
 import { z } from "zod";
 
-import { imageFieldSchema, topicRefsField } from "@moa/app-kit";
+import { imageFieldSchema, profilePicturesSchema, topicRefsField } from "@moa/app-kit";
 
 export const adminClubSchema = z.object({
   id: z.coerce.number(),
@@ -102,6 +102,9 @@ export const clubFollowerSchema = z.object({
       full_name: z.string().nullish(),
       username: z.string().nullish(),
       email: z.string().nullish(),
+      /* Their photo and the avatar they picked: always sent, never drawn
+         until the follower rows showed pictures. */
+      profile: profilePicturesSchema,
     })
     .passthrough()
     .nullish(),
