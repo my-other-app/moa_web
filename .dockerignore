@@ -1,0 +1,22 @@
+# What the image build (Dockerfile) never needs: dependencies and builds are
+# made inside it, and nothing secret may reach the build context.
+node_modules
+**/node_modules
+.next
+**/.next
+.turbo
+**/.turbo
+dist
+**/dist
+coverage
+**/coverage
+*.tsbuildinfo
+.git
+.github
+.vercel
+*.log
+.env*
+**/.env*
+!**/.env.example
+.DS_Store
+docs
