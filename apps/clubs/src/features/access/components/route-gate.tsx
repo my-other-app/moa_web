@@ -15,6 +15,7 @@ const RULES: { test: (path: string) => boolean; needs: Cap; what: string }[] = [
   { test: (p) => p === "/access" || p.startsWith("/access/"), needs: "see_access", what: "Access" },
   { test: (p) => p === "/profile" || p.startsWith("/profile/"), needs: "club_profile", what: "the club profile" },
   { test: (p) => /^\/(followers|threads|announcements|emails|links|website|templates|merchandise)(\/|$)/.test(p), needs: "edit_events", what: "this page" },
+  { test: (p) => p === "/whatsapp" || p.startsWith("/whatsapp/"), needs: "whatsapp", what: "WhatsApp" },
 ];
 
 export function blockedBy(path: string, can: Partial<Record<Cap, boolean>>) {

@@ -32,6 +32,11 @@ export async function changeRole(id: number, role: MemberRole) {
   return memberRowSchema.parse(await api.patch<unknown>(`${BASE}/${id}`, { role }));
 }
 
+/** The WhatsApp permission: the club's own WhatsApp inbox and templates. Owner only. */
+export async function setMemberWhatsApp(id: number, allowed: boolean) {
+  return memberRowSchema.parse(await api.put<unknown>(`${BASE}/${id}/whatsapp`, { allowed }));
+}
+
 export async function removeMember(id: number) {
   await api.del<unknown>(`${BASE}/${id}`);
 }

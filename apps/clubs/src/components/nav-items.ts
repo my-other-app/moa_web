@@ -9,6 +9,7 @@ import {
   LayoutDashboardIcon,
   LinkIcon,
   MailIcon,
+  MessageCircleIcon,
   MessagesSquareIcon,
   PaletteIcon,
   ShieldCheckIcon,
@@ -66,6 +67,9 @@ export const navItems: NavItem[] = [
   { href: "/threads", label: "Threads", icon: MessagesSquareIcon, needs: "edit_events" },
   { href: "/announcements", label: "Announcements", icon: BellIcon, needs: "edit_events" },
   { href: "/emails", label: "Emails", icon: MailIcon, needs: "edit_events" },
+  // The club's own WhatsApp number (Enterprise): its inbox, templates and settings. Owners and admins
+  // (the connection) and members given the WhatsApp permission (the inbox) see it.
+  { href: "/whatsapp", label: "WhatsApp", icon: MessageCircleIcon, needs: "whatsapp", feature: "whatsapp_own" },
   { href: "/links", label: "Tracking links", icon: LinkIcon, group: "grow", needs: "edit_events", feature: "links" },
   { href: "/website", label: "Website", icon: GlobeIcon, group: "grow", needs: "edit_events", feature: "website" },
   { href: "/templates", label: "Templates", icon: PaletteIcon, group: "grow", needs: "edit_events" },

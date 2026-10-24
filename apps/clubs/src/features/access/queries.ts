@@ -16,6 +16,7 @@ import {
   inviteMember,
   removeMember,
   resendInvite,
+  setMemberWhatsApp,
 } from "./api";
 import { OWNER_CAN, type Caps, type Me, type MemberRole, type Role } from "./schemas";
 
@@ -88,6 +89,18 @@ export function useChangeRole() {
     mutationFn: ({ id, role }: { id: number; role: MemberRole }) => changeRole(id, role),
     onSuccess: (m) => {
       toast.success(`${m.full_name ?? m.email} is now ${m.role_label}`);
+      refresh();
+    },
+    onError: toastError,
+  });
+}
+
+export function useSetMemberWhatsApp() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: ({ id, allowed }: { id: number; allowed: boolean }) => setMemberWhatsApp(id, allowed),
+    onSuccess: (m) => {
+      toast.success(m.whatsapp ? `${m.full_name ?? m.email} can now read and answer WhatsApp` : `${m.full_name ?? m.email} no longer sees WhatsApp`);
       refresh();
     },
     onError: toastError,

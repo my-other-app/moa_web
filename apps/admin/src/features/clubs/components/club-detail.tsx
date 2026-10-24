@@ -69,6 +69,7 @@ import {
 import { useResolvedTopics } from "@/features/interests";
 import { ClubMessagesPanel } from "@/features/messages";
 import { ClubPlanPanel } from "@/features/subscriptions";
+import { ClubWhatsAppCard } from "@/features/club-whatsapp";
 
 import { requestedPlanText, type ClubEvent, type ClubFollower } from "../schemas";
 import { ClubEditForm } from "./club-edit-form";
@@ -451,6 +452,9 @@ export function ClubDetail({ clubId }: { clubId: number }) {
 
         {/* The month's emails and WhatsApp, the closed months and their charges, an Enterprise club's own limits. */}
         {club ? <ClubMessagesPanel clubId={club.id} /> : null}
+
+        {/* Its own WhatsApp number, if any: status and quality, never a message. */}
+        {club ? <ClubWhatsAppCard clubId={club.id} /> : null}
 
         <section className="space-y-3">
           <SectionTitle>Performance</SectionTitle>

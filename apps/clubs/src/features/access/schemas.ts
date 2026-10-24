@@ -19,6 +19,8 @@ export const memberRowSchema = z.object({
   invited_at: z.string().nullable().catch(null),
   accepted_at: z.string().nullable().catch(null),
   last_seen_at: z.string().nullable().catch(null),
+  /** The WhatsApp permission: reads and answers the club's own WhatsApp inbox, whatever the role. */
+  whatsapp: z.boolean().catch(false),
 });
 export type MemberRow = z.infer<typeof memberRowSchema>;
 
@@ -50,9 +52,22 @@ export const capsSchema = z
     connected_apps: z.boolean().optional(),
     /** Approving what an assistant asked for: publishing, sending (owner, admin, editor). */
     approve_actions: z.boolean().optional(),
+    /** The club's own WhatsApp number's connection: its keys, routing, retention (owner and admin). */
+    whatsapp_account: z.boolean().optional(),
+    /** The club's WhatsApp inbox and templates: the owner, and members given the WhatsApp permission. */
+    whatsapp_inbox: z.boolean().optional(),
   })
   // A server from before connected assistants does not send the last two: they follow the roles they mirror.
-  .transform((c) => ({ ...c, connected_apps: c.connected_apps ?? c.see_access, approve_actions: c.approve_actions ?? c.edit_events }));
+  // One from before clubs' own WhatsApp sends neither of those: there is nothing to open.
+  .transform((c) => ({
+    ...c,
+    connected_apps: c.connected_apps ?? c.see_access,
+    approve_actions: c.approve_actions ?? c.edit_events,
+    whatsapp_account: c.whatsapp_account ?? false,
+    whatsapp_inbox: c.whatsapp_inbox ?? false,
+    /** Either: the WhatsApp section opens at all. */
+    whatsapp: Boolean(c.whatsapp_account || c.whatsapp_inbox),
+  }));
 export type Caps = z.infer<typeof capsSchema>;
 export type Cap = keyof Caps;
 
@@ -97,6 +112,9 @@ export const OWNER_CAN: Caps = {
   door: true,
   connected_apps: true,
   approve_actions: true,
+  whatsapp_account: true,
+  whatsapp_inbox: true,
+  whatsapp: true,
 };
 
 export const MIN_PASSWORD = 8;
