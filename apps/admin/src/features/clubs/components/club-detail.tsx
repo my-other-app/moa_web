@@ -66,6 +66,7 @@ import {
   useDeleteClub,
 } from "../queries";
 import { useResolvedTopics } from "@/features/interests";
+import { ClubMessagesPanel } from "@/features/messages";
 import { ClubPlanPanel } from "@/features/subscriptions";
 
 import { requestedPlanText, type ClubEvent, type ClubFollower } from "../schemas";
@@ -444,6 +445,9 @@ export function ClubDetail({ clubId }: { clubId: number }) {
         </Card>
 
         {club ? <ClubPlanPanel club={{ id: club.id, name: club.name, is_verified: club.is_verified }} /> : null}
+
+        {/* The month's emails and WhatsApp, the closed months and their charges, an Enterprise club's own limits. */}
+        {club ? <ClubMessagesPanel clubId={club.id} /> : null}
 
         <section className="space-y-3">
           <SectionTitle>Performance</SectionTitle>
