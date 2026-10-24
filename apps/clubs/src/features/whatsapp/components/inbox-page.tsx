@@ -191,7 +191,16 @@ export function WhatsAppInboxPage() {
               }
             />
           ) : (
-            <FigurePanel className="grid min-h-[560px] overflow-hidden p-0 lg:grid-cols-[340px_minmax(0,1fr)]">
+            // One viewport tall, less the shell and this page's header: the list and the conversation
+            // each scroll inside it, so the reply box stays in view however long the conversation.
+            <FigurePanel
+              role="region"
+              aria-label="Inbox"
+              className={cn(
+                "grid min-h-[420px] grid-rows-[minmax(0,1fr)] overflow-hidden p-0 lg:grid-cols-[340px_minmax(0,1fr)]",
+                "h-[calc(100dvh-17rem)] sm:h-[calc(100dvh-15rem)]",
+              )}
+            >
               <section className={cn("border-line-soft flex min-h-0 flex-col lg:border-r", openId !== null && "hidden lg:flex")} aria-label="Conversations">
                 <div className="flex flex-col gap-2 p-3">
                   <SearchField value={search} onChange={setSearch} label="Search conversations" placeholder="Name, @username or number" size="sm" />

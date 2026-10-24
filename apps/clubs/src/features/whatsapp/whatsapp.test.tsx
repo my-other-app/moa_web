@@ -701,6 +701,40 @@ describe("the inbox", () => {
     expect(await within(list).findByText("Member 60")).toBeInTheDocument();
   });
 
+  it("is one viewport tall, with the list and the messages each scrolling inside it", async () => {
+    render(<WhatsAppInboxPage />);
+    const panel = await screen.findByRole("region", { name: "Inbox" });
+    expect(panel.className).toMatch(/h-\[calc\(100dvh-/);
+    expect(panel.className).toContain("grid-rows-[minmax(0,1fr)]");
+    expect(panel.className).toContain("overflow-hidden");
+    expect(panel.className).not.toMatch(/(^|\s)min-h-\[560px\]/);
+    const list = within(panel).getByRole("region", { name: "Conversations" });
+    await within(list).findByText("Ananya Iyer");
+    const scroller = within(list).getAllByRole("list")[0]!.parentElement!;
+    expect(scroller.className).toContain("overflow-y-auto");
+    expect(scroller.className).toContain("min-h-0");
+    fireEvent.click(await within(list).findByRole("button", { name: /Ananya Iyer/ }));
+    const log = await screen.findByRole("log", { name: "Messages" });
+    expect(log.className).toContain("overflow-y-auto");
+    expect(log.className).toContain("min-h-0");
+    expect(log.className).toContain("flex-1");
+    expect(within(screen.getByLabelText("Conversation with Ananya Iyer")).getByLabelText("Reply").className).toContain("shrink-0");
+  });
+
+  it("on a phone shows the list or the conversation, with a way back", async () => {
+    render(<WhatsAppInboxPage />);
+    const list = await screen.findByRole("region", { name: "Conversations" });
+    const pane = screen.getByRole("region", { name: "Conversation" });
+    expect(list.className).not.toContain("hidden");
+    expect(pane.className).toMatch(/(^|\s)hidden(\s|$)/);
+    fireEvent.click(await within(list).findByRole("button", { name: /Ananya Iyer/ }));
+    await screen.findByLabelText("Conversation with Ananya Iyer");
+    expect(list.className).toMatch(/(^|\s)hidden lg:flex/);
+    expect(pane.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+    fireEvent.click(screen.getByRole("button", { name: "Back to conversations" }));
+    expect(list.className).not.toContain("hidden");
+  });
+
   it("searches a username without its @", async () => {
     render(<WhatsAppInboxPage />);
     const list = await screen.findByRole("region", { name: "Conversations" });
@@ -894,6 +928,42 @@ describe("the inbox, live", () => {
     await waitFor(() => expect(listCalls()).toBe(3), { timeout: 4_000 });
     await new Promise((r) => setTimeout(r, 1_700));
     expect(listCalls()).toBe(3);
+  });
+
+  it("opens on the newest message, and follows new ones only while the reader is at the bottom", async () => {
+    const height = vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(2_000);
+    const client = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(400);
+    try {
+      render(<WhatsAppInboxPage />);
+      fireEvent.click(await screen.findByRole("button", { name: /Ananya Iyer/ }));
+      const log = await screen.findByRole("log", { name: "Messages" });
+      await within(log).findByText("Is there parking?");
+      await waitFor(() => expect(FakeSource.last).not.toBeNull());
+      expect(log.scrollTop).toBe(2_000);
+      act(() => FakeSource.last!.emit("ready", { club: 1 }));
+      await screen.findByText("Live");
+
+      // Scrolled up to read: a new message doesn't pull them down.
+      log.scrollTop = 300;
+      fireEvent.scroll(log);
+      const conv = state.messages[11] as { items: unknown[] };
+      state.messages[11] = { ...conv, items: [...conv.items, msg({ id: 4, body: "Also, is there food?" })] };
+      act(() => FakeSource.last!.emit("changed", { conversation_id: 11, kind: "message" }));
+      expect(await within(log).findByText("Also, is there food?", {}, { timeout: 4_000 })).toBeInTheDocument();
+      expect(log.scrollTop).toBe(300);
+
+      // Back at the bottom: the next one is brought into view.
+      log.scrollTop = 1_600;
+      fireEvent.scroll(log);
+      const now = state.messages[11] as { items: unknown[] };
+      state.messages[11] = { ...now, items: [...now.items, msg({ id: 5, body: "Thanks!" })] };
+      act(() => FakeSource.last!.emit("changed", { conversation_id: 11, kind: "message" }));
+      expect(await within(log).findByText("Thanks!", {}, { timeout: 4_000 })).toBeInTheDocument();
+      expect(log.scrollTop).toBe(2_000);
+    } finally {
+      height.mockRestore();
+      client.mockRestore();
+    }
   });
 
   it("opens no stream and lists nothing for a club that never connected a number", async () => {

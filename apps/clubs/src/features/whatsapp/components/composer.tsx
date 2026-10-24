@@ -71,7 +71,8 @@ export function Composer({ conversation }: { conversation: Conversation }) {
   };
 
   return (
-    <div className="border-line-soft flex flex-col gap-2 border-t p-3" aria-label="Reply">
+    // Never taller than about half the conversation: a long template form scrolls inside it.
+    <div className="border-line-soft flex max-h-[60%] shrink-0 flex-col gap-2 overflow-y-auto border-t p-3" aria-label="Reply">
       <p className={cn("m-0 text-[12px]", windowOpen ? "text-admit" : "text-caution")} data-testid="window-indicator">
         {windowText(conversation)}
       </p>

@@ -147,6 +147,34 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
   const conv: Conversation | undefined = q.data?.conversation;
   const unread = conv?.unread_count ?? 0;
 
+  // The log keeps the newest message in view: on opening, and as messages
+  // arrive while the reader is at the bottom. Someone scrolled up to read
+  // older ones is left where they are.
+  const log = React.useRef<HTMLDivElement>(null);
+  const atBottom = React.useRef(true);
+  const onScroll = () => {
+    const el = log.current;
+    if (el) atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
+  const latestItems = q.data?.items;
+  const newest = latestItems?.length ? latestItems[latestItems.length - 1]!.id : null;
+  React.useLayoutEffect(() => {
+    const el = log.current;
+    if (el && newest !== null && atBottom.current) el.scrollTop = el.scrollHeight;
+  }, [newest]);
+  // Older messages go in above: the one being read stays where it was on screen.
+  const fromBottom = React.useRef<number | null>(null);
+  const keepPlace = () => {
+    const el = log.current;
+    fromBottom.current = el ? el.scrollHeight - el.scrollTop : null;
+  };
+  const oldest = older[0]?.id ?? null;
+  React.useLayoutEffect(() => {
+    const el = log.current;
+    if (el && fromBottom.current !== null) el.scrollTop = el.scrollHeight - fromBottom.current;
+    fromBottom.current = null;
+  }, [oldest]);
+
   React.useEffect(() => {
     if (unread > 0 && read.current !== conversationId) {
       read.current = conversationId;
@@ -173,6 +201,7 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
     const first = items[0];
     if (!first) return;
     setLoadingOlder(true);
+    keepPlace();
     try {
       const page = await fetchMessages(conversationId, { before: first.id });
       setOlder((o) => [...page.items, ...o]);
@@ -191,7 +220,7 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
   let lastDay = "";
   return (
     <div className="flex min-h-0 flex-1 flex-col" aria-label={`Conversation with ${name}`}>
-      <div className="border-line-soft flex flex-wrap items-start gap-2 border-b p-3">
+      <div className="border-line-soft flex shrink-0 flex-wrap items-start gap-2 border-b p-3">
         {onBack ? (
           <button type="button" className="btn btn-ghost btn-sm lg:hidden" onClick={onBack} aria-label="Back to conversations">
             <ArrowLeftIcon className="size-4" />
@@ -222,7 +251,7 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
         </button>
       </div>
 
-      <div className="flex min-h-[240px] flex-1 flex-col gap-2 overflow-y-auto p-3" role="log" aria-label="Messages">
+      <div ref={log} onScroll={onScroll} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-3" role="log" aria-label="Messages">
         {hasMore ? (
           <button type="button" className="btn btn-ghost btn-sm self-center" onClick={() => void loadOlder()} disabled={loadingOlder}>
             {loadingOlder ? <Loader2Icon className="size-3.5 animate-spin" /> : null} Load older
