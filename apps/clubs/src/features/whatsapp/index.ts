@@ -1,5 +1,6 @@
 export { WhatsAppSettingsPage, KeysForm } from "./components/settings-page";
 export { WhatsAppInboxPage } from "./components/inbox-page";
+export { WhatsAppTemplatesPage, TemplateFormPanel, EMPTY_TEMPLATE } from "./components/templates-page";
 export { WhatsAppOverviewCard, OverviewFigures } from "./components/overview-card";
 export { Bubble, StatusTicks, Thread } from "./components/thread";
 export { Composer, fillTemplate } from "./components/composer";
