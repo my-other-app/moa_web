@@ -31,7 +31,6 @@ export const catalogueVariantSchema = z.object({
   held: z.number().catch(0),
   left: z.number(),
 });
-export type CatalogueVariant = z.infer<typeof catalogueVariantSchema>;
 
 /** An event that offers the item. */
 export const offeringEventSchema = z.object({
@@ -68,7 +67,6 @@ export const clubStoreSchema = z.object({ items: z.array(clubStoreItemSchema) })
 
 /** What an event offers, in the order its registration page shows them. */
 export const offersSchema = z.object({ merch_enabled: z.boolean(), item_ids: z.array(z.string()) });
-export type Offers = z.infer<typeof offersSchema>;
 
 export const photoUploadSchema = z.object({ key: z.string(), url: z.string() });
 

@@ -107,4 +107,3 @@ export const pushAudienceSchema = z.object({
   reachable: z.number(),
   by_audience: z.object({ all: reach, attendees: reach, non_attendees: reach }),
 });
-export type PushAudience = z.infer<typeof pushAudienceSchema>;

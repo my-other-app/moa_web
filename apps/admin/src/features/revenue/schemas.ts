@@ -34,7 +34,6 @@ const planRowSchema = z.object({
   complimentary: count,
   mrr_paise: paise,
 });
-export type RevenuePlanRow = z.infer<typeof planRowSchema>;
 
 const cycleRowSchema = z.object({ paying: count, mrr_paise: paise });
 const EMPTY_CYCLE = { paying: 0, mrr_paise: 0 };
@@ -100,8 +99,6 @@ export const chargePageSchema = z.object({
   /* The sum of every charge the filters match, not only this page's. */
   sum_paise: paise,
 });
-export type ChargePage = z.infer<typeof chargePageSchema>;
 
 /** POST /admin/revenue/backfill: how many subscriptions were read at Razorpay, the payments that were new or changed, and the subscriptions Razorpay would not answer for. */
 export const backfillSchema = z.object({ scanned: count, inserted: count, updated: count.default(0), failed: count.default(0) });
-export type BackfillResult = z.infer<typeof backfillSchema>;

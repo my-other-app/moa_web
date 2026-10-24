@@ -20,7 +20,6 @@ export {
   type UserListQuery,
   type UserEventQuery,
 } from "./api";
-export { UsersTable } from "./components/users-table";
 export { UsersV2 } from "./components/users-v2";
 export { UserDrawer } from "./components/user-drawer";
 export { ConfirmDialog } from "./components/confirm-dialog";

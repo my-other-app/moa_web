@@ -16,5 +16,4 @@ export {
   MCP_URL,
   type PendingAction,
   type ConnectedApp,
-  type ConnectedApps,
 } from "./schemas";

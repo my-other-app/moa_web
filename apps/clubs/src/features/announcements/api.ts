@@ -1,7 +1,6 @@
 import { api } from "@moa/app-kit";
 
 import {
-  announcementHistorySchema,
   pushAudienceSchema,
   pushHistoryPageSchema,
   pushInsightsSchema,
@@ -9,16 +8,6 @@ import {
   type PushScope,
   type SendAnnouncementInput,
 } from "./schemas";
-
-export async function fetchAnnouncementHistory(params: {
-  offset: number;
-  limit: number;
-}) {
-  const raw = await api.get<unknown>("/api/v1/clubs/notifications/history", {
-    query: { offset: params.offset, limit: params.limit },
-  });
-  return announcementHistorySchema.parse(raw);
-}
 
 /**
  * Pushes a notification to everyone registered for the event. There is no

@@ -7,16 +7,8 @@ import { toast } from "@moa/ui";
 import { ENTITLEMENTS_KEY } from "@/features/billing/queries";
 import { toastError } from "@/features/plan/errors";
 
-import { fetchAnnouncementHistory, fetchPushAudience, fetchPushHistory, fetchPushInsights, sendAnnouncement } from "./api";
+import { fetchPushAudience, fetchPushHistory, fetchPushInsights, sendAnnouncement } from "./api";
 import type { PushScope, SendAnnouncementInput } from "./schemas";
-
-export function useAnnouncementHistory(params: { offset: number; limit: number }) {
-  return useQuery({
-    queryKey: qk.notifications.history(params),
-    queryFn: () => fetchAnnouncementHistory(params),
-    placeholderData: keepPreviousData,
-  });
-}
 
 export function useSendAnnouncement() {
   const queryClient = useQueryClient();

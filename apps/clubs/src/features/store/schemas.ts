@@ -56,7 +56,6 @@ export const orderSchema = z.object({
   handed_over_at: z.string().nullable(),
   created_at: z.string(),
 });
-export type StoreOrder = z.infer<typeof orderSchema>;
 export const ordersPageSchema = z.object({ items: z.array(orderSchema), total: z.number(), page: z.number(), page_size: z.number() });
 
 /**

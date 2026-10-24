@@ -1,23 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Loader2Icon, Trash2Icon, UserPlusIcon } from "lucide-react";
+import { Loader2Icon, UserPlusIcon } from "lucide-react";
 import {
   Button,
-  CardLabel,
-  EmptyState,
-  FigurePanel,
-  IconButton,
-  InitialsAvatar,
-  Skeleton,
 } from "@moa/ui";
 
-import { useAddVolunteer, useRemoveVolunteer, useVolunteers } from "../queries";
-import { addVolunteerSchema, type Volunteer } from "../schemas";
-
-function emailOf(v: Volunteer): string {
-  return v.email_id ?? v.email ?? "";
-}
+import { useAddVolunteer } from "../queries";
+import { addVolunteerSchema } from "../schemas";
 
 const blank = { full_name: "", email_id: "", phone: "" };
 
@@ -124,97 +114,5 @@ export function AddVolunteerForm({
         </Button>
       </div>
     </form>
-  );
-}
-
-/** The event's volunteers as a plain list beside the form that adds one. */
-export function VolunteersPanel({ eventId }: { eventId: number }) {
-  const { data, isPending, isError, refetch } = useVolunteers(eventId);
-  const remove = useRemoveVolunteer(eventId);
-
-  return (
-    <div className="grid items-start gap-3 lg:grid-cols-[1fr_340px]">
-      <FigurePanel className="overflow-hidden p-0">
-        <div className="px-4 pt-4">
-          <CardLabel
-            right={
-              data?.length ? (
-                <span className="text-ink-3 font-mono text-[11px]">
-                  {data.length}
-                </span>
-              ) : null
-            }
-          >
-            Volunteers
-          </CardLabel>
-          <p className="text-ink-3 mt-1 text-[12px]">
-            They scan tickets and check guests in from the app or the gate.
-          </p>
-        </div>
-        {isPending ? (
-          <div className="grid gap-2 p-4">
-            {Array.from({ length: 3 }, (_, i) => (
-              <Skeleton key={i} className="h-12" />
-            ))}
-          </div>
-        ) : isError ? (
-          <EmptyState
-            size="sm"
-            title="Could not load the volunteers"
-            description="Check the connection, then try again."
-            action={
-              <Button variant="secondary" size="sm" onClick={() => void refetch()}>
-                Try again
-              </Button>
-            }
-          />
-        ) : !data || data.length === 0 ? (
-          <EmptyState
-            size="sm"
-            icon={<UserPlusIcon />}
-            title="No volunteers yet"
-            description="Add someone so they can check guests in on the day."
-          />
-        ) : (
-          <ul className="mt-2">
-            {data.map((v) => {
-              const name = v.full_name || v.name || "Unnamed";
-              return (
-                <li
-                  key={emailOf(v) || v.id}
-                  className="border-line-soft flex items-center gap-3 border-t px-4 py-2.5"
-                >
-                  <InitialsAvatar name={v.full_name ?? v.name ?? emailOf(v)} size={32} />
-                  <span className="min-w-0 flex-1">
-                    <span className="text-ink block truncate text-[13.5px] font-medium">
-                      {name}
-                    </span>
-                    <span className="text-ink-3 block truncate text-[11.5px]">
-                      {emailOf(v)}
-                    </span>
-                  </span>
-                  <IconButton
-                    label={`Remove ${v.full_name ?? emailOf(v)}`}
-                    danger
-                    disabled={remove.isPending || !emailOf(v)}
-                    onClick={() => remove.mutate(emailOf(v))}
-                  >
-                    <Trash2Icon />
-                  </IconButton>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </FigurePanel>
-
-      <FigurePanel className="p-4">
-        <CardLabel>Add a volunteer</CardLabel>
-        <p className="text-ink-3 mt-1 mb-3 text-[12px]">
-          They get check-in access for this event.
-        </p>
-        <AddVolunteerForm eventId={eventId} />
-      </FigurePanel>
-    </div>
   );
 }

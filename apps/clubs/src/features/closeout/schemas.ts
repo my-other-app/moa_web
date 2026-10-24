@@ -42,7 +42,6 @@ export const figuresSchema = z
 export type Figures = z.infer<typeof figuresSchema>;
 
 export const reportSchema = z.object({ id: z.string(), filename: z.string(), figures: z.record(z.unknown()), generated_at: z.string(), generated_by_name: z.string().nullable(), delivered_to: z.array(z.string()) });
-export type CloseoutReport = z.infer<typeof reportSchema>;
 
 export const RETENTION_STATES = ["pending", "report_sent", "deleted", "failed"] as const;
 export const retentionStatusSchema = z.object({

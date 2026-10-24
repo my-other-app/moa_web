@@ -113,7 +113,6 @@ export const reportPageSchema = z.object({
   items: z.array(reportSchema),
   total: z.number().catch(0),
 });
-export type ReportPage = z.infer<typeof reportPageSchema>;
 
 /** POST /admin/reports/{id}/resolve: how many open reports it closed (this one included), and this one as it now is. */
 export const resolveResultSchema = z.object({

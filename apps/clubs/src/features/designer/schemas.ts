@@ -81,4 +81,3 @@ export const uploadedImageSchema = z.object({
   width: z.number().nullish(),
   height: z.number().nullish(),
 });
-export type UploadedImage = z.infer<typeof uploadedImageSchema>;

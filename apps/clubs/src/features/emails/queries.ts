@@ -14,7 +14,6 @@ import {
   deleteTemplate,
   duplicateTemplate,
   fetchEmailContext,
-  fetchLibrary,
   fetchLibraryOverview,
   fetchMessage,
   fetchMessages,
@@ -47,14 +46,6 @@ export function useTemplates(eventId: number) {
 
 export function useLibraryOverview() {
   return useQuery({ queryKey: [...emailsKey({ kind: "library" }), "overview"], queryFn: fetchLibraryOverview, staleTime: 30_000 });
-}
-
-export function useLibrary() {
-  return useQuery({
-    queryKey: [...emailsKey({ kind: "library" }), "list"],
-    queryFn: fetchLibrary,
-    staleTime: 10_000,
-  });
 }
 
 export function useEmailContext(scope: EmailScope) {

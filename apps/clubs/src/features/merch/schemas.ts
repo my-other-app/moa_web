@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const merchVariantSchema = z.object({ id: z.string(), label: z.string(), stock: z.number(), collected: z.number() });
-export type MerchVariant = z.infer<typeof merchVariantSchema>;
 
 export const merchItemSchema = z.object({
   id: z.string(),
@@ -53,16 +52,13 @@ export const merchStatusRowSchema = z.object({
   on_file: z.string().nullable(),
   choices: z.array(z.object({ label: z.string(), remaining: z.number() })),
 });
-export type MerchStatusRow = z.infer<typeof merchStatusRowSchema>;
 
 export const attendeeMerchSchema = z.object({
   attendee: z.object({ id: z.string(), name: z.string(), ticket_id: z.string(), role: z.string(), role_label: z.string() }),
   items: z.array(merchStatusRowSchema),
 });
-export type AttendeeMerch = z.infer<typeof attendeeMerchSchema>;
 
 export const collectResultSchema = z.object({ status: z.enum(MERCH_STATUSES), collected: z.boolean(), variant_label: z.string().nullable(), remaining: z.number().nullable() });
-export type CollectResult = z.infer<typeof collectResultSchema>;
 
 export const merchLogRowSchema = z.object({
   id: z.string(),
@@ -94,7 +90,6 @@ export const merchLogSchema = z.object({
     last_at: z.string().nullable(),
   }),
 });
-export type MerchLog = z.infer<typeof merchLogSchema>;
 
 export const merchAnalyticsSchema = z.object({
   collectors: z.number(),
@@ -103,7 +98,6 @@ export const merchAnalyticsSchema = z.object({
   by_door: z.array(z.object({ id: z.string().nullable(), name: z.string(), count: z.number() })),
   by_hour: z.array(z.object({ hour: z.string(), count: z.number() })),
 });
-export type MerchAnalytics = z.infer<typeof merchAnalyticsSchema>;
 
 /** What the gate says about a status that is not collectable. */
 export const STATUS_COPY: Record<Exclude<MerchStatus, "COLLECTABLE">, { note: string; chip: string | null }> = {

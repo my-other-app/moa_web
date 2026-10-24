@@ -1,16 +1,11 @@
 import { api } from "@moa/app-kit";
 
 import { checkInLogSchema, doorSchema, gateSettingsSchema, linkSchema, teamSchema, type DoorKind, type GateSettings } from "./schemas";
-import { z } from "zod";
 
 const base = (eventId: number) => `/api/v1/events/${eventId}`;
 
 export async function fetchTeam(eventId: number) {
   return teamSchema.parse(await api.get<unknown>(`${base(eventId)}/team`));
-}
-
-export async function fetchDoors(eventId: number) {
-  return z.array(doorSchema).parse(await api.get<unknown>(`${base(eventId)}/doors`));
 }
 
 export async function createDoor(eventId: number, body: { name: string; kind: DoorKind }) {

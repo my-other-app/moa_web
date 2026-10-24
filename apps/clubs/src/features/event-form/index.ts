@@ -1,5 +1,5 @@
 export { EventForm, emptyEventForm, type EventFormContext } from "./components/event-form";
-export { readiness, spanLabel, joinLocal, splitLocal, hoursBetween, ANSWER_TYPES, answerTypeLabel } from "./readiness";
+export { readiness, spanLabel, joinLocal, splitLocal, hoursBetween, ANSWER_TYPES } from "./readiness";
 export {
   useEventCategories,
   useEvent,

@@ -34,7 +34,6 @@ export {
   type ClubTeamMember,
   type TeamMemberForm,
   type ChangePasswordForm,
-  type ClubInterest,
   type Organization,
 } from "./schemas";
 export { ClubProfilePage } from "./components/club-profile-page";

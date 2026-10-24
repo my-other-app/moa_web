@@ -1,4 +1,4 @@
-export { useAnnouncementHistory, useSendAnnouncement, usePushHistory, usePushInsights, usePushAudience } from "./queries";
+export { useSendAnnouncement, usePushHistory, usePushInsights, usePushAudience } from "./queries";
 export { AnnouncementsPage } from "./components/announcements-page";
 export {
   sendAnnouncementSchema,
@@ -12,7 +12,6 @@ export {
   type SendAnnouncementInput,
   type PushSend,
   type PushInsights,
-  type PushAudience,
   type PushScope,
 } from "./schemas";
 export { NewAnnouncementDialog } from "./components/new-announcement-dialog";

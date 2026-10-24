@@ -104,8 +104,6 @@ export function useSendDocuments(eventId: number, kind: DocumentKind) {
   });
 }
 
-export const useSendTickets = (eventId: number) => useSendDocuments(eventId, "ticket");
-
 export function useSendOneDocument(eventId: number, kind: DocumentKind) {
   const refresh = useRefresh(eventId);
   return useMutation({

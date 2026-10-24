@@ -38,7 +38,6 @@ import {
   FigurePanel,
   IconButton,
   Notice,
-  ProgressBar,
   Skeleton,
   StatTile,
   cn,

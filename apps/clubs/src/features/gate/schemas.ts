@@ -2,7 +2,6 @@ import { z } from "zod";
 
 /** The door's answers, as the server speaks them (snake_case, like the rest of the event API). */
 export const SCAN_OUTCOMES = ["CHECKED_IN", "ALREADY_CHECKED_IN", "WRONG_EVENT", "REVOKED", "UNPAID", "INVALID", "EVENT_NOT_OPEN"] as const;
-export type ScanOutcome = (typeof SCAN_OUTCOMES)[number];
 
 /**
  * INVALID with this hint: the code was the admission number printed beside
@@ -24,7 +23,6 @@ export const attendeeSummarySchema = z.object({
   badge_printed_at: z.string().nullish(),
   admission_no: z.string().nullish(),
 });
-export type AttendeeSummary = z.infer<typeof attendeeSummarySchema>;
 
 export const scanResultSchema = z.object({
   outcome: z.enum(SCAN_OUTCOMES),
@@ -122,7 +120,6 @@ export const gateStoreOrderSchema = z.object({
   lines: z.array(z.object({ item_name: z.string(), variant_label: z.string().nullable(), qty: z.number(), is_free: z.boolean() })),
   handed_over_at: z.string().nullable(),
 });
-export type GateStoreOrder = z.infer<typeof gateStoreOrderSchema>;
 
 export const gateCatalogSchema = z.object({
   enabled: z.boolean(),

@@ -96,6 +96,5 @@ export const badgeFormSchema = z.object({
   threshold: z.coerce.number().min(0, "Must be zero or more"),
 });
 
-export type BadgeStats = z.infer<typeof badgeStatsSchema>;
 export type BadgeRecipient = z.infer<typeof badgeRecipientSchema>;
 export type BadgeFormInput = z.infer<typeof badgeFormSchema>;

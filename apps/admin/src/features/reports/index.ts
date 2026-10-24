@@ -30,7 +30,6 @@ export {
   reportPageSchema,
   resolveResultSchema,
   type Report,
-  type ReportPage,
   type ReportReason,
   type ReportStatus,
   type ReasonTone,

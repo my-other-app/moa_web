@@ -76,7 +76,6 @@ export const followerProfileSchema = z.object({
   ),
   totals: z.object({ registrations: z.number(), attended: z.number(), paid: z.number() }),
 });
-export type FollowerProfile = z.infer<typeof followerProfileSchema>;
 
 // --- the followers page ----------------------------------------------------------------------
 
@@ -110,7 +109,6 @@ export const followerRowSchema = z.object({
 export type FollowerRow = z.infer<typeof followerRowSchema>;
 
 export const followersListSchema = z.object({ items: z.array(followerRowSchema), total: z.number(), limit: z.number(), offset: z.number(), counts: z.record(z.number()) });
-export type FollowersList = z.infer<typeof followersListSchema>;
 
 const named = z.object({ name: z.string(), count: z.number() });
 export const followersInsightsSchema = z.object({

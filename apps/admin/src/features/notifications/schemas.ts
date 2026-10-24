@@ -126,7 +126,6 @@ export const notificationPageSchema = z.object({
   total: z.number().catch(0),
   unread: z.number().catch(0),
 });
-export type NotificationPage = z.infer<typeof notificationPageSchema>;
 
 export const unreadCountSchema = z.object({ unread: z.number().catch(0) });
 

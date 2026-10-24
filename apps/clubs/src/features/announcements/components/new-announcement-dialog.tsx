@@ -5,7 +5,6 @@ import { Loader2Icon, LockIcon, MegaphoneIcon, SendIcon } from "lucide-react";
 import { formatDate, formatNumber } from "@moa/app-kit";
 import {
   ChoiceCard,
-  cn,
   Dialog,
   DialogContent,
   DialogDescription,

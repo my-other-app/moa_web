@@ -39,14 +39,6 @@ export async function approveClub(clubId: number): Promise<void> {
   await api.post<void>(`/api/v1/clubs/${clubId}/approve`);
 }
 
-/**
- * Reject is destructive: the backend has no "rejected" state, so it soft-deletes
- * the club (SoftDeleteMixin). The UI must make that clear before confirming.
- */
-export async function rejectClub(clubId: number): Promise<void> {
-  await api.post<void>(`/api/v1/clubs/${clubId}/reject`);
-}
-
 export async function fetchClub(clubId: number): Promise<AdminClubDetail> {
   const raw = await api.get<unknown>(`/api/v1/clubs/admin/${clubId}`);
   return adminClubDetailSchema.parse(raw);

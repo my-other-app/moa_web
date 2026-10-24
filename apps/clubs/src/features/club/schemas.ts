@@ -27,8 +27,6 @@ export const clubInterestSchema = z.object({
   category_id: z.coerce.number().nullish(),
 });
 
-export type ClubInterest = z.infer<typeof clubInterestSchema>;
-
 /** GET /orgs/list — only the fields the picker needs. */
 export const organizationSchema = z.object({
   id: z.coerce.number(),

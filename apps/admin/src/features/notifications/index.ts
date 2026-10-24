@@ -20,5 +20,4 @@ export {
   type AdminNotification,
   type KindTone,
   type NotificationKind,
-  type NotificationPage,
 } from "./schemas";

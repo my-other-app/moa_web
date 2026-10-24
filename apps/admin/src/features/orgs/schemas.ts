@@ -63,6 +63,4 @@ export const orgFormSchema = z.object({
   website: z.string().trim().max(100).optional(),
 });
 
-export type OrgType = z.infer<typeof orgTypeSchema>;
-export type OrgAnalytics = z.infer<typeof orgAnalyticsSchema>;
 export type OrgFormInput = z.infer<typeof orgFormSchema>;

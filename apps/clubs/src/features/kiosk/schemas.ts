@@ -43,7 +43,6 @@ export const selfQrSchema = z.object({
   expires_at: z.string().nullable(),
   recent: z.array(z.object({ session: z.string(), registration_id: z.string().nullish(), name: z.string(), at: z.string(), print_requested: z.boolean() })),
 });
-export type SelfQr = z.infer<typeof selfQrSchema>;
 
 export const staffSchema = z.object({ ok: z.boolean(), device: z.object({ name: z.string(), door: z.string() }), printed_today: z.number(), checked_in_here: z.number(), counters: z.object({ registered: z.number(), checked_in: z.number() }) });
 export type StaffInfo = z.infer<typeof staffSchema>;

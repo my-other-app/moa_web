@@ -37,7 +37,6 @@ export const commentSchema = z.object({
 });
 
 export type Thread = z.infer<typeof threadSchema>;
-export type ThreadComment = z.infer<typeof commentSchema>;
 
 export const MAX_BODY = 500;
 export const MAX_POLL_OPTIONS = 4;
@@ -65,7 +64,6 @@ export type ThreadSort = (typeof THREAD_SORTS)[number];
 export const SORT_LABEL: Record<ThreadSort, string> = { newest: "Newest first", seen: "Most seen", engaged: "Most engaged" };
 
 export const threadsPageSchema = z.object({ items: z.array(threadSchema), total: z.number(), limit: z.number(), offset: z.number(), counts: z.record(z.number()).default({}) });
-export type ThreadsPageData = z.infer<typeof threadsPageSchema>;
 
 export const threadInsightsSchema = z.object({
   posts: z.number(),

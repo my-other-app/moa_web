@@ -23,6 +23,5 @@ export {
   type Badge,
   type BadgeFormInput,
   type BadgeRecipient,
-  type BadgeStats,
 } from "./schemas";
 export { fetchBadges } from "./api";

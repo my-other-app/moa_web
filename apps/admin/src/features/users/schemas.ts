@@ -131,7 +131,6 @@ export const userClubPageSchema = paginatedSchema(userClubSchema);
 export const userEventPageSchema = paginatedSchema(userEventSchema);
 
 export type AdminUserDetail = z.infer<typeof adminUserDetailSchema>;
-export type AdminUserStats = z.infer<typeof adminUserStatsSchema>;
 export type UserClub = z.infer<typeof userClubSchema>;
 export type UserEvent = z.infer<typeof userEventSchema>;
 export type UserBadges = z.infer<typeof userBadgesSchema>;
@@ -149,5 +148,3 @@ export const userEditSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
   phone: z.string().trim().max(20).optional(),
 });
-
-export type UserEditInput = z.infer<typeof userEditSchema>;

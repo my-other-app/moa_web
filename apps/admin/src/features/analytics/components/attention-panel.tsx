@@ -4,9 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import {
   ArrowUpRightIcon,
-  CalendarXIcon,
   CheckCircle2Icon,
-  ClockIcon,
 } from "lucide-react";
 import { formatDate, formatDateTime, formatNumber, initials } from "@moa/app-kit";
 import {

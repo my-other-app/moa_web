@@ -46,7 +46,6 @@ export const securityOverviewSchema = z.object({
 
 export type SecurityOverview = z.infer<typeof securityOverviewSchema>;
 export type ActiveSession = z.infer<typeof sessionSchema>;
-export type HistoryRow = z.infer<typeof historyRowSchema>;
 
 export const twoFactorSetupSchema = z.object({ secret: z.string(), provisioning_uri: z.string() });
 export const twoFactorEnabledSchema = z.object({ enabled: z.boolean(), recovery_codes: z.array(z.string()).default([]) });

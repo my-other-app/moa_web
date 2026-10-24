@@ -64,8 +64,6 @@ export const ANSWER_TYPES: ReadonlyArray<{ value: FieldType; label: string; hint
   { value: "checkbox", label: "Several choices", hint: "Tick any of your options" },
 ];
 
-export const answerTypeLabel = (t: string) => ANSWER_TYPES.find((a) => a.value === t)?.label ?? t;
-
 /** "Sat 17 Oct, 5:00 pm – 8:00 pm" from a datetime-local string and hours. */
 export function spanLabel(startLocal: string, hours: number | string | undefined): string {
   if (!startLocal) return "";
