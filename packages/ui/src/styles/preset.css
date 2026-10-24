@@ -17,20 +17,9 @@
  */
 @custom-variant dark (&:where(.dark, .dark *));
 
-@theme inline {
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-bebas: "Bebas Neue", sans-serif;
-}
-
 body {
   font-family: var(--font-sans);
   font-optical-sizing: auto;
-  font-weight: 400;
-  font-style: normal;
-}
-
-.bebas {
-  font-family: var(--font-bebas);
   font-weight: 400;
   font-style: normal;
 }
@@ -55,53 +44,8 @@ body {
    * design file is readable. Everything downstream consumes these tokens, so
    * nothing else needs to change.
    */
-  /*
-   * The file's palette frame (node 3:981) in full. These are the only colours
-   * the designs use, so anything outside this list is a mistake rather than a
-   * choice. Named by role where the design implies one, and kept as raw
-   * swatches otherwise so screens can reference them without inventing hex.
-   */
-  --swatch-ink: #2c333d;
-  --swatch-grey: #979797;
-  --swatch-grey-light: #b5b5b5;
-  --swatch-lime: #f9ffa1;
-  --swatch-mint: #b4e5bc;
-  --swatch-salmon: #f3aba7;
-  --swatch-sky: #b8dff2;
-  --swatch-lavender: #ccc1f0;
-  --swatch-violet: #9747ff;
-  --swatch-amber: #ffc84a;
-  --swatch-teal: #17a58f;
-  --swatch-red: #cd0000;
-
-  /*
-   * Chip tints, from the club-profile frame (node 251:998) rather than the
-   * palette frame. The profile's interest chips are a softer set than the
-   * swatches above -- #f4ce9b, #ffdedd and #e1c9ff appear nowhere in 3:981 --
-   * so they are named separately instead of being passed off as swatches.
-   * Screens pick one per item by id so a club's chips keep stable colours.
-   */
-  --chip-sky: #b8dff2;
-  --chip-lime: #f9ffa1;
-  --chip-salmon: #f3aba7;
-  --chip-mint: #b4e5bc;
-  --chip-sand: #f4ce9b;
-  --chip-blush: #ffdedd;
-  --chip-lilac: #e1c9ff;
-
-  /*
-   * Foregrounds for the tinted stat cards on the event screen (node 168:1265).
-   * Each is a darkened form of its card's fill, chosen for contrast on it --
-   * the palette frame has no dark variants, so #096b5c and #0b4f70 are named
-   * here rather than passed off as swatches.
-   */
-  --stat-mint-ink: #096b5c;
-  --stat-sky-ink: #0b4f70;
-
   --brand: #17a58f;
   --brand-foreground: #ffffff;
-  --brand-muted: #b4e5bc;
-  --highlight: #f9ffa1;
 
   --background: #f6f7f9;
   --foreground: #1e1e2e;
@@ -153,8 +97,6 @@ body {
 .dark {
   --brand: #17a58f;
   --brand-foreground: #ffffff;
-  --brand-muted: #16302c;
-  --highlight: #f9ffa1;
 
   --background: #14141f;
   --foreground: #e9ecf1;
@@ -197,20 +139,10 @@ body {
 }
 
 @theme inline {
-  /* Brand teal and the lime highlight, exposed as utilities (bg-brand,
-     text-brand, border-brand) so features can reach for them deliberately
-     without hard-coding the hex the way the previous app did in 46 places. */
-  --color-ink: var(--swatch-ink);
-  --color-mint: var(--swatch-mint);
-  --color-salmon: var(--swatch-salmon);
-  --color-sky: var(--swatch-sky);
-  --color-lavender: var(--swatch-lavender);
-  --color-violet: var(--swatch-violet);
-  --color-amber: var(--swatch-amber);
+  /* Brand teal, exposed as utilities (bg-brand, text-brand, border-brand)
+     so features can reach for it deliberately without hard-coding the hex. */
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
-  --color-brand-muted: var(--brand-muted);
-  --color-highlight: var(--highlight);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

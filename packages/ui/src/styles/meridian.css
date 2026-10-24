@@ -199,9 +199,6 @@
   --input: var(--line);
   --ring: var(--brand);
 
-  --brand-muted: var(--brand-soft);
-  --highlight: var(--brand-soft);
-
   --chart-1: var(--brand);
   --chart-2: var(--admit);
   --chart-3: var(--info);
@@ -216,15 +213,6 @@
   --sidebar-accent-foreground: var(--brand);
   --sidebar-border: var(--line);
   --sidebar-ring: var(--brand);
-
-  /* The design-file swatches, so the screens written against them read. */
-  --swatch-ink: var(--ink);
-  --swatch-grey: var(--ink-3);
-  --swatch-grey-light: var(--line);
-  --swatch-mint: var(--brand-soft);
-  --swatch-teal: var(--brand);
-  --stat-mint-ink: var(--admit);
-  --stat-sky-ink: var(--info);
 }
 
 @theme inline {
