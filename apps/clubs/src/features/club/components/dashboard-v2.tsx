@@ -29,6 +29,7 @@ import {
 } from "@moa/ui";
 
 import { MessageUsageCard } from "@/features/message-usage";
+import { WhatsAppOverviewCard } from "@/features/whatsapp";
 
 import { fetchClubOverview } from "../api";
 import { useClubDashboard, useMyClub } from "../queries";
@@ -730,6 +731,9 @@ export function ClubDashboardV2() {
 
       {/* The month's emails and WhatsApp against the plan; upgrade from here when it helps. */}
       <MessageUsageCard />
+
+      {/* Only once the club's own WhatsApp number is connected, and only for those who may see it. */}
+      <WhatsAppOverviewCard />
 
       {d && d.stats.retention_due > 0 ? (
         <p className="text-ink-3 flex items-center gap-1.5 text-[12px]">

@@ -42,6 +42,8 @@ export function Breadcrumbs() {
         if (tab) crumbs.push({ label: tab.label });
         else if (rest.startsWith("/design")) crumbs.push({ label: "Designs" });
       }
+    } else if (first.href === "/whatsapp" && (parts[1] === "templates" || parts[1] === "settings")) {
+      crumbs.push({ label: parts[1] === "templates" ? "Templates" : "Settings" });
     } else if (parts[1] === "new") {
       crumbs.push({ label: "New" });
     } else if (parts[1] === "edit") {
