@@ -270,6 +270,7 @@ const {
   tierWords,
   duration,
   windowText,
+  mediaProblem,
   useInboxStream,
   useCoalesced,
   planRefresh,
@@ -546,6 +547,42 @@ describe("the inbox", () => {
     expect(within(list).getByText("Build Night")).toBeInTheDocument();
     expect(within(list).getByLabelText("2 unread")).toBeInTheDocument();
     expect(within(list).getByText("Waiting for a reply")).toBeInTheDocument();
+  });
+
+  it("says why an attachment can't be shown, by the proxy's answer, and tries again when that can help", async () => {
+    expect(mediaProblem(410)).toEqual({ text: "This attachment is no longer available from WhatsApp.", retry: false });
+    expect(mediaProblem(409).text).toMatch(/isn't connected/);
+    expect(mediaProblem(413)).toEqual({ text: "This attachment is too large to show here.", retry: false });
+    expect(mediaProblem(502)).toEqual({ text: "Couldn't reach WhatsApp for this attachment.", retry: true });
+    expect(mediaProblem(0).retry).toBe(true);
+    for (const status of [0, 409, 410, 413, 500, 502]) expect(mediaProblem(status).text).not.toMatch(/30 days/);
+
+    const answers = [502, 200];
+    const fetchMock = vi.fn(async () => {
+      const status = answers.shift() ?? 200;
+      return { ok: status === 200, status, blob: async () => new Blob(["x"], { type: "image/jpeg" }) } as unknown as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const picture = msg({ id: 7, type: "image", body: "The venue", media: { url: "/api/v1/clubs/whatsapp/media/7", mime: "image/jpeg", filename: null } });
+      const gone = msg({ id: 8, type: "image", body: "Old one", media: { url: "/api/v1/clubs/whatsapp/media/8", mime: "image/jpeg", filename: null } });
+      state.messages[11] = { conversation: ANANYA, items: [picture], has_more: false };
+      render(<WhatsAppInboxPage />);
+      fireEvent.click(await screen.findByRole("button", { name: /Ananya Iyer/ }));
+      const log = await screen.findByRole("log", { name: "Messages" });
+      expect(await within(log).findByText("Couldn't reach WhatsApp for this attachment.")).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledWith("/api/gateway/api/v1/clubs/whatsapp/media/7", { credentials: "include" });
+      fireEvent.click(within(log).getByRole("button", { name: /Try again/ }));
+      expect(await within(log).findByRole("img", { name: "The venue" })).toBeInTheDocument();
+
+      answers.push(410);
+      state.messages[12] = { conversation: BALA, items: [gone], has_more: false };
+      fireEvent.click(screen.getByRole("button", { name: /Bala K/ }));
+      expect(await screen.findByText("This attachment is no longer available from WhatsApp.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Try again/ })).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("filters and searches on the server", async () => {

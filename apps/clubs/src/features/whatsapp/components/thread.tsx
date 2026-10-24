@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertCircleIcon, ArrowLeftIcon, CheckCheckIcon, CheckIcon, ClockIcon, FileIcon, Loader2Icon, MapPinIcon } from "lucide-react";
+import { AlertCircleIcon, ArrowLeftIcon, CheckCheckIcon, CheckIcon, ClockIcon, FileIcon, Loader2Icon, MapPinIcon, RefreshCwIcon } from "lucide-react";
 import { formatDate, formatDateTime, formatTime } from "@moa/app-kit";
 import { EmptyState, Skeleton, cn } from "@moa/ui";
 
@@ -30,39 +30,82 @@ export function StatusTicks({ status, title }: { status: MessageStatus | string 
   );
 }
 
-/** An image through the authenticated proxy: fetched with the session, shown from memory. */
-function ImageAttachment({ href, alt }: { href: string; alt: string }) {
-  const [src, setSrc] = React.useState<string | null>(null);
-  const [failed, setFailed] = React.useState(false);
+/**
+ * Why an attachment can't be shown, by the proxy's answer
+ * (GET /clubs/whatsapp/media/{id}), and whether trying again can help.
+ * 0 is no answer at all (the network).
+ */
+export function mediaProblem(status: number): { text: string; retry: boolean } {
+  if (status === 410) return { text: "This attachment is no longer available from WhatsApp.", retry: false };
+  if (status === 409) return { text: "Your WhatsApp number isn't connected, so its attachments can't be fetched.", retry: true };
+  if (status === 413) return { text: "This attachment is too large to show here.", retry: false };
+  if (status === 502) return { text: "Couldn't reach WhatsApp for this attachment.", retry: true };
+  return { text: "Couldn't load this attachment.", retry: true };
+}
+
+type Media = { state: "loading" } | { state: "ready"; src: string } | { state: "failed"; status: number };
+
+/** An attachment through the authenticated proxy: fetched with the session, shown from memory. */
+function useMedia(href: string): [Media, () => void] {
+  const [media, setMedia] = React.useState<Media>({ state: "loading" });
+  const [attempt, setAttempt] = React.useState(0);
   React.useEffect(() => {
     let url: string | null = null;
     let cancelled = false;
     fetch(href, { credentials: "include" })
       .then(async (r) => {
-        if (!r.ok) throw new Error(String(r.status));
+        if (!r.ok) {
+          if (!cancelled) setMedia({ state: "failed", status: r.status });
+          return;
+        }
         url = URL.createObjectURL(await r.blob());
-        if (!cancelled) setSrc(url);
+        if (!cancelled) setMedia({ state: "ready", src: url });
       })
       .catch(() => {
-        if (!cancelled) setFailed(true);
+        if (!cancelled) setMedia({ state: "failed", status: 0 });
       });
     return () => {
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [href]);
-  if (failed) return <span className="text-ink-3 text-[12px]">The picture isn&apos;t available any more (WhatsApp keeps them 30 days).</span>;
-  if (!src) return <Skeleton className="h-40 w-56 rounded-lg" />;
+  }, [href, attempt]);
+  const retry = () => {
+    setMedia({ state: "loading" });
+    setAttempt((n) => n + 1);
+  };
+  return [media, retry];
+}
+
+function MediaFailed({ status, onRetry }: { status: number; onRetry: () => void }) {
+  const { text, retry } = mediaProblem(status);
+  return (
+    <span className="text-ink-3 inline-flex flex-wrap items-center gap-2 text-[12px]">
+      {text}
+      {retry ? (
+        <button type="button" className="btn btn-ghost btn-xs" onClick={onRetry}>
+          <RefreshCwIcon className="size-3" aria-hidden="true" /> Try again
+        </button>
+      ) : null}
+    </span>
+  );
+}
+
+function MediaAttachment({ href, kind, alt }: { href: string; kind: "image" | "audio" | "video"; alt: string }) {
+  const [media, retry] = useMedia(href);
+  if (media.state === "failed") return <MediaFailed status={media.status} onRetry={retry} />;
+  if (media.state === "loading") return <Skeleton className={kind === "audio" ? "h-10 w-56 rounded-lg" : "h-40 w-56 rounded-lg"} />;
+  if (kind === "audio") return <audio controls src={media.src} className="max-w-full" aria-label="Voice message" />;
+  if (kind === "video") return <video controls src={media.src} className="max-h-72 max-w-full rounded-lg" aria-label="Video" />;
   // eslint-disable-next-line @next/next/no-img-element -- a blob from the session, not an optimisable URL
-  return <img src={src} alt={alt} className="max-h-72 max-w-full rounded-lg object-contain" />;
+  return <img src={media.src} alt={alt} className="max-h-72 max-w-full rounded-lg object-contain" />;
 }
 
 function Attachment({ m }: { m: Message }) {
   if (!m.media) return null;
   const href = mediaHref(m.media.url);
-  if (m.type === "image" || m.type === "sticker") return <ImageAttachment href={href} alt={m.body ?? "A picture they sent"} />;
-  if (m.type === "audio") return <audio controls src={href} className="max-w-full" aria-label="Voice message" />;
-  if (m.type === "video") return <video controls src={href} className="max-h-72 max-w-full rounded-lg" aria-label="Video" />;
+  if (m.type === "image" || m.type === "sticker") return <MediaAttachment href={href} kind="image" alt={m.body ?? "A picture they sent"} />;
+  if (m.type === "audio") return <MediaAttachment href={href} kind="audio" alt="Voice message" />;
+  if (m.type === "video") return <MediaAttachment href={href} kind="video" alt="Video" />;
   return (
     <a href={href} download={m.media.filename ?? undefined} className="bg-surface/60 text-ink inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[12.5px]">
       <FileIcon className="size-4" /> {m.media.filename ?? "Download the document"}
