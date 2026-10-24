@@ -3,6 +3,7 @@
 import * as React from "react";
 import { AlertTriangleIcon, RefreshCwIcon } from "lucide-react";
 import { Button } from "@moa/ui";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * What a club sees when a server render fails.
@@ -22,8 +23,11 @@ export default function ClubsError({
   reset: () => void;
 }) {
   React.useEffect(() => {
-    // No error tracking yet; the console is the only place this survives.
     console.error("Clubs render failed", error);
+    // A server failure was reported where it happened (it carries a digest);
+    // only a failure in the browser is reported from here. A no-op when
+    // Sentry is off.
+    if (!error.digest) Sentry.captureException(error);
   }, [error]);
 
   return (
