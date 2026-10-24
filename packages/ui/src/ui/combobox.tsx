@@ -44,15 +44,23 @@ function Combobox<T extends string | number>({ value, options, onChange, label, 
   const q = query.trim().toLowerCase();
   const shown = React.useMemo(() => (q ? options.filter((o) => o.label.toLowerCase().includes(q) || (o.hint ?? "").toLowerCase().includes(q)) : options).slice(0, 200), [options, q]);
 
-  const pick = (v: T | null) => {
-    onChange(v);
-    setOpen(false);
-    setQuery("");
+  // The highlight starts at the top whenever the list opens, closes or is
+  // filtered. Reset where those happen, not in an effect: an effect that sets
+  // state renders twice for every keystroke.
+  const openList = (o: boolean) => {
+    setOpen(o);
+    setActive(0);
+  };
+  const search = (text: string) => {
+    setQuery(text);
+    setActive(0);
   };
 
-  React.useEffect(() => {
-    setActive(0);
-  }, [q, open]);
+  const pick = (v: T | null) => {
+    onChange(v);
+    openList(false);
+    search("");
+  };
 
   React.useEffect(() => {
     listRef.current?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: "nearest" });
@@ -70,12 +78,12 @@ function Combobox<T extends string | number>({ value, options, onChange, label, 
       const o = shown[active];
       if (o) pick(o.value);
     } else if (e.key === "Escape") {
-      setOpen(false);
+      openList(false);
     }
   };
 
   return (
-    <Popover open={open} onOpenChange={(o) => (disabled ? null : setOpen(o))}>
+    <Popover open={open} onOpenChange={(o) => (disabled ? null : openList(o))}>
       <div className={cn("relative", className)}>
         <PopoverTrigger asChild>
           <button type="button" id={id} role="combobox" aria-expanded={open} aria-label={label} disabled={disabled} className={cn("input flex items-center justify-between gap-2 text-left", !picked && "text-ink-3", clearable && picked && "pr-16")}>
@@ -92,7 +100,7 @@ function Combobox<T extends string | number>({ value, options, onChange, label, 
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] min-w-64 p-1.5" onOpenAutoFocus={(e) => e.preventDefault()}>
         <label className="search search-sm">
           <SearchIcon aria-hidden="true" />
-          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onKey} placeholder="Type to search" aria-label={`Search ${label}`} />
+          <input autoFocus value={query} onChange={(e) => search(e.target.value)} onKeyDown={onKey} placeholder="Type to search" aria-label={`Search ${label}`} />
         </label>
         <ul ref={listRef} role="listbox" aria-label={label} className="scroll-thin mt-1.5 max-h-64 overflow-y-auto">
           {shown.length === 0 ? (
