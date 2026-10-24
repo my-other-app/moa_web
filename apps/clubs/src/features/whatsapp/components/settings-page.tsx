@@ -145,6 +145,8 @@ function NotConnected({ a }: { a: Account }) {
 }
 
 const field = "input h-10 w-full font-mono";
+/** The token and the secret: never offered to, or saved by, the browser's or a password manager's autofill. */
+const SECRET = { type: "password", autoComplete: "off", "data-1p-ignore": "true", "data-lpignore": "true" } as React.InputHTMLAttributes<HTMLInputElement>;
 const EMPTY: Keys = { waba_id: "", phone_number_id: "", access_token: "", app_secret: "", app_id: "" };
 
 /** The keys. Saving has the server check them with Meta first; its refusals show on the field they're about. */
@@ -168,6 +170,9 @@ export function KeysForm({ replacing = false, onDone, initial }: { replacing?: b
       const p = keysErrorMessage(error);
       setProblem(p);
       if (p.field) form.setError(p.field, { message: p.text });
+    } finally {
+      // Nor kept as the mutation's variables while the form stays open.
+      save.reset();
     }
   };
 
@@ -197,11 +202,11 @@ export function KeysForm({ replacing = false, onDone, initial }: { replacing?: b
         </Field>
       </div>
       <Field id="wa-token" label="Access token" error={err("access_token")} help="A system user's permanent token. Never shown again once saved.">
-        {input("access_token", "wa-token", { type: "password", autoComplete: "new-password" })}
+        {input("access_token", "wa-token", SECRET)}
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field id="wa-secret" label="App secret" error={err("app_secret")} help="Proves Meta's webhooks are from your app.">
-          {input("app_secret", "wa-secret", { type: "password", autoComplete: "new-password" })}
+          {input("app_secret", "wa-secret", SECRET)}
         </Field>
         <Field id="wa-app-id" label="App ID (optional)" error={err("app_id")} help="Needed to submit templates with a document, like tickets.">
           {input("app_id", "wa-app-id", { inputMode: "numeric" })}
@@ -244,14 +249,20 @@ function Connected({ a }: { a: Account }) {
   const status = a.status ?? "active";
   const busy = verify.isPending || disconnect.isPending;
 
-  const checkAgain = () =>
+  // Success is what the answer says: checked just now, active, and nothing from Meta. A set
+  // last_error (Meta couldn't be reached: the status stays) or an unchanged verified_at is not.
+  const checkAgain = () => {
+    const before = a.verified_at;
     verify.mutate(undefined, {
       onSuccess: (next) => {
-        if (next.status === "active") toast.success("Checked. Meta accepts the keys.");
-        else toast.error("Meta refused the number. See what it said on the page.");
+        if (next.status === "failed") toast.error("Meta refused the number. See what it said on the page.");
+        else if (next.last_error) toast.error(next.last_error);
+        else if (next.status === "active" && next.verified_at && next.verified_at !== before) toast.success("Checked. Meta accepts the keys.");
+        else toast.error("Meta couldn't check the number just now. Try again in a minute.");
       },
       onError: toastRefusal,
     });
+  };
 
   const confirmDisconnect = () => {
     setConfirming(false);

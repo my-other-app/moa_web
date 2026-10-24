@@ -130,8 +130,13 @@ function useSettleAccount() {
   };
 }
 
+/**
+ * The keys are the mutation's variables: gcTime 0 lets them go from the
+ * mutation cache the moment nothing watches the save, instead of keeping
+ * the token and secret in memory for five minutes.
+ */
 export function useSaveAccount() {
-  return useMutation({ mutationFn: (keys: Keys) => saveAccount(keys), ...useSettleAccount() });
+  return useMutation({ mutationFn: (keys: Keys) => saveAccount(keys), gcTime: 0, ...useSettleAccount() });
 }
 
 export function useVerifyAccount() {

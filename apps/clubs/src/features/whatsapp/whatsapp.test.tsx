@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as React from "react";
 import { act, fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError } from "@moa/api";
+import { toast } from "@moa/ui";
 
 /**
  * The club's own WhatsApp number, against the backend's contract
@@ -183,6 +186,7 @@ const state = {
   put: (() => CONNECTED) as Answer,
   send: ((body: unknown) => msg({ id: 99, direction: "out", body: (body as { text?: string }).text ?? null, status: "sent", via: "inbox", sent_by: "Circuit Society", created_at: new Date().toISOString(), wa_timestamp: null })) as Answer,
   createTemplate: (() => ({ items: [], stale: false, standard_missing: [] })) as Answer,
+  verify: null as null | (() => unknown),
   members: [] as unknown[],
 };
 const calls: Array<{ method: string; path: string; body?: unknown; query?: Record<string, unknown> }> = [];
@@ -227,7 +231,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       }),
       post: vi.fn(async (path: string, body?: unknown) => {
         calls.push({ method: "POST", path, body });
-        if (path === "/api/v1/clubs/whatsapp/account/verify") return answer(state.account);
+        if (path === "/api/v1/clubs/whatsapp/account/verify") return answer(state.verify ? state.verify() : state.account);
         if (path === "/api/v1/clubs/whatsapp/templates/standard") {
           return { results: { ticket_confirmed: "submitted", event_reminder: "submitted", certificate_ready: "Add your app ID in the connection settings first: a document header needs it." } };
         }
@@ -260,6 +264,7 @@ const {
   WhatsAppInboxPage,
   WhatsAppTemplatesPage,
   WhatsAppOverviewCard,
+  useSaveAccount,
   accountSchema,
   conversationSchema,
   messageSchema,
@@ -308,6 +313,7 @@ beforeEach(() => {
     send: (body: unknown) =>
       msg({ id: 99, direction: "out", body: (body as { text?: string }).text ?? null, status: "sent", via: "inbox", sent_by: "Circuit Society", created_at: new Date().toISOString(), wa_timestamp: null }),
     createTemplate: () => state.templates,
+    verify: null,
     members: [],
   });
 });
@@ -493,6 +499,50 @@ describe("WhatsApp settings", () => {
     const alert = await screen.findByText(/Meta didn't accept the access token/);
     expect(alert.closest("[role=alert]")).toHaveTextContent("(190)");
     expect(screen.getByText("Not working")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["checked just now", () => ({ ...CONNECTED, verified_at: new Date().toISOString() }), "success", "Checked. Meta accepts the keys."],
+    ["Meta unreachable: the status stays, last_error says why", () => ({ ...CONNECTED, last_error: "Couldn't reach Meta to check the number. Try again in a minute." }), "error", "Couldn't reach Meta to check the number. Try again in a minute."],
+    ["nothing new: verified_at unchanged", () => CONNECTED, "error", "Meta couldn't check the number just now. Try again in a minute."],
+    ["refused", () => ({ ...CONNECTED, status: "failed", last_error: "Token expired." }), "error", "Meta refused the number. See what it said on the page."],
+  ])("says what \"Check again\" found: %s", async (_case, verify, kind, text) => {
+    const success = vi.spyOn(toast, "success");
+    const error = vi.spyOn(toast, "error");
+    try {
+      state.verify = verify;
+      render(<WhatsAppSettingsPage />);
+      fireEvent.click(await screen.findByRole("button", { name: /Check again/ }));
+      await waitFor(() => expect(kind === "success" ? success : error).toHaveBeenCalledWith(text));
+      expect(kind === "success" ? error : success).not.toHaveBeenCalled();
+    } finally {
+      success.mockRestore();
+      error.mockRestore();
+    }
+  });
+
+  it("keeps the token and secret out of autofill and password managers", async () => {
+    state.account = NOT_CONNECTED;
+    render(<WhatsAppSettingsPage />);
+    await screen.findByRole("form", { name: "Connect WhatsApp" });
+    for (const label of ["Access token", "App secret"]) {
+      const input = screen.getByLabelText(label);
+      expect(input).toHaveAttribute("type", "password");
+      expect(input).toHaveAttribute("autocomplete", "off");
+      expect(input).toHaveAttribute("data-1p-ignore");
+      expect(input).toHaveAttribute("data-lpignore", "true");
+    }
+  });
+
+  it("doesn't keep the keys in the mutation cache once the save is done", async () => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    const { result, unmount } = renderHook(() => useSaveAccount(), { wrapper });
+    await act(() =>
+      result.current.mutateAsync({ waba_id: "102938475610", phone_number_id: "109876543210", access_token: "EAAGm0PX4ZCpsBAKZCZBtoken1234567890", app_secret: "0123456789abcdef0123456789abcdef" }),
+    );
+    unmount();
+    await waitFor(() => expect(client.getMutationCache().getAll()).toHaveLength(0));
   });
 
   it("asks before disconnecting, and says the keys are wiped", async () => {
