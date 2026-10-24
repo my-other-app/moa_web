@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MessageCircleIcon, RadioIcon } from "lucide-react";
+import { Loader2Icon, MessageCircleIcon, RadioIcon } from "lucide-react";
 import { formatTime, relativeTime } from "@moa/app-kit";
 import { Chip, EmptyState, FigurePanel, SearchField, Skeleton, cn } from "@moa/ui";
 
-import { forbiddenText, isPermissionError, isPrivateError, useAccount, useApplyRefresh, useConversations } from "../queries";
+import { conversationsOf, forbiddenText, isPermissionError, isPrivateError, useAccount, useApplyRefresh, useConversations } from "../queries";
 import { FILTERS, FILTER_LABEL, PRIVATE_MESSAGE, contactName, initialsOf, type Conversation, type InboxFilter } from "../schemas";
 import { RESYNC, planRefresh, pollEvery, useCoalesced, useInboxStream, type StreamChange, type StreamMode } from "../stream";
 import { NoAccessPanel, UpgradeNotice, WhatsAppHeader } from "./shared";
@@ -71,6 +71,35 @@ function ConversationRow({ c, active, onPick, now }: { c: Conversation; active: 
   );
 }
 
+/**
+ * The next page of conversations: on a click, or by itself when the end of
+ * the list scrolls into view (where the browser can tell).
+ */
+function LoadMore({ onMore, loading, failed }: { onMore: () => void; loading: boolean; failed: boolean }) {
+  const sentinel = React.useRef<HTMLDivElement>(null);
+  const more = React.useRef(onMore);
+  React.useEffect(() => {
+    more.current = onMore;
+  }, [onMore]);
+  React.useEffect(() => {
+    const el = sentinel.current;
+    if (!el || failed || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) more.current();
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [failed]);
+  return (
+    <div ref={sentinel} className="flex flex-col items-center gap-1.5 p-3">
+      {failed ? <p className="text-refuse m-0 text-[12px]">Couldn&apos;t load more conversations.</p> : null}
+      <button type="button" className="btn btn-ghost btn-sm" onClick={onMore} disabled={loading}>
+        {loading ? <Loader2Icon className="size-3.5 animate-spin" aria-hidden="true" /> : null} {failed ? "Try again" : "Load more"}
+      </button>
+    </div>
+  );
+}
+
 function LiveMark({ mode }: { mode: StreamMode }) {
   return (
     <span className={cn("inline-flex items-center gap-1 text-[11.5px]", mode === "live" ? "text-admit" : "text-ink-3")} role="status">
@@ -111,7 +140,11 @@ export function WhatsAppInboxPage() {
   const [now] = React.useState(() => new Date());
 
   const forbidden = (account.isError && (isPermissionError(account.error) || isPrivateError(account.error))) || (list.isError && (isPermissionError(list.error) || isPrivateError(list.error)));
-  const items = React.useMemo(() => list.data?.items ?? [], [list.data]);
+  const items = React.useMemo(() => conversationsOf(list.data), [list.data]);
+  const unreadTotal = list.data?.pages[0]?.unread_total ?? 0;
+  const loadMore = () => {
+    if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();
+  };
   React.useEffect(() => {
     onScreen.current = new Set(items.map((c) => c.id));
   }, [items]);
@@ -166,7 +199,7 @@ export function WhatsAppInboxPage() {
                     {FILTERS.map((f) => (
                       <Chip key={f} active={filter === f} onClick={() => setFilter(f)}>
                         {FILTER_LABEL[f]}
-                        {f === "unread" && list.data?.unread_total ? ` ${list.data.unread_total}` : ""}
+                        {f === "unread" && unreadTotal ? ` ${unreadTotal}` : ""}
                       </Chip>
                     ))}
                   </div>
@@ -176,16 +209,19 @@ export function WhatsAppInboxPage() {
                     <Skeleton className="h-14 rounded-xl" />
                     <Skeleton className="h-14 rounded-xl" />
                   </div>
-                ) : list.isError ? (
+                ) : list.isError && !list.data ? (
                   <p className="text-ink-3 m-0 p-3 text-[12.5px]">Couldn&apos;t load the conversations.</p>
                 ) : items.length === 0 ? (
                   <p className="text-ink-3 m-0 p-3 text-[12.5px]">{q ? "Nobody matches that." : filter === "all" ? "No conversations yet." : `No ${FILTER_LABEL[filter].toLowerCase()} conversations.`}</p>
                 ) : (
-                  <ul className="m-0 flex list-none flex-col overflow-y-auto p-0">
-                    {items.map((c) => (
-                      <ConversationRow key={c.id} c={c} active={openId === c.id} onPick={() => setOpenId(c.id)} now={now} />
-                    ))}
-                  </ul>
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    <ul className="m-0 flex list-none flex-col p-0">
+                      {items.map((c) => (
+                        <ConversationRow key={c.id} c={c} active={openId === c.id} onPick={() => setOpenId(c.id)} now={now} />
+                      ))}
+                    </ul>
+                    {list.hasNextPage ? <LoadMore onMore={loadMore} loading={list.isFetchingNextPage} failed={list.isFetchNextPageError} /> : null}
+                  </div>
                 )}
               </section>
               <section className={cn("flex min-h-0 flex-col", openId === null && "hidden lg:flex")} aria-label="Conversation">

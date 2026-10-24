@@ -201,7 +201,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         calls.push({ method: "GET", path, query: options?.query });
         if (path === "/api/v1/clubs/whatsapp/account") return answer(state.account);
         if (path === "/api/v1/clubs/whatsapp/overview") return answer(state.overview);
-        if (path === "/api/v1/clubs/whatsapp/conversations") return answer(state.conversations);
+        if (path === "/api/v1/clubs/whatsapp/conversations") {
+          const c = state.conversations;
+          return answer(typeof c === "function" ? (c as (query?: Record<string, unknown>) => unknown)(options?.query) : c);
+        }
         if (path === "/api/v1/clubs/whatsapp/templates") return answer(state.templates);
         const m = /^\/api\/v1\/clubs\/whatsapp\/conversations\/(\d+)\/messages$/.exec(path);
         if (m) return answer(state.messages[Number(m[1])]);
@@ -654,6 +657,48 @@ describe("the inbox", () => {
     expect(await within(thread).findByText("Hello?")).toBeInTheDocument();
     expect(within(thread).getByRole("heading", { name: "@chitra.r" })).toBeInTheDocument();
     expect(thread).not.toHaveTextContent("null");
+  });
+
+  it("pages through every conversation, not just the first 50", async () => {
+    const people = Array.from({ length: 120 }, (_, i) => ({ ...BALA, id: 1000 + i, profile_name: `Person ${i + 1}`, phone: `+9190000${String(i).padStart(5, "0")}` }));
+    state.conversations = (query?: Record<string, unknown>) => {
+      const offset = Number(query?.offset ?? 0);
+      const limit = Number(query?.limit ?? 50);
+      return { items: people.slice(offset, offset + limit), total: people.length, unread_total: 0 };
+    };
+    render(<WhatsAppInboxPage />);
+    const list = await screen.findByRole("region", { name: "Conversations" });
+    await within(list).findByText("Person 50");
+    expect(within(list).queryByText("Person 51")).toBeNull();
+    fireEvent.click(within(list).getByRole("button", { name: "Load more" }));
+    expect(await within(list).findByText("Person 100")).toBeInTheDocument();
+    fireEvent.click(within(list).getByRole("button", { name: "Load more" }));
+    expect(await within(list).findByText("Person 120")).toBeInTheDocument();
+    expect(within(list).queryByRole("button", { name: "Load more" })).toBeNull();
+    const offsets = calls.filter((c) => c.path.endsWith("/conversations")).map((c) => c.query?.offset);
+    expect(offsets).toEqual([0, 50, 100]);
+  });
+
+  it("says when the next page couldn't be loaded, and tries again on request", async () => {
+    const people = Array.from({ length: 60 }, (_, i) => ({ ...BALA, id: 2000 + i, profile_name: `Member ${i + 1}` }));
+    let failNext = true;
+    state.conversations = (query?: Record<string, unknown>) => {
+      const offset = Number(query?.offset ?? 0);
+      if (offset > 0 && failNext) {
+        failNext = false;
+        return new ApiError({ status: 502, message: "Bad gateway" });
+      }
+      return { items: people.slice(offset, offset + 50), total: people.length, unread_total: 0 };
+    };
+    render(<WhatsAppInboxPage />);
+    const list = await screen.findByRole("region", { name: "Conversations" });
+    await within(list).findByText("Member 50");
+    fireEvent.click(within(list).getByRole("button", { name: "Load more" }));
+    expect(await within(list).findByText("Couldn't load more conversations.")).toBeInTheDocument();
+    // What was loaded stays.
+    expect(within(list).getByText("Member 1")).toBeInTheDocument();
+    fireEvent.click(within(list).getByRole("button", { name: "Try again" }));
+    expect(await within(list).findByText("Member 60")).toBeInTheDocument();
   });
 
   it("searches a username without its @", async () => {

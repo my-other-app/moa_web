@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { ApiError } from "@moa/api";
 
 import {
@@ -36,6 +36,8 @@ import {
   WHATSAPP_PRIVATE,
   WINDOW_CLOSED,
   type Account,
+  type Conversation,
+  type ConversationList,
   type InboxFilter,
   type KeyField,
   type Keys,
@@ -167,15 +169,41 @@ export function keysErrorMessage(error: unknown): KeysProblem {
 
 // ─── The inbox ───────────────────────────────────────────────────────────
 
+/** Conversations a page at a time. */
+export const CONVERSATIONS_PAGE = 50;
+
+/**
+ * The list, page by page on `offset`. A refresh reads every page loaded so
+ * far again, each from where the one before it now ends.
+ */
 export function useConversations(filter: InboxFilter, q: string, poll: number | false, enabled = true) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: [...CONVERSATIONS_KEY, filter, q],
-    queryFn: () => fetchConversations({ filter, q }),
+    queryFn: ({ pageParam }) => fetchConversations({ filter, q, offset: pageParam, limit: CONVERSATIONS_PAGE }),
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((n, p) => n + p.items.length, 0);
+      return last.items.length > 0 && loaded < last.total ? loaded : undefined;
+    },
     staleTime: 5_000,
     refetchInterval: poll,
     retry: false,
     enabled,
   });
+}
+
+/** The pages as one list, each conversation once (one that moved up while paging shows where it is now). */
+export function conversationsOf(data: InfiniteData<ConversationList> | undefined): Conversation[] {
+  const seen = new Set<number>();
+  const out: Conversation[] = [];
+  for (const page of data?.pages ?? []) {
+    for (const c of page.items) {
+      if (seen.has(c.id)) continue;
+      seen.add(c.id);
+      out.push(c);
+    }
+  }
+  return out;
 }
 
 export function useMessages(conversationId: number | null, poll: number | false) {
