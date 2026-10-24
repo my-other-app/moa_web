@@ -1,5 +1,8 @@
 export { WhatsAppSettingsPage, KeysForm } from "./components/settings-page";
+export { WhatsAppInboxPage } from "./components/inbox-page";
 export { WhatsAppOverviewCard, OverviewFigures } from "./components/overview-card";
+export { Bubble, StatusTicks, Thread } from "./components/thread";
+export { Composer, fillTemplate } from "./components/composer";
 export { useInboxStream, pollEvery, type StreamMode, type StreamChange } from "./stream";
 export {
   useAccount,
