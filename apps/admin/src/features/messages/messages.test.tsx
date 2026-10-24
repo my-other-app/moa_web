@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { toApiError } from "@moa/api";
 
 /**
  * A club's messages on its admin page, against GET /admin/messages/clubs/{id}
@@ -9,6 +10,8 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
  */
 let role: string | null = "owner";
 let view: Record<string, unknown> = {};
+/** What GET .../clubs/5 throws instead of answering, when set. */
+let failure: Error | null = null;
 const puts: Array<{ path: string; body: Record<string, unknown> }> = [];
 const posts: string[] = [];
 const dels: string[] = [];
@@ -63,7 +66,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     useSession: () => ({ data: { id: 1, username: "admin", email: "a@b.c", full_name: "Admin", user_type: "admin", admin_role: role } }),
     api: {
       get: vi.fn(async (path: string) => {
-        if (path === "/api/v1/admin/messages/clubs/5") return view;
+        if (path === "/api/v1/admin/messages/clubs/5") {
+          if (failure) throw failure;
+          return view;
+        }
         throw new Error(`unstubbed GET ${path}`);
       }),
       put: vi.fn(async (path: string, body: Record<string, unknown>) => {
@@ -91,6 +97,7 @@ const { planSchema, toForm, toPayload, LIMIT_FIELDS } = await import("@/features
 
 beforeEach(() => {
   role = "owner";
+  failure = null;
   puts.length = 0;
   posts.length = 0;
   dels.length = 0;
@@ -147,6 +154,27 @@ describe("a club's messages on its page", () => {
     expect(await screen.findByText("In use")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Back to the plan's" }));
     await waitFor(() => expect(dels).toEqual(["/api/v1/admin/messages/clubs/5/limits"]));
+  });
+});
+
+/** What the API answers, as the gateway passes it on, made into the error the client throws. */
+function answered(status: number, body: unknown) {
+  return toApiError(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
+}
+
+describe("ahead of its backend", () => {
+  it("leaves the section off the club's page while the API has no such route (FastAPI's bare 404)", async () => {
+    failure = await answered(404, { detail: "Not Found" });
+    const { container } = render(<ClubMessagesPanel clubId={5} />);
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
+    expect(screen.queryByRole("region", { name: "Messages" })).toBeNull();
+    expect(screen.queryByText(/Could not load/)).toBeNull();
+  });
+
+  it("still says it could not load on any other failure", async () => {
+    failure = await answered(500, { message: "Internal Server Error", errors: { error: "x" }, error_code: null, track_id: "t" });
+    render(<ClubMessagesPanel clubId={5} />);
+    expect(await screen.findByText("Could not load the club's messages.")).toBeInTheDocument();
   });
 });
 
