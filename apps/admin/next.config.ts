@@ -1,7 +1,22 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
+/*
+ * Self-hosted (the Oracle box: Dockerfile at the repository root, moa_backend
+ * ops/server): the image build sets NEXT_OUTPUT=standalone, for a server.js
+ * carrying only the files it needs. The workspace packages and the hoisted
+ * node_modules sit two levels up, so files are traced from the repository
+ * root (the build runs in this app's directory). A Vercel build leaves
+ * NEXT_OUTPUT unset and is unchanged.
+ */
+const standalone: Partial<NextConfig> =
+  process.env.NEXT_OUTPUT === "standalone"
+    ? { output: "standalone", outputFileTracingRoot: path.join(process.cwd(), "..", "..") }
+    : {};
+
 const nextConfig: NextConfig = {
+  ...standalone,
   reactStrictMode: true,
   // Workspace packages ship TypeScript source rather than a build artefact, so
   // Next compiles them with the app. This keeps the shared UI editable without

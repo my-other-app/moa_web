@@ -125,6 +125,28 @@ and the Sentry variables above to turn error tracking on.
 Next.js handles its own routing, so no SPA rewrite rule is needed (the absence
 of one is what made the previous Vite dashboard 404 on every deep link).
 
+### Self-hosted (the Oracle box)
+
+Both apps also build as containers for the one-box setup in moa_backend
+(`ops/server`, `docs/MOVE_TO_ORACLE.md`), which replaces Vercel at the
+cutover; `deploy.yml` (Vercel) is unchanged until then.
+
+- `Dockerfile` at the root, `--build-arg APP=clubs|admin`: `next build` with
+  `NEXT_OUTPUT=standalone` (each next.config.ts turns standalone output on,
+  traced from the repository root, only then), a `node:22-alpine` runner as
+  the unprivileged `node` user, and a health check.
+- `deploy/build/<app>.<environment>.env`: the public build-time values
+  (`NEXT_PUBLIC_RAZORPAY_KEY_ID`, the Sentry DSN and names), baked into each
+  environment's image. Public values only; `SENTRY_AUTH_TOKEN` is a GitHub
+  secret.
+- `.github/workflows/images.yml`: typecheck and tests, then
+  linux/amd64 + linux/arm64 images `ghcr.io/my-other-app/moa-clubs` and
+  `moa-admin`, tagged `<sha>` (staging: `staging-<sha>`); on push only once
+  the repository variable `ORACLE_IMAGES` is `true`. It can deploy through
+  the box's deploy gate.
+- `MOA_API_URL` is read at run time; on the box it is `http://backend:8000`,
+  so the gateway reaches the API over the box's own network.
+
 ### Why `typecheck` depends on `build`
 
 `tsc --noEmit` in a Next app reads `.next/types/**`, which only that app's own
