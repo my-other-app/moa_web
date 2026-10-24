@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { MailIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react";
+import { MailIcon, MessageCircleIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react";
 import { formatDate, initials } from "@moa/app-kit";
 import {
   Button,
@@ -13,11 +13,12 @@ import {
   Notice,
   Skeleton,
   StatTile,
+  Switch,
 } from "@moa/ui";
 
 import { LimitMeter, openUpgrade, usePlan } from "@/features/plan";
 
-import { useAccessList, useChangeRole, useRemoveMember, useResendInvite } from "../queries";
+import { useAccessList, useChangeRole, useRemoveMember, useResendInvite, useSetMemberWhatsApp } from "../queries";
 import { DEFAULT_MEMBER_ROLE, type AccessList, type MemberRole, type MemberRow } from "../schemas";
 import { InviteDialog, InviteLink } from "./invite-dialog";
 
@@ -49,6 +50,7 @@ function MemberLine({ m, roles, canManage, now }: { m: MemberRow; roles: AccessL
   const changeRole = useChangeRole();
   const remove = useRemoveMember();
   const resend = useResendInvite();
+  const whatsapp = useSetMemberWhatsApp();
   // Any role but the default is the plan's `roles`; a member who already has one keeps it.
   const rolesLock = usePlan().featureLock("roles");
   const [asking, setAsking] = React.useState(false);
@@ -76,6 +78,20 @@ function MemberLine({ m, roles, canManage, now }: { m: MemberRow; roles: AccessL
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {canManage ? (
+            <label className="text-ink-2 inline-flex items-center gap-1.5 text-[12px]" title="Reads and answers the club's WhatsApp messages">
+              <MessageCircleIcon className="size-3.5" aria-hidden="true" />
+              WhatsApp
+              <Switch
+                aria-label={`WhatsApp permission for ${name}`}
+                checked={m.whatsapp}
+                disabled={whatsapp.isPending}
+                onCheckedChange={(allowed) => whatsapp.mutate({ id: m.id, allowed })}
+              />
+            </label>
+          ) : m.whatsapp ? (
+            <span className="tag">WhatsApp</span>
+          ) : null}
           {canManage ? (
             <NativeSelect
               size="sm"
@@ -219,6 +235,7 @@ export function AccessPage() {
                   rows={[
                     { k: "Owner", v: "Everything, including who can sign in." },
                     ...a.roles.map((r) => ({ k: r.label, v: r.description })),
+                    { k: "WhatsApp", v: "Given person by person, whatever the role: reads and answers the club's WhatsApp messages." },
                   ]}
                 />
               </div>
