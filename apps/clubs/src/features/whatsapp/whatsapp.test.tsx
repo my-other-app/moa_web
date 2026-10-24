@@ -261,7 +261,10 @@ const {
   duration,
   windowText,
   useInboxStream,
+  useCoalesced,
+  planRefresh,
   pollEvery,
+  REOPEN_AFTER,
 } = await import("./index");
 const { EMPTY_TEMPLATE } = await import("./components/templates-page");
 const { AccessPage, blockedBy } = await import("@/features/access");
@@ -673,11 +676,13 @@ describe("the inbox", () => {
 
 class FakeSource {
   static last: FakeSource | null = null;
+  static made = 0;
   readyState = 0;
   closed = false;
   listeners: Record<string, Array<(e: { data?: string }) => void>> = {};
   constructor(public url: string) {
     FakeSource.last = this;
+    FakeSource.made += 1;
   }
   addEventListener(type: string, fn: (e: { data?: string }) => void) {
     (this.listeners[type] ??= []).push(fn);
@@ -715,6 +720,101 @@ describe("the inbox's stream", () => {
     expect(source.closed).toBe(true);
   });
 
+  it("reads everything once on each `ready`, the first and after a reconnect", () => {
+    const onReady = vi.fn();
+    renderHook(() => useInboxStream({ enabled: true, onChange: vi.fn(), onReady, create }));
+    const source = FakeSource.last!;
+    act(() => source.emit("ready", { club: 1 }));
+    expect(onReady).toHaveBeenCalledTimes(1);
+    act(() => source.emit("error"));
+    act(() => source.emit("ready", { club: 1 }));
+    expect(onReady).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens the stream again itself when the browser gives up: 5 s, 15 s, then every minute, polling meanwhile", () => {
+    vi.useFakeTimers();
+    try {
+      const onReady = vi.fn();
+      const { result, unmount } = renderHook(() => useInboxStream({ enabled: true, onChange: vi.fn(), onReady, create }));
+      const giveUp = () => {
+        const s = FakeSource.last!;
+        s.readyState = 2;
+        act(() => s.emit("error"));
+        expect(s.closed).toBe(true);
+      };
+      const reopensAfter = (ms: number) => {
+        const before = FakeSource.made;
+        act(() => vi.advanceTimersByTime(ms - 1));
+        expect(FakeSource.made).toBe(before);
+        act(() => vi.advanceTimersByTime(1));
+        expect(FakeSource.made).toBe(before + 1);
+      };
+      expect(REOPEN_AFTER).toEqual([5_000, 15_000, 60_000]);
+      giveUp(); // A 502 while the backend deploys.
+      expect(result.current).toBe("polling");
+      reopensAfter(5_000);
+      giveUp();
+      reopensAfter(15_000);
+      giveUp();
+      reopensAfter(60_000);
+      giveUp();
+      reopensAfter(60_000);
+      expect(result.current).toBe("polling");
+      // Back: live, and the next give-up starts from 5 s again.
+      act(() => FakeSource.last!.emit("ready", { club: 1 }));
+      expect(result.current).toBe("live");
+      expect(onReady).toHaveBeenCalledTimes(1);
+      giveUp();
+      reopensAfter(5_000);
+      // A drop the browser retries itself (CONNECTING) is left to the browser.
+      const before = FakeSource.made;
+      act(() => FakeSource.last!.emit("error"));
+      act(() => vi.advanceTimersByTime(120_000));
+      expect(FakeSource.made).toBe(before);
+      // Gone: nothing is opened again.
+      const last = FakeSource.last!;
+      last.readyState = 2;
+      act(() => last.emit("error"));
+      unmount();
+      act(() => vi.advanceTimersByTime(120_000));
+      expect(FakeSource.made).toBe(before);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hands on a burst at most once in the window: the first at once, the rest together", () => {
+    vi.useFakeTimers();
+    try {
+      const flush = vi.fn();
+      const { result } = renderHook(() => useCoalesced<number>(flush, 1_500));
+      act(() => {
+        for (let i = 1; i <= 10; i++) result.current(i);
+      });
+      expect(flush).toHaveBeenCalledTimes(1);
+      expect(flush).toHaveBeenLastCalledWith([1]);
+      act(() => vi.advanceTimersByTime(1_499));
+      expect(flush).toHaveBeenCalledTimes(1);
+      act(() => vi.advanceTimersByTime(1));
+      expect(flush).toHaveBeenCalledTimes(2);
+      expect(flush).toHaveBeenLastCalledWith([2, 3, 4, 5, 6, 7, 8, 9, 10]);
+      // Quiet for a while: the next one goes at once.
+      act(() => vi.advanceTimersByTime(5_000));
+      act(() => result.current(11));
+      expect(flush).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reads the list again for a status only when that conversation is on screen", () => {
+    const onScreen = new Set([11, 12]);
+    expect(planRefresh([{ conversationId: 99, kind: "status" }], onScreen)).toEqual({ list: false, threads: [99] });
+    expect(planRefresh([{ conversationId: 11, kind: "status" }], onScreen)).toEqual({ list: true, threads: [11] });
+    expect(planRefresh([{ conversationId: 99, kind: "message" }, { conversationId: 99, kind: "status" }], onScreen)).toEqual({ list: true, threads: [99] });
+    expect(planRefresh([{ conversationId: 11, kind: "read" }, { conversationId: null, kind: "resync" }], onScreen)).toEqual({ list: true, threads: "all" });
+  });
+
   it("polls when it may not stream, or the stream can't be opened", async () => {
     const off = renderHook(() => useInboxStream({ enabled: false, onChange: vi.fn(), create }));
     expect(off.result.current).toBe("polling");
@@ -723,6 +823,49 @@ describe("the inbox's stream", () => {
     };
     const broken = renderHook(() => useInboxStream({ enabled: true, onChange: vi.fn(), create: failing }));
     await waitFor(() => expect(broken.result.current).toBe("polling"));
+  });
+});
+
+describe("the inbox, live", () => {
+  beforeEach(() => {
+    FakeSource.made = 0;
+    FakeSource.last = null;
+    vi.stubGlobal("EventSource", FakeSource);
+    return () => vi.unstubAllGlobals();
+  });
+  const listCalls = () => calls.filter((c) => c.method === "GET" && c.path === "/api/v1/clubs/whatsapp/conversations").length;
+
+  it("reads everything on `ready`, and a burst of frames is one more read, not one each", async () => {
+    render(<WhatsAppInboxPage />);
+    await screen.findByText("Ananya Iyer");
+    await waitFor(() => expect(FakeSource.last).not.toBeNull());
+    expect(listCalls()).toBe(1);
+    act(() => FakeSource.last!.emit("ready", { club: 1 }));
+    expect(await screen.findByText("Live")).toBeInTheDocument();
+    await waitFor(() => expect(listCalls()).toBe(2));
+    act(() => {
+      for (let i = 0; i < 25; i++) FakeSource.last!.emit("changed", { conversation_id: 11, kind: i % 2 ? "status" : "message" });
+    });
+    await waitFor(() => expect(listCalls()).toBe(3), { timeout: 4_000 });
+    await new Promise((r) => setTimeout(r, 1_700));
+    expect(listCalls()).toBe(3);
+  });
+
+  it("opens no stream and lists nothing for a club that never connected a number", async () => {
+    state.account = NOT_CONNECTED;
+    render(<WhatsAppInboxPage />);
+    expect(await screen.findByText("Connect your WhatsApp number to start")).toBeInTheDocument();
+    expect(FakeSource.made).toBe(0);
+    expect(calls.some((c) => c.path.endsWith("/conversations"))).toBe(false);
+  });
+
+  it("opens no stream on a plan without it, but keeps what a disconnected number received", async () => {
+    state.account = { ...NOT_CONNECTED, status: "disconnected", plan_allows: false, upgrade: UPGRADE };
+    render(<WhatsAppInboxPage />);
+    expect(await screen.findByText("Ananya Iyer")).toBeInTheDocument();
+    expect(FakeSource.made).toBe(0);
+    expect(screen.queryByText("Live")).toBeNull();
+    expect(screen.getByText(/is part of Enterprise\./)).toBeInTheDocument();
   });
 });
 

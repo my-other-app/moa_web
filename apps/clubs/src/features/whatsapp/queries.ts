@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@moa/api";
 
@@ -41,6 +42,7 @@ import {
   type TemplateForm,
   type TemplateProblem,
 } from "./schemas";
+import type { RefreshPlan } from "./stream";
 
 export const WA_KEY = ["whatsapp"] as const;
 export const ACCOUNT_KEY = [...WA_KEY, "account"] as const;
@@ -196,6 +198,23 @@ export function useRefreshInbox() {
     if (conversationId === undefined || conversationId === null) void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY });
     else void queryClient.invalidateQueries({ queryKey: [...MESSAGES_KEY, conversationId] });
   };
+}
+
+/** What the stream's changes ask for (planRefresh): only those queries are read again. */
+export function useApplyRefresh() {
+  const queryClient = useQueryClient();
+  return useCallback(
+    (plan: RefreshPlan) => {
+      if (plan.list) {
+        void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
+        void queryClient.invalidateQueries({ queryKey: OVERVIEW_KEY });
+      }
+      // Only the open conversation's is on screen: the others are marked stale, not fetched.
+      if (plan.threads === "all") void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY });
+      else for (const id of plan.threads) void queryClient.invalidateQueries({ queryKey: [...MESSAGES_KEY, id] });
+    },
+    [queryClient],
+  );
 }
 
 export function useSendMessage(conversationId: number) {

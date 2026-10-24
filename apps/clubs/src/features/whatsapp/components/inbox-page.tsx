@@ -6,9 +6,9 @@ import { MessageCircleIcon, RadioIcon } from "lucide-react";
 import { formatTime, relativeTime } from "@moa/app-kit";
 import { Chip, EmptyState, FigurePanel, SearchField, Skeleton, cn } from "@moa/ui";
 
-import { forbiddenText, isPermissionError, isPrivateError, useAccount, useConversations, useRefreshInbox } from "../queries";
+import { forbiddenText, isPermissionError, isPrivateError, useAccount, useApplyRefresh, useConversations } from "../queries";
 import { FILTERS, FILTER_LABEL, PRIVATE_MESSAGE, contactName, initialsOf, type Conversation, type InboxFilter } from "../schemas";
-import { pollEvery, useInboxStream, type StreamMode } from "../stream";
+import { RESYNC, planRefresh, pollEvery, useCoalesced, useInboxStream, type StreamChange, type StreamMode } from "../stream";
 import { NoAccessPanel, UpgradeNotice, WhatsAppHeader } from "./shared";
 import { StatusTicks, Thread } from "./thread";
 
@@ -96,21 +96,32 @@ export function WhatsAppInboxPage() {
   const [search, setSearch] = React.useState("");
   const q = useDebounced(search);
   const [openId, setOpenId] = React.useState<number | null>(null);
-  const refresh = useRefreshInbox();
   const allowed = Boolean(a?.can_inbox);
-  const mode = useInboxStream({ enabled: allowed, onChange: (c) => refresh(c.conversationId) });
-  const list = useConversations(filter, q, allowed ? pollEvery(mode, "list") : false, allowed);
+  // Only a connected number on a plan that has it can receive anything: only then is the stream opened, or the inbox polled.
+  const live = allowed && Boolean(a?.connected && a?.plan_allows);
+  // A number that is, or was, connected: its conversations stay to be read after a disconnect or a downgrade. Never one: nothing to list.
+  const listable = allowed && Boolean(a && (a.connected || a.status !== null));
+
+  // The stream's frames, a burst at a time: at most one refresh in COALESCE_MS, and only of what changed.
+  const onScreen = React.useRef<ReadonlySet<number>>(new Set());
+  const applyRefresh = useApplyRefresh();
+  const push = useCoalesced<StreamChange>((batch) => applyRefresh(planRefresh(batch, onScreen.current)));
+  const mode = useInboxStream({ enabled: live, onChange: push, onReady: () => push(RESYNC) });
+  const list = useConversations(filter, q, live ? pollEvery(mode, "list") : false, listable);
   const [now] = React.useState(() => new Date());
 
   const forbidden = (account.isError && (isPermissionError(account.error) || isPrivateError(account.error))) || (list.isError && (isPermissionError(list.error) || isPrivateError(list.error)));
-  const items = list.data?.items ?? [];
+  const items = React.useMemo(() => list.data?.items ?? [], [list.data]);
+  React.useEffect(() => {
+    onScreen.current = new Set(items.map((c) => c.id));
+  }, [items]);
 
   return (
     <div className="flex flex-col gap-3.5">
       <WhatsAppHeader
         title="WhatsApp"
         sub="Conversations with your attendees and followers"
-        right={allowed ? <LiveMark mode={mode} /> : null}
+        right={live ? <LiveMark mode={mode} /> : null}
       />
 
       {forbidden ? (
@@ -132,7 +143,7 @@ export function WhatsAppInboxPage() {
       ) : (
         <>
           {!a.plan_allows ? <UpgradeNotice upgrade={a.upgrade} /> : null}
-          {!a.connected && items.length === 0 && !list.isPending ? (
+          {!a.connected && (!listable || (list.isSuccess && items.length === 0)) ? (
             <EmptyState
               tone="muted"
               icon={<MessageCircleIcon />}
@@ -183,7 +194,7 @@ export function WhatsAppInboxPage() {
                     <p className="text-ink-3 m-0 text-[13px]">Pick a conversation.</p>
                   </div>
                 ) : (
-                  <Thread key={openId} conversationId={openId} poll={pollEvery(mode, "thread")} onBack={() => setOpenId(null)} />
+                  <Thread key={openId} conversationId={openId} poll={live ? pollEvery(mode, "thread") : false} onBack={() => setOpenId(null)} />
                 )}
               </section>
             </FigurePanel>
