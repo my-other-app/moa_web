@@ -63,10 +63,15 @@ export async function fetchOverview(days = 7) {
 
 // ─── The inbox ───────────────────────────────────────────────────────────
 
+/** A search as the server matches it: "@ananya" finds the username ananya. */
+export function searchTerm(q: string | undefined): string | undefined {
+  return q?.trim().replace(/^@/, "").trim() || undefined;
+}
+
 export async function fetchConversations(params: { filter: InboxFilter; q?: string; offset?: number; limit?: number }) {
   return conversationListSchema.parse(
     await api.get<unknown>(`${BASE}/conversations`, {
-      query: { filter: params.filter, q: params.q?.trim() || undefined, offset: params.offset ?? 0, limit: params.limit ?? 50 },
+      query: { filter: params.filter, q: searchTerm(params.q), offset: params.offset ?? 0, limit: params.limit ?? 50 },
     }),
   );
 }

@@ -8,7 +8,7 @@ import { CardLabel, FigurePanel, StatusBadge, cn } from "@moa/ui";
 import { useAccess } from "@/features/access";
 
 import { useOverview } from "../queries";
-import { STATUS_LABEL, STATUS_TONE, duration, tierWords, type Overview } from "../schemas";
+import { STATUS_LABEL, STATUS_TONE, TIER_LIMIT_NOTE, duration, tierWords, type Overview } from "../schemas";
 import { QualityBadge } from "./shared";
 
 function Figure({ label, value, note }: { label: string; value: string; note?: string }) {
@@ -52,7 +52,10 @@ export function OverviewFigures({ o, link = false, className }: { o: Overview; l
         <QualityBadge rating={a.quality_rating} />
       </div>
       <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px]">
-        <dt className="text-ink-3">Messaging limit</dt>
+        <dt className="text-ink-3">
+          Messaging limit
+          <span className="block text-[11px]">{TIER_LIMIT_NOTE}</span>
+        </dt>
         <dd className="text-ink m-0 text-right">{tierWords(a.messaging_limit_tier)}</dd>
       </dl>
       {s ? (

@@ -124,6 +124,19 @@ const BALA = {
   window_expires_at: ago(2 * 24 * HOUR),
 };
 
+/** Someone with a WhatsApp username who shares no number (a newer server). */
+const CHITRA = {
+  ...BALA,
+  id: 13,
+  wa_id: null,
+  bsuid: "IN.1234567890abcdef",
+  username: "chitra.r",
+  phone: "",
+  profile_name: null,
+  unread_count: 0,
+  last_message: { direction: "in", type: "text", preview: "Hello?", status: "received", at: ago(2 * HOUR) },
+};
+
 const msg = (over: Record<string, unknown>) => ({
   id: 1,
   direction: "in",
@@ -240,6 +253,9 @@ const {
   accountSchema,
   conversationSchema,
   messageSchema,
+  templateSchema,
+  contactName,
+  initialsOf,
   checkTemplate,
   tierWords,
   duration,
@@ -289,11 +305,50 @@ describe("reading the server", () => {
     const a = accountSchema.parse({ available: true, connected: "yes", status: "paused", quality_rating: 5, webhook_fields: "messages" });
     expect(a).toMatchObject({ available: true, connected: false, status: null, quality_rating: null, webhook_fields: [], plan_allows: true, routing: true, retention_months: 12 });
     const c = conversationSchema.parse({ id: 1, wa_id: "919800000000", status: "archived", window_open: true });
-    expect(c.contact).toEqual({ name: null, user_id: null, registration_id: null, events: [] });
+    expect(c.contact).toEqual({ name: null, user_id: null, registration_id: null, wa_id: null, bsuid: null, username: null, events: [] });
     expect(c.status).toBe("open");
     const m = messageSchema.parse({ id: 2, direction: "sideways", status: "teleported", created_at: "2026-10-20T10:00:00Z" });
     expect(m).toMatchObject({ direction: "in", status: "sent", type: "unsupported" });
     expect(m.media ?? null).toBeNull();
+  });
+
+  it("reads an older server's payloads and a newer one's, the new fields defaulting", () => {
+    // Older: none of the new fields.
+    const old = accountSchema.parse(NOT_CONNECTED);
+    expect(old).toMatchObject({ impersonated: false, warnings: [] });
+    const before = conversationSchema.parse(ANANYA);
+    expect(before).toMatchObject({ wa_id: "919847012345", bsuid: null, username: null });
+    expect(before.contact).toMatchObject({ bsuid: null, username: null, wa_id: null });
+    expect(templateSchema.parse(APPROVED).flagged).toBe(false);
+    // Newer: every one of them, a username instead of a number.
+    const now = accountSchema.parse({ ...CONNECTED, can_inbox: false, impersonated: true, warnings: ["Add a payment method in Meta's Billing Hub."] });
+    expect(now).toMatchObject({ impersonated: true, warnings: ["Add a payment method in Meta's Billing Hub."] });
+    const after = conversationSchema.parse({ ...CHITRA, phone: null, contact: { ...CHITRA.contact, bsuid: "IN.1234567890abcdef", username: "chitra.r", wa_id: null } });
+    expect(after).toMatchObject({ wa_id: null, bsuid: "IN.1234567890abcdef", username: "chitra.r", phone: "" });
+    expect(templateSchema.parse({ ...APPROVED, flagged: true }).flagged).toBe(true);
+    // A value it can't read is its empty form.
+    expect(accountSchema.parse({ ...CONNECTED, impersonated: "yes", warnings: "pay" })).toMatchObject({ impersonated: false, warnings: [] });
+  });
+
+  it("names someone by what they share, never a blank or +null", () => {
+    const c = conversationSchema.parse(CHITRA);
+    expect(contactName(c)).toBe("@chitra.r");
+    expect(contactName({ ...c, profile_name: "Chitra" })).toBe("Chitra");
+    expect(contactName({ ...c, username: null })).toBe("WhatsApp user");
+    expect(contactName(conversationSchema.parse({ ...BALA, profile_name: null }))).toBe("+919876543211");
+    expect(contactName(conversationSchema.parse(ANANYA))).toBe("Ananya Iyer");
+  });
+
+  it("takes initials as whole letters: Malayalam and Tamil vowel signs stay on", () => {
+    expect(initialsOf("Ananya Iyer")).toBe("AI");
+    expect(initialsOf("@chitra.r")).toBe("CR");
+    expect(initialsOf("WhatsApp user")).toBe("WU");
+    expect(initialsOf("+919876543211")).toBe("91");
+    // ദേ is ദ with its vowel sign; தெ is த with its own: neither is cut off.
+    expect(initialsOf("ദേവി രാജ്")).toBe("ദേരാ");
+    expect(initialsOf("தமிழ் செல்வி")).toBe("தசெ");
+    expect(initialsOf("👩🏽‍💻 Asha")).toBe("👩🏽‍💻A");
+    expect(initialsOf("")).toBe("?");
   });
 
   it("puts the limit, the reply time and the window in words", () => {
@@ -399,6 +454,23 @@ describe("WhatsApp settings", () => {
     // The overview: stats in words.
     const overview = await screen.findByRole("region", { name: "WhatsApp overview" });
     expect(within(overview).getByText("12 min")).toBeInTheDocument();
+  });
+
+  it("shows Meta's cautions about the account", async () => {
+    state.account = {
+      ...CONNECTED,
+      warnings: ["Add a payment method in Meta's Billing Hub.", "Accounts in India must move to INR by 31 Dec 2026."],
+    };
+    render(<WhatsAppSettingsPage />);
+    const first = await screen.findByText("Add a payment method in Meta's Billing Hub.");
+    expect(first.closest("[role=alert]")).toHaveTextContent("Meta");
+    expect(screen.getByText("Accounts in India must move to INR by 31 Dec 2026.")).toBeInTheDocument();
+  });
+
+  it("says the messaging limit is the business portfolio's, shared by its numbers", async () => {
+    render(<WhatsAppSettingsPage />);
+    const card = (await screen.findAllByRole("region", { name: "Your WhatsApp number" }))[0]!;
+    expect(within(card).getByText("Your business portfolio's limit, shared by all its numbers")).toBeInTheDocument();
   });
 
   it("says what Meta said when the number stopped working", async () => {
@@ -540,16 +612,52 @@ describe("the inbox", () => {
     expect(await within(thread).findByText(/Send an approved template instead/)).toBeInTheDocument();
   });
 
-  it("needs the WhatsApp permission, and an admin acting as the club sees no messages", async () => {
+  it("needs the WhatsApp permission", async () => {
     state.account = { ...CONNECTED, can_inbox: false };
-    const first = render(<WhatsAppInboxPage />);
+    render(<WhatsAppInboxPage />);
     expect(await screen.findByText("The inbox needs the WhatsApp permission")).toBeInTheDocument();
     expect(calls.some((c) => c.path.endsWith("/conversations"))).toBe(false);
+  });
+
+  it("tells an admin acting as the club that the messages are the club's, not that a permission is missing", async () => {
+    // As the server answers an impersonated admin: no inbox, and why.
+    state.account = { ...CONNECTED, can_inbox: false, impersonated: true };
+    const first = render(<WhatsAppInboxPage />);
+    expect(await screen.findByText(/A club's WhatsApp messages are for its own team/)).toBeInTheDocument();
+    expect(screen.queryByText(/needs the WhatsApp permission/)).toBeNull();
+    expect(calls.some((c) => c.path.endsWith("/conversations"))).toBe(false);
     first.unmount();
-    state.account = CONNECTED;
+    render(<WhatsAppTemplatesPage />);
+    expect(await screen.findByText("Templates are for the club's own team")).toBeInTheDocument();
+    expect(calls.some((c) => c.path.endsWith("/templates"))).toBe(false);
+  });
+
+  it("still says so from an older server, which refuses the list with WHATSAPP_PRIVATE", async () => {
     state.conversations = new ApiError({ status: 403, errorCode: "WHATSAPP_PRIVATE", message: "Private." });
     render(<WhatsAppInboxPage />);
     expect(await screen.findByText(/A club's WhatsApp messages are for its own team/)).toBeInTheDocument();
+  });
+
+  it("shows someone who shares only a username, in the list and the thread", async () => {
+    state.conversations = { items: [ANANYA, CHITRA], total: 2, unread_total: 2 };
+    state.messages[13] = { conversation: CHITRA, items: [msg({ id: 30, body: "Hello?" })], has_more: false };
+    render(<WhatsAppInboxPage />);
+    const list = await screen.findByRole("region", { name: "Conversations" });
+    const row = await within(list).findByRole("button", { name: /@chitra\.r/ });
+    expect(row).toHaveTextContent("CR");
+    expect(list).not.toHaveTextContent("+null");
+    fireEvent.click(row);
+    const thread = await screen.findByLabelText("Conversation with @chitra.r");
+    expect(await within(thread).findByText("Hello?")).toBeInTheDocument();
+    expect(within(thread).getByRole("heading", { name: "@chitra.r" })).toBeInTheDocument();
+    expect(thread).not.toHaveTextContent("null");
+  });
+
+  it("searches a username without its @", async () => {
+    render(<WhatsAppInboxPage />);
+    const list = await screen.findByRole("region", { name: "Conversations" });
+    fireEvent.change(within(list).getByLabelText("Search conversations"), { target: { value: "@chitra" } });
+    await waitFor(() => expect(calls.some((c) => c.path.endsWith("/conversations") && c.query?.q === "chitra")).toBe(true));
   });
 
   it("asks to connect a number first when there is none", async () => {
@@ -689,6 +797,43 @@ describe("the templates page", () => {
       footer: null,
       buttons: [],
     });
+  });
+
+  it("marks a template Meta flagged as at risk", async () => {
+    state.templates = { items: [{ ...APPROVED, flagged: true }, REJECTED], stale: false, standard_missing: [] };
+    render(<WhatsAppTemplatesPage />);
+    const list = await screen.findByRole("region", { name: "Templates" });
+    expect(within(list).getByText("Flagged by Meta: at risk")).toBeInTheDocument();
+    expect(within(list).getAllByText(/Flagged by Meta/)).toHaveLength(1);
+  });
+
+  it("shows Meta's own words on the form when it refuses a template", async () => {
+    // No field the form shows: Meta's words go on the form itself.
+    state.createTemplate = () => new ApiError({ status: 422, errorCode: "INVALID_TEMPLATE", message: "Meta: the message has too many variables for its length.", fieldErrors: { field: "components" } as unknown as Record<string, string[]> });
+    render(<WhatsAppTemplatesPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /New template/ }));
+    const panel = await screen.findByRole("form", { name: "New template" });
+    fireEvent.change(within(panel).getByLabelText("Name"), { target: { value: "event_update" } });
+    fireEvent.change(within(panel).getByLabelText("Message"), { target: { value: "See you tonight at the hall." } });
+    fireEvent.click(within(panel).getByRole("button", { name: /Submit for review/ }));
+    const notice = await within(panel).findByRole("alert");
+    expect(notice).toHaveTextContent("Not sent");
+    expect(notice).toHaveTextContent("Meta: the message has too many variables for its length.");
+  });
+
+  it("shows why Meta wouldn't delete a template, on that template", async () => {
+    const { api } = await import("@moa/app-kit");
+    vi.mocked(api.del).mockImplementationOnce(async (path: string) => {
+      calls.push({ method: "DELETE", path });
+      throw new ApiError({ status: 422, errorCode: "INVALID_TEMPLATE", message: "Meta: this template is in use by a campaign." });
+    });
+    render(<WhatsAppTemplatesPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Delete event_update (en)" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }));
+    const list = screen.getByRole("region", { name: "Templates" });
+    const notice = await within(list).findByRole("alert");
+    expect(notice).toHaveTextContent("Not deleted");
+    expect(notice).toHaveTextContent("Meta: this template is in use by a campaign.");
   });
 
   it("asks before deleting one language of a template", async () => {

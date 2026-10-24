@@ -41,7 +41,7 @@ import {
   useVerifyAccount,
   type KeysProblem,
 } from "../queries";
-import { META_STEPS, STATUS_LABEL, STATUS_TONE, WEBHOOK_STEPS, keysSchema, tierWords, type Account, type KeyField, type Keys } from "../schemas";
+import { META_STEPS, STATUS_LABEL, STATUS_TONE, TIER_LIMIT_NOTE, WEBHOOK_STEPS, keysSchema, tierWords, type Account, type KeyField, type Keys } from "../schemas";
 import { OverviewFigures } from "./overview-card";
 import { CopyRow, Field, NoAccessPanel, QualityBadge, Step, UpgradeNotice, When, WhatsAppHeader } from "./shared";
 
@@ -82,6 +82,12 @@ export function WhatsAppSettingsPage() {
       ) : (
         <>
           {!a.plan_allows ? <UpgradeNotice upgrade={a.upgrade} /> : null}
+          {/* Meta's cautions about the account: a payment method missing, a currency to move to. */}
+          {a.warnings.map((w) => (
+            <Notice key={w} tone="caution" tag="Meta">
+              {w}
+            </Notice>
+          ))}
           {a.plan_allows && !a.can_manage ? (
             <Notice tone="neutral" tag="Read only">
               Only the club&apos;s owner and its admins can connect or change the WhatsApp number. You can see how it&apos;s set up.
@@ -274,7 +280,10 @@ function Connected({ a }: { a: Account }) {
 
       <dl className="m-0 grid gap-x-4 gap-y-2.5 text-[12.5px] sm:grid-cols-[max-content_1fr]">
         <dt className="eyebrow sm:pt-0.5">Messaging limit</dt>
-        <dd className="text-ink m-0">{tierWords(a.messaging_limit_tier)}</dd>
+        <dd className="text-ink m-0">
+          {tierWords(a.messaging_limit_tier)}
+          <span className="text-ink-3 block text-[11.5px]">{TIER_LIMIT_NOTE}</span>
+        </dd>
         <dt className="eyebrow sm:pt-0.5">Business Account ID</dt>
         <dd className="text-ink m-0 font-mono break-all">{a.waba_id ?? "—"}</dd>
         <dt className="eyebrow sm:pt-0.5">Phone number ID</dt>
@@ -469,8 +478,9 @@ function Help() {
       <section className="border-line-soft border-t pt-3">
         <h4 className="text-ink m-0 text-[13.5px] font-semibold">Quality and limits</h4>
         <p className="text-ink-2 m-0 mt-1 text-[12.5px] leading-[1.5]">
-          Meta rates your number High, Medium or Low from how people react to it: blocks and reports bring it down. The messaging limit is how many people your
-          number may start conversations with a day; it grows as you send good messages. We check both every few hours and tell you if they drop.
+          Meta rates your number High, Medium or Low from how people react to it: blocks and reports bring it down. The messaging limit is how many people
+          your business portfolio may start conversations with in a day, shared by all its numbers; it grows as you send good messages. We check both every
+          few hours and tell you if they drop.
         </p>
       </section>
       <section className="border-line-soft border-t pt-3">

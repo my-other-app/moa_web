@@ -18,6 +18,8 @@ import { z } from "zod";
 
 const str = z.string().nullish().catch(null);
 const num = z.number().nullish().catch(null);
+/** A field newer servers add: an older one leaves it out, and it reads as null. */
+const added = z.string().nullish().default(null).catch(null);
 
 // ─── The connection ─────────────────────────────────────────────────────
 
@@ -63,6 +65,13 @@ export const accountSchema = z.object({
   webhook_fields: z.array(z.string()).catch([]),
   can_manage: z.boolean().catch(false),
   can_inbox: z.boolean().catch(false),
+  /**
+   * A platform admin acting as the club: it sees the connection and its
+   * quality, never the messages (`can_inbox` is false). Newer servers only.
+   */
+  impersonated: z.boolean().default(false).catch(false),
+  /** Meta's cautions about the account (billing, currency), in words. Newer servers only. */
+  warnings: z.array(z.string()).default([]).catch([]),
 });
 export type Account = z.infer<typeof accountSchema>;
 
@@ -144,9 +153,24 @@ export const contactEventSchema = z.object({
   registration_id: str,
 });
 
+/**
+ * Who someone is on WhatsApp. Someone with a WhatsApp username may share no
+ * number: then `wa_id` (and `phone`) are empty and `bsuid`, Meta's
+ * business-scoped ID for them, is how they are told apart. The three are
+ * absent from older servers.
+ */
+const identity = {
+  /** Their number, digits only; null when they share none. */
+  wa_id: added,
+  bsuid: added,
+  /** Their WhatsApp username, without the @. */
+  username: added,
+};
+
 export const conversationSchema = z.object({
   id: z.number(),
-  wa_id: z.string(),
+  ...identity,
+  /** Their number to show ("+91 98470 12345"); empty when they share none. */
   phone: z.string().catch(""),
   profile_name: str,
   contact: z
@@ -154,9 +178,10 @@ export const conversationSchema = z.object({
       name: str,
       user_id: num,
       registration_id: str,
+      ...identity,
       events: z.array(contactEventSchema).catch([]),
     })
-    .catch({ name: null, user_id: null, registration_id: null, events: [] }),
+    .catch({ name: null, user_id: null, registration_id: null, wa_id: null, bsuid: null, username: null, events: [] }),
   status: z.enum(["open", "closed"]).catch("open"),
   unread_count: z.number().catch(0),
   awaiting_reply: z.boolean().catch(false),
@@ -225,6 +250,8 @@ export const templateSchema = z.object({
   status: str,
   rejected_reason: str,
   quality: str,
+  /** Meta flagged it for low quality: it may be paused next. Newer servers only. */
+  flagged: z.boolean().default(false).catch(false),
   header: z
     .object({ format: str, text: str, variables: z.number().catch(0) })
     .nullish()
@@ -406,7 +433,10 @@ export function qualityTone(rating: string | null | undefined) {
   return QUALITY_TONE[(rating ?? "UNKNOWN").toUpperCase()] ?? "default";
 }
 
-/** TIER_1K as "1,000 people a day". */
+/**
+ * TIER_1K as "1,000 people a day". The limit is the business portfolio's,
+ * shared by all its numbers, not this number's alone (TIER_LIMIT_NOTE).
+ */
 export function tierWords(tier: string | null | undefined): string {
   if (!tier) return "Not set yet";
   const t = tier.toUpperCase();
@@ -416,6 +446,8 @@ export function tierWords(tier: string | null | undefined): string {
   const n = Number(m[1]) * (m[2] ? 1000 : 1);
   return `${n.toLocaleString("en-IN")} people a day`;
 }
+
+export const TIER_LIMIT_NOTE = "Your business portfolio's limit, shared by all its numbers";
 
 export const STATUS_LABEL: Record<AccountStatus, string> = { active: "Active", failed: "Not working", disconnected: "Disconnected" };
 export const STATUS_TONE: Record<AccountStatus, "success" | "destructive" | "default"> = { active: "success", failed: "destructive", disconnected: "default" };
@@ -452,9 +484,40 @@ export function duration(seconds: number | null | undefined): string {
   return `${Math.round(s / 86_400)} d`;
 }
 
-/** Who a conversation is with, in the words the club knows them by. */
-export function contactName(c: Pick<Conversation, "contact" | "profile_name" | "phone" | "wa_id">): string {
-  return c.contact.name || c.profile_name || c.phone || `+${c.wa_id}`;
+/** The username to show, with its @: "@ananya_i", or null. */
+export function handle(c: Pick<Conversation, "contact" | "username">): string | null {
+  const u = (c.username || c.contact.username || "").trim().replace(/^@/, "");
+  return u ? `@${u}` : null;
+}
+
+/**
+ * Who a conversation is with, in the words the club knows them by: the name
+ * they registered with, their WhatsApp profile name, their @username, their
+ * number -- and "WhatsApp user" when they share none of those. Never a blank.
+ */
+export function contactName(c: Pick<Conversation, "contact" | "profile_name" | "phone" | "username">): string {
+  return c.contact.name?.trim() || c.profile_name?.trim() || handle(c) || c.phone.trim() || "WhatsApp user";
+}
+
+function graphemes(text: string): string[] {
+  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+    return Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text), (s) => s.segment);
+  }
+  return Array.from(text);
+}
+
+/**
+ * Two initials for an avatar, whole letters as a reader sees them: a
+ * Malayalam or Tamil letter with its vowel sign stays one (ദേ, not ദ),
+ * and an emoji is never cut in half.
+ */
+export function initialsOf(name: string): string {
+  // A number: its first digits, as before.
+  if (/^\+?[\d\s()-]+$/.test(name.trim())) return name.replace(/\D/g, "").slice(0, 2) || "?";
+  const words = name.trim().replace(/^[@+]/, "").split(/[\s_.]+/).filter(Boolean);
+  const [first = "", second] = words;
+  const picked = second ? [graphemes(first)[0], graphemes(second)[0]] : graphemes(first).slice(0, 2);
+  return picked.join("").toLocaleUpperCase() || "?";
 }
 
 /** "Free replies for 3 h more" / "Template only: 24 h passed". */

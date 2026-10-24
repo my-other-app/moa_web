@@ -77,6 +77,8 @@ export const NOT_ON_THIS_SERVER: Account = {
   webhook_fields: [],
   can_manage: false,
   can_inbox: false,
+  impersonated: false,
+  warnings: [],
 };
 
 async function readAccount(): Promise<Account> {
@@ -266,11 +268,21 @@ export function useInstallStandard() {
   return useMutation({ mutationFn: installStandardTemplates, onSuccess: settle });
 }
 
-/** A template refusal from the server: on the field it names (`errors.field`), or the form's. */
+/** The fields the template form shows a refusal beside; one it doesn't show goes on the form. */
+const TEMPLATE_FIELDS = /^(name|language|category|header|header_examples|body|body_examples|footer|buttons(\.\d+)?)$/;
+
+/**
+ * A template refusal from the server: on the field it names (`errors.field`),
+ * or the form's. INVALID_TEMPLATE carries Meta's own words when Meta refused
+ * it, which are shown as they are.
+ */
 export function templateErrorMessage(error: unknown): TemplateProblem {
   if (error instanceof ApiError) {
     const details = (error.fieldErrors ?? {}) as Record<string, unknown>;
-    if (error.errorCode === INVALID_TEMPLATE) return { field: typeof details.field === "string" ? details.field : "form", text: error.message || "Meta wouldn't take that." };
+    if (error.errorCode === INVALID_TEMPLATE) {
+      const field = typeof details.field === "string" && TEMPLATE_FIELDS.test(details.field) ? details.field : "form";
+      return { field, text: error.message?.trim() || "Meta wouldn't take that." };
+    }
     return { field: "form", text: error.message || "That did not go through. Try again." };
   }
   return { field: "form", text: error instanceof Error && error.message ? error.message : "That did not go through. Try again." };

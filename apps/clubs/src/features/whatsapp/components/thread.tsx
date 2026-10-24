@@ -8,7 +8,7 @@ import { EmptyState, Skeleton, cn } from "@moa/ui";
 
 import { fetchMessages, mediaHref } from "../api";
 import { useMarkRead, useMessages, useSetConversationStatus } from "../queries";
-import { contactName, type Conversation, type Message, type MessageStatus } from "../schemas";
+import { contactName, handle, type Conversation, type Message, type MessageStatus } from "../schemas";
 import { Composer } from "./composer";
 
 /** The ticks WhatsApp shows: a clock while sending, one grey tick, two, two blue; a mark when it failed. */
@@ -183,6 +183,11 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
   };
 
   const name = contactName(conv);
+  const at = handle(conv);
+  // Their number, @username and WhatsApp name, as far as they share them; never a blank number.
+  const about = [conv.phone.trim(), at && at !== name ? at : "", conv.profile_name && conv.profile_name !== name ? `on WhatsApp as ${conv.profile_name}` : ""]
+    .filter(Boolean)
+    .join(" · ");
   let lastDay = "";
   return (
     <div className="flex min-h-0 flex-1 flex-col" aria-label={`Conversation with ${name}`}>
@@ -194,10 +199,7 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
         ) : null}
         <div className="min-w-0 flex-1">
           <h3 className="text-ink m-0 truncate text-[15px] font-semibold">{name}</h3>
-          <p className="text-ink-3 m-0 truncate text-[12px]">
-            {conv.phone}
-            {conv.profile_name && conv.profile_name !== name ? ` · on WhatsApp as ${conv.profile_name}` : ""}
-          </p>
+          {about ? <p className="text-ink-3 m-0 truncate text-[12px]">{about}</p> : null}
           {conv.contact.events.length ? (
             <ul className="m-0 mt-1 flex list-none flex-wrap gap-1 p-0" aria-label="Registered for">
               {conv.contact.events.map((e) => (

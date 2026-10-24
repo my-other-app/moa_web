@@ -31,6 +31,8 @@ export {
   keysSchema,
   checkTemplate,
   contactName,
+  handle,
+  initialsOf,
   duration,
   qualityLabel,
   tierWords,

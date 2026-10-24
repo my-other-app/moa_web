@@ -46,7 +46,10 @@ export function ClubWhatsAppCard({ clubId }: { clubId: number }) {
                   <dt>Verified name</dt>
                   <dd className="text-foreground">{w.verified_name ?? "—"}</dd>
                   <dt>Messaging limit</dt>
-                  <dd className="text-foreground">{tierWords(w.messaging_limit_tier)}</dd>
+                  <dd className="text-foreground">
+                    {tierWords(w.messaging_limit_tier)}
+                    <span className="text-muted-foreground block text-xs">The business portfolio&apos;s, shared by all its numbers</span>
+                  </dd>
                   <dt>Tickets from it</dt>
                   <dd className="text-foreground">{w.routing ? "Yes, when its templates are approved" : "No"}</dd>
                   <dt>Conversations</dt>

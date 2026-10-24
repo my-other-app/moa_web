@@ -7,7 +7,7 @@ import { formatTime, relativeTime } from "@moa/app-kit";
 import { Chip, EmptyState, FigurePanel, SearchField, Skeleton, cn } from "@moa/ui";
 
 import { forbiddenText, isPermissionError, isPrivateError, useAccount, useConversations, useRefreshInbox } from "../queries";
-import { FILTERS, FILTER_LABEL, contactName, type Conversation, type InboxFilter } from "../schemas";
+import { FILTERS, FILTER_LABEL, PRIVATE_MESSAGE, contactName, initialsOf, type Conversation, type InboxFilter } from "../schemas";
 import { pollEvery, useInboxStream, type StreamMode } from "../stream";
 import { NoAccessPanel, UpgradeNotice, WhatsAppHeader } from "./shared";
 import { StatusTicks, Thread } from "./thread";
@@ -35,7 +35,7 @@ function ConversationRow({ c, active, onPick, now }: { c: Conversation; active: 
         className={cn("border-line-soft hover:bg-sunken flex w-full items-start gap-2.5 border-b px-3 py-2.5 text-left transition-colors", active && "bg-sunken")}
       >
         <span className="bg-brand-soft text-brand mt-0.5 grid size-8 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">
-          {name.replace(/^\+/, "").slice(0, 2).toUpperCase()}
+          {initialsOf(name)}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
@@ -120,10 +120,15 @@ export function WhatsAppInboxPage() {
       ) : !a ? (
         <Skeleton className="h-[420px] rounded-2xl" />
       ) : !a.can_inbox ? (
-        <NoAccessPanel
-          title="The inbox needs the WhatsApp permission"
-          body="The club's owner gives it person by person on the Access page. You can still see the number's settings."
-        />
+        a.impersonated ? (
+          // A platform admin acting as the club: the connection, never the messages.
+          <NoAccessPanel title="The inbox is for the club's own team" body={PRIVATE_MESSAGE} />
+        ) : (
+          <NoAccessPanel
+            title="The inbox needs the WhatsApp permission"
+            body="The club's owner gives it person by person on the Access page. You can still see the number's settings."
+          />
+        )
       ) : (
         <>
           {!a.plan_allows ? <UpgradeNotice upgrade={a.upgrade} /> : null}
@@ -145,7 +150,7 @@ export function WhatsAppInboxPage() {
             <FigurePanel className="grid min-h-[560px] overflow-hidden p-0 lg:grid-cols-[340px_minmax(0,1fr)]">
               <section className={cn("border-line-soft flex min-h-0 flex-col lg:border-r", openId !== null && "hidden lg:flex")} aria-label="Conversations">
                 <div className="flex flex-col gap-2 p-3">
-                  <SearchField value={search} onChange={setSearch} label="Search conversations" placeholder="Name or number" size="sm" />
+                  <SearchField value={search} onChange={setSearch} label="Search conversations" placeholder="Name, @username or number" size="sm" />
                   <div className="flex flex-wrap gap-1.5" role="group" aria-label="Show">
                     {FILTERS.map((f) => (
                       <Chip key={f} active={filter === f} onClick={() => setFilter(f)}>

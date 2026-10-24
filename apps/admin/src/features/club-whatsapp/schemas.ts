@@ -34,7 +34,7 @@ export function qualityTone(rating: string | null | undefined): "success" | "war
   return r === "GREEN" ? "success" : r === "YELLOW" ? "warning" : r === "RED" ? "destructive" : "default";
 }
 
-/** TIER_1K as "1,000 a day". */
+/** TIER_1K as "1,000 a day": the business portfolio's limit, shared by all its numbers. */
 export function tierWords(tier: string | null | undefined): string {
   if (!tier) return "Not set";
   const t = tier.toUpperCase();

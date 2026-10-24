@@ -43,6 +43,7 @@ import {
 import {
   BUTTON_TYPES,
   NO_WHATSAPP,
+  PRIVATE_MESSAGE,
   STANDARD_LABEL,
   TEMPLATE_STATUS_TONE,
   checkTemplate,
@@ -127,7 +128,11 @@ export function WhatsAppTemplatesPage() {
       ) : !a ? (
         <Skeleton className="h-[320px] rounded-2xl" />
       ) : !a.can_inbox ? (
-        <NoAccessPanel title="Templates need the WhatsApp permission" body="The club's owner gives it person by person on the Access page." />
+        a.impersonated ? (
+          <NoAccessPanel title="Templates are for the club's own team" body={PRIVATE_MESSAGE} />
+        ) : (
+          <NoAccessPanel title="Templates need the WhatsApp permission" body="The club's owner gives it person by person on the Access page." />
+        )
       ) : !a.connected ? (
         <>
           {!a.plan_allows ? <UpgradeNotice upgrade={a.upgrade} /> : null}
@@ -221,9 +226,13 @@ function StandardTemplates({ missing }: { missing: string[] }) {
 
 // ─── The list ────────────────────────────────────────────────────────────
 
+const keyOf = (t: Pick<Template, "name" | "language">) => `${t.name}|${t.language}`;
+
 function TemplateList({ items }: { items: Template[] }) {
   const remove = useDeleteTemplate();
   const [asking, setAsking] = React.useState<Template | null>(null);
+  // Why Meta refused to delete one (INVALID_TEMPLATE carries its words), shown on that template.
+  const [refused, setRefused] = React.useState<{ key: string; text: string } | null>(null);
   if (items.length === 0) {
     return <EmptyState tone="muted" title="No templates yet" description="Make one for the messages you send after the 24-hour window: event updates, follow-ups, thank-yous." />;
   }
@@ -231,12 +240,13 @@ function TemplateList({ items }: { items: Template[] }) {
     const t = asking;
     setAsking(null);
     if (!t) return;
+    setRefused(null);
     remove.mutate(
       { name: t.name, language: t.language },
       {
         onSuccess: () => toast.success(`Deleted ${t.name} (${t.language}).`),
         onError: (error) => {
-          if (!isPlanLockError(error)) toast.error(templateErrorMessage(error).text);
+          if (!isPlanLockError(error)) setRefused({ key: keyOf(t), text: templateErrorMessage(error).text });
         },
       },
     );
@@ -245,12 +255,13 @@ function TemplateList({ items }: { items: Template[] }) {
     <FigurePanel className="p-0" role="region" aria-label="Templates">
       <ul className="m-0 flex list-none flex-col p-0">
         {items.map((t) => (
-          <li key={`${t.name}|${t.language}`} className="border-line-soft flex flex-col gap-1.5 border-b px-4 py-3 last:border-0">
+          <li key={keyOf(t)} className="border-line-soft flex flex-col gap-1.5 border-b px-4 py-3 last:border-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-ink font-mono text-[13px] font-semibold">{t.name}</span>
               <span className="tag">{t.language}</span>
               {t.category ? <span className="text-ink-3 text-[11.5px]">{t.category.charAt(0) + t.category.slice(1).toLowerCase()}</span> : null}
               <span className="flex-1" />
+              {t.flagged ? <StatusBadge label="Flagged by Meta: at risk" tone="warning" /> : null}
               <StatusBadge label={templateStatusLabel(t.status)} tone={TEMPLATE_STATUS_TONE[t.status ?? ""] ?? "default"} />
               <button
                 type="button"
@@ -278,6 +289,14 @@ function TemplateList({ items }: { items: Template[] }) {
               <p className="text-refuse m-0 text-[12px]">
                 Meta&apos;s reason: {t.rejected_reason.replace(/_/g, " ").toLowerCase()}
               </p>
+            ) : null}
+            {t.flagged ? (
+              <p className="text-caution m-0 text-[12px]">People reacted badly to it, so Meta may pause it. Edit it in WhatsApp Manager or send it less.</p>
+            ) : null}
+            {refused?.key === keyOf(t) ? (
+              <Notice tone="refuse" tag="Not deleted">
+                {refused.text}
+              </Notice>
             ) : null}
           </li>
         ))}

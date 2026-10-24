@@ -71,6 +71,7 @@ describe("a club's own WhatsApp, for an admin", () => {
     expect(within(card).getByText("Connected")).toBeInTheDocument();
     expect(within(card).getByText("Quality: Medium")).toBeInTheDocument();
     expect(within(card).getByText("10,000 a day")).toBeInTheDocument();
+    expect(within(card).getByText("The business portfolio's, shared by all its numbers")).toBeInTheDocument();
     expect(within(card).getByText("42")).toBeInTheDocument();
     expect(calls).toEqual(["/api/v1/admin/club-whatsapp/5"]);
   });
