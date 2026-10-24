@@ -48,6 +48,17 @@ const DEFAULT_STRIPPED = [
 
 type RouteContext = { params: Promise<{ path?: string[] }> };
 
+/**
+ * The API paths whose request bodies are streamed on as they arrive instead
+ * of read in full first: a WhatsApp attachment from the club's inbox (up to
+ * 100 MB), which the API in turn streams to Meta -- so neither this server
+ * nor the API holds the file. Its exact length goes with it. A 401 to a
+ * streamed body is a network error in Node's fetch (see below): it is
+ * answered UPLOAD_INTERRUPTED, which the dashboard says as "sign in and try
+ * again".
+ */
+const STREAMED = [/^\/api\/v1\/clubs\/whatsapp\/conversations\/\d+\/media$/];
+
 export function createGatewayHandlers(options: GatewayOptions) {
   const stripped = new Set(
     [...DEFAULT_STRIPPED, ...(options.stripRequestHeaders ?? [])].map((h) =>
@@ -84,16 +95,30 @@ export function createGatewayHandlers(options: GatewayOptions) {
     // bare 500. The bytes are unchanged (a multipart upload keeps its boundary
     // in the forwarded Content-Type), and the platform caps the size anyway.
     const hasBody = !["GET", "HEAD"].includes(request.method);
-    const bytes = hasBody ? await request.arrayBuffer() : null;
+    const streamed = hasBody && request.body !== null && STREAMED.some((rx) => rx.test(upstreamPath));
+    const bytes = hasBody && !streamed ? await request.arrayBuffer() : null;
+    const length = request.headers.get("content-length");
+    if (streamed && length) headers.set("content-length", length);
 
     const started = Date.now();
-    const upstream = await fetch(target, {
-      method: request.method,
-      headers,
-      body: bytes && bytes.byteLength > 0 ? bytes : undefined,
-      redirect: "manual",
-      cache: "no-store",
-    });
+    let upstream: Response;
+    try {
+      upstream = await fetch(target, {
+        method: request.method,
+        headers,
+        body: streamed ? request.body : bytes && bytes.byteLength > 0 ? bytes : undefined,
+        // Node's fetch needs to be told a streamed body goes one way.
+        ...(streamed ? { duplex: "half" } : {}),
+        redirect: "manual",
+        cache: "no-store",
+      } as RequestInit);
+    } catch (error) {
+      if (!streamed) throw error;
+      return Response.json(
+        { message: "The file couldn't be sent: the connection dropped or the session ended. Sign in again if asked, and try again.", error_code: "UPLOAD_INTERRUPTED" },
+        { status: 502 },
+      );
+    }
 
     if (options.onUpstreamResponse) {
       try {

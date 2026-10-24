@@ -24,6 +24,10 @@ beforeAll(async () => {
       res.writeHead(502, { "content-type": "text/html" });
       return res.end("<html>Bad Gateway</html>");
     }
+    if (req.url === "/api/v1/clubs/whatsapp/conversations/8/media") {
+      res.writeHead(401, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ message: "Sign in again.", error_code: "SESSION_EXPIRED" }));
+    }
     if (req.url === "/api/v1/clubs/ai/write") {
       res.writeHead(401, { "content-type": "application/json" });
       return res.end(JSON.stringify({ message: "Your AI key was rejected.", error_code: "AI_KEY_INVALID" }));
@@ -60,6 +64,39 @@ describe("the gateway", () => {
     const res = await handlers().POST(new Request("http://localhost/api/gateway/api/v1/clubs/ai/event-draft", { method: "POST", headers: { "content-type": type }, body: bytes }), ctx("api/v1/clubs/ai/event-draft"));
     expect(res.status).toBe(200);
     expect(seen.at(-1)).toMatchObject({ method: "POST", type, length: bytes.byteLength, body });
+  });
+
+  it("streams a WhatsApp attachment on as it arrives, with its length, byte for byte", async () => {
+    const boundary = "----moa-wa-boundary";
+    const jpeg = String.fromCharCode(0xff, 0xd8, 0xff, 0xe0, 0, 1, 2, 255);
+    const body = [`--${boundary}`, 'Content-Disposition: form-data; name="size"', "", "8", `--${boundary}`, 'Content-Disposition: form-data; name="file"; filename="map.jpg"', "Content-Type: image/jpeg", "", jpeg, `--${boundary}--`, ""].join("\r\n");
+    const bytes = Uint8Array.from(body, (c) => c.charCodeAt(0));
+    const type = `multipart/form-data; boundary=${boundary}`;
+    // Given as a stream, as the browser's upload reaches the route: never read in full here.
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes.slice(0, 40));
+        controller.enqueue(bytes.slice(40));
+        controller.close();
+      },
+    });
+    const req = new Request("http://localhost/api/gateway/api/v1/clubs/whatsapp/conversations/7/media", {
+      method: "POST", headers: { "content-type": type, "content-length": String(bytes.byteLength) }, body: stream, duplex: "half",
+    } as RequestInit);
+    const res = await handlers().POST(req, ctx("api/v1/clubs/whatsapp/conversations/7/media"));
+    expect(res.status).toBe(200);
+    expect(seen.at(-1)).toMatchObject({ method: "POST", type, length: bytes.byteLength, body });
+  });
+
+  it("answers a streamed upload the API refused with a 401 plainly, not as a bare 500", async () => {
+    const req = new Request("http://localhost/api/gateway/api/v1/clubs/whatsapp/conversations/8/media", {
+      method: "POST", headers: { "content-type": "multipart/form-data; boundary=x" }, body: new ReadableStream<Uint8Array>({ start: (c) => (c.enqueue(new TextEncoder().encode("--x--\r\n")), c.close()) }), duplex: "half",
+    } as RequestInit);
+    const res = await handlers().POST(req, ctx("api/v1/clubs/whatsapp/conversations/8/media"));
+    // Node's fetch either passes the 401 on, or (its credentials step) fails: then UPLOAD_INTERRUPTED.
+    expect([401, 502]).toContain(res.status);
+    const out = (await res.json()) as { error_code?: string };
+    expect(["SESSION_EXPIRED", "UPLOAD_INTERRUPTED"]).toContain(out.error_code);
   });
 
   it("sends no body where there was none", async () => {
