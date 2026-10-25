@@ -103,7 +103,12 @@ function PasswordCard() {
   const { errors } = form.formState;
   const busy = change.isPending || form.formState.isSubmitting;
   const submit = async (values: ChangePasswordForm) => {
-    await change.mutateAsync(values);
+    try {
+      await change.mutateAsync(values);
+    } catch {
+      // Said by the mutation's own toast; the page stays signed in for another try.
+      return;
+    }
     toast.success("Password changed. Sign in again with the new one.");
     router.replace("/login");
     router.refresh();

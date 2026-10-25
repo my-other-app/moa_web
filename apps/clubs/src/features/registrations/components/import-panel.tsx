@@ -195,7 +195,10 @@ export function ImportRecord({ imports, openId, onToggle }: { imports: ImportLog
               {isOpen ? (
                 <div className="px-4 pb-3">
                   <div className="bg-sunken rounded-xl px-3.5 py-3">
-                    <p className="eyebrow mb-1.5">{j.issues.length ? "Rows not imported" : "Every row is on the list"}</p>
+                    {/* Only a finished import may say every row made it: one still running has no result yet, and a failed one imported nothing. */}
+                    <p className="eyebrow mb-1.5">
+                      {j.issues.length ? "Rows not imported" : j.status === "STARTED" ? "Still reading the file" : j.status === "FAILED" ? "Nothing was imported" : "Every row is on the list"}
+                    </p>
                     {j.issues.map((issue, i) => (
                       <p key={i} className="border-line-soft text-ink-2 border-t py-1.5 text-[12px] first:border-t-0">
                         {issue}
