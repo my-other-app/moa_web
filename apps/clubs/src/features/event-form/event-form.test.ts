@@ -263,6 +263,36 @@ describe("eventFormSchema — cross-field rules", () => {
     });
     expect(r.success).toBe(false);
   });
+
+  it("requires options for a dropdown question too", () => {
+    const without = eventFormSchema.safeParse({ ...base, additional_details: [{ key: "k", label: "K", field_type: "select", required: true }] });
+    expect(without.success).toBe(false);
+    const withThem = eventFormSchema.safeParse({ ...base, additional_details: [{ key: "k", label: "K", field_type: "select", required: true, options: ["A", "B"] }] });
+    expect(withThem.success).toBe(true);
+  });
+});
+
+describe("dropdown and long-text questions", () => {
+  // An AI assistant writes these through MCP (QUESTION_TYPES on the server);
+  // the form read them as text, and the next save turned them into text.
+  const detail = {
+    id: 9, name: "Assistant Event", event_datetime: "2026-03-07T10:00:00+05:30", duration: 2,
+    is_online: false, has_fee: false, has_prize: false, category: { id: 4, name: "Workshop" },
+    additional_details: [
+      { key: "track", label: "Track", field_type: "select", required: true, options: ["Web", "AI"] },
+      { key: "why", label: "Why do you want to come?", field_type: "textarea", required: false },
+    ],
+  };
+
+  it("keeps them as they are through an edit and a save", () => {
+    const values = eventDetailToFormValues(detail);
+    expect(values.additional_details?.map((q) => q.field_type)).toEqual(["select", "textarea"]);
+    const sent = toEventFormData(eventFormSchema.parse({ ...base, additional_details: values.additional_details }));
+    expect(JSON.parse(String(sent.get("additional_details")))).toEqual([
+      { key: "track", label: "Track", field_type: "select", required: true, options: ["Web", "AI"] },
+      { key: "why", label: "Why do you want to come?", field_type: "textarea", required: false },
+    ]);
+  });
 });
 
 describe("eventDetailToFormValues", () => {
@@ -297,6 +327,17 @@ describe("eventDetailToFormValues", () => {
     expect(v.interest_ids).toEqual([2, 5]);
     expect(v.has_fee).toBe(true);
     expect(v.reg_fee).toBe(99.5);
+  });
+
+  it("shows the event's label and sends it back on save", () => {
+    // The server's event info now carries event_tag, and its update writes it:
+    // the label was lost on every edit and the form always showed it empty.
+    const v = eventDetailToFormValues({ ...detail, event_tag: "Members only" });
+    expect(v.event_tag).toBe("Members only");
+    const sent = toEventFormData(eventFormSchema.parse({ ...base, event_tag: v.event_tag }));
+    expect(sent.get("event_tag")).toBe("Members only");
+    // Emptied, it is left out, which clears it on the server.
+    expect(toEventFormData(eventFormSchema.parse({ ...base, event_tag: "" })).get("event_tag")).toBeNull();
   });
 
   it("formats datetimes for datetime-local inputs", () => {

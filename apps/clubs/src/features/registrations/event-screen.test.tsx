@@ -196,6 +196,24 @@ describe("attendees tab", () => {
     expect(link.getAttribute("href")).toMatch(/\/registration\/37\/export\?is_attended=true$/);
   });
 
+  it("exports the paid or the unpaid guests, passing the server's filter", async () => {
+    // The server took is_paid and ignored it, so both buttons gave everyone;
+    // it now applies it (backend: export and list), and this is what it reads.
+    event.patch = { has_fee: true, reg_fee: 200 };
+    url.search = new URLSearchParams("paid=yes");
+    render(<RegistrationsPanel eventId={37} />);
+    const paid = await screen.findByRole("link", { name: /Export paid to Excel/ });
+    expect(paid.getAttribute("href")).toMatch(/\/registration\/37\/export\?is_paid=true$/);
+  });
+
+  it("exports the unpaid guests with is_paid=false", async () => {
+    event.patch = { has_fee: true, reg_fee: 200 };
+    url.search = new URLSearchParams("paid=no");
+    render(<RegistrationsPanel eventId={37} />);
+    const unpaid = await screen.findByRole("link", { name: /Export unpaid to Excel/ });
+    expect(unpaid.getAttribute("href")).toMatch(/\/registration\/37\/export\?is_paid=false$/);
+  });
+
   it("offers payment filters and a payment column for a paid event, and sends the filter to the list", async () => {
     event.patch = { has_fee: true, reg_fee: 200 };
     url.search = new URLSearchParams("paid=no");
