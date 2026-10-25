@@ -44,9 +44,13 @@ export const catalogPlanSchema = z.object({
   trial_days: z.number().catch(0),
   contact_sales: z.boolean().catch(false),
   featured: z.boolean().catch(false),
-  /** Each email / WhatsApp message past the monthly limit, in paise (₹0.10, ₹1.50). */
-  email_overage_paise: z.number().catch(10),
-  whatsapp_overage_paise: z.number().catch(150),
+  /**
+   * Retired with prepaid credits: no message past the monthly allowance is
+   * sold one by one any more (packs of credits are). Null from a current
+   * server; an older one sent paise.
+   */
+  email_overage_paise: z.number().nullable().catch(null),
+  whatsapp_overage_paise: z.number().nullable().catch(null),
   /** null is unlimited, 0 is none allowed. */
   limits: z.record(z.string(), z.number().nullable()).catch({}),
   features: z.array(featureRowSchema).catch([]),

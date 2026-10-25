@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   CirclePauseIcon,
+  CoinsIcon,
   GiftIcon,
   HourglassIcon,
   IndianRupeeIcon,
@@ -16,6 +17,7 @@ import {
 import { formatNumber, useListParams } from "@moa/app-kit";
 import { InlineAlert, Skeleton, cn } from "@moa/ui";
 
+import { CreditPacksEditor, useCreditPacks } from "@/features/messages";
 import { useCan } from "@/hooks/use-can";
 
 import { usePlans, useSubscriptionTotals } from "../queries";
@@ -29,14 +31,16 @@ import { TrialGiftCard } from "./trial-gift-card";
 /**
  * The Subscriptions screen.
  *
- * Three tabs, kept in the URL so a link to the plan editor is a link to the
- * plan editor rather than to whichever tab happened to be open.
+ * Tabs, kept in the URL so a link to the plan editor is a link to the plan
+ * editor rather than to whichever tab happened to be open. "Credit packs"
+ * (prepaid message credits) is left out on a backend from before them.
  */
-type Tab = "subscribers" | "plans" | "compare";
+type Tab = "subscribers" | "plans" | "packs" | "compare";
 
 const TABS: ReadonlyArray<{ key: Tab; label: string; icon: React.ReactNode }> = [
   { key: "subscribers", label: "Subscribers", icon: <UsersIcon className="size-4" /> },
   { key: "plans", label: "Plans and features", icon: <SlidersHorizontalIcon className="size-4" /> },
+  { key: "packs", label: "Credit packs", icon: <CoinsIcon className="size-4" /> },
   { key: "compare", label: "Compare plans", icon: <TableIcon className="size-4" /> },
 ];
 
@@ -90,8 +94,12 @@ export function SubscriptionsV2() {
   const plans = usePlans();
   const canMoney = useCan("manage_money");
   const [giving, setGiving] = React.useState(false);
+  // null: the backend has no credit packs yet, so no tab for them.
+  const packs = useCreditPacks();
+  const tabs = packs.data === null ? TABS.filter((t) => t.key !== "packs") : TABS;
 
-  const tab = (params.param("tab") ?? "subscribers") as Tab;
+  const requested = (params.param("tab") ?? "subscribers") as Tab;
+  const tab: Tab = tabs.some((t) => t.key === requested) ? requested : "subscribers";
 
   const data = totals.data;
   const noPlans = !plans.isPending && (plans.data ?? []).length === 0;
@@ -202,7 +210,7 @@ export function SubscriptionsV2() {
         aria-label="Subscriptions view"
         className="inline-flex w-fit overflow-hidden rounded-[var(--radius-md)] border border-line"
       >
-        {TABS.map((option, index) => {
+        {tabs.map((option, index) => {
           const active = tab === option.key;
           return (
             <button
@@ -229,8 +237,9 @@ export function SubscriptionsV2() {
       </div>
 
       {tab === "plans" ? <PlansTab /> : null}
+      {tab === "packs" ? <CreditPacksEditor /> : null}
       {tab === "compare" ? <CompareTab /> : null}
-      {tab !== "plans" && tab !== "compare" ? <SubscribersTab /> : null}
+      {tab === "subscribers" ? <SubscribersTab /> : null}
     </div>
   );
 }

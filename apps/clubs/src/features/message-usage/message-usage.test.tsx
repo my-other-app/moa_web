@@ -4,8 +4,9 @@ import { screen, within } from "@testing-library/react";
 /**
  * "Messages this month", against GET /clubs/messages/usage and
  * /clubs/messages/history: the month's emails and WhatsApp against the
- * plan's limits, the extra and its estimated charge, Free's paused state and
- * an upgrade when it helps.
+ * plan's allowance, then bought credits and the total left (prepaid
+ * credits), the paused state with "Buy credits", an upgrade when it helps --
+ * and a server from before credits, shown as a count with no money in it.
  */
 let usageAnswer: unknown = null;
 let historyAnswer: unknown = { items: [] };
@@ -13,6 +14,11 @@ let failUsage = false;
 
 function channel(over: Record<string, unknown> = {}) {
   return { used: 0, limit: 1000, extra: 0, blocked: 0, rate_paise: 10, extra_paise: 0, percent: 0, state: "ok", kinds: {}, warned: [], ...over };
+}
+
+/** A channel as a prepaid server sends it. */
+function prepaidChannel(over: Record<string, unknown> = {}) {
+  return channel({ rate_paise: 0, plan_used: 0, plan_remaining: 1000, credits_used: 0, credits_remaining: 0, over: 0, total_remaining: 1000, ...over });
 }
 
 function usage(over: Record<string, unknown> = {}) {
@@ -55,7 +61,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
-const { MessageUsageCard, paiseText, usedLine, extraLine, messageUsageSchema, wantsUpgrade, promotionalLine } = await import("./index");
+const { MessageUsageCard, paiseText, usedLine, extraLine, messageUsageSchema, wantsUpgrade, wantsCredits, promotionalLine, isPrepaid, remainingLines } = await import("./index");
 
 beforeEach(() => {
   usageAnswer = usage();
@@ -69,7 +75,7 @@ describe("promotional WhatsApp (pricing_adjust)", () => {
       messageUsageSchema.parse(usage({ channels: { email: channel(), whatsapp: channel({ limit: 1000, rate_paise: 150, marketing, ...over }) } })).channels.whatsapp;
     expect(promotionalLine(parse({ used: 12, limit: 200 }))).toBe("Promotional: 12 of 200 this month.");
     expect(promotionalLine(parse({ used: 200, limit: 200 }))).toBe(
-      "Promotional: 200 of 200 this month. More promotional messages wait for next month; tickets, certificates and reminders still go.",
+      "Promotional: 200 of 200 this month. More promotional messages use bought credits, or wait for next month; tickets, certificates and reminders still go.",
     );
     expect(promotionalLine(parse({ used: 0, limit: 0 }))).toMatch(/isn't included on your plan; tickets, certificates and reminders still go/);
     // No cap (Enterprise), no WhatsApp at all (Free), or a server from before the cap: nothing to say.
@@ -78,11 +84,11 @@ describe("promotional WhatsApp (pricing_adjust)", () => {
     expect(promotionalLine(parse(undefined))).toBeNull();
   });
 
-  it("shows the promotional count under the WhatsApp bar, and the ₹1.50 extra", async () => {
+  it("shows the promotional count under the WhatsApp bar, and no price per extra message", async () => {
     usageAnswer = usage({ channels: { email: channel(), whatsapp: channel({ used: 40, limit: 250, rate_paise: 150, marketing: { used: 7, limit: 50 } }) } });
     render(<MessageUsageCard />);
     expect(await screen.findByText("Promotional: 7 of 50 this month.")).toBeInTheDocument();
-    expect(screen.getByText(/₹1\.50 a WhatsApp message, added to your next bill/)).toBeInTheDocument();
+    expect(screen.queryByText(/next bill|₹1\.50/)).toBeNull();
   });
 });
 
@@ -95,9 +101,9 @@ describe("the words", () => {
     expect(usedLine({ ...u.channels.whatsapp, used: 0, limit: 0 })).toBe("Not included");
   });
 
-  it("says what the extra costs on a paid plan, and nothing is billed on Free", () => {
+  it("never prices an extra message: a server from before credits shows the count past the allowance", () => {
     const paid = messageUsageSchema.parse(usage({ channels: { email: channel({ used: 1250, extra: 250, extra_paise: 2500, state: "over" }), whatsapp: channel() } }));
-    expect(extraLine(paid, "email")).toBe("250 extra emails · about ₹25 on your next bill (₹0.10 each)");
+    expect(extraLine(paid, "email")).toBe("250 past your plan's allowance this month");
     const free = messageUsageSchema.parse(usage({ billing: "none", blocks_past_limit: true, channels: { email: channel({ used: 200, limit: 200, state: "blocked", blocked: 3 }), whatsapp: channel({ limit: 0, state: "not_included" }) } }));
     expect(extraLine(free, "email")).toBe("Limit reached: announcements, campaigns and reminders are paused until next month. Tickets and certificates still go. 3 held back so far.");
     expect(extraLine(free, "whatsapp")).toBeNull();
@@ -111,8 +117,86 @@ describe("the words", () => {
   });
 });
 
+describe("prepaid credits", () => {
+  it("reads the plan / bought / total split, and a server without it", () => {
+    const u = messageUsageSchema.parse(
+      usage({ billing: "prepaid", channels: { email: prepaidChannel({ used: 1200, plan_used: 1000, plan_remaining: 0, credits_used: 200, credits_remaining: 4800, total_remaining: 4800, state: "credits" }), whatsapp: prepaidChannel({ limit: null, plan_remaining: null, total_remaining: null, state: "unlimited" }) } }),
+    );
+    expect(isPrepaid(u)).toBe(true);
+    expect(u.channels.email.state).toBe("credits");
+    expect(usedLine(u.channels.email)).toBe("1,000 of 1,000");
+    expect(remainingLines(u, "email")).toEqual({ plan: "0 of 1,000 left", bought: "4,800 left", total: "4,800 left" });
+    expect(remainingLines(u, "whatsapp")).toEqual({ plan: "No limit", bought: "0 left", total: "No limit" });
+    expect(extraLine(u, "email")).toBe("Your plan's 1,000 emails for October 2026 are used; sending on bought credits (4,800 left).");
+    expect(wantsCredits(u)).toBe(true);
+    // A server from before credits: no split, no "Buy credits".
+    const old = messageUsageSchema.parse(usage());
+    expect(isPrepaid(old)).toBe(false);
+    expect(remainingLines(old, "email")).toBeNull();
+    expect(wantsCredits(old)).toBe(false);
+    expect(old.channels.email.plan_used ?? null).toBeNull();
+  });
+
+  it("shows plan, then bought, then the total left, and offers credits once the plan's allowance is used", async () => {
+    usageAnswer = usage({
+      billing: "prepaid",
+      blocks_past_limit: true,
+      channels: {
+        email: prepaidChannel({ used: 1200, extra: 200, plan_used: 1000, plan_remaining: 0, credits_used: 200, credits_remaining: 4800, total_remaining: 4800, percent: 100, state: "credits" }),
+        whatsapp: prepaidChannel({ used: 10, limit: 250, plan_used: 10, plan_remaining: 240, total_remaining: 240, percent: 4 }),
+      },
+    });
+    render(<MessageUsageCard />);
+    const card = await screen.findByRole("region", { name: "Messages this month" });
+    expect(within(card).getByText("On bought credits")).toBeInTheDocument();
+    const email = within(card).getByLabelText("Emails left");
+    expect(within(email).getByText("0 of 1,000 left")).toBeInTheDocument();
+    expect(within(email).getByText("4,800 left", { selector: "dd.font-medium" })).toBeInTheDocument();
+    expect(within(card).getByRole("progressbar", { name: "Emails: 1000 of 1000 this month" })).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "Buy credits" })).toHaveAttribute("href", "/billing#credits");
+    expect(within(card).getByText(/Your plan's monthly allowance is used first, then bought credits/)).toBeInTheDocument();
+    expect(within(card).queryByText(/next bill|Estimated extra/)).toBeNull();
+  });
+
+  it("pauses announcements when plan and credits are both used up, with Buy credits leading to the Credits area", async () => {
+    usageAnswer = usage({
+      billing: "prepaid",
+      blocks_past_limit: true,
+      channels: {
+        email: prepaidChannel({ used: 1003, extra: 3, plan_used: 1000, plan_remaining: 0, credits_remaining: 0, over: 3, total_remaining: 0, blocked: 7, percent: 100, state: "blocked" }),
+        whatsapp: prepaidChannel({ limit: 250 }),
+      },
+      upgrade: { plan_key: "pro", plan_name: "Pro", contact_sales: false, limits: { emails_per_month: 20000 } },
+    });
+    render(<MessageUsageCard variant="billing" />);
+    const card = await screen.findByRole("region", { name: "Messages this month" });
+    const notice = within(card).getByRole("alert");
+    expect(notice).toHaveTextContent("Growth's 1,000 emails for October 2026 and your bought email credits are used up.");
+    expect(notice).toHaveTextContent("or until you buy credits");
+    expect(within(notice).getByRole("link", { name: "Buy credits" })).toHaveAttribute("href", "#credits");
+    expect(within(notice).getByRole("link", { name: "Upgrade" })).toHaveAttribute("href", "#plans-title");
+    expect(within(card).getByText(/7 held back so far\. 3 tickets, certificates or payment messages went anyway, never charged\./)).toBeInTheDocument();
+  });
+
+  it("lists a closed month's split, and a cancelled overage as not charged", async () => {
+    usageAnswer = usage({ billing: "prepaid", channels: { email: prepaidChannel(), whatsapp: prepaidChannel() } });
+    historyAnswer = {
+      items: [
+        { id: 202610, period: "2026-10", period_label: "October 2026", plan_key: "growth", billing: "prepaid", email: { used: 1200, limit: 1000, extra: 200, rate_paise: 0, plan_used: 1000, credits_used: 200, over: 0, blocked: 0 }, whatsapp: { used: 12, limit: 250, extra: 0, rate_paise: 0, plan_used: 12, credits_used: 0, over: 0, blocked: 0 }, amount_paise: 0, status: "nothing_due", charged_at: null },
+        { id: 202609, period: "2026-09", period_label: "September 2026", plan_key: "growth", billing: "razorpay", email: { used: 5400, limit: 5000, extra: 400, rate_paise: 10 }, whatsapp: { used: 0, limit: 250, extra: 0, rate_paise: 100 }, amount_paise: 4000, status: "void", charged_at: null },
+      ],
+    };
+    render(<MessageUsageCard variant="billing" />);
+    const months = await screen.findByRole("list", { name: "Earlier months" });
+    expect(within(months).getByText("1,200 emails (200 on bought credits) · 12 WhatsApp")).toBeInTheDocument();
+    expect(within(months).getByText("Closed")).toBeInTheDocument();
+    expect(within(months).getByText("Not charged")).toBeInTheDocument();
+    expect(within(months).queryByText(/₹40/)).toBeNull();
+  });
+});
+
 describe("Messages this month", () => {
-  it("shows a paying club past its limit, the extra and its estimated charge", async () => {
+  it("shows a club past its limit on a server from before credits, with no money in it", async () => {
     usageAnswer = usage({
       channels: {
         email: channel({ used: 1250, extra: 250, extra_paise: 2500, percent: 125, state: "over" }),
@@ -126,11 +210,13 @@ describe("Messages this month", () => {
     expect(within(card).getByText("Past the limit")).toBeInTheDocument();
     expect(within(card).getByText("1,250 of 1,000")).toBeInTheDocument();
     expect(within(card).getByRole("progressbar", { name: "Emails: 1250 of 1000 this month" })).toBeInTheDocument();
-    expect(within(card).getByText("250 extra emails · about ₹25 on your next bill (₹0.10 each)")).toBeInTheDocument();
-    expect(within(card).getByText(/Estimated extra this month:/)).toHaveTextContent("Estimated extra this month: ₹25, added to your next bill.");
+    expect(within(card).getByText("250 past your plan's allowance this month")).toBeInTheDocument();
+    expect(within(card).queryByText(/Estimated extra|next bill/)).toBeNull();
     expect(within(card).getByText("Pro includes 20,000 emails and 1,000 WhatsApp messages a month.")).toBeInTheDocument();
     expect(within(card).getByRole("link", { name: "Upgrade" })).toHaveAttribute("href", "/billing");
-    expect(within(card).getByText(/₹0.10 an email and ₹1 a WhatsApp message, added to your next bill/)).toBeInTheDocument();
+    // Only a prepaid server sells credits.
+    expect(within(card).queryByRole("link", { name: "Buy credits" })).toBeNull();
+    expect(within(card).getByText(/Past your plan's allowance, messages keep going this month/)).toBeInTheDocument();
   });
 
   it("explains Free's paused state: announcements stop, tickets still go", async () => {
@@ -169,7 +255,7 @@ describe("Messages this month", () => {
     render(<MessageUsageCard variant="billing" />);
     const months = await screen.findByRole("list", { name: "Earlier months" });
     expect(within(months).getByText("September 2026")).toBeInTheDocument();
-    expect(within(months).getByText("₹40 extra · On your next bill")).toBeInTheDocument();
+    expect(within(months).getByText("₹40 · Charged before credits")).toBeInTheDocument();
   });
 
   it("is left out of the overview when it cannot be read", async () => {

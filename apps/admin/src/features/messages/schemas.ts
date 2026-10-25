@@ -1,12 +1,14 @@
 import { z } from "zod";
 
 /**
- * A club's emails and WhatsApp messages against its plan's monthly limits,
- * its closed months (statements) and, on Enterprise, its own limits.
+ * A club's emails and WhatsApp messages against its plan's monthly
+ * allowance, then its bought credits; its closed months and, on Enterprise,
+ * its own limits.
  *
- * Money is paise on the wire. A statement's status says what became of the
- * month's extra: added to the club's Razorpay subscription as an add-on, or
- * left for an admin to invoice by hand.
+ * Prepaid credits retired per-message overage billing: nothing past the
+ * allowance is charged any more. A closed month from before says what became
+ * of its extra ("charged" before credits, "void" when the extra was cancelled
+ * on retirement). Money is paise on the wire.
  */
 
 export const CHANNELS = ["email", "whatsapp"] as const;
@@ -23,6 +25,13 @@ const channelUsageSchema = z.object({
   state: z.string().catch("ok"),
   kinds: z.record(z.string(), z.number()).catch({}),
   warned: z.array(z.number()).catch([]),
+  // Prepaid credits (absent from a server before them).
+  plan_used: z.number().nullish().catch(null),
+  plan_remaining: z.number().nullish().catch(null),
+  credits_used: z.number().nullish().catch(null),
+  credits_remaining: z.number().nullish().catch(null),
+  over: z.number().nullish().catch(null),
+  total_remaining: z.number().nullish().catch(null),
 });
 export type ChannelUsage = z.infer<typeof channelUsageSchema>;
 
@@ -31,7 +40,7 @@ export const usageSchema = z.object({
   period_label: z.string(),
   plan_key: z.string().nullish(),
   plan_name: z.string().nullish(),
-  /** razorpay | manual | none */
+  /** prepaid (now); razorpay | manual | none from a server before credits */
   billing: z.string().catch("none"),
   blocks_past_limit: z.boolean().catch(false),
   custom: z.boolean().catch(false),
@@ -46,6 +55,10 @@ const statementChannelSchema = z.object({
   limit: z.number().nullable().catch(null),
   extra: z.number().catch(0),
   rate_paise: z.number().catch(0),
+  plan_used: z.number().nullish().catch(null),
+  credits_used: z.number().nullish().catch(null),
+  over: z.number().nullish().catch(null),
+  blocked: z.number().nullish().catch(null),
 });
 
 export const statementSchema = z.object({
@@ -87,6 +100,7 @@ export type ClubMessages = z.infer<typeof clubMessagesSchema>;
 // ─── Words ──────────────────────────────────────────────────────────────
 
 export const STATEMENT_LABEL: Record<string, string> = {
+  void: "Not charged (overage retired)",
   nothing_due: "Nothing extra",
   pending: "To charge",
   charging: "Charging",
@@ -100,6 +114,7 @@ export const STATEMENT_LABEL: Record<string, string> = {
 };
 
 export const STATEMENT_TONE: Record<string, "default" | "success" | "warning" | "destructive" | "info"> = {
+  void: "default",
   nothing_due: "default",
   pending: "info",
   charging: "info",
@@ -113,13 +128,11 @@ export const STATEMENT_TONE: Record<string, "default" | "success" | "warning" | 
 };
 
 export const BILLING_LABEL: Record<string, string> = {
-  razorpay: "Extra goes on the club's next Razorpay invoice",
-  manual: "No automatic charge: invoice any extra by hand",
+  prepaid: "Plan allowance, then bought credits; with none left, announcements and reminders are held back (tickets always go, never charged)",
+  razorpay: "Extra went on the club's Razorpay invoice (before prepaid credits)",
+  manual: "Extra was invoiced by hand (before prepaid credits)",
   none: "No payment method (Free or the free trial): past the limit, announcements and reminders are held back",
 };
-
-/** Whether an admin may ask Razorpay again (it refused, or the sweep gave up). */
-export const RETRYABLE = new Set(["failed", "gave_up"]);
 
 /** ₹0.10, ₹1, ₹2,345.50. */
 export function paiseText(paise: number): string {
@@ -134,22 +147,17 @@ export function usedOf(c: { used: number; limit: number | null }): string {
 
 // ─── The own-limits form ────────────────────────────────────────────────
 
-/** Text boxes: empty is unlimited (limits) or the plan's (prices). Prices in rupees. */
+/** Text boxes: empty is unlimited. (Per-message prices were retired with prepaid credits.) */
 export interface OwnLimitsForm {
   emails: string;
   whatsapp: string;
-  emailPrice: string;
-  whatsappPrice: string;
   note: string;
 }
 
 export function toOwnLimitsForm(own: OwnLimits | null | undefined): OwnLimitsForm {
-  const r = (p: number | null | undefined) => (p === null || p === undefined ? "" : String(p / 100));
   return {
     emails: own?.emails_per_month === null || own?.emails_per_month === undefined ? "" : String(own.emails_per_month),
     whatsapp: own?.whatsapp_per_month === null || own?.whatsapp_per_month === undefined ? "" : String(own.whatsapp_per_month),
-    emailPrice: r(own?.email_overage_paise),
-    whatsappPrice: r(own?.whatsapp_overage_paise),
     note: own?.note ?? "",
   };
 }
@@ -161,22 +169,16 @@ export function ownLimitsProblems(form: OwnLimitsForm): Partial<Record<keyof Own
     const v = form[key].trim();
     if (v && !/^\d+$/.test(v)) out[key] = "A whole number, or empty for no limit";
   }
-  for (const key of ["emailPrice", "whatsappPrice"] as const) {
-    const v = form[key].trim();
-    if (v && !/^\d+(\.\d{1,2})?$/.test(v)) out[key] = "Rupees, to the paisa (0.10), or empty for the plan's";
-  }
   if (form.note.length > 200) out.note = "At most 200 characters";
   return out;
 }
 
+/** The limits only: the retired per-message prices are not sent (the server ignores them). */
 export function toOwnLimitsPayload(form: OwnLimitsForm) {
   const int = (v: string) => (v.trim() === "" ? null : Number.parseInt(v.trim(), 10));
-  const paise = (v: string) => (v.trim() === "" ? null : Math.round(Number.parseFloat(v.trim()) * 100));
   return {
     emails_per_month: int(form.emails),
     whatsapp_per_month: int(form.whatsapp),
-    email_overage_paise: paise(form.emailPrice),
-    whatsapp_overage_paise: paise(form.whatsappPrice),
     note: form.note.trim() || null,
   };
 }

@@ -67,7 +67,7 @@ import {
   useDeleteClub,
 } from "../queries";
 import { useResolvedTopics } from "@/features/interests";
-import { ClubMessagesPanel } from "@/features/messages";
+import { ClubCreditsPanel, ClubMessagesPanel } from "@/features/messages";
 import { ClubPlanPanel } from "@/features/subscriptions";
 import { ClubWhatsAppCard } from "@/features/club-whatsapp";
 
@@ -450,8 +450,11 @@ export function ClubDetail({ clubId }: { clubId: number }) {
 
         {club ? <ClubPlanPanel club={{ id: club.id, name: club.name, is_verified: club.is_verified }} /> : null}
 
-        {/* The month's emails and WhatsApp, the closed months and their charges, an Enterprise club's own limits. */}
+        {/* The month's emails and WhatsApp, the closed months, an Enterprise club's own limits. */}
         {club ? <ClubMessagesPanel clubId={club.id} /> : null}
+
+        {/* Prepaid message credits: balance, lots, purchases (refunds), free grants. */}
+        {club ? <ClubCreditsPanel clubId={club.id} /> : null}
 
         {/* Its own WhatsApp number, if any: status and quality, never a message. */}
         {club ? <ClubWhatsAppCard clubId={club.id} /> : null}

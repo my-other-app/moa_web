@@ -8,11 +8,12 @@ import { Popover, PopoverContent, PopoverTrigger, cn } from "@moa/ui";
 import { blockedBy, useAccess } from "@/features/access";
 
 import { useClubAlerts, useMarkClubAlertsRead } from "../queries";
-import { KIND_INFO, ago, alertLink } from "../schemas";
+import { KIND_INFO, actionLabel, ago, alertLink } from "../schemas";
 
 /**
  * The bell in the top bar: what MyOtherApp told the club (a month's emails
- * or WhatsApp at 80% and at 100%; the club's own WhatsApp number failing,
+ * or WhatsApp at 80% and at 100% of the plan, bought credits running low or
+ * about to expire -- each with "Buy credits"; the club's own WhatsApp number failing,
  * dropping in quality or restricted by Meta, each labelled and leading to
  * its page), unread first in the count, newest first
  * in the list. A notice leads only to a page the person signed in may open
@@ -56,7 +57,7 @@ export function ClubBell() {
         </div>
         {items.length === 0 ? (
           <p className="text-ink-3 px-3 py-6 text-center text-[12.5px]">
-            Nothing yet. Warnings about your plan&apos;s monthly messages and your own WhatsApp number show up here.
+            Nothing yet. Warnings about your plan&apos;s monthly messages, your message credits and your own WhatsApp number show up here.
           </p>
         ) : (
           <ul aria-label="Latest notifications" className="divide-line-soft max-h-[420px] divide-y overflow-y-auto">
@@ -64,6 +65,7 @@ export function ClubBell() {
               const to = alertLink(a);
               const href = to && !blockedBy(to, can) ? to : null;
               const info = KIND_INFO[a.kind];
+              const action = href ? actionLabel(a) : null;
               const body = (
                 <span className="flex flex-col gap-0.5">
                   {info ? (
@@ -71,6 +73,7 @@ export function ClubBell() {
                   ) : null}
                   <span className={cn("text-[13px]", a.read ? "text-ink-2" : "text-ink font-semibold")}>{a.title}</span>
                   {a.body ? <span className="text-ink-3 text-[12px] leading-[1.45]">{a.body}</span> : null}
+                  {action ? <span className="text-brand text-[12px] font-medium underline-offset-2 hover:underline">{action} →</span> : null}
                   <span className="text-ink-3 text-[11px]">{ago(a.created_at)}</span>
                 </span>
               );

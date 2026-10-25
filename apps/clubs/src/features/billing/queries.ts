@@ -1,10 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError } from "@moa/api";
+import { ApiError, nullIfRouteMissing } from "@moa/api";
 import { staleTimes } from "@moa/app-kit";
 
 import { cancelSubscription, fetchEntitlements, fetchPlans, fetchSubscription, startSubscription } from "./api";
+import { createCreditOrder, fetchCreditReceipt, fetchCredits, verifyCreditPayment } from "./credits";
 import { SALES_EMAIL, type CatalogPlan, type Cycle } from "./schemas";
 
 export const BILLING_KEY = ["billing"] as const;
@@ -75,4 +76,55 @@ export function useStartSubscription() {
 
 export function useCancelSubscription() {
   return useMutation({ mutationFn: cancelSubscription });
+}
+
+// ─── Message credits ─────────────────────────────────────────────────────
+
+/** Under BILLING_KEY, so refreshing billing reads the credits again too. */
+export const CREDITS_KEY = [...BILLING_KEY, "credits"] as const;
+
+/**
+ * The club's message credits. `null`: a backend from before prepaid credits
+ * (the route answers a bare 404) -- the Credits area is left out.
+ * `watchFor`: a purchase whose payment Razorpay is still confirming; polled
+ * until the server has it paid.
+ */
+export function useCredits(watchFor: number | null = null) {
+  return useQuery({
+    queryKey: CREDITS_KEY,
+    queryFn: () => nullIfRouteMissing(fetchCredits),
+    staleTime: 60_000,
+    retry: false,
+    refetchInterval: (query) => {
+      if (watchFor === null) return false;
+      const paid = query.state.data?.purchases.some((p) => p.id === watchFor && p.status === "paid");
+      return paid ? false : 5_000;
+    },
+  });
+}
+
+export function useCreditReceipt(purchaseId: number | null) {
+  return useQuery({
+    queryKey: [...CREDITS_KEY, "receipt", purchaseId ?? 0],
+    queryFn: () => fetchCreditReceipt(purchaseId!),
+    enabled: purchaseId !== null && purchaseId > 0,
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useCreateCreditOrder() {
+  return useMutation({ mutationFn: (packId: number) => createCreditOrder(packId) });
+}
+
+export function useVerifyCreditPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: verifyCreditPayment,
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: CREDITS_KEY });
+      // The month's usage card shows bought credits too.
+      void queryClient.invalidateQueries({ queryKey: ["message-usage"] });
+    },
+  });
 }
