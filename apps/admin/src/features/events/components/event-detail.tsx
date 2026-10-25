@@ -496,10 +496,12 @@ export function EventDetail({ eventId }: { eventId: number }) {
             <AlertDialogAction
               className={cn(buttonVariants({ variant: "destructive" }))}
               disabled={registrations > 0}
-              onClick={async () => {
-                await remove.mutateAsync(eventId);
-                router.replace("/events");
-              }}
+              onClick={() =>
+                // The hook toasts a refusal; only a delete that went through
+                // leaves the page. Awaiting mutateAsync here left every
+                // refusal as an unhandled promise rejection.
+                remove.mutate(eventId, { onSuccess: () => router.replace("/events") })
+              }
             >
               Delete event
             </AlertDialogAction>

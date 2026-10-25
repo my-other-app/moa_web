@@ -27,8 +27,3 @@ export function changeOf(
     inverted,
   };
 }
-
-/** "vs previous 30 days" — spelled out, because "vs prev." is not shorter to read. */
-export function comparisonCaption(days: number): string {
-  return `vs previous ${days} days`;
-}

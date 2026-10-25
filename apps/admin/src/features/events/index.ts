@@ -11,7 +11,6 @@ export {
   useRestoreEvent,
 } from "./queries";
 export { eventExportUrl, setEventWinner } from "./api";
-export { EventsTable } from "./components/events-table";
 export { EventsV2, rowView } from "./components/events-v2";
 export { EventDetail } from "./components/event-detail";
 export { PlacingControl } from "./components/placing-control";

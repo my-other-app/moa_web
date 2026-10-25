@@ -114,11 +114,17 @@ function EditDialog({
         <Button
           disabled={!valid || update.isPending}
           onClick={async () => {
-            await update.mutateAsync({
-              full_name: fullName.trim(),
-              email: email.trim(),
-              phone,
-            });
+            try {
+              await update.mutateAsync({
+                full_name: fullName.trim(),
+                email: email.trim(),
+                phone,
+              });
+            } catch {
+              // Refused: useUpdateUser's onError has said why. The dialog
+              // stays open with what was typed.
+              return;
+            }
             onOpenChange(false);
           }}
         >
@@ -250,7 +256,13 @@ export function UserAdminControls({ user }: { user: AdminUserDetail }) {
               disabled={remove.isPending}
               onClick={async (event) => {
                 event.preventDefault();
-                await remove.mutateAsync(user.id);
+                try {
+                  await remove.mutateAsync(user.id);
+                } catch {
+                  // Refused: useDeleteUser's onError has said why. The
+                  // account still exists, so stay on its page.
+                  return;
+                }
                 router.replace("/users");
               }}
             >

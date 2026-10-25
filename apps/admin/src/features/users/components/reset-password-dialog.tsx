@@ -52,7 +52,13 @@ export function ResetPasswordDialog({
   const [copied, setCopied] = React.useState(false);
 
   async function submit() {
-    await reset.mutateAsync({ emailOrUsername, newPassword: password });
+    try {
+      await reset.mutateAsync({ emailOrUsername, newPassword: password });
+    } catch {
+      // Refused: the onError toast has said why. Not done, so the dialog
+      // does not claim the password was set.
+      return;
+    }
     setDone(true);
   }
 

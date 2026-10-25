@@ -193,8 +193,17 @@ export function OrgsTable() {
           filename="organisations"
           columns={ORG_CSV}
           disabled={!rows}
-          // Already filtered and sorted in memory, so one "page" is the lot.
-          fetchPage={async () => ({ items: rows ?? [], total: rows?.length ?? 0 })}
+          /*
+           * Already filtered and sorted in memory; the search is applied here
+           * as the list applies it, so the file holds what is on screen. Paged
+           * by the exporter's own offset: handing back the whole list for
+           * every page repeated it until the 5,000-row cap.
+           */
+          fetchPage={async (offset, limit) => {
+            const query = params.search.trim().toLowerCase();
+            const all = (rows ?? []).filter((org) => !query || matches(org, query));
+            return { items: all.slice(offset, offset + limit), total: all.length };
+          }}
         />
       }
     />

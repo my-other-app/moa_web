@@ -124,7 +124,14 @@ export function TwoFactorPanel() {
               className={cn("text-destructive hover:text-destructive", pressable)}
               disabled={code.length < 6 || disable.isPending}
               onClick={async () => {
-                await disable.mutateAsync(code);
+                try {
+                  await disable.mutateAsync(code);
+                } catch {
+                  // A wrong code: the hook's onError has said so. Left in
+                  // place to correct rather than escaping as an unhandled
+                  // promise rejection.
+                  return;
+                }
                 setCode("");
               }}
             >
@@ -169,9 +176,20 @@ export function TwoFactorPanel() {
               className={pressable}
               disabled={code.length < 6 || enable.isPending}
               onClick={async () => {
-                const result = await enable.mutateAsync(code);
+                let result;
+                try {
+                  result = await enable.mutateAsync(code);
+                } catch {
+                  // A wrong code: the hook's onError has said so, and the
+                  // setup key stays on screen to try again.
+                  return;
+                }
                 setRecoveryCodes(result.recovery_codes);
                 setCode("");
+                // The setup key is spent: turning two-factor off later
+                // deletes it on the server, so it must not come back on
+                // screen as if it could be enabled again.
+                start.reset();
               }}
             >
               {enable.isPending ? <Loader2Icon className="animate-spin" /> : null}

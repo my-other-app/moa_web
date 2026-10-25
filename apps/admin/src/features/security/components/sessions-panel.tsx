@@ -121,7 +121,13 @@ export function SessionsPanel() {
               className={cn("text-destructive hover:text-destructive", pressable)}
               disabled={revokeAll.isPending}
               onClick={async () => {
-                await revokeAll.mutateAsync();
+                try {
+                  await revokeAll.mutateAsync();
+                } catch {
+                  // Refused: the hook's onError has said why, and nothing
+                  // was signed out, so stay.
+                  return;
+                }
                 // This session ends too, so there is nowhere to stay.
                 router.replace("/login");
                 router.refresh();

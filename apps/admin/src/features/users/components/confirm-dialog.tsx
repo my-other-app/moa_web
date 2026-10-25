@@ -62,7 +62,15 @@ export function ConfirmDialog({
       setError("Add a reason — it goes on the record.");
       return;
     }
-    await onConfirm();
+    try {
+      await onConfirm();
+    } catch {
+      /*
+       * Refused. The action's own onError has already said why; staying open
+       * keeps the reason that was typed. Without this catch the rejection
+       * escaped as an unhandled promise rejection on every refusal.
+       */
+    }
   }
 
   return (

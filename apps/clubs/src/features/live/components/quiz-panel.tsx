@@ -265,7 +265,12 @@ function NewQuestion({
     if (!body.options.some((o) => o.key === body.correct_key))
       return setError("Mark one of the filled answers as right.");
     setError(null);
-    await add.mutateAsync(body);
+    try {
+      await add.mutateAsync(body);
+    } catch {
+      // Said by the mutation's own toast; the question stays open to try again.
+      return;
+    }
     onDone();
   };
   return (

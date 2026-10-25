@@ -139,11 +139,17 @@ export function PlansTab() {
     const problem = yearlyPriceProblem(form);
     if (problem) return;
 
-    if (effectiveId === "new") {
-      const created = await create.mutateAsync(form);
-      setSelectedId(created.id);
-    } else if (selected) {
-      await update.mutateAsync({ planId: selected.id, form });
+    try {
+      if (effectiveId === "new") {
+        const created = await create.mutateAsync(form);
+        setSelectedId(created.id);
+      } else if (selected) {
+        await update.mutateAsync({ planId: selected.id, form });
+      }
+    } catch {
+      // Refused: the hook's onError has said why. The draft stays, unsaved,
+      // rather than escaping as an unhandled promise rejection.
+      return;
     }
     setDraft(null);
   }

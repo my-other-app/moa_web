@@ -145,7 +145,8 @@ export function MerchPanel({
     }
   };
 
-  if (!ctx.has_merch)
+  // The console shows this tab for a store alone too (paid orders to hand over), so only nothing at all is empty.
+  if (!ctx.has_merch && !ctx.has_store)
     return (
       <FigurePanel className="mx-auto w-full max-w-[640px] p-2">
         <EmptyState

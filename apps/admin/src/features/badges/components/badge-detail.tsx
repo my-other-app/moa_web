@@ -367,10 +367,12 @@ export function BadgeDetail({ badgeId }: { badgeId: number }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className={cn(buttonVariants({ variant: "destructive" }))}
-              onClick={async () => {
-                await remove.mutateAsync(badgeId);
-                router.replace("/badges");
-              }}
+              onClick={() =>
+                // The hook toasts a refusal; only a delete that went through
+                // leaves the page. Awaiting mutateAsync here left every
+                // refusal as an unhandled promise rejection.
+                remove.mutate(badgeId, { onSuccess: () => router.replace("/badges") })
+              }
             >
               Delete badge
             </AlertDialogAction>

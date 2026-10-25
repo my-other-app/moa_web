@@ -49,7 +49,8 @@ function MemberRow({ member }: { member: ClubTeamMember }) {
   const update = useUpdateTeamMember();
   const remove = useDeleteTeamMember();
   const photoUpload = useUpdateTeamMemberPhoto();
-  const { open: pickPhoto, preview, input } = usePick((f) => photoUpload.mutate({ id: member.id, file: f }), "photo");
+  // Handing back the upload's promise lets a refused photo come down again (usePick).
+  const { open: pickPhoto, preview, input } = usePick((f) => photoUpload.mutateAsync({ id: member.id, file: f }), "photo");
   const photo = preview ?? pickImage(member.photo, ["thumbnail", "medium", "original", "large"]);
   const [draft, setDraft] = React.useState(() => draftOf(member));
   const [confirm, setConfirm] = React.useState(false);
@@ -118,8 +119,12 @@ export function TeamPanel({ club }: { club: ClubSelf }) {
     const parsed = teamMemberFormSchema.safeParse(draft);
     if (!parsed.success) return void setError(parsed.error.issues[0]?.message ?? "Check the details");
     setError(null);
-    const made = await create.mutateAsync(parsed.data);
-    if (file) await photoUpload.mutateAsync({ id: made.id, file });
+    // A refusal is already toasted by the mutation; the row stays for another try.
+    const made = await create.mutateAsync(parsed.data).catch(() => null);
+    if (!made) return;
+    // The person exists now, so the row closes even if the photo is refused
+    // (toasted too): a second Add would put them on the team twice.
+    if (file) await photoUpload.mutateAsync({ id: made.id, file }).catch(() => null);
     reset();
   };
 

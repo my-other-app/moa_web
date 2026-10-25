@@ -105,7 +105,10 @@ function RefundButton({ payment }: { payment: Payment }) {
               disabled={refund.isPending}
               onClick={(event) => {
                 event.preventDefault();
-                void refund.mutateAsync(payment.id).then(() => setOpen(false));
+                // Closes only on success; the hook toasts a refusal. A
+                // `.then` on mutateAsync left every refusal as an unhandled
+                // promise rejection.
+                refund.mutate(payment.id, { onSuccess: () => setOpen(false) });
               }}
             >
               Refund in full

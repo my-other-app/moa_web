@@ -53,7 +53,13 @@ export function SuspendButton({
   if (!allowed) return null;
 
   async function confirm() {
-    await setActive.mutateAsync({ isActive: !isActive, reason });
+    try {
+      await setActive.mutateAsync({ isActive: !isActive, reason });
+    } catch {
+      // Refused: useSetUserActive's onError has said why. The dialog stays
+      // open with the reason that was typed.
+      return;
+    }
     setOpen(false);
     setReason("");
   }

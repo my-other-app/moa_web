@@ -6,7 +6,10 @@ import { SearchIcon } from "lucide-react";
 import { formatNumber, useListParams } from "@moa/app-kit";
 import { InlineAlert, Skeleton, cn } from "@moa/ui";
 
+import { ExportButton } from "@/components/export-button";
+import { SavedViews } from "@/components/saved-views";
 import { useClubs } from "@/features/clubs";
+import { fetchEvents, type EventListQuery } from "../api";
 import { useEventCategories, useEvents } from "../queries";
 import type { AdminEvent } from "../schemas";
 
@@ -48,6 +51,29 @@ const MONTHS = [
   "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
   "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
 ];
+
+/**
+ * The whole filtered list as a file, and the filter combinations worth
+ * keeping. Both read the same URL as the list, so what downloads or reopens
+ * is what is on screen.
+ */
+const EVENT_CSV = [
+  { header: "ID", value: (e: AdminEvent) => e.id },
+  { header: "Name", value: (e: AdminEvent) => e.name },
+  { header: "Club", value: (e: AdminEvent) => e.club?.name ?? "" },
+  { header: "Category", value: (e: AdminEvent) => e.category?.name ?? "" },
+  { header: "When", value: (e: AdminEvent) => e.event_datetime ?? "" },
+  { header: "Where", value: (e: AdminEvent) => e.location_name ?? "" },
+  { header: "Online", value: (e: AdminEvent) => (e.is_online ? "yes" : "no") },
+  { header: "Fee", value: (e: AdminEvent) => (e.has_fee ? e.reg_fee ?? 0 : 0) },
+  { header: "Page views", value: (e: AdminEvent) => e.page_views ?? 0 },
+] as const;
+
+const EVENT_VIEWS = [
+  { name: "Upcoming", query: "period=upcoming&sort=date" },
+  { name: "Paid events", query: "fee=paid" },
+  { name: "Most viewed", query: "sort=views" },
+] as const;
 
 interface EventRowView {
   month: string;
@@ -130,7 +156,7 @@ export function EventsV2() {
   const period = (params.param("period") ?? "all") as Period;
   const sort = params.param("sort") ?? "date";
 
-  const { data, isPending, isError, error, isPlaceholderData } = useEvents({
+  const filters: Omit<EventListQuery, "offset" | "limit"> = {
     search: search || undefined,
     clubId: clubParam ? Number(clubParam) : undefined,
     categoryId: categoryParam ? Number(categoryParam) : undefined,
@@ -138,6 +164,9 @@ export function EventsV2() {
     hasFee: feeParam === "" || feeParam === undefined ? undefined : feeParam === "paid",
     sort,
     order: sort === "name" ? "asc" : "desc",
+  };
+  const { data, isPending, isError, error, isPlaceholderData } = useEvents({
+    ...filters,
     offset: params.offset,
     limit: params.pageSize,
   });
@@ -180,6 +209,14 @@ export function EventsV2() {
                 ? `${formatNumber(total)} events · ${unmarkedOnPage} on this page finished without attendance`
                 : `${formatNumber(total)} ${total === 1 ? "event" : "events"}`}
           </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <SavedViews storageKey="events" presets={EVENT_VIEWS} />
+          <ExportButton
+            filename="events"
+            columns={EVENT_CSV}
+            fetchPage={(offset, limit) => fetchEvents({ ...filters, offset, limit })}
+          />
         </div>
       </header>
 

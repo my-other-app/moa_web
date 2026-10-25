@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
+import { toastError } from "@/features/plan/errors";
+
 import {
   addQuizQuestion,
   createPoll,
@@ -51,10 +53,11 @@ export function useHostState(eventId: number, running: boolean) {
 
 export function useQuizMutations(eventId: number) {
   const refresh = useRefresh(eventId, "quiz");
-  const rename = useMutation({ mutationFn: (patch: { title?: string; intro?: string | null }) => patchQuiz(eventId, patch), onSuccess: refresh });
-  const add = useMutation({ mutationFn: (body: QuizQuestionBody) => addQuizQuestion(eventId, body), onSuccess: () => (toast.success("Question added"), refresh()) });
-  const edit = useMutation({ mutationFn: ({ id, patch }: { id: string; patch: Partial<QuizQuestionBody> }) => patchQuizQuestion(eventId, id, patch), onSuccess: refresh });
-  const remove = useMutation({ mutationFn: (id: string) => deleteQuizQuestion(eventId, id), onSuccess: () => (toast.success("Question removed"), refresh()) });
+  // Each refusal is said, as the survey's are: a host pressing Next in front of the room must not be met with nothing.
+  const rename = useMutation({ mutationFn: (patch: { title?: string; intro?: string | null }) => patchQuiz(eventId, patch), onSuccess: refresh, onError: toastError });
+  const add = useMutation({ mutationFn: (body: QuizQuestionBody) => addQuizQuestion(eventId, body), onSuccess: () => (toast.success("Question added"), refresh()), onError: toastError });
+  const edit = useMutation({ mutationFn: ({ id, patch }: { id: string; patch: Partial<QuizQuestionBody> }) => patchQuizQuestion(eventId, id, patch), onSuccess: refresh, onError: toastError });
+  const remove = useMutation({ mutationFn: (id: string) => deleteQuizQuestion(eventId, id), onSuccess: () => (toast.success("Question removed"), refresh()), onError: toastError });
   const host = useMutation({
     mutationFn: ({ action, notify }: { action: HostAction; notify?: boolean }) => hostAction(eventId, action, notify),
     onSuccess: (s, { action, notify }) => {
@@ -62,6 +65,7 @@ export function useQuizMutations(eventId: number) {
       if (action === "end") toast.success("Quiz finished");
       refresh();
     },
+    onError: toastError,
   });
   return { rename, add, edit, remove, host };
 }
@@ -110,8 +114,9 @@ export function useFeedback(eventId: number) {
 
 export function useFeedbackMutations(eventId: number) {
   const refresh = useRefresh(eventId, "feedback");
-  const save = useMutation({ mutationFn: (patch: { auto_send?: boolean; delay_minutes?: number; questions?: SurveyQuestion[] }) => putSurvey(eventId, patch), onSuccess: refresh });
-  const send = useMutation({ mutationFn: () => sendSurveyNow(eventId), onSuccess: (r) => (toast.success(r.sent ? `Survey sent to ${r.sent} ${r.sent === 1 ? "person" : "people"}` : "Nobody checked in to send to yet"), refresh()) });
+  // A refused change or send is said, not swallowed: the organiser would otherwise think the survey went out.
+  const save = useMutation({ mutationFn: (patch: { auto_send?: boolean; delay_minutes?: number; questions?: SurveyQuestion[] }) => putSurvey(eventId, patch), onSuccess: refresh, onError: toastError });
+  const send = useMutation({ mutationFn: () => sendSurveyNow(eventId), onSuccess: (r) => (toast.success(r.sent ? `Survey sent to ${r.sent} ${r.sent === 1 ? "person" : "people"}` : "Nobody checked in to send to yet"), refresh()), onError: toastError });
   return { save, send };
 }
 
