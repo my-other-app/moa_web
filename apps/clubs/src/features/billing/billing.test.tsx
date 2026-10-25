@@ -115,7 +115,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 const { render } = await import("@/test/render");
 const { BillingPage, cancelConsequence } = await import("./components/billing-page");
 const { TrialBanner, freeLimits } = await import("./components/trial-banner");
-const { entitlementsSchema, catalogSchema, subscriptionSchema, priceLine, blocksCheckout, cancellable } = await import("./schemas");
+const { entitlementsSchema, catalogSchema, subscriptionSchema, priceLine, blocksCheckout, cancellable, whatsappAllowance, trialAllowances } =
+  await import("./schemas");
 const { billingErrorMessage } = await import("./queries");
 
 /** Razorpay's constructor as checkout.js defines it, recording what it was opened with. */
@@ -698,9 +699,38 @@ describe("billing during the free trial", () => {
 
   it("parses the trial fields, and the catalogue's trial offer with no storage anywhere", () => {
     const catalog = catalogSchema.parse(plans);
-    expect(catalog.trial).toEqual({ days: 14, plan_key: "pro", plan_name: "Pro", card_required: false, then_plan_key: "free" });
+    expect(catalog.trial).toEqual({
+      days: 14, plan_key: "pro", plan_name: "Pro", card_required: false, then_plan_key: "free",
+      limits: { emails_per_month: 2000, whatsapp_per_month: 50, whatsapp_marketing_per_month: 10, ai_actions_per_month: 50 },
+    });
+    // A server from before the trial's own allowances: none, so the plan's own.
+    expect(catalogSchema.parse({ ...plans, trial: { days: 14, plan_key: "pro", plan_name: "Pro" } }).trial?.limits).toEqual({});
     expect(JSON.stringify(catalog)).not.toMatch(/storage/);
     expect(entitlementsSchema.parse(TRIAL_ENT).trial).toMatchObject({ kind: "free_trial", days_left: 12 });
     expect(subscriptionSchema.parse(TRIAL_SUB)).toMatchObject({ free_trial: true, trial_plan: { key: "pro" } });
+  });
+});
+
+describe("pricing of 2026-10-25", () => {
+  it("lists each plan's WhatsApp with its promotional cap", async () => {
+    state.sub = null;
+    state.ent = FREE_ENTITLEMENTS;
+    render(<BillingPage />);
+    const proCard = await screen.findByRole("article", { name: "Pro" });
+    expect(within(proCard).getByText("1,000 (up to 200 promotional)")).toBeInTheDocument();
+    expect(within(card("Growth")).getByText("250 (up to 50 promotional)")).toBeInTheDocument();
+    expect(whatsappAllowance({ whatsapp_per_month: 0, whatsapp_marketing_per_month: 0 })).toBe("—");
+    expect(whatsappAllowance({ whatsapp_per_month: null })).toBe("Unlimited");
+    expect(whatsappAllowance({ whatsapp_per_month: 50 })).toBe("50");
+  });
+
+  it("says what the free trial allows on the plan panel", async () => {
+    state.sub = TRIAL_SUB;
+    state.ent = { ...TRIAL_ENT, limits: { ...pro.limits, emails_per_month: 2000, whatsapp_per_month: 50, whatsapp_marketing_per_month: 10, ai_actions_per_month: 50 } };
+    render(<BillingPage />);
+    const panel = await currentPanel();
+    expect(panel).toHaveTextContent("During the trial you can send 2,000 emails, 50 WhatsApp messages and 50 AI actions a month.");
+    expect(trialAllowances({ emails_per_month: 2000, whatsapp_per_month: 0, ai_actions_per_month: null })).toBe("2,000 emails a month");
+    expect(trialAllowances({})).toBeNull();
   });
 });

@@ -51,6 +51,8 @@ import {
   mailto,
   priceFor,
   priceLine,
+  trialAllowances,
+  whatsappAllowance,
   type CatalogPlan,
   type Cycle,
   type Entitlements,
@@ -650,6 +652,8 @@ function CurrentPlan({
 function TrialNotice({ ent, sub }: { ent: Entitlements; sub: Subscription | null }) {
   const trial = ent.trial!;
   const ends = formatDate(trial.ends_at);
+  // The free trial's own allowances: the entitlements carry them while it runs.
+  const allowed = trial.kind === "free_trial" ? trialAllowances(ent.limits) : null;
   if (trial.kind === "enterprise_trial") {
     const underneath = sub?.entitled && sub.plan && !sub.free_trial ? sub.plan.name : null;
     return (
@@ -676,6 +680,7 @@ function TrialNotice({ ent, sub }: { ent: Entitlements; sub: Subscription | null
         {trial.plan_name} trial · {daysWord(trial.days_left)} left
       </strong>{" "}
       — free until {ends}, no card needed. Choose a plan below and billing starts on {ends}. If you don&apos;t, the club moves to Free; its published events, tickets and data keep working.
+      {allowed ? ` During the trial you can send ${allowed}.` : ""}
     </Notice>
   );
 }
@@ -796,7 +801,9 @@ function PlanCard({
           return (
             <li key={key} className="flex justify-between gap-2">
               <span className="text-ink-2">{field.label}</span>
-              <span className="text-ink tabular-nums">{cap === null ? "Unlimited" : cap === 0 ? "—" : cap.toLocaleString("en-IN")}</span>
+              <span className="text-ink text-right tabular-nums">
+                {key === "whatsapp_per_month" ? whatsappAllowance(plan.limits) : cap === null ? "Unlimited" : cap === 0 ? "—" : cap.toLocaleString("en-IN")}
+              </span>
             </li>
           );
         })}

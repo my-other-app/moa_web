@@ -24,6 +24,7 @@ import { CompareTab } from "./compare-tab";
 import { GivePlanDialog } from "./give-plan-dialog";
 import { PlansTab } from "./plans-tab";
 import { SubscribersTab } from "./subscribers-tab";
+import { TrialGiftCard } from "./trial-gift-card";
 
 /**
  * The Subscriptions screen.
@@ -192,6 +193,9 @@ export function SubscriptionsV2() {
           </>
         )}
       </section>
+
+      {/* Clubs approved before the free trial existed: one button gives them theirs. */}
+      {canMoney && !noPlans ? <TrialGiftCard /> : null}
 
       <div
         role="tablist"

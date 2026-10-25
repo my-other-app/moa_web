@@ -31,16 +31,32 @@ export const LIMIT_FIELDS = [
   { key: "committee_seats", label: "Committee seats", scope: "separate logins with roles" },
   { key: "announcements_per_month", label: "Announcements", scope: "per month" },
   { key: "website_templates", label: "Website templates", scope: "to choose from" },
+  { key: "ai_actions_per_month", label: "AI actions", scope: "per month, on MyOtherApp's AI" },
   { key: "emails_per_month", label: "Emails", scope: "per month, everything a club sends" },
   { key: "whatsapp_per_month", label: "WhatsApp messages", scope: "per month, on the platform's number" },
+  { key: "whatsapp_marketing_per_month", label: "Promotional WhatsApp", scope: "of those, marketing templates (20% by default)" },
 ] as const;
 
 /** The message limits: past them a paid plan pays the overage prices below, Free stops announcements. */
 export const MESSAGE_LIMIT_KEYS = ["emails_per_month", "whatsapp_per_month"] as const;
 
-/** The owner's overage prices, in paise: ₹0.10 an email, ₹1 a WhatsApp message. */
+/** The owner's overage prices, in paise: ₹0.10 an email, ₹1.50 a WhatsApp message. */
 export const DEFAULT_EMAIL_OVERAGE_PAISE = 10;
-export const DEFAULT_WHATSAPP_OVERAGE_PAISE = 100;
+export const DEFAULT_WHATSAPP_OVERAGE_PAISE = 150;
+
+/** The plan every new club's free trial gives (subscriptions.service.FREE_TRIAL_PLAN_KEY). */
+export const FREE_TRIAL_PLAN_KEY = "pro";
+
+/**
+ * The free trial's own monthly allowances, set on the trial's plan: the trial
+ * keeps the plan's features with these. Empty means the plan's own.
+ */
+export const TRIAL_LIMIT_FIELDS = [
+  { key: "emails_per_month", label: "Emails", scope: "per month during the trial" },
+  { key: "whatsapp_per_month", label: "WhatsApp messages", scope: "per month during the trial" },
+  { key: "whatsapp_marketing_per_month", label: "Promotional WhatsApp", scope: "of those" },
+  { key: "ai_actions_per_month", label: "AI actions", scope: "per month during the trial" },
+] as const;
 
 export type LimitKey = (typeof LIMIT_FIELDS)[number]["key"];
 
@@ -111,6 +127,9 @@ export const planSchema = z.object({
   /* null means unlimited, 0 means none allowed -- the two are different and
      the editor has to keep them apart. */
   limits: z.record(z.string(), z.number().nullable()).default({}),
+  /* The free trial's own allowances on this plan; null each: the plan's own.
+     A server from before them sends none. */
+  trial_limits: z.record(z.string(), z.number().nullable()).catch({}).default({}),
   features: z.record(z.string(), z.boolean()).default({}),
   /* Sent by the API so the editor does not hold a second copy of the grouping
      that can drift from the backend's. */
@@ -376,10 +395,12 @@ export const planFormSchema = z.object({
   sort_order: z.number().int().min(0).default(0),
   featured: z.boolean(),
   contact_sales: z.boolean(),
-  /** Each extra email and WhatsApp message, in rupees (₹0.10, ₹1). */
+  /** Each extra email and WhatsApp message, in rupees (₹0.10, ₹1.50). */
   email_overage_rupees: z.number().min(0),
   whatsapp_overage_rupees: z.number().min(0),
   limits: z.record(z.string(), z.number().nullable()),
+  /** The free trial's allowances on this plan (null: the plan's own). */
+  trial_limits: z.record(z.string(), z.number().nullable()).default({}),
   features: z.record(z.string(), z.boolean()),
 });
 
@@ -400,6 +421,7 @@ export function toForm(plan: Plan): PlanFormInput {
     email_overage_rupees: rupees(plan.email_overage_paise),
     whatsapp_overage_rupees: rupees(plan.whatsapp_overage_paise),
     limits: { ...plan.limits },
+    trial_limits: { ...plan.trial_limits },
     features: { ...plan.features },
   };
 }
@@ -419,8 +441,74 @@ export function toPayload(form: PlanFormInput) {
     email_overage_paise: paise(form.email_overage_rupees),
     whatsapp_overage_paise: paise(form.whatsapp_overage_rupees),
     limits: form.limits,
+    trial_limits: Object.fromEntries(TRIAL_LIMIT_FIELDS.map((f) => [f.key, form.trial_limits[f.key] ?? null])),
     features: form.features,
   };
+}
+
+/** "1,000 (up to 200 promotional)", "Unlimited", "None": a plan's WhatsApp, as the pricing page says it. */
+export function whatsappAllowance(limits: Record<string, number | null | undefined>): string {
+  const all = limits.whatsapp_per_month;
+  if (all === null || all === undefined) return "Unlimited";
+  if (all === 0) return "None";
+  const promo = limits.whatsapp_marketing_per_month;
+  const base = formatNumber(all);
+  return typeof promo === "number" ? `${base} (up to ${formatNumber(promo)} promotional)` : base;
+}
+
+// ─── Giving existing clubs the free trial ────────────────────────────────
+
+const giftClubSchema = z.object({
+  id: z.coerce.number(),
+  name: z.string(),
+  slug: z.string().nullish(),
+  created_at: z.string().nullish(),
+});
+export type GiftClub = z.infer<typeof giftClubSchema>;
+
+/** GET /admin/subscriptions/trial-gift: who would get the trial now, and why the rest would not. */
+export const trialGiftPreviewSchema = z.object({
+  available: z.boolean().catch(false),
+  plan_key: z.string().nullish(),
+  plan_name: z.string().nullish(),
+  days: z.number().catch(14),
+  then_plan_key: z.string().catch("free"),
+  allowances: z.record(z.string(), z.number().nullable()).catch({}),
+  unlocks: z.array(z.string()).catch([]),
+  eligible: z.number().catch(0),
+  sample: z.array(giftClubSchema).catch([]),
+  excluded: z.array(z.object({ reason: z.string(), label: z.string(), count: z.number() })).catch([]),
+});
+export type TrialGiftPreview = z.infer<typeof trialGiftPreviewSchema>;
+
+/** POST /admin/subscriptions/trial-gift: what was started. */
+export const trialGiftResultSchema = z.object({
+  started: z.number().catch(0),
+  emailed: z.number().catch(0),
+  skipped: z.number().catch(0),
+  remaining: z.number().catch(0),
+  ends_at: z.string().nullish(),
+  clubs: z.array(giftClubSchema).catch([]),
+});
+export type TrialGiftResult = z.infer<typeof trialGiftResultSchema>;
+
+/** "2,000 emails, 50 WhatsApp messages and 50 AI actions a month", from the trial's allowances. */
+export function allowancesLine(allowances: Record<string, number | null | undefined>): string | null {
+  const parts = (
+    [
+      ["emails_per_month", "email", "emails"],
+      ["whatsapp_per_month", "WhatsApp message", "WhatsApp messages"],
+      ["ai_actions_per_month", "AI action", "AI actions"],
+    ] as const
+  )
+    .map(([key, one, many]) => {
+      const n = allowances[key];
+      return typeof n === "number" && n > 0 ? `${formatNumber(n)} ${n === 1 ? one : many}` : null;
+    })
+    .filter((p): p is string => p !== null);
+  if (parts.length === 0) return null;
+  const joined = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+  return `${joined} a month`;
 }
 
 /** "₹0.10", "₹1", "₹1.50": a per-message price, to the paisa. */

@@ -211,6 +211,6 @@ describe("the plan editor's message limits and prices", () => {
     expect(payload.limits).toMatchObject({ emails_per_month: 5000, whatsapp_per_month: 250 });
     // A plan from a server before the prices: the owner's defaults.
     const old = planSchema.parse({ id: 1, key: "free", name: "Free" });
-    expect([old.email_overage_paise, old.whatsapp_overage_paise]).toEqual([10, 100]);
+    expect([old.email_overage_paise, old.whatsapp_overage_paise]).toEqual([10, 150]);
   });
 });

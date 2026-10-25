@@ -76,6 +76,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
           };
         }
         if (path.includes("/admin/plans")) return plansResponse;
+        // The trial card (its own tests are in trial-gift.test.tsx): nobody to give it to.
+        if (path.includes("/admin/subscriptions/trial-gift")) {
+          return { available: true, plan_key: "pro", plan_name: "Pro", days: 14, then_plan_key: "free", allowances: {}, unlocks: [], eligible: 0, sample: [], excluded: [] };
+        }
         if (path.includes("/admin/subscriptions")) {
           statusQueries.push(init?.query?.status);
           return { limit: 25, offset: 0, total: subscriptionRows.length, next: null, items: subscriptionRows };

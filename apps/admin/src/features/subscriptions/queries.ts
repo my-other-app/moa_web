@@ -12,6 +12,7 @@ import { toast } from "@moa/ui";
 import { REVENUE_KEY } from "@/features/revenue/keys";
 
 import {
+  applyTrialGift,
   archivePlan,
   assignPlan,
   cancelSubscription,
@@ -25,6 +26,7 @@ import {
   fetchPlans,
   fetchSubscriptions,
   fetchTotals,
+  fetchTrialGift,
   retryCharge,
   syncPlan,
   updatePlan,
@@ -250,6 +252,26 @@ export function useEndTrial() {
     mutationFn: ({ clubId, trial }: { clubId: number; trial?: "enterprise" | "free" }) => endTrial(clubId, trial),
     onSuccess: async (subscription, { trial }) => {
       toast.success(`${subscription.club?.name ?? "The club"}'s ${trial === "free" ? "free" : "Enterprise"} trial has ended`);
+      await invalidate();
+    },
+  });
+}
+
+export function useTrialGiftPreview(enabled = true) {
+  return useQuery({ queryKey: [...KEY, "trial-gift"], queryFn: fetchTrialGift, enabled });
+}
+
+/** Give every eligible existing club the free trial. The card shows the result; a toast says it too. */
+export function useApplyTrialGift() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (email: boolean) => applyTrialGift(email),
+    onSuccess: async (result) => {
+      toast.success(
+        result.started
+          ? `${result.started} club${result.started === 1 ? "" : "s"} started the free trial${result.ends_at ? `, until ${formatDate(result.ends_at)}` : ""}`
+          : "No club needed the trial: nothing was started"
+      );
       await invalidate();
     },
   });

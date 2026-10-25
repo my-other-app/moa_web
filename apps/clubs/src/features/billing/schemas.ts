@@ -44,9 +44,9 @@ export const catalogPlanSchema = z.object({
   trial_days: z.number().catch(0),
   contact_sales: z.boolean().catch(false),
   featured: z.boolean().catch(false),
-  /** Each email / WhatsApp message past the monthly limit, in paise (₹0.10, ₹1). */
+  /** Each email / WhatsApp message past the monthly limit, in paise (₹0.10, ₹1.50). */
   email_overage_paise: z.number().catch(10),
-  whatsapp_overage_paise: z.number().catch(100),
+  whatsapp_overage_paise: z.number().catch(150),
   /** null is unlimited, 0 is none allowed. */
   limits: z.record(z.string(), z.number().nullable()).catch({}),
   features: z.array(featureRowSchema).catch([]),
@@ -60,6 +60,8 @@ export const trialOfferSchema = z.object({
   plan_name: z.string(),
   card_required: z.boolean().catch(false),
   then_plan_key: z.string().catch("free"),
+  /** The trial's monthly allowances (emails, WhatsApp, promotional WhatsApp, AI actions): the plan's features, smaller allowances. */
+  limits: z.record(z.string(), z.number().nullable()).catch({}),
 });
 export type TrialOffer = z.infer<typeof trialOfferSchema>;
 
@@ -352,6 +354,34 @@ export function limitText(cap: number | null | undefined, unit?: string): string
   if (cap === null || cap === undefined) return "Unlimited";
   if (cap === 0) return "Not included";
   return `${cap.toLocaleString("en-IN")}${unit ? ` ${unit}` : ""} included`;
+}
+
+/** "1,000 (up to 200 promotional)": a plan's WhatsApp a month, with its cap on promotional messages. */
+export function whatsappAllowance(limits: Record<string, number | null | undefined>): string {
+  const all = limits.whatsapp_per_month;
+  if (all === null || all === undefined) return "Unlimited";
+  if (all === 0) return "—";
+  const promo = limits.whatsapp_marketing_per_month;
+  const base = all.toLocaleString("en-IN");
+  return typeof promo === "number" ? `${base} (up to ${promo.toLocaleString("en-IN")} promotional)` : base;
+}
+
+/** "2,000 emails, 50 WhatsApp messages and 50 AI actions a month": what the free trial allows. */
+export function trialAllowances(limits: Record<string, number | null | undefined>): string | null {
+  const parts = (
+    [
+      ["emails_per_month", "email", "emails"],
+      ["whatsapp_per_month", "WhatsApp message", "WhatsApp messages"],
+      ["ai_actions_per_month", "AI action", "AI actions"],
+    ] as const
+  )
+    .map(([key, one, many]) => {
+      const n = limits[key];
+      return typeof n === "number" && n > 0 ? `${n.toLocaleString("en-IN")} ${n === 1 ? one : many}` : null;
+    })
+    .filter((p): p is string => p !== null);
+  if (!parts.length) return null;
+  return `${parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`} a month`;
 }
 
 /** A Razorpay subscription that can still charge the club (pending included). */

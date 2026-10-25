@@ -85,6 +85,9 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path === "/api/v1/admin/subscriptions/totals") {
           return { mrr_paise: 2500000, arr_paise: 30000000, active_subscriptions: 18, trialing: 2, past_due: 0, cancelled: 0, pending: 0, paused: 0, in_grace: 0, complimentary: 3 };
         }
+        if (path === "/api/v1/admin/subscriptions/trial-gift") {
+          return { available: true, plan_key: "pro", plan_name: "Pro", days: 14, then_plan_key: "free", allowances: {}, unlocks: [], eligible: 0, sample: [], excluded: [] };
+        }
         if (path === "/api/v1/admin/subscriptions") {
           const q = init?.query ?? {};
           let items = rows;
