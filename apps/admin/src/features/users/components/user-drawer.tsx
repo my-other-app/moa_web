@@ -217,19 +217,31 @@ export function UserDrawer({
       toast.error(parsed.error.issues[0]?.message ?? "Check the details");
       return;
     }
-    await update.mutateAsync(parsed.data);
+    try {
+      await update.mutateAsync(parsed.data);
+    } catch {
+      // Refused: useUpdateUser's onError has said why. The form stays open
+      // with what was typed.
+      return;
+    }
     setEditing(null);
   }
 
   async function issuePassword() {
     const password = generatePassword();
-    await resetPassword.mutateAsync({
-      // Username, not email: an account can share an email with another of a
-      // different user_type (the uniqueness constraint is on the pair), and
-      // the endpoint would then have to guess which one was meant.
-      emailOrUsername: user!.username,
-      newPassword: password,
-    });
+    try {
+      await resetPassword.mutateAsync({
+        // Username, not email: an account can share an email with another of a
+        // different user_type (the uniqueness constraint is on the pair), and
+        // the endpoint would then have to guess which one was meant.
+        emailOrUsername: user!.username,
+        newPassword: password,
+      });
+    } catch {
+      // Refused: the onError toast has said why, and no password is shown
+      // because none was set.
+      return;
+    }
     setIssued(password);
     setCopied(false);
   }
