@@ -3,16 +3,27 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ShieldCheckIcon } from "lucide-react";
 import { getSessionQuietly } from "@moa/auth/server";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from "@moa/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Notice, Skeleton } from "@moa/ui";
 
-import { LoginForm } from "@moa/app-kit";
+import { LoginForm, safeNext } from "@moa/app-kit";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default async function LoginPage() {
-  // Already signed in as an admin? Skip the form entirely.
+type Query = { next?: string | string[]; error?: string | string[] };
+const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+
+export default async function LoginPage({ searchParams }: { searchParams?: Promise<Query> } = {}) {
+  const query = (await searchParams) ?? {};
+  // Already signed in as an admin? Skip the form, to where `?next=` said (a
+  // path on this site only), as the clubs dashboard's sign-in does.
   const session = await getSessionQuietly();
-  if (session?.user_type === "admin") redirect("/");
+  if (session?.user_type === "admin") redirect(safeNext(first(query.next)));
+  /*
+   * The dashboard's role gate sends a signed-in account that is not an admin
+   * (a club, an app user) here with ?error=forbidden. Without a word, the
+   * form simply came back after a correct password, as if nothing happened.
+   */
+  const forbidden = first(query.error) === "forbidden";
 
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-10">
@@ -36,7 +47,12 @@ export default async function LoginPage() {
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          {forbidden ? (
+            <Notice tone="caution">
+              That account is not a platform admin. Sign in with an admin account.
+            </Notice>
+          ) : null}
           {/* useSearchParams in LoginForm requires a Suspense boundary. */}
           <Suspense fallback={<Skeleton className="h-64 w-full" />}>
             <LoginForm usernamePlaceholder="platform_admin" />
