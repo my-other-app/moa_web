@@ -8,10 +8,13 @@ import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogT
 import { ChevronDownIcon, DoorOpenIcon, LockIcon, PackageIcon, RefreshCwIcon, ScanLineIcon, SearchIcon, ServerCrashIcon, Link2OffIcon, UserPlusIcon, UserXIcon, WifiOffIcon } from "lucide-react";
 
 import { DOOR_STORAGE, KEY_STORAGE } from "../api";
+import { HAPTIC } from "../lib/outcome-copy";
+import { withReplayed, type ReplayReport as ReplayReportModel, type ReplayedScan } from "../lib/replay";
 import { useGateContext, useOfflineQueue } from "../queries";
 import type { GateContext } from "../schemas";
 import { DOOR_FIELD, DoorBanner, DoorCount, DoorProgress, TouchChoice } from "./door-kit";
 import { FindPanel } from "./find-panel";
+import { ReplayReport } from "./replay-report";
 import { ScanStage } from "./scan-stage";
 import { WalkupPanel } from "./walkup-panel";
 import { MerchPanel } from "@/features/merch";
@@ -140,7 +143,23 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
   };
   const canChangeDoor = ctx.me.kind !== "door";
 
-  const { online, queued, enqueue } = useOfflineQueue(gateKey, eventId);
+  /*
+   * What the server said about the scans saved without signal. Each guest
+   * behind them was let in at the time; the ones it did not admit stay
+   * listed, by name, until the volunteer has read them.
+   */
+  const [replay, setReplay] = React.useState<ReplayReportModel | null>(null);
+  const onDrained = React.useCallback((results: ReplayedScan[]) => {
+    setReplay((report) => withReplayed(report, results));
+    if (results.some((r) => r.response.outcome !== "CHECKED_IN")) {
+      try {
+        navigator.vibrate?.(HAPTIC.refuse);
+      } catch {
+        /* no vibration here */
+      }
+    }
+  }, []);
+  const { online, queued, enqueue } = useOfflineQueue(gateKey, eventId, onDrained);
   const p = ctx.permissions;
   const allowed: { key: Tab; label: string }[] = [
     ...(p.check_in ? [{ key: "checkin" as Tab, label: "Check-in" }, { key: "find" as Tab, label: "Find" }] : []),
@@ -184,6 +203,7 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
               Syncing {queued} saved {queued === 1 ? "scan" : "scans"}…
             </DoorBanner>
           ) : null}
+          {replay ? <ReplayReport report={replay} onDismiss={() => setReplay(null)} /> : null}
         </header>
 
         {allowed.length === 0 ? (
