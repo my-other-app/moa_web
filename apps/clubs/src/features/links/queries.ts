@@ -5,7 +5,7 @@ import { toast } from "@moa/ui";
 
 import { toastError } from "@/features/plan/errors";
 
-import { createLink, deleteLink, fetchLinkDetail, fetchLinksOverview } from "./api";
+import { createLink, deleteLink, fetchLinkDetail, fetchLinksOverview, updateLink, type LinkPatch } from "./api";
 import type { LinkForm, LinkScope } from "./schemas";
 
 const key = (scope: LinkScope) => (scope.kind === "event" ? (["links", "event", scope.eventId] as const) : (["links", "club"] as const));
@@ -43,6 +43,19 @@ export function useDeleteLink(scope: LinkScope) {
     mutationFn: ({ id, target }: { id: string; target?: LinkScope }) => deleteLink(target ?? scope, id),
     onSuccess: () => {
       toast.success("Link retired. What it already brought stays counted.");
+      void queryClient.invalidateQueries({ queryKey: ["links"] });
+    },
+    onError: toastError,
+  });
+}
+
+/** Rename or retag a link where it belongs (an event's link from the club page goes to that event). */
+export function useUpdateLink(scope: LinkScope) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch, target }: { id: string; patch: LinkPatch; target?: LinkScope }) => updateLink(target ?? scope, id, patch),
+    onSuccess: () => {
+      toast.success("Link saved. Its code and everything it brought stay the same.");
       void queryClient.invalidateQueries({ queryKey: ["links"] });
     },
     onError: toastError,

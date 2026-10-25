@@ -19,11 +19,15 @@ export const EVENT_TABS = [
   { key: "tickets", label: "Tickets", path: "/tickets" },
   { key: "links", label: "Links", path: "/links" },
   { key: "finance", label: "Finance", path: "/finance" },
+  // Each payment, with refunds (owners and admins; once the backend has club refunds).
+  { key: "payments", label: "Payments", path: "/payments" },
   { key: "check-ins", label: "Check-ins", path: "/check-ins" },
   { key: "team", label: "Doors", path: "/team" },
   { key: "agenda", label: "Agenda", path: "/agenda" },
   { key: "live", label: "Live", path: "/live" },
   { key: "competition", label: "Competition", path: "/competition" },
+  // 1st, 2nd and 3rd, per guest or per competition track (once the backend has results).
+  { key: "results", label: "Results", path: "/results" },
   { key: "store", label: "Merchandise", path: "/store", when: "merch_enabled" },
   { key: "merch", label: "Swag", path: "/merch", when: "swag_enabled" },
   { key: "messages", label: "Messages", path: "/messages" },
@@ -71,6 +75,7 @@ export const STATUS_NOTICE: Partial<Record<EventLifecycle, string>> = {
   draft: "This event is a draft. The gate refuses check-ins and no tickets go out until you publish it under Close-out.",
   closed: "Closed. Settings are locked and the door is shut. The closeout report holds the final numbers.",
   archived: "Archived and hidden from the events list until somebody asks for archived events.",
+  cancelled: "Cancelled. Registrations are closed, every guest was told, and online payments are refunded in full.",
 };
 
 /** Where each standing notice is settled: the one button beside it. */

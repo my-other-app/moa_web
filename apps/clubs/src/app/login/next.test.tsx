@@ -59,3 +59,14 @@ describe("the sign-in page, already signed in", () => {
     await expect(LoginPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(/^redirect \/$/);
   });
 });
+
+describe("the sign-in page, signed out", () => {
+  it("says the password was changed when it comes back from the reset", async () => {
+    session.current = null;
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const html = renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({ reset: "1" }) }));
+    expect(html).toContain("Your password is changed. Sign in with the new one.");
+    expect(renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({}) }))).not.toContain("Your password is changed");
+    session.current = { user_type: "club" };
+  });
+});

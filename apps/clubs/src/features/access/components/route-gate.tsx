@@ -16,11 +16,13 @@ import type { Cap } from "../schemas";
  */
 const RULES: { test: (path: string) => boolean; needs: Cap; what: string; appliesIf?: Cap }[] = [
   { test: (p) => p === "/finance" || /^\/events\/\d+\/finance(\/|$)/.test(p), needs: "money", what: "Finance" },
+  { test: (p) => /^\/events\/\d+\/payments(\/|$)/.test(p), needs: "money", what: "the event's payments" },
   { test: (p) => p === "/access" || p.startsWith("/access/"), needs: "see_access", what: "Access" },
   { test: (p) => p === "/profile" || p.startsWith("/profile/"), needs: "club_profile", what: "the club profile" },
   { test: (p) => /^\/(followers|threads|announcements|emails|links|website|templates|merchandise)(\/|$)/.test(p), needs: "edit_events", what: "this page" },
   { test: (p) => p === "/whatsapp" || p.startsWith("/whatsapp/"), needs: "whatsapp", what: "WhatsApp", appliesIf: "whatsapp_known" },
   { test: (p) => p === "/mail" || p.startsWith("/mail/"), needs: "mail", what: "Mail", appliesIf: "mail_known" },
+  { test: (p) => p === "/contacts" || p.startsWith("/contacts/"), needs: "contacts", what: "the contact book" },
 ];
 
 export function blockedBy(path: string, can: Partial<Record<Cap, boolean>>) {

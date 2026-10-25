@@ -58,6 +58,8 @@ const state = {
   verify: (() => CONNECTED) as Answer,
   del: (() => ({ ...NOT_CONNECTED, status: "disconnected" })) as Answer,
   details: {} as Record<string, unknown>,
+  /** GET /clubs/access/me; null: it fails, and the page assumes the club's own account. */
+  me: null as unknown,
 };
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
 
@@ -75,6 +77,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         calls.push({ method: "GET", path });
         if (path === "/api/v1/clubs/payments/gateway") return answer(state.gateway);
         if (path === "/api/v1/clubs/entitlements") return {};
+        if (path === "/api/v1/clubs/access/me" && state.me) return state.me;
         const detail = /^\/api\/v1\/events\/info\/(\d+)$/.exec(path);
         if (detail && state.details[detail[1]!]) return state.details[detail[1]!];
         throw new Error(`unstubbed GET ${path}`);
@@ -117,6 +120,7 @@ beforeEach(() => {
     verify: () => CONNECTED,
     del: () => ({ ...NOT_CONNECTED, status: "disconnected" }),
     details: {},
+    me: null,
   });
   Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
 });
@@ -184,6 +188,17 @@ describe("the Payments page", () => {
     expect(within(help).getByText(/refunds and disputes for them are handled in your own Razorpay Dashboard/)).toBeInTheDocument();
     // Nothing about the webhook until there is an account to send notices for.
     expect(screen.queryByRole("region", { name: "Step 2: Razorpay settings" })).not.toBeInTheDocument();
+  });
+
+  it("points refunds to the event's Payments once the server has club refunds", async () => {
+    state.me = {
+      role: "owner", role_label: "Owner", role_description: "", club_id: 5, club_name: "Circuit Society", member: null,
+      can: { manage_access: true, see_access: true, money: true, club_profile: true, edit_events: true, delete_events: true, door: true, cancel_events: true, contacts: true },
+    };
+    render(<PaymentsPage />);
+    const help = await screen.findByRole("region", { name: "Help" });
+    expect(await within(help).findByText(/Refund a guest from the event's/)).toBeInTheDocument();
+    expect(within(help).queryByText(/refunds and disputes for them are handled in your own Razorpay Dashboard/)).not.toBeInTheDocument();
   });
 
   it("asks for both keys before sending anything", async () => {

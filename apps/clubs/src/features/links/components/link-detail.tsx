@@ -21,6 +21,7 @@ import {
 
 import { useDeleteLink, useLinkDetail } from "../queries";
 import { DEVICE_LABEL, type LinkRow, type LinkScope } from "../schemas";
+import { EditLinkDialog } from "./edit-link-dialog";
 import { copyText } from "./new-link-dialog";
 import { Qr } from "./qr";
 
@@ -212,8 +213,8 @@ function Hours({ hours }: { hours: { hour: number; clicks: number }[] }) {
 /**
  * One link, opened under its row: the two links to copy and the QR to
  * print, then what the period says about it — its days, where the openings
- * came from, the devices, the hours — and the one thing that can be done
- * to it, which is to retire it.
+ * came from, the devices, the hours — and what can be done to it: rename
+ * or retag it (its history stays), or retire it.
  */
 export function LinkDetailPanel({
   scope,
@@ -301,6 +302,7 @@ export function LinkDetailPanel({
           </dl>
           <Qr url={link.url} code={link.code} size={96} />
         </div>
+        <EditLinkDialog scope={scope} link={link} />
         {link.kind === "website" ? (
           <p className="text-ink-3 m-0 text-[12px] leading-[1.55]">
             Your website&apos;s own link, made when the site was published. It counts the visits that came through none of

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
+  BanIcon,
   CopyIcon,
   CopyPlusIcon,
   ExternalLinkIcon,
@@ -53,10 +54,13 @@ export const publicUrl = (event: Pick<ClubEvent, "id" | "slug">) =>
 export function EventRowMenu({
   event,
   onDeleted,
+  onCancel,
 }: {
   event: Pick<ClubEvent, "id" | "name" | "slug" | "registration_count">;
   /** Called after a successful delete, for a page that cannot stay where it is. */
   onDeleted?: () => void;
+  /** Offers "Cancel event…" (the event's page passes it when the role and the backend allow it). */
+  onCancel?: () => void;
 }) {
   const router = useRouter();
   const remove = useDeleteEvent();
@@ -108,6 +112,14 @@ export function EventRowMenu({
           <DropdownMenuItem onClick={copyLink}>
             <CopyIcon className="size-4" /> Copy public link
           </DropdownMenuItem>
+          {onCancel ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={onCancel}>
+                <BanIcon className="size-4" /> Cancel event…
+              </DropdownMenuItem>
+            </>
+          ) : null}
           {can.delete_events ? (
             <>
               <DropdownMenuSeparator />
@@ -139,7 +151,7 @@ export function EventRowMenu({
                     registered.
                   </strong>{" "}
                   They lose this event and their tickets. This cannot be undone
-                  from here.
+                  from here.{onCancel ? " To call it off and tell them, cancel the event instead." : ""}
                 </>
               ) : (
                 "This removes the event from the app. It cannot be undone from here."

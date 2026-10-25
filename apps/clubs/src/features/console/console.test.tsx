@@ -62,8 +62,10 @@ describe("the console's sections", () => {
   });
 
   it("parses the summary, tolerating an unknown status", () => {
-    const parsed = eventSummarySchema.parse({ ...summaryFixture, status: "cancelled" });
+    const parsed = eventSummarySchema.parse({ ...summaryFixture, status: "postponed" });
     expect(parsed.status).toBe("published");
+    // Cancelling is a status of its own now (POST /events/{id}/cancel).
+    expect(eventSummarySchema.parse({ ...summaryFixture, status: "cancelled" }).status).toBe("cancelled");
     expect(parsed.analytics.by_door).toHaveLength(2);
   });
 });

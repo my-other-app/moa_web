@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export const EVENT_STATUSES = ["draft", "published", "live", "closed", "archived"] as const;
+/** `cancelled` comes only from cancelling the event, and is never picked here (the panel leaves it out). */
+export const EVENT_STATUSES = ["draft", "published", "live", "closed", "archived", "cancelled"] as const;
 export type LifecycleStatus = (typeof EVENT_STATUSES)[number];
 
 export const closeoutSettingsSchema = z.object({

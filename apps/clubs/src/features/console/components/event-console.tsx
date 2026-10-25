@@ -21,6 +21,8 @@ import {
 import { enter } from "@moa/ui/motion";
 
 import { useAccess } from "@/features/access";
+import { CancelEventDialog, useCancelState } from "@/features/event-cancel";
+import { useResults } from "@/features/results";
 import { EventRowMenu, EventStatusBadge, useEventDetail } from "@/features/events";
 import { useEventPlan, usePlan } from "@/features/plan";
 import { useTicketTypes } from "@/features/ticketing/queries";
@@ -59,6 +61,11 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   const event = useEventDetail(eventId);
   const { can } = useAccess();
   const summary = useEventSummary(eventId);
+  // Sections and actions whose backend may not be deployed yet: each read answers null on an API
+  // without its route, and the section stays out until it has one. Cancelling and refunds are money.
+  const results = useResults(eventId);
+  const cancelState = useCancelState(eventId, can.money || can.cancel_events);
+  const [cancelOpen, setCancelOpen] = React.useState(false);
   // Finance is club-wide (its ledger is the club's); every other section follows the event,
   // so a grandfathered event's tabs carry no lock.
   const clubPlan = usePlan();
@@ -79,7 +86,22 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   const status = s?.status ?? e?.status;
   const where = e ? (e.is_online ? "Online" : e.location_name) : null;
   const standing = status ? STATUS_NOTICE[status] : undefined;
-  const settle = status ? STATUS_ACTION[status] : undefined;
+  const moneyTools = cancelState.data != null;
+  const settle =
+    status === "cancelled"
+      ? can.money && moneyTools
+        ? { label: "Refunds and notices", path: "/payments" }
+        : undefined
+      : status
+        ? STATUS_ACTION[status]
+        : undefined;
+  const c = cancelState.data;
+  const canCancel = Boolean(can.cancel_events && c && !c.cancelled && c.can_cancel);
+  const onServer: Partial<Record<string, boolean>> = {
+    results: results.data != null,
+    // The payments of a paid event, and the aftermath of a cancelled one.
+    payments: moneyTools && can.money && (Boolean(e?.has_fee) || status === "cancelled"),
+  };
   const notices = s ? clockNotices(s, now) : [];
 
   return (
@@ -137,7 +159,14 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
               </Link>
             </Button>
           ) : null}
-          {e ? <EventRowMenu event={{ id: e.id, name: e.name, slug: e.slug, registration_count: s?.registered ?? 0 }} onDeleted={() => router.replace("/events")} /> : null}
+          {e ? (
+            <EventRowMenu
+              event={{ id: e.id, name: e.name, slug: e.slug, registration_count: s?.registered ?? 0 }}
+              onDeleted={() => router.replace("/events")}
+              onCancel={canCancel ? () => setCancelOpen(true) : undefined}
+            />
+          ) : null}
+          {e && canCancel && cancelOpen ? <CancelEventDialog eventId={eventId} eventName={e.name} open onOpenChange={setCancelOpen} /> : null}
         </div>
       </header>
 
@@ -146,7 +175,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
           {status && standing ? (
             <Notice
               tag={status}
-              tone={status === "draft" ? "caution" : "neutral"}
+              tone={status === "draft" ? "caution" : status === "cancelled" ? "refuse" : "neutral"}
               action={
                 settle ? (
                   <Button asChild variant="secondary" size="sm">
@@ -179,7 +208,13 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
         className="mt-5"
         label="Event sections"
         value={tab}
-        items={EVENT_TABS.filter((t) => (!("when" in t) || event.data?.[t.when] !== false) && (t.key !== "finance" || can.money) && (t.key !== "tickets" || ticketsOn)).map((t) => ({
+        items={EVENT_TABS.filter(
+          (t) =>
+            (!("when" in t) || event.data?.[t.when] !== false) &&
+            (t.key !== "finance" || can.money) &&
+            (t.key !== "tickets" || ticketsOn) &&
+            (!(t.key in onServer) || onServer[t.key] === true),
+        ).map((t) => ({
           key: t.key,
           label: <TabLabel label={t.label} lock={TAB_FEATURE[t.key] ? (t.key === "finance" ? clubPlan : eventPlan).featureLock(TAB_FEATURE[t.key]!) : null} />,
           href: `${base}${t.path}`,

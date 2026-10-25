@@ -31,3 +31,8 @@ export async function enableTwoFactor(code: string) {
 export async function disableTwoFactor(code: string) {
   await api.post<unknown>("/api/v1/auth/2fa/disable", { code });
 }
+
+/** A fresh set of recovery codes, for a current authenticator code; every earlier one stops working. */
+export async function renewRecoveryCodes(code: string) {
+  return twoFactorEnabledSchema.parse(await api.post<unknown>("/api/v1/auth/2fa/recovery-codes", { code }));
+}

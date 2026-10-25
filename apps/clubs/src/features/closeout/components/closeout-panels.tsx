@@ -63,10 +63,12 @@ export function StatusPanel({
         role="radiogroup"
         aria-label="Status"
       >
-        {s.statuses.map((o) => (
+        {/* Cancelled is reached only by cancelling the event, and is final. */}
+        {s.statuses.filter((o) => o.key !== "cancelled").map((o) => (
           <ChoiceCard
             key={o.key}
             checked={s.status === o.key}
+            disabled={s.status === "cancelled"}
             onClick={() => update.mutate({ status: o.key })}
             title={o.label}
             hint={o.note}
@@ -78,6 +80,12 @@ export function StatusPanel({
         <Notice tone="neutral" tag="Locked" className="mt-3">
           The event&apos;s details, fields and designs are read-only while it
           is {s.status}. Move it back to Live to change them.
+        </Notice>
+      ) : null}
+      {s.status === "cancelled" ? (
+        <Notice tone="refuse" tag="Cancelled" className="mt-3">
+          This event was cancelled. Its status stays cancelled: registrations are closed and the details are
+          read-only.
         </Notice>
       ) : null}
       {s.status === "draft" ? (

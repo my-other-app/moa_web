@@ -6,6 +6,7 @@ import { LockIcon } from "lucide-react";
 import { cn } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
+import { useContactsOnServer } from "@/features/contacts";
 import { useMailSummary, useMailboxOnServer } from "@/features/mailbox/queries";
 import { usePlan } from "@/features/plan";
 import { useTicketingOnServer } from "@/features/ticketing/queries";
@@ -35,7 +36,9 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
   const mailbox = useMailboxOnServer(Boolean(can.mail));
   // Discount codes, for those who may edit events: asked once, shared with the codes page.
   const ticketing = useTicketingOnServer(Boolean(can.edit_events));
-  const onServer = { whatsapp, mailbox, ticketing };
+  // The contact book, asked only of those who may open it.
+  const contacts = useContactsOnServer(Boolean(can.contacts));
+  const onServer = { whatsapp, mailbox, ticketing, contacts };
   // What waits unread in the inbox, for those who may read it: on the item and in the tab's title.
   const summary = useSummary(Boolean(can.whatsapp_inbox) && whatsapp === true);
   const unread = summary.data?.unread_total ?? 0;

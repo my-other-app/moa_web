@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CopyIcon, KeyRoundIcon, Loader2Icon, LogOutIcon, MonitorIcon, SmartphoneIcon, TabletIcon, type LucideIcon } from "lucide-react";
+import { CopyIcon, DownloadIcon, KeyRoundIcon, Loader2Icon, LogOutIcon, MonitorIcon, SmartphoneIcon, TabletIcon, type LucideIcon } from "lucide-react";
 import { formatDateTime, relativeTime } from "@moa/app-kit";
 import { CardLabel, Chip, EmptyState, FigurePanel, ProgressBar, Skeleton, StatTile, cn, toast } from "@moa/ui";
 
@@ -12,7 +12,7 @@ import { MemberAccount, useMyAccess } from "@/features/access";
 import { changePasswordSchema, useChangePassword, type ChangePasswordForm } from "@/features/club";
 import { ConnectedAppsSection } from "@/features/mcp";
 
-import { useDisableTwoFactor, useEnableTwoFactor, useNotifyNewDevice, useRevokeSession, useSecurity, useSignOutOthers, useStartTwoFactor } from "../queries";
+import { useDisableTwoFactor, useEnableTwoFactor, useNotifyNewDevice, useRenewRecoveryCodes, useRevokeSession, useSecurity, useSignOutOthers, useStartTwoFactor } from "../queries";
 import { METHODS, resultOf, type ActiveSession, type SecurityOverview } from "../schemas";
 
 /**
@@ -147,10 +147,14 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
   const start = useStartTwoFactor();
   const enable = useEnableTwoFactor();
   const disable = useDisableTwoFactor();
+  const renew = useRenewRecoveryCodes();
   const [setup, setSetup] = React.useState<{ secret: string; provisioning_uri: string } | null>(null);
   const [code, setCode] = React.useState("");
   const [codes, setCodes] = React.useState<string[] | null>(null);
+  // The codes on screen replaced an earlier set (which stopped working), rather than being the first.
+  const [renewed, setRenewed] = React.useState(false);
   const [turningOff, setTurningOff] = React.useState(false);
+  const [renewing, setRenewing] = React.useState(false);
   const on = s.two_factor.enabled;
 
   const begin = async () => setSetup(await start.mutateAsync());
@@ -159,6 +163,26 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
     setCodes(r.recovery_codes);
     setSetup(null);
     setCode("");
+  };
+  const makeNew = async () => {
+    try {
+      const r = await renew.mutateAsync(code.trim());
+      setCodes(r.recovery_codes);
+      setRenewed(true);
+      setRenewing(false);
+      setCode("");
+    } catch {
+      // Said by the mutation's toast; the code field stays for another try.
+    }
+  };
+  const download = (list: string[]) => {
+    const blob = new Blob([`Recovery codes for ${s.account}\n\n${list.join("\n")}\n\nEach code works once.\n`], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "recovery-codes.txt";
+    a.click();
+    URL.revokeObjectURL(url);
   };
   const off = async () => {
     await disable.mutateAsync(code.trim());
@@ -181,6 +205,7 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
       {codes ? (
         <div className="bg-sunken mt-3 rounded-xl p-3">
           <p className="text-ink text-[13px] font-medium">Recovery codes — shown once. Keep them somewhere safe.</p>
+          {renewed ? <p className="text-ink-2 mt-1 text-[12.5px]">The codes you had before no longer work. Each of these works once.</p> : null}
           <ul className="mt-2 grid grid-cols-2 gap-1 font-mono text-[12.5px]">
             {codes.map((c) => (
               <li key={c}>{c}</li>
@@ -190,7 +215,17 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(codes.join("\n"))}>
               <CopyIcon className="size-3.5" /> Copy all
             </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCodes(null)}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => download(codes)}>
+              <DownloadIcon className="size-3.5" /> Download
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setCodes(null);
+                setRenewed(false);
+              }}
+            >
               Done
             </button>
           </div>
@@ -217,6 +252,21 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
             </button>
           </div>
         </div>
+      ) : renewing ? (
+        <div className="mt-3 flex flex-col gap-2">
+          <p className="text-ink-2 text-[12.5px]">
+            Enter a code from the authenticator app. You get eight new recovery codes, and every code you had before stops working.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input aria-label="Authenticator code" className={cn(field, "w-[140px] font-mono tracking-[0.2em]")} inputMode="numeric" maxLength={8} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} />
+            <button type="button" className="btn btn-primary btn-lg" onClick={makeNew} disabled={renew.isPending || code.trim().length < 6}>
+              {renew.isPending ? <Loader2Icon className="size-4 animate-spin" /> : null} Make new codes
+            </button>
+            <button type="button" className="btn btn-ghost btn-lg" onClick={() => setRenewing(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
       ) : turningOff ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <input aria-label="Authenticator code" className={cn(field, "w-[140px] font-mono tracking-[0.2em]")} inputMode="numeric" maxLength={8} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} />
@@ -233,6 +283,9 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
             <>
               <button type="button" className="btn btn-secondary" onClick={() => setTurningOff(true)}>
                 Turn off
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setRenewing(true)}>
+                <KeyRoundIcon className="size-4" /> New recovery codes
               </button>
               <span className="text-ink-3 text-[12px]">{s.two_factor.recovery_codes_remaining} recovery codes left</span>
             </>

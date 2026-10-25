@@ -113,4 +113,12 @@ describe("signing in", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back to the password" }));
     expect(screen.getByLabelText("Username")).toHaveValue("two_factor");
   });
+
+  it("offers 'Forgot password?' where the app asks for it, and only there (the admin portal has none)", () => {
+    const { unmount } = render(<LoginForm usernamePlaceholder="your_club" forgotPasswordHref="/forgot-password" />);
+    expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password");
+    unmount();
+    render(<LoginForm usernamePlaceholder="your_username" />);
+    expect(screen.queryByRole("link", { name: "Forgot password?" })).not.toBeInTheDocument();
+  });
 });

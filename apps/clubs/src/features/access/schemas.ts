@@ -62,6 +62,10 @@ export const capsSchema = z
     mail_inbox: z.boolean().optional(),
     /** The mailbox's address and settings (owner and admin). */
     mailbox_manage: z.boolean().optional(),
+    /** The contact book close-out kept: guests' names, emails and phones (owner, admin, editor; never door staff). */
+    contacts: z.boolean().optional(),
+    /** Cancelling an event that has registrations, with its refunds (owner, admin). */
+    cancel_events: z.boolean().optional(),
   })
   // A server from before connected assistants does not send the last two: they follow the roles they mirror.
   // One from before clubs' own WhatsApp sends neither of those: there is nothing to open.
@@ -71,6 +75,11 @@ export const capsSchema = z
     approve_actions: c.approve_actions ?? c.edit_events,
     whatsapp_account: c.whatsapp_account ?? false,
     whatsapp_inbox: c.whatsapp_inbox ?? false,
+    // A server from before the contact book and cancelling: they follow the roles that have them there.
+    contacts: c.contacts ?? c.edit_events,
+    cancel_events: c.cancel_events ?? c.money,
+    /** The server sent `cancel_events`: it has cancelling and club refunds (the same release). */
+    refunds_known: c.cancel_events !== undefined,
     /** Either: the WhatsApp section opens at all. */
     whatsapp: Boolean(c.whatsapp_account || c.whatsapp_inbox),
     /**
@@ -138,6 +147,10 @@ export const OWNER_CAN: Caps = {
   mailbox_manage: true,
   mail: true,
   mail_known: true,
+  contacts: true,
+  cancel_events: true,
+  // Until the server says who is signed in, nothing is known about what it has.
+  refunds_known: false,
 };
 
 export const MIN_PASSWORD = 8;
