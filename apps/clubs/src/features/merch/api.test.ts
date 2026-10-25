@@ -14,7 +14,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     if (method === "GET") return [item];
     return item;
   };
-  return { ...actual, api: { get: vi.fn((path: string, options?: unknown) => record("GET")(path, undefined, options)), post: vi.fn(record("POST")), patch: vi.fn(record("PATCH")), put: vi.fn(record("PUT")), del: vi.fn((path: string, options?: unknown) => record("DELETE")(path, undefined, options)) } };
+  return { ...actual, api: { get: vi.fn((path: string, options?: unknown) => record("GET")(path, undefined, options)), post: vi.fn(record("POST")), patch: vi.fn(record("PATCH")), put: vi.fn(record("PUT")), // The client's real signature: del(path, body, options).
+    del: vi.fn(record("DELETE")) } };
 });
 
 const api = await import("./api");
@@ -47,6 +48,8 @@ describe("the merchandise endpoints", () => {
       "GET /api/v1/events/42/merch/collections",
       "GET /api/v1/events/42/merch/analytics",
     ]);
+    // A query parameter, never the body: the server reads with_collections=Query.
+    expect(calls[7]?.body).toBeUndefined();
     expect(calls[7]?.options).toEqual({ query: { with_collections: true } });
     expect(calls[8]?.options).toEqual({ query: { q: undefined, item_id: "m1", variant_id: undefined, door_id: undefined, by: undefined, order: "oldest", page: 2, page_size: 25 } });
   });
