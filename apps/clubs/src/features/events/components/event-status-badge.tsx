@@ -8,6 +8,7 @@ const TONE: Record<EventLifecycle, StatusTone> = {
   live: "success",
   closed: "default",
   archived: "default",
+  cancelled: "destructive",
 };
 
 const LABEL: Record<EventLifecycle, string> = {
@@ -16,6 +17,7 @@ const LABEL: Record<EventLifecycle, string> = {
   live: "Live",
   closed: "Closed",
   archived: "Archived",
+  cancelled: "Cancelled",
 };
 
 /** Where the event is on its status clock, as one word in the right colour. */

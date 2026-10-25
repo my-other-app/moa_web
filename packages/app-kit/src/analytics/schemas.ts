@@ -67,7 +67,8 @@ export const eventFiguresSchema = z.object({
 
 export type EventFigures = z.infer<typeof eventFiguresSchema>;
 
-export const EVENT_STATUSES = ["draft", "published", "live", "closed", "archived"] as const;
+/** `cancelled` is set only by cancelling the event (POST /events/{id}/cancel), and is final. */
+export const EVENT_STATUSES = ["draft", "published", "live", "closed", "archived", "cancelled"] as const;
 export type EventLifecycle = (typeof EVENT_STATUSES)[number];
 
 export const recentCheckInSchema = z.object({

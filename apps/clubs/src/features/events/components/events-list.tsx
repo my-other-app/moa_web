@@ -129,6 +129,8 @@ export function signalOf(
   const end = at(event.ends_at) ?? start;
   if (event.status === "draft")
     return { text: "Draft — not public yet", tone: "caution" };
+  if (event.status === "cancelled")
+    return { text: "Cancelled — guests told", tone: "refuse" };
   if (event.door_open) return { text: "Doors open", tone: "admit" };
   if (end !== null && end < now) {
     if (
@@ -170,6 +172,8 @@ function primaryOf(
   const end = at(event.ends_at) ?? at(event.event_datetime);
   if (event.status === "draft")
     return { label: "Finish setup", href: `/events/${event.id}/edit` };
+  if (event.status === "cancelled")
+    return { label: "Open console", href: `/events/${event.id}` };
   if (event.door_open) return { label: "Open gate", href: `/gate/${event.id}` };
   if (end !== null && end < now)
     return { label: "Closeout", href: `/events/${event.id}/closeout` };
