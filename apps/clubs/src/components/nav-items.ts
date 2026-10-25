@@ -15,6 +15,7 @@ import {
   PaletteIcon,
   ShieldCheckIcon,
   ShoppingBagIcon,
+  TicketPercentIcon,
   UsersIcon,
   WalletIcon,
   type LucideIcon,
@@ -44,7 +45,7 @@ export interface NavItem {
    * is known to have its routes (see SidebarNav). The dashboard can then go
    * out ahead of its backend, and the item appears when the backend does.
    */
-  server?: "whatsapp" | "mailbox";
+  server?: "whatsapp" | "mailbox" | "ticketing";
 }
 
 export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
@@ -81,6 +82,8 @@ export const navItems: NavItem[] = [
   // the Mail permission (the mail) see it -- once the API has it and has switched it on.
   { href: "/mail", label: "Mail", icon: InboxIcon, needs: "mail", feature: "mailbox", server: "mailbox" },
   { href: "/links", label: "Tracking links", icon: LinkIcon, group: "grow", needs: "edit_events", feature: "links" },
+  // Codes for one event or every event of the club -- once the API has them.
+  { href: "/discount-codes", label: "Discount codes", icon: TicketPercentIcon, group: "grow", needs: "edit_events", feature: "coupons", server: "ticketing" },
   { href: "/website", label: "Website", icon: GlobeIcon, group: "grow", needs: "edit_events", feature: "website" },
   { href: "/templates", label: "Templates", icon: PaletteIcon, group: "grow", needs: "edit_events" },
   { href: "/finance", label: "Finance", icon: WalletIcon, group: "manage", needs: "money", feature: "finance" },

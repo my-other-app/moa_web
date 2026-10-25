@@ -8,6 +8,7 @@ import { cn } from "@moa/ui";
 import { useAccess } from "@/features/access";
 import { useMailSummary, useMailboxOnServer } from "@/features/mailbox/queries";
 import { usePlan } from "@/features/plan";
+import { useTicketingOnServer } from "@/features/ticketing/queries";
 import { useSummary, useUnreadTitle, useWhatsAppOnServer } from "@/features/whatsapp";
 
 import { NAV_GROUPS, isActive, navItems, type NavItem } from "./nav-items";
@@ -32,7 +33,9 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
   const whatsapp = useWhatsAppOnServer(Boolean(can.whatsapp));
   // Club mailboxes: shown once the API has them and has them switched on (its status says `available`).
   const mailbox = useMailboxOnServer(Boolean(can.mail));
-  const onServer = { whatsapp, mailbox };
+  // Discount codes, for those who may edit events: asked once, shared with the codes page.
+  const ticketing = useTicketingOnServer(Boolean(can.edit_events));
+  const onServer = { whatsapp, mailbox, ticketing };
   // What waits unread in the inbox, for those who may read it: on the item and in the tab's title.
   const summary = useSummary(Boolean(can.whatsapp_inbox) && whatsapp === true);
   const unread = summary.data?.unread_total ?? 0;
