@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -47,10 +48,13 @@ type Problem = { tone: "refuse" | "caution"; text: string };
 export function LoginForm({
   usernamePlaceholder = "your_username",
   redirectTo = "/",
+  forgotPasswordHref,
 }: {
   usernamePlaceholder?: string;
   /** Where to land after sign-in when no ?next= was supplied. */
   redirectTo?: string;
+  /** Where "Forgot password?" goes; without it there is no such link (the admin portal has none). */
+  forgotPasswordHref?: string;
 } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -139,7 +143,16 @@ export function LoginForm({
           </div>
 
           <div className="field">
-            <label htmlFor="login-password">Password</label>
+            {forgotPasswordHref ? (
+              <div className="flex items-baseline justify-between gap-3">
+                <label htmlFor="login-password">Password</label>
+                <Link href={forgotPasswordHref} className="text-brand text-[12.5px] font-medium underline-offset-2 hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+            ) : (
+              <label htmlFor="login-password">Password</label>
+            )}
             <div className="relative">
               <input
                 id="login-password"
