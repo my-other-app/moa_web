@@ -2,15 +2,16 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertCircleIcon, ArrowLeftIcon, CheckCheckIcon, CheckIcon, ClockIcon, FileIcon, Loader2Icon, MapPinIcon, RefreshCwIcon } from "lucide-react";
+import { AlertCircleIcon, ArrowLeftIcon, CheckCheckIcon, CheckIcon, ClockIcon, FileIcon, Loader2Icon, MapPinIcon, RefreshCwIcon, ReplyIcon, StickyNoteIcon, UploadIcon } from "lucide-react";
 import { formatDate, formatDateTime, formatTime } from "@moa/app-kit";
 import { EmptyState, Skeleton, cn } from "@moa/ui";
 
 import { mediaHref } from "../api";
-import { messagesOf, useMarkRead, useMessages, useSetConversationStatus } from "../queries";
-import { contactName, handle, type Conversation, type Message, type MessageStatus } from "../schemas";
+import { messagesOf, useInboxTeamOnServer, useMarkRead, useMessages, useSetConversationStatus } from "../queries";
+import { ERROR_TEXT, contactName, handle, type Conversation, type Message, type MessageStatus } from "../schemas";
 import { Composer } from "./composer";
 import { useNow } from "./shared";
+import { AssignControl, ConversationActions, NotesPanel, ThreadBanners } from "./team-tools";
 
 /** The ticks WhatsApp shows: a clock while sending, one grey tick, two, two blue; a mark when it failed. */
 export function StatusTicks({ status, title }: { status: MessageStatus | string | null | undefined; title?: string | null }) {
@@ -35,7 +36,9 @@ export function StatusTicks({ status, title }: { status: MessageStatus | string 
  * (GET /clubs/whatsapp/media/{id}), and whether trying again can help.
  * 0 is no answer at all (the network).
  */
-export function mediaProblem(status: number): { text: string; retry: boolean } {
+export function mediaProblem(status: number, code?: string | null): { text: string; retry: boolean } {
+  if (code === "MEDIA_OTHER_NUMBER") return { text: ERROR_TEXT.MEDIA_OTHER_NUMBER!, retry: false };
+  if (code === "MEDIA_UNAVAILABLE") return { text: ERROR_TEXT.MEDIA_UNAVAILABLE!, retry: true };
   if (status === 410) return { text: "This attachment is no longer available from WhatsApp.", retry: false };
   if (status === 409) return { text: "Your WhatsApp number isn't connected, so its attachments can't be fetched.", retry: true };
   if (status === 413) return { text: "This attachment is too large to show here.", retry: false };
@@ -43,7 +46,7 @@ export function mediaProblem(status: number): { text: string; retry: boolean } {
   return { text: "Couldn't load this attachment.", retry: true };
 }
 
-type Media = { state: "loading" } | { state: "ready"; src: string } | { state: "failed"; status: number };
+type Media = { state: "loading" } | { state: "ready"; src: string } | { state: "failed"; status: number; code?: string | null };
 
 /** An attachment through the authenticated proxy: fetched with the session, shown from memory. */
 function useMedia(href: string): [Media, () => void] {
@@ -55,7 +58,15 @@ function useMedia(href: string): [Media, () => void] {
     fetch(href, { credentials: "include" })
       .then(async (r) => {
         if (!r.ok) {
-          if (!cancelled) setMedia({ state: "failed", status: r.status });
+          // The proxy's own code, when it gave one (MEDIA_OTHER_NUMBER, MEDIA_UNAVAILABLE ...).
+          let code: string | null = null;
+          try {
+            const b = (await r.json()) as { error_code?: unknown };
+            code = typeof b?.error_code === "string" ? b.error_code : null;
+          } catch {
+            code = null;
+          }
+          if (!cancelled) setMedia({ state: "failed", status: r.status, code });
           return;
         }
         url = URL.createObjectURL(await r.blob());
@@ -76,8 +87,8 @@ function useMedia(href: string): [Media, () => void] {
   return [media, retry];
 }
 
-function MediaFailed({ status, onRetry }: { status: number; onRetry: () => void }) {
-  const { text, retry } = mediaProblem(status);
+function MediaFailed({ status, code, onRetry }: { status: number; code?: string | null; onRetry: () => void }) {
+  const { text, retry } = mediaProblem(status, code);
   return (
     <span className="text-ink-3 inline-flex flex-wrap items-center gap-2 text-[12px]">
       {text}
@@ -92,7 +103,7 @@ function MediaFailed({ status, onRetry }: { status: number; onRetry: () => void 
 
 function MediaAttachment({ href, kind, alt }: { href: string; kind: "image" | "audio" | "video"; alt: string }) {
   const [media, retry] = useMedia(href);
-  if (media.state === "failed") return <MediaFailed status={media.status} onRetry={retry} />;
+  if (media.state === "failed") return <MediaFailed status={media.status} code={media.code} onRetry={retry} />;
   if (media.state === "loading") return <Skeleton className={kind === "audio" ? "h-10 w-56 rounded-lg" : "h-40 w-56 rounded-lg"} />;
   if (kind === "audio") return <audio controls src={media.src} className="max-w-full" aria-label="Voice message" />;
   if (kind === "video") return <video controls src={media.src} className="max-h-72 max-w-full rounded-lg" aria-label="Video" />;
@@ -119,7 +130,22 @@ function mapsLink(m: Message): string | null {
   return `https://www.google.com/maps?q=${l.latitude},${l.longitude}`;
 }
 
-export function Bubble({ m }: { m: Message }) {
+/** The message a reply answers, quoted above it as WhatsApp shows it. */
+function Quote({ q }: { q: NonNullable<Message["quoted"]> }) {
+  return (
+    <span className={cn("rounded-md border-l-[3px] px-2 py-1 text-[12px]", q.direction === "out" ? "border-brand bg-surface/70" : "border-info bg-surface/70")}>
+      <span className="text-ink-3 block text-[10.5px] font-semibold">{q.direction === "out" ? "You" : "Them"}</span>
+      <span className="text-ink-2 line-clamp-2 break-words">{q.preview || "A message"}</span>
+    </span>
+  );
+}
+
+/** Whether a message can be answered with a quote: one WhatsApp knows, not a reaction or a notice. */
+export function canReplyTo(m: Message): boolean {
+  return Boolean(m.wamid) && !["reaction", "system"].includes(m.type) && m.status !== "failed";
+}
+
+export function Bubble({ m, onReply }: { m: Message; onReply?: (m: Message) => void }) {
   const out = m.direction === "out";
   const time = m.wa_timestamp ?? m.created_at;
   if (m.type === "reaction") {
@@ -133,7 +159,7 @@ export function Bubble({ m }: { m: Message }) {
   }
   const link = m.type === "location" ? mapsLink(m) : null;
   return (
-    <div className={cn("flex", out ? "justify-end" : "justify-start")} data-direction={m.direction} data-status={m.status}>
+    <div className={cn("group flex items-center gap-1", out ? "flex-row-reverse" : "flex-row")} data-direction={m.direction} data-status={m.status}>
       <div
         className={cn(
           "flex max-w-[78%] flex-col gap-1 rounded-2xl px-3 py-2 text-[13.5px] leading-[1.45]",
@@ -142,6 +168,7 @@ export function Bubble({ m }: { m: Message }) {
         )}
       >
         {m.template ? <span className="text-ink-3 font-mono text-[10.5px] tracking-[0.04em] uppercase">Template · {m.template.name}</span> : null}
+        {m.quoted ? <Quote q={m.quoted} /> : m.context_wamid && m.type !== "reaction" ? <span className="text-ink-3 text-[11px] italic">Replying to an earlier message</span> : null}
         <Attachment m={m} />
         {link ? (
           <a href={link} target="_blank" rel="noreferrer" className="text-brand inline-flex items-center gap-1 font-medium">
@@ -155,7 +182,7 @@ export function Bubble({ m }: { m: Message }) {
           <p className="text-ink-3 m-0 italic">{m.type === "unsupported" ? "A message WhatsApp can't show here" : `A ${m.type} message`}</p>
         ) : null}
         <div className="text-ink-3 flex items-center justify-end gap-1.5 text-[11px]">
-          {out && m.sent_by ? <span>{m.via === "delivery" ? "Sent automatically" : m.sent_by}</span> : null}
+          {out && m.sent_by ? <span>{m.via === "delivery" ? "Sent automatically" : m.via === "auto" ? "Automatic reply" : m.sent_by}</span> : null}
           <time dateTime={time} title={formatDateTime(time)}>
             {formatTime(time)}
           </time>
@@ -168,6 +195,16 @@ export function Bubble({ m }: { m: Message }) {
           </p>
         ) : null}
       </div>
+      {onReply && canReplyTo(m) ? (
+        <button
+          type="button"
+          className="btn btn-ghost btn-xs text-ink-3 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+          aria-label="Reply to this message"
+          onClick={() => onReply(m)}
+        >
+          <ReplyIcon className="size-3.5" />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -204,6 +241,8 @@ function newestInbound(items: Message[]): number | null {
  */
 export function Thread({ conversationId, poll, onBack }: { conversationId: number; poll: number | false; onBack?: () => void }) {
   const q = useMessages(conversationId, poll);
+  // The team's tools (assigning, notes, blocks, files, replies) only where the API has them.
+  const tools = useInboxTeamOnServer() === true;
   const { mutate: markRead } = useMarkRead();
   const status = useSetConversationStatus();
   const now = useNow();
@@ -212,6 +251,12 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
   // the reply box starting afresh (the window closing) loses neither.
   const [draft, setDraft] = React.useState("");
   const [problem, setProblem] = React.useState<string | null>(null);
+  // The message being answered (its quote shows over the reply box), and whether the team's notes are open.
+  const [replyTo, setReplyTo] = React.useState<Message | null>(null);
+  const [notesOpen, setNotesOpen] = React.useState(false);
+  // A file dropped anywhere on the conversation goes to the reply box, which checks it before anything is sent.
+  const attach = React.useRef<((file: File) => void) | null>(null);
+  const [dragging, setDragging] = React.useState(false);
 
   const conv: Conversation | undefined = q.data?.pages[0]?.conversation;
   const items = React.useMemo(() => messagesOf(q.data), [q.data]);
@@ -295,7 +340,32 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
     .filter(Boolean)
     .join(" · ");
   return (
-    <div className="flex min-h-0 flex-1 flex-col" aria-label={`Conversation with ${name}`}>
+    <div
+      className={cn("relative flex min-h-0 flex-1 flex-col", dragging && "ring-brand ring-2 ring-inset")}
+      aria-label={`Conversation with ${name}`}
+      onDragOver={(e) => {
+        if (!e.dataTransfer?.types?.includes("Files") || !attach.current) return;
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget === e.target) setDragging(false);
+      }}
+      onDrop={(e) => {
+        const file = e.dataTransfer?.files?.[0];
+        if (!file || !attach.current) return;
+        e.preventDefault();
+        setDragging(false);
+        attach.current(file);
+      }}
+    >
+      {dragging ? (
+        <div className="bg-surface/85 text-brand pointer-events-none absolute inset-0 z-10 grid place-items-center text-[14px] font-semibold" aria-hidden="true">
+          <span className="flex items-center gap-2">
+            <UploadIcon className="size-4" /> Drop to send it to {name}
+          </span>
+        </div>
+      ) : null}
       <div className="border-line-soft flex shrink-0 flex-wrap items-start gap-2 border-b p-3">
         {onBack ? (
           <button type="button" className="btn btn-ghost btn-sm lg:hidden" onClick={onBack} aria-label="Back to conversations">
@@ -317,16 +387,38 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
             </ul>
           ) : null}
         </div>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          disabled={status.isPending}
-          aria-label={conv.status === "open" ? "Close conversation" : "Reopen conversation"}
-          onClick={() => status.mutate({ id: conv.id, status: conv.status === "open" ? "closed" : "open" })}
-        >
-          {conv.status === "open" ? "Close" : "Reopen"}
-        </button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {tools ? <AssignControl conv={conv} /> : null}
+          {tools ? (
+            <button
+              type="button"
+              className={cn("btn btn-ghost btn-sm", notesOpen && "bg-sunken")}
+              aria-pressed={notesOpen}
+              aria-label={conv.notes ? `Notes (${conv.notes})` : "Notes"}
+              onClick={() => setNotesOpen((v) => !v)}
+            >
+              <StickyNoteIcon className="size-3.5" aria-hidden="true" />
+              {conv.notes ? <span className="tabular-nums">{conv.notes}</span> : null}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={status.isPending}
+            aria-label={conv.status === "open" ? "Close conversation" : "Reopen conversation"}
+            onClick={() => status.mutate({ id: conv.id, status: conv.status === "open" ? "closed" : "open" })}
+          >
+            {conv.status === "open" ? "Close" : "Reopen"}
+          </button>
+          {tools ? <ConversationActions conv={conv} /> : null}
+        </div>
       </div>
+      {conv.blocked || conv.opt_out ? (
+        <div className="border-line-soft flex shrink-0 flex-col gap-2 border-b p-3">
+          <ThreadBanners conv={conv} />
+        </div>
+      ) : null}
+      {notesOpen && tools ? <NotesPanel conv={conv} /> : null}
 
       <div ref={log} onScroll={onScroll} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-3" role="log" aria-label="Messages">
         {q.isFetchNextPageError ? (
@@ -349,7 +441,7 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
           return (
             <React.Fragment key={m.id}>
               {divider ? <div className="text-ink-3 self-center font-mono text-[10.5px] tracking-[0.06em] uppercase">{day}</div> : null}
-              <Bubble m={m} />
+              <Bubble m={m} onReply={conv.blocked || !tools ? undefined : setReplyTo} />
             </React.Fragment>
           );
         })}
@@ -367,6 +459,10 @@ export function Thread({ conversationId, poll, onBack }: { conversationId: numbe
           // What is sent shows at the bottom, wherever they had scrolled to.
           atBottom.current = true;
         }}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+        attachRef={attach}
+        tools={tools}
       />
     </div>
   );

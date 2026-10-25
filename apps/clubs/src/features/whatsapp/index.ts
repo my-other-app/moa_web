@@ -16,7 +16,10 @@ export {
   type StreamMode,
   type StreamChange,
 } from "./stream";
+export { useBrowserNotify, useNewMessageNotifier, useUnreadTitle, titled, readNotify, writeNotify, resetNotifyCache, notificationFor, NOTIFY_KEY } from "./alerts";
 export {
+  useSummary,
+  errorText,
   useAccount,
   useOverview,
   useWhatsAppOnServer,

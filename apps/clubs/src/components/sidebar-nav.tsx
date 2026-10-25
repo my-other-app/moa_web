@@ -7,7 +7,7 @@ import { cn } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
 import { usePlan } from "@/features/plan";
-import { useWhatsAppOnServer } from "@/features/whatsapp";
+import { useSummary, useUnreadTitle, useWhatsAppOnServer } from "@/features/whatsapp";
 
 import { NAV_GROUPS, isActive, navItems, type NavItem } from "./nav-items";
 
@@ -30,6 +30,10 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
   // Asked only of those who may open WhatsApp; shared with its pages' read of the account.
   const whatsapp = useWhatsAppOnServer(Boolean(can.whatsapp));
   const onServer = { whatsapp };
+  // What waits unread in the inbox, for those who may read it: on the item and in the tab's title.
+  const summary = useSummary(Boolean(can.whatsapp_inbox) && whatsapp === true);
+  const unread = summary.data?.unread_total ?? 0;
+  useUnreadTitle(unread);
   // A role sees only what it can open; the club's own account sees everything. A section
   // whose backend isn't deployed yet waits until the API is known to have it.
   const visible = navItems.filter((i) => (!i.needs || can[i.needs]) && (!i.server || onServer[i.server] === true));
@@ -48,7 +52,12 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
             {section.items.map((item) => {
               const on = isActive(pathname, item);
               const lock = item.feature ? plan.featureLock(item.feature) : null;
-              const hint = lock ? `${item.label} · part of ${lock.requiredPlanName ?? "a bigger plan"} and up` : item.label;
+              const count = item.server === "whatsapp" ? unread : 0;
+              const hint = lock
+                ? `${item.label} · part of ${lock.requiredPlanName ?? "a bigger plan"} and up`
+                : count
+                  ? `${item.label} · ${count} unread`
+                  : item.label;
               return (
                 <li key={item.href} className="relative">
                   <span
@@ -66,10 +75,23 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
                       collapsed && "justify-center px-0"
                     )}
                   >
-                    <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px] transition-colors duration-150", on ? "bg-brand text-brand-foreground" : "bg-raised text-ink-2")}>
+                    <span className={cn("relative grid size-8 shrink-0 place-items-center rounded-[10px] transition-colors duration-150", on ? "bg-brand text-brand-foreground" : "bg-raised text-ink-2")}>
                       <item.icon className="size-[17px]" />
+                      {count && collapsed ? <span aria-hidden="true" className="bg-refuse ring-surface absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2" /> : null}
                     </span>
                     <span className={cn("flex-1 truncate", collapsed && "hidden")}>{item.label}</span>
+                    {count ? (
+                      <span
+                        data-testid="whatsapp-unread"
+                        className={cn(
+                          "bg-refuse shrink-0 rounded-full px-1.5 font-mono text-[10.5px] leading-[18px] font-semibold text-white tabular-nums",
+                          collapsed && "sr-only",
+                        )}
+                      >
+                        {count > 99 ? "99+" : count}
+                        <span className="sr-only"> unread</span>
+                      </span>
+                    ) : null}
                     {lock ? (
                       <LockIcon
                         role="img"

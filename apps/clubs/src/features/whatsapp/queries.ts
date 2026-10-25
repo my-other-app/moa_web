@@ -2,27 +2,46 @@
 
 import { useCallback } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
-import { ApiError, isRouteMissing } from "@moa/api";
+import { ApiError, isRouteMissing, nullIfRouteMissing } from "@moa/api";
 
 import {
+  addNote,
+  assignConversation,
+  blockConversation,
+  createSavedReply,
   createTemplate,
+  deleteNote,
+  deleteSavedReply,
   deleteTemplate,
   disconnectAccount,
   fetchAccount,
   fetchConversations,
+  fetchInboxSettings,
   fetchMessages,
+  fetchNotes,
   fetchOverview,
+  fetchSavedReplies,
+  fetchSummary,
+  fetchTeam,
   fetchTemplates,
   installStandardTemplates,
   markRead,
+  optInConversation,
+  optOutConversation,
   saveAccount,
   sendMessage,
   setConversationStatus,
+  unblockConversation,
   updateAccount,
+  updateInboxSettings,
+  updateMyNotifications,
+  updateSavedReply,
   verifyAccount,
+  type SavedReplyBody,
   type SendBody,
 } from "./api";
 import {
+  ERROR_TEXT,
   INVALID_TEMPLATE,
   INVALID_WHATSAPP_KEYS,
   KEY_ERROR_FIELD,
@@ -37,6 +56,7 @@ import {
   WINDOW_CLOSED,
   type Account,
   type Conversation,
+  type InboxSettings,
   type ConversationList,
   type InboxFilter,
   type Message,
@@ -54,6 +74,11 @@ export const OVERVIEW_KEY = [...WA_KEY, "overview"] as const;
 export const CONVERSATIONS_KEY = [...WA_KEY, "conversations"] as const;
 export const MESSAGES_KEY = [...WA_KEY, "messages"] as const;
 export const TEMPLATES_KEY = [...WA_KEY, "templates"] as const;
+export const SUMMARY_KEY = [...WA_KEY, "summary"] as const;
+export const TEAM_KEY = [...WA_KEY, "team"] as const;
+export const NOTES_KEY = [...WA_KEY, "notes"] as const;
+export const SAVED_REPLIES_KEY = [...WA_KEY, "saved-replies"] as const;
+export const INBOX_SETTINGS_KEY = [...WA_KEY, "inbox-settings"] as const;
 
 /**
  * A server from before clubs could connect their own number (its
@@ -92,6 +117,10 @@ export const NOT_ON_THIS_SERVER: Account = {
   can_inbox: false,
   impersonated: false,
   warnings: [],
+  locked: false,
+  number_status: null,
+  name_status: null,
+  restrictions: [],
 };
 
 async function readAccount(): Promise<Account> {
@@ -166,6 +195,7 @@ export function useVerifyAccount() {
   return useMutation({ mutationFn: verifyAccount, ...useSettleAccount() });
 }
 
+/** Routing, retention, or the app ID alone. */
 export function useUpdateAccount() {
   return useMutation({ mutationFn: updateAccount, ...useSettleAccount() });
 }
@@ -206,10 +236,10 @@ export const CONVERSATIONS_PAGE = 50;
  * The list, page by page on `offset`. A refresh reads every page loaded so
  * far again, each from where the one before it now ends.
  */
-export function useConversations(filter: InboxFilter, q: string, poll: number | false, enabled = true) {
+export function useConversations(filter: InboxFilter, q: string, poll: number | false, enabled = true, assignee: string | null = null) {
   return useInfiniteQuery({
-    queryKey: [...CONVERSATIONS_KEY, filter, q],
-    queryFn: ({ pageParam }) => fetchConversations({ filter, q, offset: pageParam, limit: CONVERSATIONS_PAGE }),
+    queryKey: [...CONVERSATIONS_KEY, filter, q, assignee],
+    queryFn: ({ pageParam }) => fetchConversations({ filter, q, assignee, offset: pageParam, limit: CONVERSATIONS_PAGE }),
     initialPageParam: 0,
     getNextPageParam: (last, pages) => {
       const loaded = pages.reduce((n, p) => n + p.items.length, 0);
@@ -288,6 +318,7 @@ export function useRefreshInbox() {
   return (conversationId?: number | null) => {
     void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
     void queryClient.invalidateQueries({ queryKey: OVERVIEW_KEY });
+    void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY });
     if (conversationId === undefined || conversationId === null) void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY });
     else void queryClient.invalidateQueries({ queryKey: [...MESSAGES_KEY, conversationId] });
   };
@@ -301,6 +332,7 @@ export function useApplyRefresh() {
       if (plan.list) {
         void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
         void queryClient.invalidateQueries({ queryKey: OVERVIEW_KEY });
+        void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY });
       }
       // Only the open conversation's is on screen: the others are marked stale, not fetched.
       if (plan.threads === "all") void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY });
@@ -327,9 +359,22 @@ export function useSendMessage(conversationId: number) {
       queryClient.setQueryData<MessagePages>(key, (data) => withMessage(data, m));
       void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
       void queryClient.invalidateQueries({ queryKey: OVERVIEW_KEY });
+      void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY });
     },
     onError: () => refresh(conversationId),
   });
+}
+
+/** A file they were sent (uploadMedia, with its progress): kept like a reply. */
+export function usePutSentMessage(conversationId: number) {
+  const queryClient = useQueryClient();
+  return async (m: Message) => {
+    const key = [...MESSAGES_KEY, conversationId];
+    await queryClient.cancelQueries({ queryKey: key });
+    queryClient.setQueryData<MessagePages>(key, (data) => withMessage(data, m));
+    void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
+    void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY });
+  };
 }
 
 /** The conversation as it now is, wherever it is shown: the thread's header and the list's row. */
@@ -352,9 +397,11 @@ export function useMarkRead() {
     mutationFn: (conversationId: number) => markRead(conversationId),
     onSuccess: (c) => {
       set(c);
-      // The unread counts: the filter's and the overview's.
+      // The unread counts: the filter's, the overview's, the nav's and the bell's.
       void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
       void queryClient.invalidateQueries({ queryKey: OVERVIEW_KEY });
+      void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["club-alerts"] });
     },
   });
 }
@@ -367,9 +414,33 @@ export function useSetConversationStatus() {
   });
 }
 
+/**
+ * Any refusal of the inbox's, in words: the server's own sentence when it
+ * gave one, else this page's for its code (ERROR_TEXT), else a plain "try again".
+ */
+export function errorText(error: unknown, fallback = "That did not go through. Try again."): string {
+  if (error instanceof ApiError) {
+    if (error.isForbidden && (error.errorCode === WHATSAPP_PERMISSION || error.errorCode === WHATSAPP_PRIVATE)) return forbiddenText(error);
+    return error.message?.trim() || (error.errorCode ? ERROR_TEXT[error.errorCode] : undefined) || fallback;
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+/** Whether a refusal to block offers a block here instead (after 24 hours, a full blocklist). */
+export function offersLocalBlock(error: unknown): boolean {
+  return error instanceof ApiError && Boolean((error.fieldErrors as Record<string, unknown> | null)?.local_available);
+}
+
 /** A refusal from sending, in words for the thread. */
 export function sendErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.errorCode && ["OPTED_OUT", "OPTED_OUT_MARKETING", "CONTACT_BLOCKED", "CANT_REPLY_TO_IT", "MEDIA_TYPE", "MEDIA_TOO_LARGE",
+      "MEDIA_SIZE_MISMATCH", "CAPTION_TOO_LONG", "CAPTION_NOT_ALLOWED", "MEDIA_REFUSED"].includes(error.errorCode)) {
+      return error.message?.trim() || ERROR_TEXT[error.errorCode]!;
+    }
+    // A 413 with no code of ours: a proxy on the way (the dashboard's host, Cloudflare) refused the size first.
+    if (error.status === 413 && !error.errorCode) return "That file is too large to pass on from here. Send a smaller one.";
+    if (error.errorCode === "UPLOAD_INTERRUPTED") return error.message?.trim() || ERROR_TEXT.UPLOAD_INTERRUPTED!;
     if (error.errorCode === WINDOW_CLOSED) return "It's been more than 24 hours since they last wrote. Send an approved template instead.";
     if (error.errorCode === TEMPLATE_NOT_APPROVED) return "That template isn't approved on your WhatsApp account. Refresh the templates and pick an approved one.";
     if (error.errorCode === WHATSAPP_FAILED) return "Your WhatsApp number isn't working right now. Check it in WhatsApp settings.";
@@ -431,4 +502,140 @@ export function templateErrorMessage(error: unknown): TemplateProblem {
     return { field: "form", text: error.message || "That did not go through. Try again." };
   }
   return { field: "form", text: error instanceof Error && error.message ? error.message : "That did not go through. Try again." };
+}
+
+// ─── The inbox as a team's ───────────────────────────────────────────────
+
+/**
+ * What waits (counts only): the nav's badge and the tab's "(n)". `null` from a
+ * server without the route; nothing at all for someone the inbox isn't for
+ * (`enabled` false, or a 403: the badge just isn't shown).
+ */
+export function useSummary(enabled = true) {
+  return useQuery({
+    queryKey: SUMMARY_KEY,
+    queryFn: () => nullIfRouteMissing(fetchSummary),
+    // Not asked again of a server without it, nor after a refusal (no permission): no badge then.
+    refetchInterval: (query) => (query.state.data === null || query.state.status === "error" ? false : 60_000),
+    staleTime: 15_000,
+    retry: false,
+    enabled,
+  });
+}
+
+/**
+ * Whether this API has the inbox's team features (summary, assigning,
+ * notes, blocks, files, saved replies), from the summary's read (the nav's
+ * badge asks it anyway): `false` when its route answers a bare 404 -- a
+ * backend with #106 but not these -- and then none of their controls is
+ * shown; `true` once it answers anything else; `undefined` until asked.
+ */
+export function useInboxTeamOnServer(enabled = true): boolean | undefined {
+  const q = useSummary(enabled);
+  if (q.data === null) return false;
+  if (q.data || q.isError) return true;
+  return undefined;
+}
+
+export function useTeam(enabled = true) {
+  return useQuery({ queryKey: TEAM_KEY, queryFn: fetchTeam, staleTime: 60_000, retry: false, enabled });
+}
+
+/** The conversation as it now is, everywhere it is shown, and what counts it changes. */
+function useSettleConversation() {
+  const queryClient = useQueryClient();
+  const set = useSetConversation();
+  return (c: Conversation) => {
+    set(c);
+    void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
+    void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY });
+  };
+}
+
+export function useAssign() {
+  const settle = useSettleConversation();
+  return useMutation({
+    mutationFn: ({ id, owner, memberId }: { id: number; owner?: boolean; memberId?: number | null }) =>
+      assignConversation(id, owner ? { owner: true } : memberId ? { member_id: memberId } : {}),
+    onSuccess: settle,
+  });
+}
+
+export function useBlock() {
+  const settle = useSettleConversation();
+  return useMutation({ mutationFn: ({ id, localOnly }: { id: number; localOnly?: boolean }) => blockConversation(id, Boolean(localOnly)), onSuccess: settle });
+}
+
+export function useUnblock() {
+  const settle = useSettleConversation();
+  return useMutation({ mutationFn: ({ id, localOnly }: { id: number; localOnly?: boolean }) => unblockConversation(id, Boolean(localOnly)), onSuccess: settle });
+}
+
+export function useOptOut() {
+  const settle = useSettleConversation();
+  return useMutation({
+    mutationFn: ({ id, out, scope }: { id: number; out: boolean; scope?: "all" | "marketing" }) =>
+      out ? optOutConversation(id, scope ?? "all") : optInConversation(id, scope ?? "all"),
+    onSuccess: settle,
+  });
+}
+
+export function useNotes(conversationId: number, enabled = true) {
+  return useQuery({ queryKey: [...NOTES_KEY, conversationId], queryFn: () => fetchNotes(conversationId), staleTime: 15_000, retry: false, enabled });
+}
+
+export function useAddNote(conversationId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) => addNote(conversationId, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...NOTES_KEY, conversationId] });
+      void queryClient.invalidateQueries({ queryKey: [...MESSAGES_KEY, conversationId] });
+    },
+  });
+}
+
+export function useDeleteNote(conversationId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (noteId: number) => deleteNote(conversationId, noteId),
+    onSuccess: (list) => {
+      queryClient.setQueryData([...NOTES_KEY, conversationId], list);
+      void queryClient.invalidateQueries({ queryKey: [...MESSAGES_KEY, conversationId] });
+    },
+  });
+}
+
+export function useSavedReplies(enabled = true) {
+  return useQuery({ queryKey: SAVED_REPLIES_KEY, queryFn: fetchSavedReplies, staleTime: 60_000, retry: false, enabled });
+}
+
+export function useSaveReply() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id?: number | null; body: SavedReplyBody }) => (id ? updateSavedReply(id, body) : createSavedReply(body)),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: SAVED_REPLIES_KEY }),
+  });
+}
+
+export function useDeleteReply() {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: deleteSavedReply, onSuccess: (list) => queryClient.setQueryData(SAVED_REPLIES_KEY, list) });
+}
+
+export function useInboxSettings(enabled = true) {
+  return useQuery({ queryKey: INBOX_SETTINGS_KEY, queryFn: () => nullIfRouteMissing(fetchInboxSettings), staleTime: 30_000, retry: false, enabled });
+}
+
+export function useUpdateInboxSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: updateInboxSettings, onSuccess: (next) => queryClient.setQueryData(INBOX_SETTINGS_KEY, next) });
+}
+
+export function useUpdateMyNotifications() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMyNotifications,
+    onSuccess: (me) => queryClient.setQueryData<InboxSettings | null>(INBOX_SETTINGS_KEY, (s) => (s ? { ...s, me } : s)),
+  });
 }
