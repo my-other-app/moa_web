@@ -5,8 +5,10 @@ import { z } from "zod";
  * everyone who signs in to the club (the owner and the team).
  *
  * Kinds (club_alerts.service.KINDS on the server):
- * message_quota_80     80% of a month's emails or WhatsApp messages used
- * message_quota_100    all of them used
+ * message_quota_80     80% of the plan's monthly emails or WhatsApp messages used
+ * message_quota_100    all of the plan's allowance used (bought credits come next)
+ * message_credits_low  bought credits under a tenth of the last pack
+ * message_credits_expiring  bought credits with some left expire within 30 days
  * whatsapp_failed      the club's own WhatsApp number stopped working
  * whatsapp_quality     its quality rating or messaging limit dropped
  * whatsapp_restricted  Meta restricted its WhatsApp account
@@ -45,8 +47,10 @@ export type AlertTone = "caution" | "refuse" | "info";
  * shown with its title alone.
  */
 export const KIND_INFO: Record<string, { label: string; link: string; tone: AlertTone }> = {
-  message_quota_80: { label: "Messages", link: "/billing", tone: "caution" },
-  message_quota_100: { label: "Messages", link: "/billing", tone: "refuse" },
+  message_quota_80: { label: "Messages", link: "/billing#credits", tone: "caution" },
+  message_quota_100: { label: "Messages", link: "/billing#credits", tone: "refuse" },
+  message_credits_low: { label: "Credits", link: "/billing#credits", tone: "caution" },
+  message_credits_expiring: { label: "Credits", link: "/billing#credits", tone: "caution" },
   whatsapp_failed: { label: "WhatsApp number", link: "/whatsapp/settings", tone: "refuse" },
   whatsapp_quality: { label: "WhatsApp quality", link: "/whatsapp/settings", tone: "caution" },
   whatsapp_restricted: { label: "WhatsApp account", link: "/whatsapp/settings", tone: "refuse" },
@@ -61,6 +65,12 @@ export const KIND_INFO: Record<string, { label: string; link: string; tone: Aler
 export function alertLink(a: Pick<ClubAlert, "kind" | "link">): string | null {
   if (a.link) return safeLink(a.link);
   return KIND_INFO[a.kind]?.link ?? null;
+}
+
+/** The short call to action a notice carries ("Buy credits"), when the server sends one. */
+export function actionLabel(a: Pick<ClubAlert, "data">): string | null {
+  const label = a.data?.action_label;
+  return typeof label === "string" && label.trim() ? label.trim().slice(0, 40) : null;
 }
 
 /** "just now", "5 min ago", "3 h ago", "2 d ago". */

@@ -1,8 +1,51 @@
 export { BillingPage } from "./components/billing-page";
+export { CreditsSection, printReceipt, receiptRows } from "./components/credits-section";
 export { TrialBanner, freeLimits } from "./components/trial-banner";
-export { usePlans, useSubscription, useEntitlements, useStartSubscription, useCancelSubscription, billingErrorMessage, isComplimentaryRefusal, NOT_FOR_SALE } from "./queries";
+export {
+  usePlans,
+  useSubscription,
+  useEntitlements,
+  useStartSubscription,
+  useCancelSubscription,
+  useCredits,
+  useCreditReceipt,
+  useCreateCreditOrder,
+  useVerifyCreditPayment,
+  billingErrorMessage,
+  isComplimentaryRefusal,
+  NOT_FOR_SALE,
+  CREDITS_KEY,
+} from "./queries";
 export { fetchPlans, fetchSubscription, fetchEntitlements, startSubscription, cancelSubscription } from "./api";
-export { checkoutKey, loadCheckout, openSubscriptionCheckout, CHECKOUT_SRC, type CheckoutOutcome } from "./razorpay";
+export { checkoutKey, loadCheckout, openSubscriptionCheckout, openOrderCheckout, CHECKOUT_SRC, type CheckoutOutcome, type OrderCheckoutOutcome } from "./razorpay";
+export {
+  CREDIT_CHANNELS,
+  PURCHASE_STATUSES,
+  creditsSchema,
+  creditOrderSchema,
+  packSchema,
+  lotSchema,
+  purchaseSchema,
+  receiptSchema,
+  fetchCredits,
+  createCreditOrder,
+  verifyCreditPayment,
+  fetchCreditReceipt,
+  creditErrorText,
+  messagesText,
+  packsFor,
+  perMessageText,
+  purchaseStatusText,
+  rupeesText,
+  type ChannelCredits,
+  type CreditChannel,
+  type CreditLot,
+  type CreditOrder,
+  type CreditPack,
+  type CreditPurchase,
+  type CreditReceipt,
+  type Credits,
+} from "./credits";
 export {
   CYCLES,
   FREE_PLAN,

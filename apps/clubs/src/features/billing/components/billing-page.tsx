@@ -32,6 +32,7 @@ import { MessageUsageCard } from "@/features/message-usage";
 
 import { billingErrorMessage, isComplimentaryRefusal, useCancelSubscription, useEntitlements, usePlans, useRefreshBilling, useStartSubscription, useSubscription } from "../queries";
 import { checkoutKey, openSubscriptionCheckout } from "../razorpay";
+import { CreditsSection } from "./credits-section";
 import { freeLimits } from "./trial-banner";
 import {
   FREE_PLAN,
@@ -375,8 +376,11 @@ export function BillingPage() {
         </div>
       )}
 
-      {/* The month's emails and WhatsApp against the plan, the extra and the earlier months. */}
+      {/* The month's emails and WhatsApp: the plan's allowance, then bought credits, and the earlier months. */}
       <MessageUsageCard variant="billing" />
+
+      {/* Message credits (#credits): what is left, the packs on sale and the purchases. */}
+      <CreditsSection />
 
       {/* AI assist: the month's actions, or the club's own key. Nothing while AI is off. */}
       <AiUsagePanel />

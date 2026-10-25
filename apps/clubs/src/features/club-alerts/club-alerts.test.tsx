@@ -32,7 +32,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
-const { ClubBell, safeLink, alertLink, ago } = await import("./index");
+const { ClubBell, safeLink, alertLink, actionLabel, ago } = await import("./index");
 
 const NOW = new Date("2026-10-24T12:00:00Z");
 
@@ -86,7 +86,29 @@ describe("the bell", () => {
     answer = { unread: 0, items: [] };
     render(<ClubBell />);
     fireEvent.click(await screen.findByRole("button", { name: "Notifications" }));
-    expect(await screen.findByText(/Warnings about your plan's monthly messages and your own WhatsApp number show up here/)).toBeInTheDocument();
+    expect(await screen.findByText(/Warnings about your plan's monthly messages, your message credits and your own WhatsApp number show up here/)).toBeInTheDocument();
+  });
+
+  it("leads the message and credits notices to Billing's credits, with their 'Buy credits'", async () => {
+    answer = {
+      unread: 3,
+      items: [
+        { id: 12, kind: "message_credits_expiring", title: "1,200 email credits expire on 20 November", body: "Use them before then.", link: "/billing#credits", data: { action_label: "Buy credits" }, created_at: "2026-10-24T11:59:00Z", read: false },
+        { id: 11, kind: "message_credits_low", title: "Your WhatsApp credits are running low", body: "8 of 100 left.", link: null, data: { action_label: "Buy credits" }, created_at: "2026-10-24T11:58:00Z", read: false },
+        { id: 10, kind: "message_quota_100", title: "You've used all 1,000 emails on your plan for October 2026", body: "Bought credits are used next.", link: "/billing#credits", data: { action_label: "Buy credits", level: 100 }, created_at: "2026-10-24T11:57:00Z", read: false },
+      ],
+    };
+    render(<ClubBell />);
+    fireEvent.click(await screen.findByRole("button", { name: /Notifications/ }));
+    const list = await screen.findByRole("list", { name: "Latest notifications" });
+    for (const title of [/1,200 email credits expire/, /WhatsApp credits are running low/, /used all 1,000 emails on your plan/]) {
+      const link = within(list).getByRole("link", { name: title });
+      expect(link).toHaveAttribute("href", "/billing#credits");
+      expect(within(link).getByText("Buy credits →")).toBeInTheDocument();
+    }
+    expect(within(list).getAllByText("Credits")).toHaveLength(2);
+    expect(actionLabel({ data: { action_label: 3 } })).toBeNull();
+    expect(actionLabel({ data: {} })).toBeNull();
   });
 
   it("labels the club's own WhatsApp notices and leads each to WhatsApp settings", async () => {
