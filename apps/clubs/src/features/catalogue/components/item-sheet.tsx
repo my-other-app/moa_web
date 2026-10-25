@@ -5,6 +5,8 @@ import { ImageIcon, Loader2Icon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useObjectUrl } from "@moa/ui/hooks";
 import { Button, Chip, IconButton, Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, Switch, cn } from "@moa/ui";
 
+import { fitImage } from "@/lib/images";
+
 import { uploadClubItemPhoto } from "../api";
 import { useCreateClubItem, useUpdateClubItem } from "../queries";
 import { MAX_SIZES, ROLES, catalogueFormSchema, createBody, emptyCatalogueForm, formFromItem, patchBody, photoProblem, type CatalogueDraft, type ClubStoreItem } from "../schemas";
@@ -49,11 +51,18 @@ function PhotoField({ value, onChange, onBusy }: { value: Photo; onChange: (v: P
     const wrong = photoProblem(picked);
     setProblem(wrong);
     if (wrong) return;
-    setFile(picked);
+    let ready: File;
+    try {
+      // Over the gateway's 4.5 MB (a Vercel limit) it is redrawn smaller first.
+      ready = await fitImage(picked, "photo");
+    } catch (err) {
+      return void setProblem(err instanceof Error ? err.message : "That image is too big to send");
+    }
+    setFile(ready);
     setBusy(true);
     onBusy(true);
     try {
-      const up = await uploadClubItemPhoto(picked);
+      const up = await uploadClubItemPhoto(ready);
       onChange({ key: up.key, url: up.url });
     } catch (err) {
       setFile(null);

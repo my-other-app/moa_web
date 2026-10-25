@@ -4,6 +4,8 @@ import * as React from "react";
 import { PlusIcon, Trash2Icon, UploadIcon, XIcon } from "lucide-react";
 import { Button, IconButton, cn, toast } from "@moa/ui";
 
+import { fitImage } from "@/lib/images";
+
 import { uploadEmailImage } from "../api";
 import {
   BLOCK_META,
@@ -123,7 +125,8 @@ const ImageSource = ({
     if (!file) return;
     setBusy(true);
     try {
-      const up = await uploadEmailImage(scope, file);
+      // Over the gateway's 4.5 MB (a Vercel limit) it is redrawn smaller first (lib/images).
+      const up = await uploadEmailImage(scope, await fitImage(file, "image"));
       patch({ imageKey: up.key });
       toast.success("Image uploaded", {
         description: `${up.width} × ${up.height}, sized for email.`,
@@ -154,7 +157,7 @@ const ImageSource = ({
           <p className={cn(ui.note, "mb-1.5 truncate")}>
             {block.imageKey
               ? block.imageKey.split("/").pop()
-              : "No image yet. PNG, JPEG or WebP, up to 5 MB."}
+              : "No image yet. PNG, JPEG or WebP; a big one is made smaller to send."}
           </p>
           <input
             ref={inputRef}

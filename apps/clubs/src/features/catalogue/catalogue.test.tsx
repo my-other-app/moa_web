@@ -129,7 +129,8 @@ describe("the club's merchandise", () => {
     const big = new File(["x"], "big.png", { type: "image/png" });
     Object.defineProperty(big, "size", { value: 6 * 1024 * 1024 });
     fireEvent.change(within(dialog).getByLabelText("Item photo"), { target: { files: [big] } });
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("over 5 MB");
+    // Too big to send and, here, no canvas to redraw it smaller with: refused with words.
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("more than the 4.0 MB that can be sent");
     expect(calls.some((c) => c.path.endsWith("/photo"))).toBe(false);
 
     fireEvent.change(within(dialog).getByLabelText("Item photo"), { target: { files: [new File(["png"], "hoodie.png", { type: "image/png" })] } });
@@ -166,6 +167,37 @@ describe("the club's merchandise", () => {
       on_sale: true,
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("redraws a photo too big for the gateway smaller, and sends that", async () => {
+    // jsdom has no canvas: one is stood in whose redraw weighs a byte per pixel.
+    vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 4000, height: 3000, close: vi.fn() })));
+    const ctx = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      () => ({ drawImage: vi.fn(), fillRect: vi.fn(), clearRect: vi.fn(), fillStyle: "" }) as unknown as CanvasRenderingContext2D,
+    );
+    const blob = vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(function (this: HTMLCanvasElement, done, type = "image/png") {
+      const out = new Blob(["x"], { type });
+      Object.defineProperty(out, "size", { value: this.width * this.height });
+      done(out);
+    });
+    try {
+      render(<CataloguePage />);
+      await screen.findByRole("heading", { name: "Hack Night tee" });
+      fireEvent.click(screen.getByRole("button", { name: /Add item/ }));
+      const dialog = await sheet();
+      const phone = new File(["x"], "IMG_2041.jpeg", { type: "image/jpeg" });
+      Object.defineProperty(phone, "size", { value: 9 * 1024 * 1024 });
+      fireEvent.change(within(dialog).getByLabelText("Item photo"), { target: { files: [phone] } });
+      await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.path === "/api/v1/clubs/store/photo")).toBe(true));
+      const sent = (calls.find((c) => c.path === "/api/v1/clubs/store/photo")!.body as FormData).get("file") as File;
+      expect(sent.name).toBe("IMG_2041.jpg");
+      expect(sent.size).toBeLessThanOrEqual(4 * 1024 * 1024);
+      expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    } finally {
+      ctx.mockRestore();
+      blob.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("says what is missing rather than sending a half-made item", async () => {

@@ -124,6 +124,37 @@ describe("threads", () => {
     expect(form.get("image")).toBeNull();
   });
 
+  it("redraws a photo too big for the gateway smaller before posting it", async () => {
+    // jsdom has no canvas: one is stood in whose redraw weighs a byte per pixel.
+    vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 4000, height: 3000, close: vi.fn() })));
+    const ctx = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      () => ({ drawImage: vi.fn(), fillRect: vi.fn(), clearRect: vi.fn(), fillStyle: "" }) as unknown as CanvasRenderingContext2D,
+    );
+    const blob = vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(function (this: HTMLCanvasElement, done, type = "image/png") {
+      const out = new Blob(["x"], { type });
+      Object.defineProperty(out, "size", { value: this.width * this.height });
+      done(out);
+    });
+    try {
+      const { container } = render(<ThreadsPage />);
+      await screen.findAllByText(/Hack Night 04 is tonight/);
+      fireEvent.change(screen.getByLabelText("Share an update"), { target: { value: "From the stage" } });
+      const phone = new File(["x"], "stage.jpeg", { type: "image/jpeg" });
+      Object.defineProperty(phone, "size", { value: 11 * 1024 * 1024 });
+      fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [phone] } });
+      expect(await screen.findByRole("button", { name: "Remove photo" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /^Post$/ }));
+      await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
+      const image = (calls.find((c) => c.method === "POST")!.body as FormData).get("image") as File;
+      expect(image.name).toBe("stage.jpg");
+      expect(image.size).toBeLessThanOrEqual(4 * 1024 * 1024);
+    } finally {
+      ctx.mockRestore();
+      blob.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("pins, removes on a second click, and opens the comments to reply or remove", async () => {
     render(<ThreadsPage />);
     await screen.findAllByText(/Hack Night 04 is tonight/);

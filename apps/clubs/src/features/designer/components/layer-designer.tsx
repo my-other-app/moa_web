@@ -28,6 +28,8 @@ import {
 import { AlertTriangleIcon, CheckCircle2Icon, Loader2Icon, Redo2Icon, RotateCcwIcon, Undo2Icon } from "lucide-react";
 import * as React from "react";
 
+import { fitImage } from "@/lib/images";
+
 import { previewLayout, uploadLayoutImage } from "../api";
 import { DESIGNERS, designSamples, type DesignerConfig } from "../config";
 import { useLayout, useResetLayout, useSaveLayout } from "../queries";
@@ -367,9 +369,13 @@ const Editor = ({ config, scope, eventId, design, audience, picker, onSaved, onD
     setMode("edit");
   };
 
-  const upload = async (file: File, purpose: "template" | "image") => {
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("That image is over 5 MB", { description: "Export it smaller and try again." });
+  const upload = async (picked: File, purpose: "template" | "image") => {
+    let file: File;
+    try {
+      // Over the gateway's 4.5 MB (a Vercel limit) it is redrawn smaller first (lib/images).
+      file = await fitImage(picked, purpose === "template" ? "background" : "image");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "That image is too big to send");
       return null;
     }
     try {
