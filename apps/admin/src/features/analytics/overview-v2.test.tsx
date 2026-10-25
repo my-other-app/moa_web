@@ -139,6 +139,12 @@ const bandStat = (label: string) =>
   screen.getByText(label, { selector: "span.text-white\\/75" }).parentElement!;
 /** A KPI card, which is also the chart's series selector. */
 const kpi = (label: string) => screen.getByRole("button", { name: new RegExp(`^${label}.*vs previous`) });
+/** The Overview loaded, switched to the Pitch view. */
+const inPitchView = async () => {
+  await screen.findByRole("heading", { name: "Is the platform healthy?" });
+  fireEvent.click(screen.getByRole("button", { name: "Pitch view" }));
+  await screen.findByRole("heading", { name: "MyOtherApp in numbers" });
+};
 
 beforeEach(() => {
   calls.length = 0;
@@ -173,7 +179,7 @@ describe("the Overview's one request", () => {
 describe("the headline band", () => {
   it("answers with every total and its note", async () => {
     render(<AdminOverviewV2 />);
-    await screen.findByRole("heading", { name: "Is the platform healthy?" });
+    await inPitchView();
 
     expect(within(bandStat("Users")).getByText("669")).toBeInTheDocument();
     expect(within(bandStat("Users")).getByText("12 today")).toBeInTheDocument();
@@ -265,6 +271,7 @@ describe("the panels", () => {
 
   it("draws growth by month, with the current month lit", async () => {
     render(<AdminOverviewV2 />);
+    await inPitchView();
     const growth = (await screen.findByText("Growth by month")).closest<HTMLElement>(".shadow-card")!;
     const users = within(growth).getByText("Users").parentElement!;
     for (const month of ["Aug", "Oct"]) expect(within(users).getByText(month)).toBeInTheDocument();
@@ -277,6 +284,7 @@ describe("the panels", () => {
 
   it("follows discovery to the door, each stage as a share of the one before", async () => {
     render(<AdminOverviewV2 />);
+    await inPitchView();
     const funnel = (await screen.findByText("From discovery to the door")).closest<HTMLElement>(".shadow-card")!;
     const stage = (label: string) => within(funnel).getByText(label).nextSibling as HTMLElement;
     expect(stage("Viewed an event")).toHaveTextContent(/^9,000$/);
@@ -286,7 +294,7 @@ describe("the panels", () => {
 
   it("splits the breakdowns by type, organisation and sign-in provider", async () => {
     render(<AdminOverviewV2 />);
-    await screen.findByRole("heading", { name: "Is the platform healthy?" });
+    await inPitchView();
     expect(within(panel("Events by type")).getByText("42 events")).toBeInTheDocument();
     expect(within(panel("Events by type")).getByText("hackathon")).toBeInTheDocument();
     expect(within(panel("Clubs by organisation")).getByText("50 clubs")).toBeInTheDocument();
@@ -392,7 +400,68 @@ describe("taking the figures away", () => {
     expect(csv.split("\n").slice(0, 3)).toEqual(["metric,value", '"Users","669"', '"Clubs","50 (38 verified)"']);
   });
 
-  it.todo(
-    "Pitch view changes what the Overview shows -- today the Operations / Pitch view toggle only moves its own pressed state (overview-v2.tsx keeps `mode` and never reads it)"
-  );
+});
+
+describe("the two views", () => {
+  /** Panels the Operations view is for: what needs doing, today. */
+  const operations = ["Doors open now", "events on today", "Averages", "Revenue retained", "Platform composition"];
+  /** Panels the Pitch view is for: the growth story, for someone outside. */
+  const pitch = ["Growth by month", "From discovery to the door", "Events by type", "Clubs by organisation", "How users sign in"];
+  const shown = (text: string) => screen.queryByText(text) !== null;
+
+  it("opens on Operations: the queues and today, not the pitch", async () => {
+    render(<AdminOverviewV2 />);
+    await screen.findByText("Doors open now");
+    expect(screen.getByRole("button", { name: "Operations" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Pitch view" })).toHaveAttribute("aria-pressed", "false");
+    for (const text of operations) expect(shown(text), text).toBe(true);
+    for (const text of pitch) expect(shown(text), text).toBe(false);
+    // No headline band: its totals are read in the panels here.
+    expect(screen.queryByText("GMV, all time")).toBeNull();
+  });
+
+  it("Pitch view shows the headline growth numbers and none of the internal queues", async () => {
+    render(<AdminOverviewV2 />);
+    await inPitchView();
+    expect(screen.getByRole("button", { name: "Pitch view" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(bandStat("Users")).getByText("669")).toBeInTheDocument();
+    expect(within(bandStat("GMV, all time")).getByText("₹2.5L")).toBeInTheDocument();
+    for (const text of pitch) expect(shown(text), text).toBe(true);
+    for (const text of operations) expect(shown(text), text).toBe(false);
+    // What runs today, refunds and failed payments, clubs awaiting a check: not for a slide.
+    expect(screen.queryByRole("link", { name: /Hack Night/ })).toBeNull();
+    expect(screen.queryByText("Failed payments")).toBeNull();
+    expect(screen.queryByText(/^Awaiting/)).toBeNull();
+    // The trend and the top clubs are in both.
+    expect(kpi("New users")).toBeInTheDocument();
+    expect(screen.getByText("Top clubs")).toBeInTheDocument();
+  });
+
+  it("goes back to Operations, with the period kept and nothing asked again", async () => {
+    render(<AdminOverviewV2 />);
+    await screen.findByRole("heading", { name: "Is the platform healthy?" });
+    fireEvent.click(screen.getByRole("button", { name: "7 days" }));
+    await waitFor(() => expect(overviewCalls().at(-1)!.query).toEqual({ days: 7, top_by: "followers" }));
+    await within(kpi("New users")).findByText("-50%");
+    const asked = overviewCalls().length;
+
+    fireEvent.click(screen.getByRole("button", { name: "Pitch view" }));
+    await screen.findByText("Growth by month");
+    fireEvent.click(screen.getByRole("button", { name: "Operations" }));
+    expect(await screen.findByRole("heading", { name: "Is the platform healthy?" })).toBeInTheDocument();
+    for (const text of operations) expect(shown(text), text).toBe(true);
+    expect(within(panel("Revenue retained")).getByText("last 7 days")).toBeInTheDocument();
+    // One response, two views of it: switching asks for nothing.
+    expect(overviewCalls()).toHaveLength(asked);
+  });
+
+  it("copies the same snapshot from either view", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    render(<AdminOverviewV2 />);
+    await inPitchView();
+    fireEvent.click(screen.getByRole("button", { name: "Copy summary" }));
+    const text = (writeText.mock.calls[0] as unknown as [string])[0];
+    expect(text.split("\n")[1]).toBe("• Users: 669");
+  });
 });

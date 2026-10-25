@@ -13,6 +13,13 @@ import type { AuditEntry } from "../schemas";
  * registrations, award badges and block organisations with no record of any
  * of it. An incident had no answer and none could be reconstructed.
  */
+
+/** Why, when the admin had to say: a session as someone else needs a reason. */
+const reasonOf = (row: AuditEntry): string | null => {
+  const reason = row.details?.reason;
+  return typeof reason === "string" && reason.trim() ? reason.trim() : null;
+};
+
 const columns: DataTableColumn<AuditEntry>[] = [
   {
     key: "actor",
@@ -40,14 +47,22 @@ const columns: DataTableColumn<AuditEntry>[] = [
   {
     key: "what",
     header: "What",
-    cell: (row) => (
-      <div className="min-w-0">
-        <p className="truncate text-sm">{row.summary ?? row.action}</p>
-        <Badge variant="outline" className="mt-0.5 font-mono text-[10px]">
-          {row.action}
-        </Badge>
-      </div>
-    ),
+    cell: (row) => {
+      const reason = reasonOf(row);
+      return (
+        <div className="min-w-0">
+          <p className="truncate text-sm">{row.summary ?? row.action}</p>
+          {reason ? (
+            <p className="text-muted-foreground truncate text-xs" title={reason}>
+              Reason: {reason}
+            </p>
+          ) : null}
+          <Badge variant="outline" className="mt-0.5 font-mono text-[10px]">
+            {row.action}
+          </Badge>
+        </div>
+      );
+    },
   },
   {
     key: "entity",
@@ -92,9 +107,18 @@ export function AuditLogTable() {
   const { data, isPending, isError } = useAuditLog({
     action: params.param("action"),
     entityType: params.param("entity_type"),
+    search: params.search || undefined,
     offset: params.offset,
     limit: params.pageSize,
   });
+
+  /*
+   * The API says what it searched for (`search`, null for nothing). One
+   * from before the log could be searched says nothing at all, and would
+   * ignore the box: then there is no box, and the filters are the way in.
+   * Until the first page answers, the box is offered.
+   */
+  const searchable = data === undefined || data.search !== undefined;
 
   return (
     <ResourceList
@@ -104,8 +128,8 @@ export function AuditLogTable() {
       columns={columns}
       rowKey={(row) => row.id}
       params={params}
-      // The log has no text search; the filters below are the way in.
-      searchPlaceholder="Filter below"
+      searchable={searchable}
+      searchPlaceholder="Search who, what, record or reason"
       emptyTitle="Nothing recorded yet"
       emptyDescription="Admin actions appear here as they happen."
       toolbar={

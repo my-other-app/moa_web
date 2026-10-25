@@ -27,13 +27,24 @@ import { useCan } from "@/hooks/use-can";
  * Open a session as another user.
  *
  * The most dangerous control in the dashboard, so the UI matches the
- * backend's fencing rather than hiding it: the admin states a reason, the
- * dialog says plainly that the action is logged against their name, and the
- * hand-off token is good for two minutes.
+ * backend's fencing rather than hiding it: the admin must state a reason
+ * (REASON_MIN characters at least, kept in the activity log with the
+ * session), the dialog says plainly that the action is logged against their
+ * name, and the hand-off token is good for two minutes.
  *
  * It was deliberately not built until the audit log existed.
  */
 const CLUBS_APP = "https://club-dashboard.myotherapp.in";
+
+/** What the API requires of a reason (auth/schemas IMPERSONATION_REASON_MIN / _MAX). */
+const REASON_MIN = 10;
+const REASON_MAX = 300;
+
+/**
+ * The reason as the API counts it: spaces at the ends dropped, spaces in a
+ * row counted once. "          " is not ten characters of reason.
+ */
+const tidyReason = (value: string) => value.split(/\s+/).filter(Boolean).join(" ");
 
 export function ImpersonateButton({
   userId,
@@ -70,12 +81,18 @@ export function ImpersonateButton({
    */
   if (userType !== "club") return null;
 
+  const tidy = tidyReason(reason);
+  const short = tidy.length < REASON_MIN;
+
   async function start() {
+    if (short) return;
     setBusy(true);
     try {
+      // Sent the same to an API from before reasons were required, which
+      // takes it as optional and logs it all the same.
       const result = await api.post<{ token: string }>(
         `/api/v1/auth/admin/impersonate/${userId}`,
-        { reason: reason.trim() || null }
+        { reason: tidy }
       );
 
       // The token is exchanged for cookies on the other app's own origin, so
@@ -118,21 +135,32 @@ export function ImpersonateButton({
           </AlertDialogHeader>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="impersonate-reason">Reason (optional)</Label>
+            <Label htmlFor="impersonate-reason">Reason</Label>
             <Input
               id="impersonate-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. investigating a reported problem"
+              placeholder="e.g. ticket 4512: they cannot publish an event"
+              maxLength={REASON_MAX}
+              required
+              aria-required="true"
+              aria-invalid={reason.length > 0 && short ? true : undefined}
+              aria-describedby="impersonate-reason-hint"
               disabled={busy}
             />
+            <p id="impersonate-reason-hint" className="text-muted-foreground flex justify-between gap-3 text-xs">
+              <span>Required: at least {REASON_MIN} characters, so whoever reads the log later knows why.</span>
+              <span className="shrink-0 tabular-nums" aria-hidden="true">
+                {Math.min(tidy.length, REASON_MIN)}/{REASON_MIN}
+              </span>
+            </p>
           </div>
 
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className={cn(buttonVariants())}
-              disabled={busy}
+              disabled={busy || short}
               onClick={(event) => {
                 event.preventDefault();
                 void start();

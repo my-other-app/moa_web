@@ -25,6 +25,13 @@ export interface ResourceListProps<T> {
   rowKey: (row: T) => React.Key;
   params: ReturnType<typeof useListParams>;
   searchPlaceholder?: string;
+  /**
+   * Whether the endpoint behind the list applies `?q=`. False draws no
+   * search box, and a `q` already in the address is not presented as a
+   * search: a box the API ignores puts the term in the URL and leaves the
+   * same rows on screen, which reads as "nothing matched differently".
+   */
+  searchable?: boolean;
   /** Shown when the resource genuinely has no rows (no search applied). */
   emptyTitle?: string;
   emptyDescription?: string;
@@ -59,6 +66,7 @@ export function ResourceList<T>({
   rowKey,
   params,
   searchPlaceholder = "Search…",
+  searchable = true,
   emptyTitle = "Nothing here yet",
   emptyDescription,
   emptyAction,
@@ -69,7 +77,7 @@ export function ResourceList<T>({
   const [selectedKeys, setSelectedKeys] = React.useState<Set<React.Key>>(new Set());
   const total = page?.total ?? null;
   const pages = pageCount(total, params.pageSize) ?? 1;
-  const isSearching = params.search.length > 0;
+  const isSearching = searchable && params.search.length > 0;
   // The backend fetches limit+1 to detect a next page, so trim the extra row
   // rather than rendering a phantom entry at the bottom of every page.
   const rows = page?.items.slice(0, params.pageSize);
@@ -87,14 +95,16 @@ export function ResourceList<T>({
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <SearchInput
-          value={params.searchInput}
-          onChange={params.setSearchInput}
-          onDebouncedChange={params.commitSearch}
-          placeholder={searchPlaceholder}
-          aria-label={searchPlaceholder}
-          containerClassName="sm:max-w-xs"
-        />
+        {searchable ? (
+          <SearchInput
+            value={params.searchInput}
+            onChange={params.setSearchInput}
+            onDebouncedChange={params.commitSearch}
+            placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
+            containerClassName="sm:max-w-xs"
+          />
+        ) : null}
         {toolbar}
         <div className="flex-1" />
         {actions}

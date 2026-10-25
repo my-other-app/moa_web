@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 
 /**
  * Past a million rows the Wave-1 Overview counts every account and every
@@ -51,6 +51,11 @@ beforeEach(() => {
   estimated = undefined;
 });
 
+/** The headline band is the Pitch view's. */
+const inPitchView = async () => {
+  fireEvent.click(await screen.findByRole("button", { name: "Pitch view" }));
+};
+
 describe("estimated counts on the Overview", () => {
   it("names the totals behind each estimated table, a rate over one included", () => {
     expect([...estimatedTotals(["users"])]).toEqual(["users"]);
@@ -67,6 +72,7 @@ describe("estimated counts on the Overview", () => {
   it("marks the estimated figures with ≈ and leaves the exact ones alone", async () => {
     estimated = ["users", "event_registrations_link"];
     render(<AdminOverviewV2 />);
+    await inPitchView();
     const users = (await screen.findByText("Users", { selector: "span.text-white\\/75" })).parentElement!;
     expect(within(users).getByText(/^≈ [\d,]+$/)).toBeInTheDocument();
     const regs = screen.getByText("Registrations", { selector: "span.text-white\\/75" }).parentElement!;
@@ -78,6 +84,7 @@ describe("estimated counts on the Overview", () => {
 
   it("shows no ≈ at all for an API from before", async () => {
     render(<AdminOverviewV2 />);
+    await inPitchView();
     await screen.findByText("Users", { selector: "span.text-white\\/75" });
     expect(screen.queryByText(/≈/)).toBeNull();
   });

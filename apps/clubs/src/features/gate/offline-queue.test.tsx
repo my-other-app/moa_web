@@ -264,6 +264,110 @@ describe("back online", () => {
   });
 });
 
+describe("what the server said about the saved scans", () => {
+  /** A refusal as the server words it, with the guest when it knows whose the ticket is. */
+  const refused = (outcome: string, extra: Record<string, unknown> = {}) => ({
+    ...admitted("x"), outcome, attendee: null, capture: { ask: false, required: false, reason: "NOT_ADMITTED" }, ...extra,
+  });
+  const guest = (name: string, ticket: string) => ({ id: `r-${name}`, name, ticket_id: ticket, role: "attendee", has_contact: true, is_paid: true });
+  const answers: Record<string, unknown> = {
+    a: admitted("Ananya Iyer"),
+    b: refused("ALREADY_CHECKED_IN", { attendee: guest("Bala Krishnan", "MOA-BALA0-00002"), checked_in_by: { name: "Vani Rao", door: "Gate B" }, checked_in_at: "2026-10-16T13:00:00Z" }),
+    c: refused("WRONG_EVENT", { other_event: { name: "Demo Day", starts_at: null } }),
+    d: refused("REVOKED", { attendee: guest("Dev Menon", "MOA-DEVM0-00004"), revoked_at: "2026-10-12T09:00:00Z" }),
+    e: refused("UNPAID", { attendee: guest("Esha Paul", "MOA-ESHA0-00005") }),
+    f: refused("INVALID"),
+    // This very scan was admitted on an earlier try that lost its answer: in, not a problem.
+    g: { ...admitted("Gita Rao"), replayed: true },
+  };
+  const saveAll = async () => {
+    const codes: Record<string, string> = { a: "MOA-1", b: "MOA-2", c: "MOA-OTHER-EVENT", d: "MOA-4", e: "MOA-5", f: "MOA-TYPO0-00000", g: "MOA-7" };
+    for (const [i, ref] of Object.keys(codes).entries()) await scanQueue.add(queued(ref, codes[ref]!, `2026-10-16T13:0${i}:00Z`));
+  };
+  const report = () => screen.findByRole("region", { name: "Saved scans that need a look" });
+  const item = (list: HTMLElement, text: string) => within(list).getByText(text).closest("li")!;
+
+  beforeEach(() => {
+    net.batch = (body) => json(200, { results: body.scans.map((s) => ({ client_ref: s.client_ref, response: answers[s.client_ref] })) });
+  });
+
+  it("lists every saved scan the server did not admit, by name or ticket, with why; the admitted are only counted", async () => {
+    await saveAll();
+    await openConsole();
+    const region = await report();
+    expect(within(region).getByText("5 saved scans need a look")).toBeInTheDocument();
+    expect(within(region).getByText(/Checked in: 2 of 7 synced\./)).toBeInTheDocument();
+    const list = within(region).getByRole("list", { name: "Not admitted" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(5);
+
+    const bala = item(list, "Bala Krishnan");
+    expect(within(bala).getByText("Already used")).toBeInTheDocument();
+    expect(within(bala).getByText("MOA-BALA0-00002")).toBeInTheDocument();
+    expect(within(bala).getByText("This ticket was already checked in by Vani Rao at Gate B. Check it was the same person.")).toBeInTheDocument();
+    expect(within(bala).getByText(/^Scanned Gate A · \d\d:\d\d$/)).toBeInTheDocument();
+
+    // No guest known: the code as it was scanned.
+    const other = item(list, "MOA-OTHER-EVENT");
+    expect(within(other).getByText("Wrong event")).toBeInTheDocument();
+    expect(within(other).getByText("The ticket is for Demo Day, not this one.")).toBeInTheDocument();
+    expect(within(item(list, "Dev Menon")).getByText(/^The ticket was revoked on 12 Oct: cancelled or refunded\.$/)).toBeInTheDocument();
+    expect(within(item(list, "Esha Paul")).getByText("Not paid")).toBeInTheDocument();
+    expect(within(item(list, "MOA-TYPO0-00000")).getByText("No ticket matches this code.")).toBeInTheDocument();
+
+    // The admitted are not named.
+    expect(within(region).queryByText("Ananya Iyer")).toBeNull();
+    expect(within(region).queryByText("Gita Rao")).toBeNull();
+    await waitFor(async () => expect(await scanQueue.count(EVENT)).toBe(0));
+  });
+
+  it("stays until the volunteer has read it", async () => {
+    await saveAll();
+    await openConsole();
+    const region = await report();
+    // Still there after the console checks the queue again.
+    await act(() => new Promise((r) => setTimeout(r, 50)));
+    expect(screen.getByRole("region", { name: "Saved scans that need a look" })).toBe(region);
+    fireEvent.click(within(region).getByRole("button", { name: "Done" }));
+    expect(screen.queryByRole("region", { name: "Saved scans that need a look" })).toBeNull();
+  });
+
+  it("says quietly how many synced when the server admitted every one", async () => {
+    await scanQueue.add(queued("a", "MOA-1", "2026-10-16T13:01:00Z"));
+    await scanQueue.add(queued("g", "MOA-7", "2026-10-16T13:02:00Z"));
+    await openConsole();
+    expect(await screen.findByText("2 saved scans synced, all checked in.")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Saved scans that need a look" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "OK" }));
+    expect(screen.queryByText(/saved scans synced/)).toBeNull();
+  });
+
+  it("names a scan taken offline in this session once the signal is back", async () => {
+    net.batch = (body) => json(200, { results: body.scans.map((s) => ({ client_ref: s.client_ref, response: answers.b })) });
+    await openConsole();
+    goOffline();
+    await scanCode("MOA-2");
+    await screen.findByText("1 waiting");
+    goOnline();
+    const region = await report();
+    expect(within(region).getByText("1 saved scan needs a look")).toBeInTheDocument();
+    expect(within(region).getByText("Bala Krishnan")).toBeInTheDocument();
+    expect(within(region).getByText(/Checked in: 0 of 1 synced\./)).toBeInTheDocument();
+  });
+
+  it("counts across the batches of a long replay", async () => {
+    for (let i = 0; i < 201; i++) {
+      const at = new Date(Date.UTC(2026, 9, 16, 13, 0, i)).toISOString();
+      await scanQueue.add(queued(`ref${String(i).padStart(3, "0")}`, `MOA-${i}`, at));
+    }
+    net.batch = (body) =>
+      json(200, { results: body.scans.map((s) => ({ client_ref: s.client_ref, response: s.client_ref === "ref200" ? answers.f : admitted("Someone") })) });
+    await openConsole();
+    const region = await report();
+    await waitFor(() => expect(within(region).getByText(/Checked in: 200 of 201 synced\./)).toBeInTheDocument());
+    expect(within(region).getByText("MOA-200")).toBeInTheDocument();
+  });
+});
+
 describe("one replay at a time", () => {
   const fresh = () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

@@ -35,6 +35,18 @@ import { PlatformDoorsPanel } from "./platform-doors-panel";
  * `users_by_city` and MRR are in the design and absent from the API: there is
  * no city column and no subscription domain. Rather than render an empty
  * chart, the panels simply are not here -- see API_SPEC_V2.md §3.1.
+ *
+ * Two views of the one response (the View control; Operations on every
+ * load, so the queues are never hidden by yesterday's presentation):
+ *
+ * - Operations, the day-to-day: what needs a decision (the doors' attention
+ *   list, retention due, what is live), today and the week ahead, the
+ *   averages, the period's trend, money kept and lost (refunds, failed
+ *   payments), clubs awaiting verification, and the top clubs.
+ * - Pitch, what to show someone outside: the headline totals band, plan
+ *   revenue, growth by month, the period's trend, the funnel from discovery
+ *   to the door, the top clubs and the breakdowns -- and none of the
+ *   internal queues.
  */
 type Series = "users" | "events" | "registrations" | "revenue";
 
@@ -228,6 +240,7 @@ export function AdminOverviewV2() {
   const [topBy, setTopBy] = React.useState<TopClubSort>("followers");
   const [series, setSeries] = React.useState<Series>("users");
   const [mode, setMode] = React.useState<"ops" | "pitch">("ops");
+  const pitch = mode === "pitch";
 
   const { data, isPending, isError, error, refetch } = useAdminOverview(days, topBy);
 
@@ -270,7 +283,7 @@ export function AdminOverviewV2() {
     <div className="flex flex-col gap-[22px]">
       <header className="flex flex-wrap items-end gap-3.5">
         <div className="flex-1 basis-[300px]">
-          <h2 className="m-0 text-[26px] leading-tight">Is the platform healthy?</h2>
+          <h2 className="m-0 text-[26px] leading-tight">{pitch ? "MyOtherApp in numbers" : "Is the platform healthy?"}</h2>
           <span className="text-[13px] text-ink-3">
             {new Date(data.generated_at).toLocaleDateString("en-IN", {
               weekday: "long",
@@ -337,200 +350,212 @@ export function AdminOverviewV2() {
         </div>
       </header>
 
-      <PlatformDoorsPanel />
+      {pitch ? null : <PlatformDoorsPanel />}
 
       <RevenueStrip />
 
-      {/* The one saturated band on the page: saturation as presence. */}
-      <section className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-x-6 gap-y-[18px] overflow-hidden rounded-[var(--radius-card)] bg-[radial-gradient(90%_140%_at_0%_0%,var(--hero-from),var(--hero-to)_60%)] px-5 py-6 shadow-[var(--elev-hero)] sm:px-7 sm:py-[26px]">
-        <BandStat label="Users" value={approx(formatNumber(totals.users), rough.has("users"))} note={`${today.new_users} today`} estimate={rough.has("users")} />
-        <BandStat label="Clubs" value={formatNumber(totals.clubs)} note={`${totals.verified_clubs} verified`} />
-        <BandStat label="Organisations" value={formatNumber(totals.organisations)} note="colleges and communities" />
-        <BandStat label="Events hosted" value={formatNumber(totals.events)} note={`${totals.upcoming_events} upcoming`} />
-        <BandStat label="Registrations" value={approx(formatNumber(totals.registrations), rough.has("registrations"))} note={`${approx(`${totals.attendance_rate}%`, rough.has("attendance_rate"))} turned up`} estimate={rough.has("registrations")} />
-        <BandStat label="GMV, all time" value={lakh(totals.gmv)} note="captured, net of nothing" />
-      </section>
+      {/* The one saturated band on the page: saturation as presence. The
+          headline for someone outside; Operations reads the same totals in
+          its panels. */}
+      {pitch ? (
+        <section className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-x-6 gap-y-[18px] overflow-hidden rounded-[var(--radius-card)] bg-[radial-gradient(90%_140%_at_0%_0%,var(--hero-from),var(--hero-to)_60%)] px-5 py-6 shadow-[var(--elev-hero)] sm:px-7 sm:py-[26px]">
+          <BandStat label="Users" value={approx(formatNumber(totals.users), rough.has("users"))} note={`${today.new_users} today`} estimate={rough.has("users")} />
+          <BandStat label="Clubs" value={formatNumber(totals.clubs)} note={`${totals.verified_clubs} verified`} />
+          <BandStat label="Organisations" value={formatNumber(totals.organisations)} note="colleges and communities" />
+          <BandStat label="Events hosted" value={formatNumber(totals.events)} note={`${totals.upcoming_events} upcoming`} />
+          <BandStat label="Registrations" value={approx(formatNumber(totals.registrations), rough.has("registrations"))} note={`${approx(`${totals.attendance_rate}%`, rough.has("attendance_rate"))} turned up`} estimate={rough.has("registrations")} />
+          <BandStat label="GMV, all time" value={lakh(totals.gmv)} note="captured, net of nothing" />
+        </section>
+      ) : null}
 
-      <div className="flex flex-wrap items-stretch gap-3.5">
-        <Panel className="min-w-0 flex-[1.2_1_380px]">
-          <PanelTitle
-            aside={`${today.events_today} on today`}
-          >
-            <span className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className="size-2 rounded-full bg-brand shadow-[0_0_10px_var(--brand)]"
-              />
-              Today
-            </span>
-          </PanelTitle>
+      {pitch ? null : (
+        <div className="flex flex-wrap items-stretch gap-3.5">
+          <Panel className="min-w-0 flex-[1.2_1_380px]">
+            <PanelTitle
+              aside={`${today.events_today} on today`}
+            >
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="size-2 rounded-full bg-brand shadow-[0_0_10px_var(--brand)]"
+                />
+                Today
+              </span>
+            </PanelTitle>
 
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+              {[
+                [formatNumber(today.events_today), "events on today"],
+                [formatNumber(today.registrations), "registrations"],
+                [formatNumber(today.check_ins), "check-ins"],
+                [formatCurrency(today.collected), "collected"],
+                [formatNumber(today.new_users), "new users"],
+              ].map(([value, label]) => (
+                <div
+                  key={label}
+                  className="flex flex-col gap-0.5 rounded-[var(--radius-md)] bg-sunken px-3 py-2.5"
+                >
+                  <span className="text-[22px]">{value}</span>
+                  <span className="text-[11.5px] text-ink-2">{label}</span>
+                </div>
+              ))}
+            </div>
+
+            <Micro>Running today and next 7 days</Micro>
+            {running.length === 0 ? (
+              <span className="text-[13px] text-ink-2">
+                Nothing scheduled this week.
+              </span>
+            ) : (
+              running.map((event) => (
+                <RuleRow
+                  key={event.id}
+                  className="grid grid-cols-[76px_minmax(0,1fr)_90px] items-center gap-2.5 text-[13px] sm:grid-cols-[76px_minmax(0,1fr)_90px_90px]"
+                >
+                  <span className={event.is_today ? "text-brand" : "text-ink-2"}>
+                    {event.is_today
+                      ? "Today"
+                      : event.event_datetime
+                        ? new Date(event.event_datetime).toLocaleDateString("en-IN", {
+                            weekday: "short",
+                            day: "numeric",
+                            month: "short",
+                          })
+                        : "—"}
+                  </span>
+                  <Link href={`/events/${event.id}`} className="flex min-w-0 flex-col hover:underline">
+                    <span className="truncate text-ink">{event.name}</span>
+                    <span className="truncate text-[11.5px] text-ink-3">
+                      {event.club ?? "—"}
+                    </span>
+                  </Link>
+                  <span className="text-right text-ink-2">
+                    {formatNumber(event.registrations)} regs
+                  </span>
+                  <span className="hidden text-right text-ink-2 sm:block">
+                    {event.has_fee ? formatCurrency(event.reg_fee) : "Free"}
+                  </span>
+                </RuleRow>
+              ))
+            )}
+          </Panel>
+
+          <Panel className="min-w-0 flex-[1_1_320px]">
+            <PanelTitle>Averages</PanelTitle>
             {[
-              [formatNumber(today.events_today), "events on today"],
-              [formatNumber(today.registrations), "registrations"],
-              [formatNumber(today.check_ins), "check-ins"],
-              [formatCurrency(today.collected), "collected"],
-              [formatNumber(today.new_users), "new users"],
-            ].map(([value, label]) => (
-              <div
-                key={label}
-                className="flex flex-col gap-0.5 rounded-[var(--radius-md)] bg-sunken px-3 py-2.5"
-              >
-                <span className="text-[22px]">{value}</span>
-                <span className="text-[11.5px] text-ink-2">{label}</span>
+              ["Registrations per event", formatNumber(averages.registrations_per_event)],
+              ["Attendance rate", `${averages.attendance_rate}%`],
+              ["View → sign-up", `${averages.view_to_signup}%`],
+              ["Average ticket price", formatCurrency(averages.average_ticket_price)],
+              ["Revenue per paid event", formatCurrency(averages.revenue_per_paid_event)],
+              ["Followers per club", formatNumber(averages.followers_per_club)],
+              ["Events per club", formatNumber(averages.events_per_club)],
+              ["Event rating", `${averages.average_rating} ★`],
+            ].map(([label, value]) => (
+              <RuleRow key={label} className="flex items-baseline justify-between gap-2.5">
+                <span className="min-w-0 truncate text-[13px] text-ink-2">{label}</span>
+                <span className="shrink-0 text-[15px]">{value}</span>
+              </RuleRow>
+            ))}
+          </Panel>
+        </div>
+      )}
+
+      {pitch ? (
+        <Panel className="p-5">
+          <PanelTitle aside="cumulative where marked">Growth by month</PanelTitle>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-[18px]">
+            {[
+              ["Users", growth.users, false],
+              ["Verified clubs", growth.clubs, false],
+              ["Events per month", growth.events, false],
+              ["GMV per month", growth.gmv, true],
+            ].map(([label, points, money]) => (
+              <div key={label as string} className="flex flex-col gap-2">
+                <span className="text-[13px] text-ink-2">
+                  {label as string}
+                </span>
+                <GrowthBars
+                  points={points as AdminOverview["growth"]["users"]}
+                  money={money as boolean}
+                />
               </div>
             ))}
           </div>
+        </Panel>
+      ) : null}
 
-          <Micro>Running today and next 7 days</Micro>
-          {running.length === 0 ? (
-            <span className="text-[13px] text-ink-2">
-              Nothing scheduled this week.
-            </span>
-          ) : (
-            running.map((event) => (
-              <RuleRow
-                key={event.id}
-                className="grid grid-cols-[76px_minmax(0,1fr)_90px] items-center gap-2.5 text-[13px] sm:grid-cols-[76px_minmax(0,1fr)_90px_90px]"
-              >
-                <span className={event.is_today ? "text-brand" : "text-ink-2"}>
-                  {event.is_today
-                    ? "Today"
-                    : event.event_datetime
-                      ? new Date(event.event_datetime).toLocaleDateString("en-IN", {
-                          weekday: "short",
-                          day: "numeric",
-                          month: "short",
-                        })
-                      : "—"}
-                </span>
-                <Link href={`/events/${event.id}`} className="flex min-w-0 flex-col hover:underline">
-                  <span className="truncate text-ink">{event.name}</span>
-                  <span className="truncate text-[11.5px] text-ink-3">
-                    {event.club ?? "—"}
+      {pitch ? (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-3.5">
+          {[
+            ["Events by type", `${totals.events} events`, breakdowns.events_by_type],
+            ["Clubs by organisation", `${totals.clubs} clubs`, breakdowns.clubs_by_organisation],
+            ["How users sign in", `${approx(String(totals.users), rough.has("users"))} users`, breakdowns.users_by_provider],
+          ].map(([title, sub, rows]) => {
+            const list = rows as AdminOverview["breakdowns"]["events_by_type"];
+            const max = Math.max(1, ...list.map((r) => r.value));
+            return (
+              <Panel key={title as string} className="min-w-0 p-5">
+                <PanelTitle aside={sub as string}>{title as string}</PanelTitle>
+                {list.length === 0 ? (
+                  <span className="text-[13px] text-ink-2">
+                    Nothing to show yet.
                   </span>
-                </Link>
-                <span className="text-right text-ink-2">
-                  {formatNumber(event.registrations)} regs
-                </span>
-                <span className="hidden text-right text-ink-2 sm:block">
-                  {event.has_fee ? formatCurrency(event.reg_fee) : "Free"}
-                </span>
-              </RuleRow>
-            ))
-          )}
-        </Panel>
-
-        <Panel className="min-w-0 flex-[1_1_320px]">
-          <PanelTitle>Averages</PanelTitle>
-          {[
-            ["Registrations per event", formatNumber(averages.registrations_per_event)],
-            ["Attendance rate", `${averages.attendance_rate}%`],
-            ["View → sign-up", `${averages.view_to_signup}%`],
-            ["Average ticket price", formatCurrency(averages.average_ticket_price)],
-            ["Revenue per paid event", formatCurrency(averages.revenue_per_paid_event)],
-            ["Followers per club", formatNumber(averages.followers_per_club)],
-            ["Events per club", formatNumber(averages.events_per_club)],
-            ["Event rating", `${averages.average_rating} ★`],
-          ].map(([label, value]) => (
-            <RuleRow key={label} className="flex items-baseline justify-between gap-2.5">
-              <span className="min-w-0 truncate text-[13px] text-ink-2">{label}</span>
-              <span className="shrink-0 text-[15px]">{value}</span>
-            </RuleRow>
-          ))}
-        </Panel>
-      </div>
-
-      <Panel className="p-5">
-        <PanelTitle aside="cumulative where marked">Growth by month</PanelTitle>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-[18px]">
-          {[
-            ["Users", growth.users, false],
-            ["Verified clubs", growth.clubs, false],
-            ["Events per month", growth.events, false],
-            ["GMV per month", growth.gmv, true],
-          ].map(([label, points, money]) => (
-            <div key={label as string} className="flex flex-col gap-2">
-              <span className="text-[13px] text-ink-2">
-                {label as string}
-              </span>
-              <GrowthBars
-                points={points as AdminOverview["growth"]["users"]}
-                money={money as boolean}
-              />
-            </div>
-          ))}
-        </div>
-      </Panel>
-
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-3.5">
-        {[
-          ["Events by type", `${totals.events} events`, breakdowns.events_by_type],
-          ["Clubs by organisation", `${totals.clubs} clubs`, breakdowns.clubs_by_organisation],
-          ["How users sign in", `${approx(String(totals.users), rough.has("users"))} users`, breakdowns.users_by_provider],
-        ].map(([title, sub, rows]) => {
-          const list = rows as AdminOverview["breakdowns"]["events_by_type"];
-          const max = Math.max(1, ...list.map((r) => r.value));
-          return (
-            <Panel key={title as string} className="min-w-0 p-5">
-              <PanelTitle aside={sub as string}>{title as string}</PanelTitle>
-              {list.length === 0 ? (
-                <span className="text-[13px] text-ink-2">
-                  Nothing to show yet.
-                </span>
-              ) : (
-                list.map((row) => (
-                  <div key={row.label} className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[12.5px]">
-                      <span className="truncate capitalize">{row.label}</span>
-                      <span className="text-ink-2">
-                        {formatNumber(row.value)}
-                      </span>
+                ) : (
+                  list.map((row) => (
+                    <div key={row.label} className="flex flex-col gap-1">
+                      <div className="flex justify-between text-[12.5px]">
+                        <span className="truncate capitalize">{row.label}</span>
+                        <span className="text-ink-2">
+                          {formatNumber(row.value)}
+                        </span>
+                      </div>
+                      <Meter value={row.value} max={max} />
                     </div>
-                    <Meter value={row.value} max={max} />
-                  </div>
-                ))
-              )}
-            </Panel>
-          );
-        })}
-      </div>
+                  ))
+                )}
+              </Panel>
+            );
+          })}
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-start gap-3.5">
-        <Panel className="min-w-0 flex-[1_1_340px]">
-          <PanelTitle aside="all events, all time">From discovery to the door</PanelTitle>
-          {funnel.map((stage, i) => (
-            <div key={stage.label} className="flex flex-col gap-1.5">
-              <div className="flex justify-between text-[13px]">
-                <span>{stage.label}</span>
-                <span>
-                  {formatNumber(stage.value)}
-                  {stage.of_previous !== null ? (
-                    <span className="ml-2 text-ink-3">
-                      {stage.of_previous}%
-                    </span>
-                  ) : null}
-                </span>
+        {pitch ? (
+          <Panel className="min-w-0 flex-[1_1_340px]">
+            <PanelTitle aside="all events, all time">From discovery to the door</PanelTitle>
+            {funnel.map((stage, i) => (
+              <div key={stage.label} className="flex flex-col gap-1.5">
+                <div className="flex justify-between text-[13px]">
+                  <span>{stage.label}</span>
+                  <span>
+                    {formatNumber(stage.value)}
+                    {stage.of_previous !== null ? (
+                      <span className="ml-2 text-ink-3">
+                        {stage.of_previous}%
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                <div className="h-5 overflow-hidden rounded-[4px] bg-sunken">
+                  <div
+                    className={cn(
+                      "h-full rounded-[4px]",
+                      i === 0
+                        ? "bg-ink-3/60"
+                        : i === 2
+                          ? "bg-brand"
+                          : "bg-brand/70"
+                    )}
+                    style={{
+                      width: `${Math.max(2, Math.sqrt(stage.value / maxFunnel) * 100)}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="h-5 overflow-hidden rounded-[4px] bg-sunken">
-                <div
-                  className={cn(
-                    "h-full rounded-[4px]",
-                    i === 0
-                      ? "bg-ink-3/60"
-                      : i === 2
-                        ? "bg-brand"
-                        : "bg-brand/70"
-                  )}
-                  style={{
-                    width: `${Math.max(2, Math.sqrt(stage.value / maxFunnel) * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </Panel>
+            ))}
+          </Panel>
+        ) : null}
 
         <Panel className="min-w-0 flex-[1.3_1_400px] gap-1.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -657,76 +682,78 @@ export function AdminOverviewV2() {
         <ChartLines series={series} data={data} money={!!SERIES.find((o) => o.key === series)?.money} />
       </Panel>
 
-      <div className="flex flex-wrap items-start gap-3.5">
-        <Panel className="min-w-0 flex-[1_1_320px] p-5">
-          <PanelTitle aside={`last ${days} days`}>Revenue retained</PanelTitle>
-          <div className="flex items-baseline gap-2.5">
-            <span className="text-[40px] tracking-[-0.03em] text-brand">
-              {money.retained_share}%
-            </span>
-            <span className="text-[13px] text-ink-2">
-              of captured money kept
-            </span>
-          </div>
-          <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-[5px]">
-            <div className="bg-brand" style={{ flex: Math.max(1, money.net) }} />
-            <div className="bg-ink-3" style={{ flex: Math.max(0, money.refunded) }} />
-          </div>
-          {[
-            ["Captured", formatCurrency(money.captured), "var(--ink)"],
-            ["Refunded", `−${formatCurrency(money.refunded)}`, "var(--ink-2)"],
-            ["Net kept", formatCurrency(money.net), "var(--brand)"],
-            ["Failed payments", formatNumber(money.failed), "var(--ink-2)"],
-          ].map(([label, value, color]) => (
-            <div key={label} className="flex justify-between py-1 text-[13px]">
-              <span className="text-ink-2">{label}</span>
-              <span style={{ color }}>{value}</span>
+      {pitch ? null : (
+        <div className="flex flex-wrap items-start gap-3.5">
+          <Panel className="min-w-0 flex-[1_1_320px] p-5">
+            <PanelTitle aside={`last ${days} days`}>Revenue retained</PanelTitle>
+            <div className="flex items-baseline gap-2.5">
+              <span className="text-[40px] tracking-[-0.03em] text-brand">
+                {money.retained_share}%
+              </span>
+              <span className="text-[13px] text-ink-2">
+                of captured money kept
+              </span>
             </div>
-          ))}
-        </Panel>
-
-        <Panel className="min-w-0 flex-[1_1_320px] p-5">
-          <PanelTitle>Platform composition</PanelTitle>
-          {[
-            ["Verified clubs", totals.verified_clubs, "Awaiting", totals.pending_clubs],
-            ["Upcoming events", totals.upcoming_events, "Past", totals.past_events],
-          ].map(([aLabel, aValue, bLabel, bValue]) => {
-            const total = Math.max(1, (aValue as number) + (bValue as number));
-            return (
-              <div key={aLabel as string} className="flex flex-col gap-1.5">
-                <div className="flex justify-between text-[12.5px]">
-                  <span>
-                    {aLabel as string}{" "}
-                    <span className="text-brand">
-                      {Math.round(((aValue as number) / total) * 100)}%
-                    </span>
-                  </span>
-                  <span className="text-ink-2">
-                    {bLabel as string} {Math.round(((bValue as number) / total) * 100)}%
-                  </span>
-                </div>
-                <div className="flex h-2 gap-0.5 overflow-hidden rounded-[4px]">
-                  <div className="bg-brand" style={{ flex: Math.max(1, aValue as number) }} />
-                  <div className="bg-ink-3/60" style={{ flex: Math.max(0, bValue as number) }} />
-                </div>
+            <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-[5px]">
+              <div className="bg-brand" style={{ flex: Math.max(1, money.net) }} />
+              <div className="bg-ink-3" style={{ flex: Math.max(0, money.refunded) }} />
+            </div>
+            {[
+              ["Captured", formatCurrency(money.captured), "var(--ink)"],
+              ["Refunded", `−${formatCurrency(money.refunded)}`, "var(--ink-2)"],
+              ["Net kept", formatCurrency(money.net), "var(--brand)"],
+              ["Failed payments", formatNumber(money.failed), "var(--ink-2)"],
+            ].map(([label, value, color]) => (
+              <div key={label} className="flex justify-between py-1 text-[13px]">
+                <span className="text-ink-2">{label}</span>
+                <span style={{ color }}>{value}</span>
               </div>
-            );
-          })}
+            ))}
+          </Panel>
 
-          <Link
-            href="/subscriptions"
-            className="mt-1 flex flex-col gap-1.5 rounded-[var(--radius-md)] bg-sunken p-3.5 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--brand)]"
-          >
-            <span className="flex items-center justify-between text-[15px]">
-              Club subscriptions
-              <ArrowRightIcon className="size-4 text-ink-3" />
-            </span>
-            <span className="text-[12.5px] text-ink-2">
-              Plans, who is on which, and the free plans given to clubs.
-            </span>
-          </Link>
-        </Panel>
-      </div>
+          <Panel className="min-w-0 flex-[1_1_320px] p-5">
+            <PanelTitle>Platform composition</PanelTitle>
+            {[
+              ["Verified clubs", totals.verified_clubs, "Awaiting", totals.pending_clubs],
+              ["Upcoming events", totals.upcoming_events, "Past", totals.past_events],
+            ].map(([aLabel, aValue, bLabel, bValue]) => {
+              const total = Math.max(1, (aValue as number) + (bValue as number));
+              return (
+                <div key={aLabel as string} className="flex flex-col gap-1.5">
+                  <div className="flex justify-between text-[12.5px]">
+                    <span>
+                      {aLabel as string}{" "}
+                      <span className="text-brand">
+                        {Math.round(((aValue as number) / total) * 100)}%
+                      </span>
+                    </span>
+                    <span className="text-ink-2">
+                      {bLabel as string} {Math.round(((bValue as number) / total) * 100)}%
+                    </span>
+                  </div>
+                  <div className="flex h-2 gap-0.5 overflow-hidden rounded-[4px]">
+                    <div className="bg-brand" style={{ flex: Math.max(1, aValue as number) }} />
+                    <div className="bg-ink-3/60" style={{ flex: Math.max(0, bValue as number) }} />
+                  </div>
+                </div>
+              );
+            })}
+
+            <Link
+              href="/subscriptions"
+              className="mt-1 flex flex-col gap-1.5 rounded-[var(--radius-md)] bg-sunken p-3.5 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--brand)]"
+            >
+              <span className="flex items-center justify-between text-[15px]">
+                Club subscriptions
+                <ArrowRightIcon className="size-4 text-ink-3" />
+              </span>
+              <span className="text-[12.5px] text-ink-2">
+                Plans, who is on which, and the free plans given to clubs.
+              </span>
+            </Link>
+          </Panel>
+        </div>
+      )}
     </div>
   );
 }

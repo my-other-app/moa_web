@@ -23,7 +23,14 @@ export const auditEntrySchema = z.object({
     .nullish(),
 });
 
-export const auditPageSchema = paginatedSchema(auditEntrySchema);
+export const auditPageSchema = paginatedSchema(auditEntrySchema).extend({
+  /**
+   * The search the API applied (its words, one space apart), or null for
+   * none. Absent from an API from before the log could be searched: that
+   * is how the page knows not to offer a search box it would ignore.
+   */
+  search: z.string().nullish(),
+});
 
 /** GET /admin/notifications — one row per send, not per recipient. */
 export const sentNotificationSchema = z.object({

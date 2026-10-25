@@ -6,6 +6,7 @@ import { ApiError } from "@moa/api";
 
 import { captureContact, checkInByHand, fetchGateContext, registerWalkup, scanBatch, scanTicket, searchGuests, undoCheckIn, fetchGateStoreOrders, gateHandOver, fetchGateCatalog } from "./api";
 import { scanQueue, supportsQueue, type QueuedScan } from "./lib/queue";
+import type { ReplayedScan } from "./lib/replay";
 import type { GateContext, ScanBody, ScanResult, WalkupBody } from "./schemas";
 
 export const gateKey = (eventId: number) => ["gate", eventId] as const;
@@ -70,9 +71,20 @@ export function useScanMutation(key: string | null, eventId: number, enqueue: (s
   });
 }
 
-/** Online-first with an honest offline path: queued scans drain through the batch route on reconnect. */
-export function useOfflineQueue(key: string | null, eventId: number, onDrained?: (results: { client_ref: string; response: ScanResult }[]) => void) {
+/**
+ * Online-first with an honest offline path: queued scans drain through the
+ * batch route on reconnect. `onDrained` hears the server's answer to each
+ * batch, every scan with what was saved for it, so the console can say which
+ * of the guests let in offline the server did not admit.
+ */
+export function useOfflineQueue(key: string | null, eventId: number, onDrained?: (results: ReplayedScan[]) => void) {
   const qc = useQueryClient();
+  // The latest callback, read when a batch lands: a new one each render must
+  // not restart the replay (drain is an effect's dependency).
+  const onDrainedRef = React.useRef(onDrained);
+  React.useEffect(() => {
+    onDrainedRef.current = onDrained;
+  }, [onDrained]);
   const [online, setOnline] = React.useState(() => (typeof navigator === "object" && typeof navigator.onLine === "boolean" ? navigator.onLine : true));
   const [queued, setQueued] = React.useState(0);
   const draining = React.useRef(false);
@@ -96,7 +108,8 @@ export function useOfflineQueue(key: string | null, eventId: number, onDrained?:
         const slice: QueuedScan[] = pending.slice(i, i + 200);
         const res = await scanBatch(key, eventId, slice.map(({ code, door, scanned_at, client_ref }) => ({ code, door, scanned_at, client_ref })));
         await scanQueue.remove(res.results.map((r) => r.client_ref));
-        onDrained?.(res.results);
+        const saved = new Map(slice.map((s) => [s.client_ref, s]));
+        onDrainedRef.current?.(res.results.map((r) => ({ ...r, scan: saved.get(r.client_ref) })));
       }
       void qc.invalidateQueries({ queryKey: gateKey(eventId) });
     } catch {
@@ -105,7 +118,7 @@ export function useOfflineQueue(key: string | null, eventId: number, onDrained?:
       draining.current = false;
       await refreshCount();
     }
-  }, [eventId, key, onDrained, qc, refreshCount]);
+  }, [eventId, key, qc, refreshCount]);
 
   React.useEffect(() => {
     void refreshCount();
