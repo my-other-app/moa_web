@@ -37,6 +37,14 @@ export function useScanMutation(key: string | null, eventId: number, enqueue: (s
   const qc = useQueryClient();
   const ctxKey = [...gateKey(eventId), "context", key ?? "session"];
   return useMutation<ScanOutcomeResult, unknown, ScanBody, { prev?: GateContext }>({
+    /*
+     * Always run, signal or not. React Query otherwise pauses a mutation
+     * while the browser says it is offline, so the scan never reached the
+     * queue below: no saved card, and every later scan was ignored behind
+     * the paused one until the signal came back. The fetch failing is the
+     * offline path here.
+     */
+    networkMode: "always",
     mutationFn: async (body) => {
       try {
         return { kind: "server", response: await scanTicket(key, eventId, body) };
@@ -77,10 +85,13 @@ export function useOfflineQueue(key: string | null, eventId: number, onDrained?:
 
   const drain = React.useCallback(async () => {
     if (draining.current || !supportsQueue() || !navigator.onLine) return;
-    const pending = await scanQueue.all(eventId);
-    if (!pending.length) return;
+    // Claimed before the first await: the online event and the timer can
+    // both start a replay, and each would otherwise read the same scans and
+    // send them twice.
     draining.current = true;
     try {
+      const pending = await scanQueue.all(eventId);
+      if (!pending.length) return;
       for (let i = 0; i < pending.length; i += 200) {
         const slice: QueuedScan[] = pending.slice(i, i + 200);
         const res = await scanBatch(key, eventId, slice.map(({ code, door, scanned_at, client_ref }) => ({ code, door, scanned_at, client_ref })));
