@@ -72,12 +72,11 @@ export const photoUploadSchema = z.object({ key: z.string(), url: z.string() });
 
 /** What POST /clubs/store/photo takes. */
 export const PHOTO_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
-export const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
-/** Why a picked file will not do, before it is sent; null when it will. */
+/** Why a picked file will not do, before it is sent; null when it will. Its
+ *  size is not one: a big one is redrawn smaller before it goes (lib/images). */
 export function photoProblem(file: File): string | null {
   if (!(PHOTO_TYPES as readonly string[]).includes(file.type)) return "Use a PNG, JPEG or WebP image";
-  if (file.size > PHOTO_MAX_BYTES) return "That image is over 5 MB; pick a smaller one";
   return null;
 }
 
