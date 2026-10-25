@@ -7,7 +7,7 @@ import { CardLabel, FigurePanel, StatusBadge, cn } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
 
-import { useOverview } from "../queries";
+import { useOverview, useWhatsAppOnServer } from "../queries";
 import { STATUS_LABEL, STATUS_TONE, TIER_LIMIT_NOTE, duration, tierWords, type Overview } from "../schemas";
 import { QualityBadge } from "./shared";
 
@@ -78,11 +78,15 @@ export function OverviewFigures({ o, link = false, className }: { o: Overview; l
 /**
  * For the club's dashboard: shown only to those who may see the WhatsApp
  * section, and only once a number is connected. Anything else -- no number,
- * no permission, a server without the feature -- renders nothing.
+ * no permission, a server without the feature (its account route answers a
+ * bare 404) -- renders nothing. The overview is read alongside the account,
+ * not after it, and not at all once the route is known to be missing.
  */
 export function WhatsAppOverviewCard() {
   const { can } = useAccess();
-  const q = useOverview(7, Boolean(can.whatsapp));
-  if (!can.whatsapp || !q.data || !q.data.account.connected) return null;
+  const allowed = Boolean(can.whatsapp);
+  const onServer = useWhatsAppOnServer(allowed);
+  const q = useOverview(7, allowed && onServer !== false);
+  if (!allowed || onServer !== true || !q.data || !q.data.account.connected) return null;
   return <OverviewFigures o={q.data} link />;
 }

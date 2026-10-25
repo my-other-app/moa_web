@@ -54,7 +54,7 @@ import {
   type TemplateForm,
   type TemplateProblem,
 } from "../schemas";
-import { Field, NoAccessPanel, UpgradeNotice, WhatsAppHeader } from "./shared";
+import { Field, NoAccessPanel, UpgradeNotice, WhatsAppHeader, WhatsAppUnavailable } from "./shared";
 
 /** The languages clubs here write in; Meta takes more. */
 const LANGUAGES = [
@@ -101,6 +101,9 @@ export function WhatsAppTemplatesPage() {
 
   const forbidden = account.isError && (isPermissionError(account.error) || isPrivateError(account.error));
   const listForbidden = q.isError && (isPermissionError(q.error) || isPrivateError(q.error));
+
+  // A server without the feature (its routes answer a bare 404): no templates to keep yet.
+  if (a && !a.on_server) return <WhatsAppUnavailable />;
 
   return (
     <div className="flex flex-col gap-3.5">

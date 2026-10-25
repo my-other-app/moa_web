@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import { toApiError } from "@moa/api";
 
 /**
  * A club's own WhatsApp number on the admin's club page:
@@ -87,5 +88,32 @@ describe("a club's own WhatsApp, for an admin", () => {
     render(<ClubWhatsAppCard clubId={5} />);
     expect(await screen.findByText("Not working")).toBeInTheDocument();
     expect(screen.getByText("Meta: Meta didn't accept the access token.")).toBeInTheDocument();
+  });
+});
+
+/** What the API answers, as the gateway passes it on, made into the error the client throws. */
+function answered(status: number, body: unknown) {
+  return toApiError(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
+}
+
+describe("ahead of its backend", () => {
+  it("is left off the club's page while the API has no such route (FastAPI's bare 404)", async () => {
+    answer = await answered(404, { detail: "Not Found" });
+    const { container } = render(<ClubWhatsAppCard clubId={5} />);
+    await waitFor(() => expect(calls).toEqual(["/api/v1/admin/club-whatsapp/5"]));
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
+    expect(screen.queryByText(/Could not load/)).toBeNull();
+  });
+
+  it("still says it could not load on a 404 the backend raised itself, or a 500", async () => {
+    for (const failure of [
+      await answered(404, { message: "Club not found", errors: null, error_code: null, track_id: null }),
+      await answered(500, { message: "Internal Server Error", errors: { error: "x" }, error_code: null, track_id: "t" }),
+    ]) {
+      answer = failure;
+      const view = render(<ClubWhatsAppCard clubId={5} />);
+      expect(await screen.findByText("Could not load the club's WhatsApp number.")).toBeInTheDocument();
+      view.unmount();
+    }
   });
 });

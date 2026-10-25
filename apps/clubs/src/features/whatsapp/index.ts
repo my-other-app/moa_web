@@ -4,6 +4,7 @@ export { WhatsAppTemplatesPage, TemplateFormPanel, EMPTY_TEMPLATE } from "./comp
 export { WhatsAppOverviewCard, OverviewFigures } from "./components/overview-card";
 export { Bubble, StatusTicks, Thread, mediaProblem } from "./components/thread";
 export { Composer, fillTemplate } from "./components/composer";
+export { WhatsAppUnavailable } from "./components/shared";
 export {
   useInboxStream,
   useCoalesced,
@@ -18,6 +19,7 @@ export {
 export {
   useAccount,
   useOverview,
+  useWhatsAppOnServer,
   useSaveAccount,
   keysErrorMessage,
   sendErrorMessage,

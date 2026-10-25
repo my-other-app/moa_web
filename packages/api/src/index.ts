@@ -1,5 +1,5 @@
 export { createApiClient, type ApiClient, type ApiClientOptions, type RequestOptions } from "./client";
-export { ApiError, toApiError } from "./errors";
+export { ApiError, isRouteMissing, nullIfRouteMissing, toApiError } from "./errors";
 export {
   type Paginated,
   type PageParams,

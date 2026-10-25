@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { nullIfRouteMissing } from "@moa/api";
 import { toast } from "@moa/ui";
 
 import { clearOwnLimits, fetchClubMessages, retryStatement, setOwnLimits } from "./api";
@@ -8,10 +9,11 @@ import type { OwnLimitsForm } from "./schemas";
 
 export const MESSAGES_KEY = ["admin", "club-messages"] as const;
 
+/** `null`: a backend from before message quotas (the route answers a bare 404): no panel yet. */
 export function useClubMessages(clubId: number | null | undefined) {
   return useQuery({
     queryKey: [...MESSAGES_KEY, clubId ?? 0],
-    queryFn: () => fetchClubMessages(clubId!),
+    queryFn: () => nullIfRouteMissing(() => fetchClubMessages(clubId!)),
     enabled: Boolean(clubId && clubId > 0),
     retry: false,
   });
