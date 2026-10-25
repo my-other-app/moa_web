@@ -47,6 +47,7 @@ import {
   isProblem,
   tallyFigures,
   verdictOf,
+  viaText,
   type DeliveryLogRow,
   type DeliverySummary,
   type TallyFigures,
@@ -441,6 +442,16 @@ function Row({
             )}
           >
             {r.reason}
+          </span>
+        ) : null}
+        {viaText(r) ? (
+          <span
+            className={cn(
+              "mt-1 block text-[11.5px] leading-snug",
+              r.fallback_code || r.fallback_reason ? "text-caution" : "text-ink-3",
+            )}
+          >
+            {viaText(r)}
           </span>
         ) : null}
       </span>

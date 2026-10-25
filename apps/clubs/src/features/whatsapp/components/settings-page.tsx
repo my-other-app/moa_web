@@ -59,6 +59,7 @@ import {
 import { InboxSettingsPanels } from "./inbox-settings";
 import { OverviewFigures } from "./overview-card";
 import { CopyRow, Field, NoAccessPanel, QualityBadge, Step, UpgradeNotice, WhatsAppHeader, WhatsAppUnavailable, When } from "./shared";
+import { ConnectWithMeta, EmbeddedNote, RoutingKinds, SpendCard } from "../reach";
 
 /**
  * WhatsApp settings: the club's own WhatsApp Business number.
@@ -133,6 +134,7 @@ export function WhatsAppSettingsPage() {
             <div className="flex min-w-0 flex-col gap-3.5">
               {a.connected ? <Connected a={a} /> : <NotConnected a={a} />}
               {a.connected ? <ConnectedOverview /> : null}
+              {a.connected ? <SpendCard /> : null}
               {a.connected ? <WebhookSetup a={a} /> : null}
               {a.connected ? <Behaviour a={a} /> : null}
               {a.can_inbox && (a.connected || a.status !== null) ? <InboxSettingsPanels /> : null}
@@ -172,6 +174,8 @@ function NotConnected({ a }: { a: Account }) {
         </ul>
       </div>
 
+      {/* One click with Meta, when the server has it on; pasting keys either way. */}
+      <ConnectWithMeta a={a} />
       {a.can_manage && a.plan_allows ? (
         <KeysForm />
       ) : a.can_manage ? null : (
@@ -329,6 +333,7 @@ function Connected({ a }: { a: Account }) {
         </div>
         <QualityBadge rating={a.quality_rating} />
       </div>
+      <EmbeddedNote />
 
       <dl className="m-0 grid gap-x-4 gap-y-2.5 text-[12.5px] sm:grid-cols-[max-content_1fr]">
         <dt className="eyebrow sm:pt-0.5">Messaging limit</dt>
@@ -509,6 +514,7 @@ function Behaviour({ a }: { a: Account }) {
           onCheckedChange={(on) => change({ routing: on }, on ? "Tickets will go from your number." : "Tickets will go from MyOtherApp's number.")}
         />
       </div>
+      <RoutingKinds a={a} />
       <div className="border-line-soft flex flex-wrap items-center gap-3 border-t pt-3">
         <div className="min-w-0 flex-1">
           <label htmlFor="wa-retention" className="text-ink text-[13.5px] font-medium">
