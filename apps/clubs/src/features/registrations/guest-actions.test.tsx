@@ -189,7 +189,8 @@ describe("checking a guest in by hand", () => {
     fireEvent.click(button);
 
     await waitFor(() => expect(said).toHaveBeenCalledWith("Marked as attended"));
-    expect(writes).toEqual([{ method: "POST", path: `/api/v1/events/registration/37/attendance/${ONE}`, body: undefined, init: undefined }]);
+    // The body the server requires (EventAttendanceUpdate.is_attended): without it, a 422.
+    expect(writes).toEqual([{ method: "POST", path: `/api/v1/events/registration/37/attendance/${ONE}`, body: { is_attended: true }, init: undefined }]);
     await waitFor(() => expect(screen.queryByRole("button", { name: "Check in" })).toBeNull());
   });
 

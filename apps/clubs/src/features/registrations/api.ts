@@ -89,10 +89,15 @@ export async function fetchEventAnalytics(eventId: number) {
   return eventAnalyticsSchema.parse(raw);
 }
 
-/** Marks someone as having turned up. There is no un-mark endpoint. */
+/**
+ * Marks someone as having turned up. There is no un-mark endpoint. The
+ * server requires the body (EventAttendanceUpdate): without it every click
+ * was a 422.
+ */
 export async function markAttendance(eventId: number, registrationId: string) {
   await api.post<void>(
-    `/api/v1/events/registration/${eventId}/attendance/${registrationId}`
+    `/api/v1/events/registration/${eventId}/attendance/${registrationId}`,
+    { is_attended: true }
   );
 }
 
