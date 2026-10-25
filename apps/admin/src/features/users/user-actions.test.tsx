@@ -170,22 +170,62 @@ describe("open a session as a user (impersonate)", () => {
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
   });
 
-  it("sends no reason as null rather than an empty string", async () => {
+  /*
+   * A reason is required at both ends: the API answers 422 REASON_REQUIRED
+   * below ten characters, counted with spaces at the ends dropped and spaces
+   * in a row once. The dialog counts the same way, so the button it enables
+   * is one the API accepts.
+   */
+  it("requires a reason of ten characters before a session can be opened", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    club();
+    fireEvent.click(screen.getByRole("button", { name: /view as/i }));
+    const confirm = await screen.findByRole("alertdialog");
+    const reason = within(confirm).getByLabelText(/reason/i);
+    const button = within(confirm).getByRole("button", { name: "Open session" });
+
+    expect(reason).toBeRequired();
+    expect(within(confirm).getByText(/at least 10 characters/i)).toBeInTheDocument();
+    expect(within(confirm).queryByText(/optional/i)).toBeNull();
+    // Nothing yet, too short, padded to look long, or spread out with spaces.
+    expect(button).toBeDisabled();
+    for (const value of ["test", "     short      ", "a  b  c  d  e"]) {
+      fireEvent.change(reason, { target: { value } });
+      expect(button).toBeDisabled();
+      expect(reason).toHaveAttribute("aria-invalid", "true");
+    }
+    fireEvent.click(button);
+    expect(writes()).toEqual([]);
+    expect(open).not.toHaveBeenCalled();
+
+    fireEvent.change(reason, { target: { value: "ticket 451" } });
+    expect(button).toBeEnabled();
+    expect(reason).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("sends the reason as the API counts it: spaces at the ends dropped, runs of them as one", async () => {
     vi.spyOn(window, "open").mockReturnValue(null);
     club();
     fireEvent.click(screen.getByRole("button", { name: /view as/i }));
     const confirm = await screen.findByRole("alertdialog");
+    fireEvent.change(within(confirm).getByLabelText(/reason/i), { target: { value: "  ticket   4512:\tcannot   publish  " } });
     fireEvent.click(within(confirm).getByRole("button", { name: "Open session" }));
     await waitFor(() => expect(writes()).toHaveLength(1));
-    expect(writes()[0]!.body).toEqual({ reason: null });
+    expect(writes()[0]!.body).toEqual({ reason: "ticket 4512: cannot publish" });
   });
 
-  /*
-   * The inventory describes the reason as required. The dialog labels it
-   * "(optional)" and the API's ImpersonationRequest takes `reason: str | None`,
-   * so making it mandatory is a product decision for both ends, not a fix.
-   */
-  it.todo("requires a reason before a session can be opened (UI and API both treat it as optional today)");
+  it("says what the API said when it wants a reason, and keeps the dialog for it", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    refuse = new Error("Say why you need a session as this account: at least 10 characters. It is kept in the activity log.");
+    club();
+    fireEvent.click(screen.getByRole("button", { name: /view as/i }));
+    const confirm = await screen.findByRole("alertdialog");
+    fireEvent.change(within(confirm).getByLabelText(/reason/i), { target: { value: "looking into a report" } });
+    fireEvent.click(within(confirm).getByRole("button", { name: "Open session" }));
+    await waitFor(() => expect(failure).toHaveBeenCalledWith(expect.stringMatching(/at least 10 characters/)));
+    expect(open).not.toHaveBeenCalled();
+    expect(within(screen.getByRole("alertdialog")).getByLabelText(/reason/i)).toHaveValue("looking into a report");
+  });
 
   it("says why when the server refuses, opens nothing and keeps the dialog", async () => {
     const open = vi.spyOn(window, "open").mockReturnValue(null);
@@ -193,6 +233,7 @@ describe("open a session as a user (impersonate)", () => {
     club();
     fireEvent.click(screen.getByRole("button", { name: /view as/i }));
     const confirm = await screen.findByRole("alertdialog");
+    fireEvent.change(within(confirm).getByLabelText(/reason/i), { target: { value: "checking a reported problem" } });
     fireEvent.click(within(confirm).getByRole("button", { name: "Open session" }));
 
     await waitFor(() => expect(failure).toHaveBeenCalledWith("Admins cannot be impersonated"));
