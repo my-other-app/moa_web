@@ -238,6 +238,8 @@ export function ClubStatement({ clubId }: { clubId: number }) {
   const period = { from: from || undefined, to: to || undefined };
   const { data, isPending, isError, error } = useStatement(clubId, period);
   const canMoney = useCan("manage_money");
+  // The statement file is an export: EXPORT_DATA on the server, as an event's finance statement is.
+  const canExport = useCan("export_data");
   const [recording, setRecording] = React.useState(false);
 
   if (isError) {
@@ -391,11 +393,13 @@ export function ClubStatement({ clubId }: { clubId: number }) {
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <a href={statementCsvUrl(clubId, period)} download>
-              <DownloadIcon /> Statement CSV
-            </a>
-          </Button>
+          {canExport ? (
+            <Button variant="outline" size="sm" asChild>
+              <a href={statementCsvUrl(clubId, period)} download>
+                <DownloadIcon /> Statement CSV
+              </a>
+            </Button>
+          ) : null}
           {canMoney && data ? (
             <Button size="sm" onClick={() => setRecording(true)}>
               <PlusIcon /> Record payout

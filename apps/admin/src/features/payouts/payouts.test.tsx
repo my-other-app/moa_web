@@ -172,5 +172,7 @@ describe("a club's statement", () => {
     await screen.findByText("UTR123");
     expect(screen.queryByRole("button", { name: /Record payout/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Void/ })).toBeNull();
+    // The statement file is an export (EXPORT_DATA): owners only.
+    expect(screen.queryByRole("link", { name: /Statement CSV/ })).toBeNull();
   });
 });
