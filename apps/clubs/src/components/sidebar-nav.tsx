@@ -6,6 +6,7 @@ import { LockIcon } from "lucide-react";
 import { cn } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
+import { useMailSummary, useMailboxOnServer } from "@/features/mailbox/queries";
 import { usePlan } from "@/features/plan";
 import { useSummary, useUnreadTitle, useWhatsAppOnServer } from "@/features/whatsapp";
 
@@ -29,11 +30,16 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
   const plan = usePlan();
   // Asked only of those who may open WhatsApp; shared with its pages' read of the account.
   const whatsapp = useWhatsAppOnServer(Boolean(can.whatsapp));
-  const onServer = { whatsapp };
+  // Club mailboxes: shown once the API has them and has them switched on (its status says `available`).
+  const mailbox = useMailboxOnServer(Boolean(can.mail));
+  const onServer = { whatsapp, mailbox };
   // What waits unread in the inbox, for those who may read it: on the item and in the tab's title.
   const summary = useSummary(Boolean(can.whatsapp_inbox) && whatsapp === true);
   const unread = summary.data?.unread_total ?? 0;
-  useUnreadTitle(unread);
+  // The mailbox's Inbox the same, for those with the Mail permission.
+  const mailSummary = useMailSummary(Boolean(can.mail_inbox) && mailbox === true);
+  const mailUnread = mailSummary.data?.unread_total ?? 0;
+  useUnreadTitle(unread + mailUnread);
   // A role sees only what it can open; the club's own account sees everything. A section
   // whose backend isn't deployed yet waits until the API is known to have it.
   const visible = navItems.filter((i) => (!i.needs || can[i.needs]) && (!i.server || onServer[i.server] === true));
@@ -52,7 +58,7 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
             {section.items.map((item) => {
               const on = isActive(pathname, item);
               const lock = item.feature ? plan.featureLock(item.feature) : null;
-              const count = item.server === "whatsapp" ? unread : 0;
+              const count = item.server === "whatsapp" ? unread : item.server === "mailbox" ? mailUnread : 0;
               const hint = lock
                 ? `${item.label} · part of ${lock.requiredPlanName ?? "a bigger plan"} and up`
                 : count
@@ -82,7 +88,7 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
                     <span className={cn("flex-1 truncate", collapsed && "hidden")}>{item.label}</span>
                     {count ? (
                       <span
-                        data-testid="whatsapp-unread"
+                        data-testid={`${item.server ?? "item"}-unread`}
                         className={cn(
                           "bg-refuse shrink-0 rounded-full px-1.5 font-mono text-[10.5px] leading-[18px] font-semibold text-white tabular-nums",
                           collapsed && "sr-only",

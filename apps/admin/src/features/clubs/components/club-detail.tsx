@@ -70,6 +70,7 @@ import { useResolvedTopics } from "@/features/interests";
 import { ClubCreditsPanel, ClubMessagesPanel } from "@/features/messages";
 import { ClubPlanPanel } from "@/features/subscriptions";
 import { ClubWhatsAppCard } from "@/features/club-whatsapp";
+import { ClubMailboxCard } from "@/features/club-mailbox";
 
 import { requestedPlanText, type ClubEvent, type ClubFollower } from "../schemas";
 import { ClubEditForm } from "./club-edit-form";
@@ -458,6 +459,9 @@ export function ClubDetail({ clubId }: { clubId: number }) {
 
         {/* Its own WhatsApp number, if any: status and quality, never a message. */}
         {club ? <ClubWhatsAppCard clubId={club.id} /> : null}
+
+        {/* Its mailbox, if any: the address, open or closed, counts -- never a mail. */}
+        {club ? <ClubMailboxCard clubId={club.id} /> : null}
 
         <section className="space-y-3">
           <SectionTitle>Performance</SectionTitle>

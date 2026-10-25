@@ -39,6 +39,7 @@ export const GATED_FEATURES = [
   "ai_assist",
   "mcp",
   "whatsapp_own",
+  "mailbox",
 ] as const;
 export type GatedFeature = (typeof GATED_FEATURES)[number];
 export type PlanFeature = GatedFeature | (typeof ALWAYS_ON)[number];
@@ -68,6 +69,7 @@ export const FEATURE_LABEL: Record<GatedFeature, string> = {
   ai_assist: "AI assist",
   mcp: "Connecting AI assistants",
   whatsapp_own: "Your own WhatsApp Business number",
+  mailbox: "A club mailbox",
 };
 
 /**
@@ -99,6 +101,8 @@ const FALLBACK_TIER: Partial<Record<GatedFeature, { key: string; name: string }>
   mcp: { key: "growth", name: "Growth" },
   // plan_features.whatsapp_own: Enterprise only (the backend's club_whatsapp migration).
   whatsapp_own: { key: "enterprise", name: "Enterprise" },
+  // plan_features.mailbox: Pro and Enterprise (the backend's club_mailbox migration).
+  mailbox: { key: "pro", name: "Pro" },
 };
 
 /** The limits the server holds a club to. Storage, ticket types and coupons are not among them. */

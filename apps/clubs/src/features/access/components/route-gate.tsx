@@ -20,6 +20,7 @@ const RULES: { test: (path: string) => boolean; needs: Cap; what: string; applie
   { test: (p) => p === "/profile" || p.startsWith("/profile/"), needs: "club_profile", what: "the club profile" },
   { test: (p) => /^\/(followers|threads|announcements|emails|links|website|templates|merchandise)(\/|$)/.test(p), needs: "edit_events", what: "this page" },
   { test: (p) => p === "/whatsapp" || p.startsWith("/whatsapp/"), needs: "whatsapp", what: "WhatsApp", appliesIf: "whatsapp_known" },
+  { test: (p) => p === "/mail" || p.startsWith("/mail/"), needs: "mail", what: "Mail", appliesIf: "mail_known" },
 ];
 
 export function blockedBy(path: string, can: Partial<Record<Cap, boolean>>) {

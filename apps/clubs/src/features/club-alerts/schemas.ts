@@ -14,6 +14,9 @@ import { z } from "zod";
  * whatsapp_restricted  Meta restricted its WhatsApp account
  * whatsapp_message     a conversation has unread WhatsApp messages (a name and a count; the inbox's people only)
  * whatsapp_waiting     a WhatsApp conversation has waited too long for an answer (the inbox's people only)
+ * mail_message         a conversation in the club's mailbox has unread mail (a name and a count; the Mail permission's people only)
+ * mailbox_lapsed       the plan no longer includes the mailbox: closed, its mail readable 30 days
+ * mailbox_expired      those 30 days are over: export or delete the mail
  */
 export const clubAlertSchema = z.object({
   id: z.coerce.number(),
@@ -56,6 +59,9 @@ export const KIND_INFO: Record<string, { label: string; link: string; tone: Aler
   whatsapp_restricted: { label: "WhatsApp account", link: "/whatsapp/settings", tone: "refuse" },
   whatsapp_message: { label: "WhatsApp message", link: "/whatsapp", tone: "info" },
   whatsapp_waiting: { label: "WhatsApp: waiting for an answer", link: "/whatsapp", tone: "caution" },
+  mail_message: { label: "Mail", link: "/mail", tone: "info" },
+  mailbox_lapsed: { label: "Club mailbox", link: "/mail/settings", tone: "caution" },
+  mailbox_expired: { label: "Club mailbox", link: "/mail/settings", tone: "refuse" },
 };
 
 /**

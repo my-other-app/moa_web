@@ -37,6 +37,11 @@ export async function setMemberWhatsApp(id: number, allowed: boolean) {
   return memberRowSchema.parse(await api.put<unknown>(`${BASE}/${id}/whatsapp`, { allowed }));
 }
 
+/** The Mail permission: the club's mailbox (reading, answering, sending). Owner only. */
+export async function setMemberMail(id: number, allowed: boolean) {
+  return memberRowSchema.parse(await api.put<unknown>(`${BASE}/${id}/mail`, { allowed }));
+}
+
 export async function removeMember(id: number) {
   await api.del<unknown>(`${BASE}/${id}`);
 }

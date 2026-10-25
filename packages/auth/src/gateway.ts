@@ -52,12 +52,14 @@ type RouteContext = { params: Promise<{ path?: string[] }> };
  * The API paths whose request bodies are streamed on as they arrive instead
  * of read in full first: a WhatsApp attachment from the club's inbox (up to
  * 100 MB), which the API in turn streams to Meta -- so neither this server
- * nor the API holds the file. Its exact length goes with it. A 401 to a
+ * nor the API holds the file; and a mail from the club's mailbox with its
+ * files (up to 10 MB together), which the API reads as it arrives. Its exact
+ * length goes with it. A 401 to a
  * streamed body is a network error in Node's fetch (see below): it is
  * answered UPLOAD_INTERRUPTED, which the dashboard says as "sign in and try
  * again".
  */
-const STREAMED = [/^\/api\/v1\/clubs\/whatsapp\/conversations\/\d+\/media$/];
+const STREAMED = [/^\/api\/v1\/clubs\/whatsapp\/conversations\/\d+\/media$/, /^\/api\/v1\/clubs\/mailbox\/messages$/];
 
 export function createGatewayHandlers(options: GatewayOptions) {
   const stripped = new Set(

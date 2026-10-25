@@ -23,7 +23,7 @@ let me: unknown = null;
 let override: Record<string, unknown> = {};
 const calls: string[] = [];
 
-const NEW_ROUTES = /^\/api\/v1\/clubs\/(whatsapp|messages|alerts)(\/|$)/;
+const NEW_ROUTES = /^\/api\/v1\/clubs\/(whatsapp|messages|alerts|mailbox)(\/|$)/;
 
 /** What the API answers, as the gateway passes it on, made into the error the client throws. */
 function answered(status: number, body: unknown) {
@@ -67,6 +67,11 @@ const NEW: Record<string, unknown> = {
   "/api/v1/clubs/messages/usage": USAGE,
   "/api/v1/clubs/messages/history": { items: [] },
   "/api/v1/clubs/alerts": { items: [], unread: 0 },
+  "/api/v1/clubs/mailbox": {
+    available: true, domain: "mail.myotherapp.in", plan_allows: true, set_up: true, address: "circuit@mail.myotherapp.in",
+    state: "open", can_manage: true, can_mail: true, is_owner: true,
+  },
+  "/api/v1/clubs/mailbox/summary": { unread_total: 0, unread_threads: 0, spam_unread: 0, archive_unread: 0 },
 };
 
 /** Who is signed in, from a backend before #106: its caps don't mention WhatsApp at all. */
@@ -128,6 +133,7 @@ const { AccessPage, blockedBy } = await import("@/features/access");
 const { meSchema } = await import("@/features/access/schemas");
 const { MessageUsageCard } = await import("@/features/message-usage");
 const { ClubBell, CLUB_ALERTS_KEY, NO_BELL_EVERY, ALERTS_EVERY } = await import("@/features/club-alerts");
+const { MailboxPage, MailSettingsPage } = await import("@/features/mailbox");
 
 function render(ui: React.ReactElement, client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   const view = rtlRender(
@@ -144,6 +150,7 @@ async function settled(client: QueryClient) {
 }
 
 const whatsappLink = () => screen.queryByRole("link", { name: /^WhatsApp/ });
+const mailLink = () => screen.queryByRole("link", { name: /^Mail/ });
 
 beforeEach(() => {
   server = "old";
@@ -252,6 +259,50 @@ describe("before clubs' own WhatsApp (backend #106)", () => {
   });
 });
 
+describe("before club mailboxes", () => {
+  it("leaves Mail out of the rail, and asks for no summary", async () => {
+    const { client } = render(<SidebarNav />);
+    expect(await screen.findByRole("link", { name: "Events" })).toBeInTheDocument();
+    await settled(client);
+    expect(calls).toContain("/api/v1/clubs/mailbox");
+    expect(mailLink()).toBeNull();
+    expect(calls).not.toContain("/api/v1/clubs/mailbox/summary");
+  });
+
+  it("leaves it out of a backend that has them but has them switched off", async () => {
+    server = "new";
+    override["/api/v1/clubs/mailbox"] = { ...(NEW["/api/v1/clubs/mailbox"] as object), available: false };
+    const { client } = render(<SidebarNav />);
+    expect(await screen.findByRole("link", { name: /^WhatsApp/ })).toBeInTheDocument();
+    await settled(client);
+    expect(mailLink()).toBeNull();
+  });
+
+  it.each([
+    ["Mail", MailboxPage],
+    ["Mail settings", MailSettingsPage],
+  ])("says calmly that %s isn't available yet", async (_, Page) => {
+    render(<Page />);
+    const panel = await screen.findByRole("region", { name: "Mail" });
+    expect(within(panel).getByText("Not available yet")).toBeInTheDocument();
+    expect(screen.queryByText(/permission|Could not load/i)).toBeNull();
+  });
+
+  it("refuses no role at /mail on a server whose caps don't mention it", () => {
+    const old = meSchema.parse(OLD_OWNER).can;
+    expect(old).toMatchObject({ mail: false, mail_known: false });
+    expect(blockedBy("/mail", old)).toBeNull();
+  });
+
+  it("offers no Mail permission on Access", async () => {
+    me = OLD_OWNER;
+    const { client } = render(<AccessPage />);
+    expect(await screen.findByRole("combobox", { name: "Role for Priya Nair" })).toBeInTheDocument();
+    await settled(client);
+    expect(screen.queryByRole("switch", { name: /Mail permission/ })).toBeNull();
+  });
+});
+
 describe("before message quotas (backend #105)", () => {
   it("leaves the usage card off the overview, with no skeleton left behind", async () => {
     const { container, client } = render(<MessageUsageCard />);
@@ -297,6 +348,7 @@ describe("the day the backend is deployed", () => {
     expect(await screen.findByRole("link", { name: "Events" })).toBeInTheDocument();
     await settled(client);
     expect(whatsappLink()).toBeNull();
+    expect(mailLink()).toBeNull();
     expect(screen.queryByRole("button", { name: /Notifications/ })).toBeNull();
     expect(screen.queryByRole("region", { name: "Messages this month" })).toBeNull();
     expect(screen.queryByRole("region", { name: "WhatsApp overview" })).toBeNull();
@@ -306,6 +358,7 @@ describe("the day the backend is deployed", () => {
     await act(() => client.refetchQueries());
 
     expect(await screen.findByRole("link", { name: /^WhatsApp/ })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /^Mail/ })).toHaveAttribute("href", "/mail");
     expect(await screen.findByRole("button", { name: "Notifications" })).toBeInTheDocument();
     expect(await screen.findByRole("region", { name: "Messages this month" })).toBeInTheDocument();
     expect(await screen.findByRole("region", { name: "WhatsApp overview" })).toBeInTheDocument();

@@ -88,6 +88,27 @@ describe("the gateway", () => {
     expect(seen.at(-1)).toMatchObject({ method: "POST", type, length: bytes.byteLength, body });
   });
 
+  it("streams a mail from the club's mailbox on as it arrives, files and all", async () => {
+    const boundary = "----moa-mail-boundary";
+    const pdf = String.fromCharCode(0x25, 0x50, 0x44, 0x46, 0, 1, 2, 255);
+    const body = [`--${boundary}`, 'Content-Disposition: form-data; name="mode"', "", "new", `--${boundary}`, 'Content-Disposition: form-data; name="files"; filename="deck.pdf"', "Content-Type: application/pdf", "", pdf, `--${boundary}--`, ""].join("\r\n");
+    const bytes = Uint8Array.from(body, (c) => c.charCodeAt(0));
+    const type = `multipart/form-data; boundary=${boundary}`;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes.slice(0, 30));
+        controller.enqueue(bytes.slice(30));
+        controller.close();
+      },
+    });
+    const req = new Request("http://localhost/api/gateway/api/v1/clubs/mailbox/messages", {
+      method: "POST", headers: { "content-type": type, "content-length": String(bytes.byteLength) }, body: stream, duplex: "half",
+    } as RequestInit);
+    const res = await handlers().POST(req, ctx("api/v1/clubs/mailbox/messages"));
+    expect(res.status).toBe(200);
+    expect(seen.at(-1)).toMatchObject({ method: "POST", type, length: bytes.byteLength, body });
+  });
+
   it("answers a streamed upload the API refused with a 401 plainly, not as a bare 500", async () => {
     const req = new Request("http://localhost/api/gateway/api/v1/clubs/whatsapp/conversations/8/media", {
       method: "POST", headers: { "content-type": "multipart/form-data; boundary=x" }, body: new ReadableStream<Uint8Array>({ start: (c) => (c.enqueue(new TextEncoder().encode("--x--\r\n")), c.close()) }), duplex: "half",
