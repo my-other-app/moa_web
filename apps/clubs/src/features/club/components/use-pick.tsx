@@ -4,12 +4,13 @@ import * as React from "react";
 import { toast } from "@moa/ui";
 import { useObjectUrl } from "@moa/ui/hooks";
 
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+import { fitImage } from "@/lib/images";
 
 /**
  * A hidden file input and a way to open it. The picked image is handed
- * to the caller at once and previewed while it uploads. An image only,
- * under 5 MB; anything else is refused with a word.
+ * to the caller and previewed while it uploads. An image only; one too big
+ * for the gateway (4.5 MB, a Vercel limit) is redrawn smaller first
+ * (lib/images), and one that cannot be is refused with a word, sending nothing.
  *
  * When `onFile` returns a promise (an upload), a rejection takes the preview
  * down again: a picture the server refused must not stay up as if saved.
@@ -17,17 +18,28 @@ export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export function usePick(onFile: (f: File) => void | Promise<unknown>, what: string) {
   const ref = React.useRef<HTMLInputElement>(null);
   const [picked, setPicked] = React.useState<File | null>(null);
+  // While a big picture is being redrawn smaller: a form that sends it with
+  // something else waits for it rather than going without it.
+  const [preparing, setPreparing] = React.useState(false);
   const preview = useObjectUrl(picked);
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     if (!file.type.startsWith("image/")) return void toast.error(`Choose an image file for the ${what}`);
-    if (file.size > MAX_IMAGE_BYTES) return void toast.error(`The ${what} must be under 5 MB`);
-    setPicked(file);
+    let ready: File;
+    setPreparing(true);
+    try {
+      ready = await fitImage(file, what);
+    } catch (error) {
+      return void toast.error(error instanceof Error ? error.message : `The ${what} is too big to send`);
+    } finally {
+      setPreparing(false);
+    }
+    setPicked(ready);
     // The refusal itself is said by the caller (its mutation toasts it); here only the preview goes.
-    void Promise.resolve(onFile(file)).catch(() => setPicked((current) => (current === file ? null : current)));
+    void Promise.resolve(onFile(ready)).catch(() => setPicked((current) => (current === ready ? null : current)));
   };
-  const input = <input ref={ref} type="file" accept="image/*" onChange={onChange} className="sr-only" tabIndex={-1} aria-hidden="true" />;
-  return { open: () => ref.current?.click(), preview, input, clear: () => setPicked(null) };
+  const input = <input ref={ref} type="file" accept="image/*" onChange={(e) => void onChange(e)} className="sr-only" tabIndex={-1} aria-hidden="true" />;
+  return { open: () => ref.current?.click(), preview, input, preparing, clear: () => setPicked(null) };
 }

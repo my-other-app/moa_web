@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { ApiError } from "@moa/api";
 import { toast } from "@moa/ui";
 
@@ -75,11 +75,13 @@ const png = (name = "logo.png", bytes = 1024) => new File([new Uint8Array(bytes)
  * handed to that same input, as the browser would after the dialog closes.
  */
 let opened: HTMLInputElement | null = null;
-const pick = (button: HTMLElement, file: File) => {
+/** Picks the file, and lets the picker get it ready (lib/images shrinks a big one first). */
+const pick = async (button: HTMLElement, file: File) => {
   opened = null;
   fireEvent.click(button);
   expect(opened, "the button should open a file picker").not.toBeNull();
   fireEvent.change(opened!, { target: { files: [file] } });
+  await act(async () => {});
 };
 
 const of = (method: string) => calls.filter((c) => c.method === method);
@@ -101,7 +103,7 @@ describe("a partner's logo", () => {
     const success = vi.spyOn(toast, "success");
     render(<ClubProfilePage />);
     const file = png("kinetic.png");
-    pick(await screen.findByRole("button", { name: "Add Kinetic Labs logo" }), file);
+    await pick(await screen.findByRole("button", { name: "Add Kinetic Labs logo" }), file);
 
     await waitFor(() => expect(of("PUT")).toHaveLength(1));
     const [put] = of("PUT");
@@ -110,23 +112,24 @@ describe("a partner's logo", () => {
     await waitFor(() => expect(success).toHaveBeenCalledWith("Logo updated"));
   });
 
-  it("refuses a file that is not an image, and one over 5 MB, without sending either", async () => {
+  it("refuses a file that is not an image, and one too big to send, without sending either", async () => {
     const error = vi.spyOn(toast, "error");
     render(<ClubProfilePage />);
     const button = await screen.findByRole("button", { name: "Add Kinetic Labs logo" });
 
-    pick(button, new File(["%PDF"], "deck.pdf", { type: "application/pdf" }));
+    await pick(button, new File(["%PDF"], "deck.pdf", { type: "application/pdf" }));
     expect(error).toHaveBeenCalledWith("Choose an image file for the partner logo");
 
-    pick(button, png("huge.png", 5 * 1024 * 1024 + 1));
-    expect(error).toHaveBeenCalledWith("The partner logo must be under 5 MB");
+    // Over the gateway's limit, and no canvas here to redraw it smaller.
+    await pick(button, png("huge.png", 5 * 1024 * 1024 + 1));
+    await waitFor(() => expect(error).toHaveBeenCalledWith(expect.stringMatching(/^The partner logo is 5\.0 MB/)));
 
     expect(of("PUT")).toHaveLength(0);
   });
 
   it("previews the picked logo while it uploads", async () => {
     render(<ClubProfilePage />);
-    pick(await screen.findByRole("button", { name: "Add Kinetic Labs logo" }), png());
+    await pick(await screen.findByRole("button", { name: "Add Kinetic Labs logo" }), png());
     expect(await screen.findByRole("button", { name: "Replace Kinetic Labs logo" })).toBeInTheDocument();
   });
 
@@ -134,7 +137,7 @@ describe("a partner's logo", () => {
     const error = vi.spyOn(toast, "error");
     failNext = { method: "PUT", error: new ApiError({ status: 413, message: "That image is too large to process" }) };
     render(<ClubProfilePage />);
-    pick(await screen.findByRole("button", { name: "Add Kinetic Labs logo" }), png());
+    await pick(await screen.findByRole("button", { name: "Add Kinetic Labs logo" }), png());
     await waitFor(() => expect(error).toHaveBeenCalledWith("That image is too large to process"));
     // A refused logo must not stay up as if it were saved.
     expect(await screen.findByRole("button", { name: "Add Kinetic Labs logo" })).toBeInTheDocument();
@@ -145,7 +148,7 @@ describe("a partner's logo", () => {
     await screen.findByTestId("club-name");
     fireEvent.click(screen.getByRole("button", { name: /Add partner/ }));
     const file = png("gdg.png");
-    pick(screen.getByRole("button", { name: "Add the new partner's logo" }), file);
+    await pick(screen.getByRole("button", { name: "Add the new partner's logo" }), file);
     // Picking the logo alone sends nothing: there is no partner to attach it to yet.
     expect(calls).toHaveLength(0);
 
@@ -165,7 +168,7 @@ describe("a partner's logo", () => {
     render(<ClubProfilePage />);
     await screen.findByTestId("club-name");
     fireEvent.click(screen.getByRole("button", { name: /Add partner/ }));
-    pick(screen.getByRole("button", { name: "Add the new partner's logo" }), png());
+    await pick(screen.getByRole("button", { name: "Add the new partner's logo" }), png());
     fireEvent.change(screen.getByLabelText("New partner name"), { target: { value: "Kinetic Labs" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
@@ -180,7 +183,7 @@ describe("a partner's logo", () => {
     render(<ClubProfilePage />);
     await screen.findByTestId("club-name");
     fireEvent.click(screen.getByRole("button", { name: /Add partner/ }));
-    pick(screen.getByRole("button", { name: "Add the new partner's logo" }), png());
+    await pick(screen.getByRole("button", { name: "Add the new partner's logo" }), png());
     fireEvent.change(screen.getByLabelText("New partner name"), { target: { value: "GDG Pune" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
@@ -212,7 +215,7 @@ describe("the team", () => {
     await screen.findByTestId("club-name");
     fireEvent.click(screen.getByRole("button", { name: /Add a person/ }));
     const file = png("rahul.png");
-    pick(screen.getByRole("button", { name: "Add a photo" }), file);
+    await pick(screen.getByRole("button", { name: "Add a photo" }), file);
     fireEvent.change(screen.getByLabelText("New member name"), { target: { value: "Rahul Nair" } });
     fireEvent.change(screen.getByLabelText("New member role"), { target: { value: "Design" } });
     fireEvent.change(screen.getByLabelText("New member Instagram"), { target: { value: "@rahul.n" } });
@@ -264,7 +267,7 @@ describe("the team", () => {
     render(<ClubProfilePage />);
     await screen.findByTestId("club-name");
     fireEvent.click(screen.getByRole("button", { name: /Add a person/ }));
-    pick(screen.getByRole("button", { name: "Add a photo" }), png());
+    await pick(screen.getByRole("button", { name: "Add a photo" }), png());
     fireEvent.change(screen.getByLabelText("New member name"), { target: { value: "Rahul Nair" } });
     const row = screen.getByLabelText("New member name").closest("div")!.parentElement!;
     fireEvent.click(within(row).getByRole("button", { name: "Add" }));
@@ -304,7 +307,7 @@ describe("the team", () => {
   it("replaces a member's photo the moment one is picked", async () => {
     render(<ClubProfilePage />);
     const file = png("anjali.png");
-    pick(await screen.findByRole("button", { name: "Add Anjali Menon's photo" }), file);
+    await pick(await screen.findByRole("button", { name: "Add Anjali Menon's photo" }), file);
     await waitFor(() => expect(of("PUT")).toHaveLength(1));
     expect(of("PUT")[0]!.path).toBe("/api/v1/clubs/team/31/photo");
     expect((of("PUT")[0]!.body as FormData).get("photo")).toBe(file);
@@ -315,7 +318,7 @@ describe("the team", () => {
     const error = vi.spyOn(toast, "error");
     failNext = { method: "PUT", error: new ApiError({ status: 415, message: "Unsupported image" }) };
     render(<ClubProfilePage />);
-    pick(await screen.findByRole("button", { name: "Add Anjali Menon's photo" }), png());
+    await pick(await screen.findByRole("button", { name: "Add Anjali Menon's photo" }), png());
     await waitFor(() => expect(error).toHaveBeenCalledWith("Unsupported image"));
     expect(await screen.findByRole("button", { name: "Add Anjali Menon's photo" })).toBeInTheDocument();
   });
