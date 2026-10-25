@@ -34,6 +34,8 @@ export function CreateClubWizard({
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword_] = React.useState("");
+  /** The club step one made, which step two sets the password of. */
+  const [clubId, setClubId] = React.useState<number | null>(null);
   const [copied, setCopied] = React.useState(false);
   const [error, setError] = React.useState("");
   const [confirmLeave, setConfirmLeave] = React.useState(false);
@@ -51,6 +53,7 @@ export function CreateClubWizard({
       setName("");
       setEmail("");
       setPassword_("");
+      setClubId(null);
       setCopied(false);
       setError("");
     }
@@ -66,12 +69,14 @@ export function CreateClubWizard({
         setError("Enter a valid email.");
         return;
       }
+      let created;
       try {
-        await create.mutateAsync({ name, email });
+        created = await create.mutateAsync({ name, email });
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : "Could not create the club.");
         return;
       }
+      setClubId(created.id);
       setPassword_(generatePassword());
       setError("");
       setStep(2);
@@ -80,7 +85,14 @@ export function CreateClubWizard({
 
     try {
       await setPassword.mutateAsync({
-        emailOrUsername: email.trim(),
+        /*
+         * By the new club's id, not its email. An email is unique only per
+         * account type, so a club whose committee uses the same address for
+         * the app has two accounts behind it: the reset then could not tell
+         * which was meant and failed, leaving the club with no password. A
+         * bare number is looked up as a club id, which only this club has.
+         */
+        emailOrUsername: clubId !== null ? String(clubId) : email.trim(),
         newPassword: password,
       });
     } catch (caught) {
