@@ -127,13 +127,11 @@ const optionalUrl = z.string().trim().url("Enter a full URL").or(z.literal(""));
  * one the club set, or the removal of it, is sent.
  */
 export const clubProfileFormSchema = z.object({
-  // 3..20 matches the Form(...) constraint on the endpoint; a longer name is
-  // rejected server-side with a 422 that says nothing useful.
-  name: z
-    .string()
-    .trim()
-    .min(3, "Club name needs at least 3 characters")
-    .max(20, "Club name can be at most 20 characters"),
+  // Shown, not edited: the name changes only through support, and PUT
+  // /clubs/update ignores it. It was still checked for 3..20 characters, so a
+  // club with a longer name (one an admin or the demo seed made, up to the
+  // column's 100) could not save its profile at all -- Save did nothing.
+  name: z.string().optional(),
   about: z.string().trim().max(2000, "Keep this under 2000 characters").optional(),
   tagline: z.string().trim().max(120, "Keep the tagline under 120 characters").optional(),
   org_id: z.number().int().nullable().default(null),
