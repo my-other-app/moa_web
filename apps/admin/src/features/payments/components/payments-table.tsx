@@ -33,6 +33,8 @@ import { hoverLift, pressable, stagger } from "@moa/ui/motion";
 
 import { ExportButton } from "@/components/export-button";
 import { useCan } from "@/hooks/use-can";
+import { useOpsFeature } from "@/features/ops/queries";
+import { PaymentRefundDialog } from "@/features/refunds";
 import { SavedViews } from "@/components/saved-views";
 import { fetchPayments } from "../api";
 import { usePaymentTotals, usePayments, useRefundPayment } from "../queries";
@@ -58,9 +60,13 @@ const STATUS_TONE: Record<string, StatusTone> = {
 function RefundButton({ payment }: { payment: Payment }) {
   const refund = useRefundPayment();
   const [open, setOpen] = React.useState(false);
+  const [partOpen, setPartOpen] = React.useState(false);
   // Refunds move real money, so they are owner-only. Support sees the payment
   // and its status, just not the button.
   const allowed = useCan("manage_money");
+  // Part of a payment -- some of the ticket, one store order, the rest --
+  // once the backend has the admin refunds (GET /admin/ops/me).
+  const parts = useOpsFeature("refunds");
 
   if (!allowed) {
     return <span className="text-muted-foreground text-xs">--</span>;
@@ -84,6 +90,14 @@ function RefundButton({ payment }: { payment: Payment }) {
         {refund.isPending ? <Loader2Icon className="animate-spin" /> : <UndoIcon />}
         Refund
       </Button>
+      {parts ? (
+        <>
+          <Button size="xs" variant="ghost" className={pressable} onClick={() => setPartOpen(true)}>
+            Refund part…
+          </Button>
+          <PaymentRefundDialog paymentId={payment.id} open={partOpen} onOpenChange={setPartOpen} />
+        </>
+      ) : null}
 
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
@@ -92,10 +106,11 @@ function RefundButton({ payment }: { payment: Payment }) {
               Refund {formatCurrency(payment.amount)}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This sends the full amount back through Razorpay — partial
-              refunds are not supported. It cannot be undone, the payer is not
-              notified by this action, and it is recorded in the activity log
-              against your name.
+              {parts
+                ? "This sends everything still unrefunded back through Razorpay — for part of it, use Refund part. "
+                : "This sends the full amount back through Razorpay — partial refunds are not supported. "}
+              It cannot be undone, the payer is not notified by this action,
+              and it is recorded in the activity log against your name.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -199,7 +214,7 @@ const columns: DataTableColumn<Payment>[] = [
     className: "text-right",
     headerClassName: "text-right",
     cell: (row) => (
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-1">
         <RefundButton payment={row} />
       </div>
     ),

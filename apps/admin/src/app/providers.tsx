@@ -8,6 +8,8 @@ import { Toaster, TooltipProvider } from "@moa/ui";
 
 import { getQueryClient } from "@moa/app-kit";
 
+import { TwoFactorWatch } from "@/features/ops";
+
 export function Providers({ children }: { children: React.ReactNode }) {
   // Not useState(() => new QueryClient()): getQueryClient already returns a
   // per-request client on the server and a stable singleton in the browser.
@@ -15,6 +17,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {/* An admin call refused for want of two-factor sends the admin to set it up. */}
+      <TwoFactorWatch />
       {/* Meridian has both scales, so the theme follows the OS until the
           choice in the rail's account menu says otherwise; it is remembered. */}
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="moa.theme" disableTransitionOnChange>

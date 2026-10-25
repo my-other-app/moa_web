@@ -28,6 +28,7 @@ import {
 } from "@moa/ui";
 
 import { NotificationBell } from "@/features/notifications";
+import { OpsBanners } from "@/features/ops";
 
 import { Breadcrumbs } from "./breadcrumbs";
 import { CommandPalette } from "./command-palette";
@@ -202,7 +203,11 @@ export function AppShell({ user, badges, children }: { user: SessionUser; badges
             <NotificationBell />
           </div>
           <main ref={mainRef} className="scroll-thin min-h-0 flex-1 overflow-auto">
-            <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-6 pt-5 pb-16 max-sm:px-4">{children}</div>
+            <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-6 pt-5 pb-16 max-sm:px-4">
+              {/* The maintenance line an owner set, and the two-factor grace's last day. */}
+              <OpsBanners />
+              {children}
+            </div>
           </main>
         </div>
       </div>

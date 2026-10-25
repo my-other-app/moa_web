@@ -33,6 +33,9 @@ export const NOTIFICATION_KINDS = [
   "store_oversold",
   "subscription_orphan_charged",
   "email_dead_letter",
+  // The operator tools: a background job given up on, and a Razorpay dispute.
+  "job_dead",
+  "payment_disputed",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -78,6 +81,10 @@ export const KIND_META: Record<NotificationKind, { label: string; tone: KindTone
   subscription_orphan_charged: { label: "Charge on an unknown subscription", tone: "failure" },
   // An event's emails were given up on after every retry.
   email_dead_letter: { label: "Emails failed after retries", tone: "failure" },
+  // A background job failed on every try: the Jobs page retries or cancels it.
+  job_dead: { label: "Job failed", tone: "failure" },
+  // Razorpay opened a dispute (a chargeback) on a payment, or one was lost: the Disputes page.
+  payment_disputed: { label: "Payment disputed", tone: "failure" },
 };
 
 /**
@@ -203,7 +210,7 @@ export const GATEWAY_KINDS = new Set<string>(["payment_gateway_connected", "paym
 const CLUB_KINDS = new Set<string>([...GATEWAY_KINDS, "club_domain_active", "store_oversold", "email_dead_letter"]);
 
 /** Kinds that are not about the club or its money, and lead to a page of their own. */
-const KIND_PAGES: Record<string, string> = { content_reported: "/reports" };
+const KIND_PAGES: Record<string, string> = { content_reported: "/reports", job_dead: "/jobs", payment_disputed: "/disputes" };
 
 /** Kinds about one ticket payment: they lead to it on the Payments page, found by its Razorpay id. */
 const PAYMENT_KINDS = new Set<string>(["payment_unapplied", "payment_auto_refunded", "payment_refund_failed"]);

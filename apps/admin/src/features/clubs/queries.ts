@@ -6,6 +6,7 @@ import { toast } from "@moa/ui";
 
 import {
   approveClub,
+  rejectClub,
   createClub,
   deleteClub,
   fetchClub,
@@ -118,6 +119,21 @@ export function useUpdateClub(clubId: number) {
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
     onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useRejectClub() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ clubId, reason }: { clubId: number; reason: string }) => rejectClub(clubId, reason),
+    onSuccess: async () => {
+      toast.success("Application rejected; the applicant was mailed the reason");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.clubs.all }),
+        queryClient.invalidateQueries({ queryKey: qk.analytics.all }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not reject the application"),
   });
 }
 
