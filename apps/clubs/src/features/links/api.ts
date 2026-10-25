@@ -31,6 +31,20 @@ export async function createLink(scope: LinkScope, form: LinkForm) {
   return linkSchema.parse(raw);
 }
 
+/** What can change on a link once it is made: its name and its tags. The code, the clicks and what it brought stay. */
+export interface LinkPatch {
+  name?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string | null;
+  utm_content?: string | null;
+}
+
+export async function updateLink(scope: LinkScope, id: string, patch: LinkPatch) {
+  const raw = await api.patch<unknown>(`${base(scope)}/${id}`, patch);
+  return linkSchema.parse(raw);
+}
+
 export async function deleteLink(scope: LinkScope, id: string) {
   await api.del<unknown>(`${base(scope)}/${id}`);
 }
