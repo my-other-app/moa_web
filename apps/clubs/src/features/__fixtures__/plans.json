@@ -1,6 +1,6 @@
 {
   "currency": "INR",
-  "trial": { "days": 14, "plan_key": "pro", "plan_name": "Pro", "card_required": false, "then_plan_key": "free" },
+  "trial": { "days": 14, "plan_key": "pro", "plan_name": "Pro", "card_required": false, "then_plan_key": "free", "limits": { "emails_per_month": 2000, "whatsapp_per_month": 50, "whatsapp_marketing_per_month": 10, "ai_actions_per_month": 50 } },
   "enterprise_trial_days": 30,
   "yearly_months_free": 2,
   "plans": [
@@ -14,7 +14,9 @@
       "trial_days": 0,
       "contact_sales": false,
       "featured": false,
-      "limits": { "events_per_month": 2, "registrations_per_month": 200, "registrations_per_event": 100, "ticket_types_per_event": 1, "coupons_per_event": 0, "merch_items_per_event": 0, "committee_seats": 1, "announcements_per_month": 4, "website_templates": 1 },
+      "email_overage_paise": 10,
+      "whatsapp_overage_paise": 150,
+      "limits": { "events_per_month": 2, "registrations_per_month": 200, "registrations_per_event": 100, "ticket_types_per_event": 1, "coupons_per_event": 0, "merch_items_per_event": 0, "committee_seats": 1, "announcements_per_month": 4, "website_templates": 1, "emails_per_month": 200, "whatsapp_per_month": 0, "whatsapp_marketing_per_month": 0 },
       "features": [
         { "key": "tickets", "label": "Tickets", "included": true },
         { "key": "checkin", "label": "Door check-in", "included": true },
@@ -31,7 +33,9 @@
       "trial_days": 0,
       "contact_sales": false,
       "featured": false,
-      "limits": { "events_per_month": 6, "registrations_per_month": 1000, "registrations_per_event": 300, "ticket_types_per_event": 3, "coupons_per_event": 2, "merch_items_per_event": 0, "committee_seats": 3, "announcements_per_month": 12, "website_templates": 2 },
+      "email_overage_paise": 10,
+      "whatsapp_overage_paise": 150,
+      "limits": { "events_per_month": 6, "registrations_per_month": 1000, "registrations_per_event": 300, "ticket_types_per_event": 3, "coupons_per_event": 2, "merch_items_per_event": 0, "committee_seats": 3, "announcements_per_month": 12, "website_templates": 2, "emails_per_month": 1000, "whatsapp_per_month": 50, "whatsapp_marketing_per_month": 10 },
       "features": [
         { "key": "tickets", "label": "Tickets", "included": true },
         { "key": "checkin", "label": "Door check-in", "included": true },
@@ -48,7 +52,9 @@
       "trial_days": 0,
       "contact_sales": false,
       "featured": true,
-      "limits": { "events_per_month": 20, "registrations_per_month": 5000, "registrations_per_event": 1000, "ticket_types_per_event": 10, "coupons_per_event": 10, "merch_items_per_event": 10, "committee_seats": 10, "announcements_per_month": null, "website_templates": 5 },
+      "email_overage_paise": 10,
+      "whatsapp_overage_paise": 150,
+      "limits": { "events_per_month": 20, "registrations_per_month": 5000, "registrations_per_event": 1000, "ticket_types_per_event": 10, "coupons_per_event": 10, "merch_items_per_event": 10, "committee_seats": 10, "announcements_per_month": null, "website_templates": 5, "emails_per_month": 5000, "whatsapp_per_month": 250, "whatsapp_marketing_per_month": 50 },
       "features": [
         { "key": "tickets", "label": "Tickets", "included": true },
         { "key": "checkin", "label": "Door check-in", "included": true },
@@ -71,7 +77,9 @@
       "trial_days": 0,
       "contact_sales": false,
       "featured": false,
-      "limits": { "events_per_month": null, "registrations_per_month": null, "registrations_per_event": null, "ticket_types_per_event": null, "coupons_per_event": null, "merch_items_per_event": null, "committee_seats": 25, "announcements_per_month": null, "website_templates": null },
+      "email_overage_paise": 10,
+      "whatsapp_overage_paise": 150,
+      "limits": { "events_per_month": null, "registrations_per_month": null, "registrations_per_event": null, "ticket_types_per_event": null, "coupons_per_event": null, "merch_items_per_event": null, "committee_seats": 25, "announcements_per_month": null, "website_templates": null, "emails_per_month": 20000, "whatsapp_per_month": 1000, "whatsapp_marketing_per_month": 200 },
       "features": [
         { "key": "tickets", "label": "Tickets", "included": true },
         { "key": "domain", "label": "Custom domain", "included": true }
@@ -87,7 +95,9 @@
       "trial_days": 0,
       "contact_sales": true,
       "featured": false,
-      "limits": { "events_per_month": null, "registrations_per_month": null, "registrations_per_event": null, "ticket_types_per_event": null, "coupons_per_event": null, "merch_items_per_event": null, "committee_seats": null, "announcements_per_month": null, "website_templates": null },
+      "email_overage_paise": 10,
+      "whatsapp_overage_paise": 150,
+      "limits": { "events_per_month": null, "registrations_per_month": null, "registrations_per_event": null, "ticket_types_per_event": null, "coupons_per_event": null, "merch_items_per_event": null, "committee_seats": null, "announcements_per_month": null, "website_templates": null, "emails_per_month": null, "whatsapp_per_month": null, "whatsapp_marketing_per_month": null },
       "features": [{ "key": "api", "label": "API access", "included": true }]
     }
   ]

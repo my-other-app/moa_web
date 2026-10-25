@@ -41,6 +41,13 @@ export const channelUsageSchema = z.object({
   state: z.enum(STATES).catch("ok"),
   kinds: z.record(z.string(), z.number()).catch({}),
   warned: z.array(z.number()).catch([]),
+  /**
+   * WhatsApp only: of the month's messages, the promotional (marketing)
+   * ones, against the plan's cap on them (20% of its WhatsApp). Past it a
+   * promotional message is held back on every plan; tickets, certificates
+   * and reminders always go. Absent from a server before the cap.
+   */
+  marketing: z.object({ used: z.number().catch(0), limit: z.number().nullable().catch(null) }).nullish().catch(null),
 });
 export type ChannelUsage = z.infer<typeof channelUsageSchema>;
 
@@ -149,6 +156,21 @@ export function extraLine(u: MessageUsage, channel: Channel): string | null {
       : `${left} left this month. Past it, each is ${paiseText(c.rate_paise)}.`;
   }
   return null;
+}
+
+/**
+ * "Promotional: 12 of 200 this month", or why they stopped: under the
+ * WhatsApp bar, once the plan caps promotional messages. Null without a cap,
+ * or when the plan has no WhatsApp.
+ */
+export function promotionalLine(c: ChannelUsage): string | null {
+  const m = c.marketing;
+  if (!m || m.limit === null || c.limit === 0) return null;
+  if (m.limit === 0) return "Promotional WhatsApp isn't included on your plan; tickets, certificates and reminders still go.";
+  const counted = `Promotional: ${m.used.toLocaleString("en-IN")} of ${m.limit.toLocaleString("en-IN")} this month`;
+  return m.used >= m.limit
+    ? `${counted}. More promotional messages wait for next month; tickets, certificates and reminders still go.`
+    : `${counted}.`;
 }
 
 /** What the plan does past its limits, in one sentence for the card's foot. */

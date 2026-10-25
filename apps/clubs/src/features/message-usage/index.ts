@@ -12,6 +12,7 @@ export {
   extraLine,
   paiseText,
   policyLine,
+  promotionalLine,
   usedLine,
   wantsUpgrade,
   type Channel,

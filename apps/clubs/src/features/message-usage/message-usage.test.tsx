@@ -55,12 +55,35 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
-const { MessageUsageCard, paiseText, usedLine, extraLine, messageUsageSchema, wantsUpgrade } = await import("./index");
+const { MessageUsageCard, paiseText, usedLine, extraLine, messageUsageSchema, wantsUpgrade, promotionalLine } = await import("./index");
 
 beforeEach(() => {
   usageAnswer = usage();
   historyAnswer = { items: [] };
   failUsage = false;
+});
+
+describe("promotional WhatsApp (pricing_adjust)", () => {
+  it("counts promotional messages against the plan's cap, and says when they wait for next month", () => {
+    const parse = (marketing: unknown, over: Record<string, unknown> = {}) =>
+      messageUsageSchema.parse(usage({ channels: { email: channel(), whatsapp: channel({ limit: 1000, rate_paise: 150, marketing, ...over }) } })).channels.whatsapp;
+    expect(promotionalLine(parse({ used: 12, limit: 200 }))).toBe("Promotional: 12 of 200 this month.");
+    expect(promotionalLine(parse({ used: 200, limit: 200 }))).toBe(
+      "Promotional: 200 of 200 this month. More promotional messages wait for next month; tickets, certificates and reminders still go.",
+    );
+    expect(promotionalLine(parse({ used: 0, limit: 0 }))).toMatch(/isn't included on your plan; tickets, certificates and reminders still go/);
+    // No cap (Enterprise), no WhatsApp at all (Free), or a server from before the cap: nothing to say.
+    expect(promotionalLine(parse({ used: 3, limit: null }))).toBeNull();
+    expect(promotionalLine(parse({ used: 0, limit: 0 }, { limit: 0 }))).toBeNull();
+    expect(promotionalLine(parse(undefined))).toBeNull();
+  });
+
+  it("shows the promotional count under the WhatsApp bar, and the ₹1.50 extra", async () => {
+    usageAnswer = usage({ channels: { email: channel(), whatsapp: channel({ used: 40, limit: 250, rate_paise: 150, marketing: { used: 7, limit: 50 } }) } });
+    render(<MessageUsageCard />);
+    expect(await screen.findByText("Promotional: 7 of 50 this month.")).toBeInTheDocument();
+    expect(screen.getByText(/₹1\.50 a WhatsApp message, added to your next bill/)).toBeInTheDocument();
+  });
 });
 
 describe("the words", () => {

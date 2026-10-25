@@ -6,6 +6,8 @@ import {
   subscriptionPageSchema,
   subscriptionSchema,
   totalsSchema,
+  trialGiftPreviewSchema,
+  trialGiftResultSchema,
   givePlanPayload,
   type GivePlanInput,
   type Plan,
@@ -161,4 +163,18 @@ export async function cancelSubscription(subscriptionId: number, atPeriodEnd: bo
   return subscriptionSchema.parse(
     await api.post(`/api/v1/admin/subscriptions/${subscriptionId}/cancel`, { at_period_end: atPeriodEnd })
   );
+}
+
+/** Which existing clubs would get the free trial now (approved, real, never had one, on Free), and why the rest would not. */
+export async function fetchTrialGift() {
+  return trialGiftPreviewSchema.parse(await api.get<unknown>("/api/v1/admin/subscriptions/trial-gift"));
+}
+
+/**
+ * Start the free trial now for every club the preview counts, as a new club's
+ * starts, and with `email` mail each owner once. Running it again starts
+ * nothing: a club that has had a trial is never eligible again.
+ */
+export async function applyTrialGift(email: boolean) {
+  return trialGiftResultSchema.parse(await api.post("/api/v1/admin/subscriptions/trial-gift", { email }));
 }

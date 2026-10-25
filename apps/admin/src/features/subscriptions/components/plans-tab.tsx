@@ -31,8 +31,10 @@ import {
   DEFAULT_EMAIL_OVERAGE_PAISE,
   DEFAULT_WHATSAPP_OVERAGE_PAISE,
   FEATURE_LABELS,
+  FREE_TRIAL_PLAN_KEY,
   GROUP_LABELS,
   LIMIT_FIELDS,
+  TRIAL_LIMIT_FIELDS,
   toForm,
   yearlyPriceProblem,
   type Plan,
@@ -62,6 +64,7 @@ const BLANK: PlanFormInput = {
   email_overage_rupees: DEFAULT_EMAIL_OVERAGE_PAISE / 100,
   whatsapp_overage_rupees: DEFAULT_WHATSAPP_OVERAGE_PAISE / 100,
   limits: Object.fromEntries(LIMIT_FIELDS.map((f) => [f.key, null])),
+  trial_limits: {},
   features: {},
 };
 
@@ -119,6 +122,11 @@ export function PlansTab() {
   function setLimit(key: string, value: number | null) {
     if (!form) return;
     setDraft({ ...form, limits: { ...form.limits, [key]: value } });
+  }
+
+  function setTrialLimit(key: string, value: number | null) {
+    if (!form) return;
+    setDraft({ ...form, trial_limits: { ...form.trial_limits, [key]: value } });
   }
 
   function toggleFeature(key: string) {
@@ -482,8 +490,44 @@ export function PlansTab() {
               <span className="text-[12px] text-ink-3">
                 Past the monthly email and WhatsApp limits, a plan Razorpay bills keeps sending and the extra goes on the club&apos;s next invoice at these prices.
                 Free has no card to charge: past its limit, announcements, campaigns and reminders stop; tickets and certificates still go.
+                Promotional WhatsApp is never sold as an extra: past its own limit it is held back on every plan, while tickets, certificates and reminders always go.
               </span>
             </div>
+
+            {/* The free trial's own allowances, on the plan the trial gives */}
+            {form.key === FREE_TRIAL_PLAN_KEY ? (
+              <div className="flex flex-col gap-2" role="group" aria-labelledby="trial-limits-title">
+                <span id="trial-limits-title" className="micro">Free trial allowances</span>
+                <span className="text-[12px] text-ink-3">
+                  Every new club gets 14 days of {form.name || "this plan"} free: its features, with these monthly allowances. Empty uses the plan&apos;s own.
+                </span>
+                <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
+                  {TRIAL_LIMIT_FIELDS.map((field) => {
+                    const value = form.trial_limits[field.key] ?? null;
+                    return (
+                      <div key={field.key} className="rule-fade grid grid-cols-[minmax(0,1fr)_92px] items-center gap-2 py-1.5">
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate text-[13px]">{field.label}</span>
+                          <span className="truncate text-[11px] text-ink-3">{field.scope}</span>
+                        </span>
+                        <input
+                          className="input min-h-8 text-[13px]"
+                          type="number"
+                          min={0}
+                          aria-label={`Trial ${field.label.toLowerCase()} a month`}
+                          placeholder={form.limits[field.key] === null || form.limits[field.key] === undefined ? "Plan's" : String(form.limits[field.key])}
+                          value={value === null ? "" : value}
+                          disabled={!canEdit}
+                          onChange={(e) =>
+                            setTrialLimit(field.key, e.target.value === "" ? null : Math.max(0, +e.target.value || 0))
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
 
             {/* Features */}
             {Object.entries(groups).map(([groupKey, keys]) => {

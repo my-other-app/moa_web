@@ -13,6 +13,7 @@ import {
   barTone,
   channelName,
   extraLine,
+  promotionalLine,
   paiseText,
   policyLine,
   usedLine,
@@ -146,6 +147,7 @@ function ChannelRow({ u, channel }: { u: MessageUsage; channel: Channel }) {
   const c = u.channels[channel];
   const Icon = channel === "email" ? MailIcon : MessageCircleIcon;
   const note = extraLine(u, channel);
+  const promo = channel === "whatsapp" ? promotionalLine(c) : null;
   return (
     <div className="flex flex-col gap-1.5" data-channel={channel}>
       <div className="flex items-baseline justify-between gap-3 text-[13px]">
@@ -164,6 +166,7 @@ function ChannelRow({ u, channel }: { u: MessageUsage; channel: Channel }) {
         />
       ) : null}
       {note ? <p className={cn("m-0 text-[12px] leading-[1.45]", c.state === "blocked" ? "text-refuse" : "text-ink-3")}>{note}</p> : null}
+      {promo ? <p className="text-ink-3 m-0 text-[12px] leading-[1.45]">{promo}</p> : null}
     </div>
   );
 }
