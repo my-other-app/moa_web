@@ -9,6 +9,7 @@ import { z } from "zod";
  * message_quota_100    all of the plan's allowance used (bought credits come next)
  * message_credits_low  bought credits under a tenth of the last pack
  * message_credits_expiring  bought credits with some left expire within 30 days
+ * message_credits_added  MyOtherApp gave the club free credits
  * whatsapp_failed      the club's own WhatsApp number stopped working
  * whatsapp_quality     its quality rating or messaging limit dropped
  * whatsapp_restricted  Meta restricted its WhatsApp account
@@ -51,6 +52,7 @@ export const KIND_INFO: Record<string, { label: string; link: string; tone: Aler
   message_quota_100: { label: "Messages", link: "/billing#credits", tone: "refuse" },
   message_credits_low: { label: "Credits", link: "/billing#credits", tone: "caution" },
   message_credits_expiring: { label: "Credits", link: "/billing#credits", tone: "caution" },
+  message_credits_added: { label: "Credits", link: "/billing#credits", tone: "info" },
   whatsapp_failed: { label: "WhatsApp number", link: "/whatsapp/settings", tone: "refuse" },
   whatsapp_quality: { label: "WhatsApp quality", link: "/whatsapp/settings", tone: "caution" },
   whatsapp_restricted: { label: "WhatsApp account", link: "/whatsapp/settings", tone: "refuse" },
