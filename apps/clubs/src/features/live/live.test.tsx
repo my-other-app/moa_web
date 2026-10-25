@@ -32,7 +32,18 @@ const updates = { audience: { registered: 148, checked_in: 88 }, items: [{ id: "
 const agenda = { items: [{ id: "a1", event_id: 37, starts_at: "2026-10-13T13:30:00Z", ends_at: "2026-10-13T14:00:00Z", title: "Keynote", description: null, speaker: null, speaker_photo_key: null, speaker_photo_url: null, location: null, sort_order: 0, parallel: false }], timezone: "Asia/Kolkata", has_programme: false };
 const hostState = { status: "live", join_code: "4821", title: "Edge AI warm-up quiz", players: 0, current_index: -1, total: 2, question: null, leaderboard: [] };
 /** What a start or a launch adds to its reply: `{ notified }` from a server that notifies the room, nothing from today's. */
-const reply: { start: Record<string, unknown>; poll: Record<string, unknown> } = { start: {}, poll: {} };
+const reply: {
+  start: Record<string, unknown>;
+  poll: Record<string, unknown>;
+  moderate: Record<string, unknown>;
+  settings: Record<string, unknown>;
+  /** The quiz's status as GET /live/quiz says it. */
+  quizStatus: string;
+  /** What GET /live/quiz/host says. */
+  host: Record<string, unknown>;
+  /** Refusals to throw once, by the path's end. */
+  refuse: Record<string, { status: number; errorCode: string }>;
+} = { start: {}, poll: {}, moderate: {}, settings: {}, quizStatus: "draft", host: hostState, refuse: {} };
 
 // Node's own localStorage shadows jsdom's and has no backing file here; the screens read through a plain one.
 const store = new Map<string, string>();
@@ -50,7 +61,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     api: {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
-        if (path.endsWith("/live/quiz")) return quiz;
+        if (path.endsWith("/live/quiz")) return { ...quiz, status: reply.quizStatus };
+        if (path.endsWith("/live/quiz/host")) return reply.host;
         if (path.endsWith("/live/questions")) return board;
         if (path.endsWith("/live/polls")) return polls;
         if (path.endsWith("/live/feedback")) return feedback;
@@ -60,7 +72,13 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       }),
       post: vi.fn(async (path: string, body: unknown) => {
         calls.push({ method: "POST", path, body });
-        if (path.includes("/questions/")) return { ...board.to_review[0], status: "approved" };
+        const refusal = Object.entries(reply.refuse).find(([end]) => path.endsWith(end));
+        if (refusal) {
+          delete reply.refuse[refusal[0]];
+          const { ApiError } = await import("@moa/api");
+          throw new ApiError({ message: "Refused", status: refusal[1].status, errorCode: refusal[1].errorCode });
+        }
+        if (path.includes("/questions/")) return { ...board.to_review[0], status: "approved", ...reply.moderate };
         if (path.endsWith("/quiz/host/start")) return { ...hostState, ...reply.start };
         if (path.includes("/quiz/host/")) return hostState;
         if (path.endsWith("/status")) return { ...polls[2], status: (body as { status: string }).status, ...reply.poll };
@@ -70,7 +88,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       }),
       patch: vi.fn(async (path: string, body: unknown) => {
         calls.push({ method: "PATCH", path, body });
-        if (path.endsWith("/questions/settings")) return { ...board, approve_first: false };
+        if (path.endsWith("/questions/settings")) return { ...board, approve_first: false, ...reply.settings };
         return {};
       }),
       put: vi.fn(async (path: string, body: unknown) => {
@@ -98,6 +116,11 @@ beforeEach(() => {
   store.clear();
   reply.start = {};
   reply.poll = {};
+  reply.moderate = {};
+  reply.settings = {};
+  reply.quizStatus = "draft";
+  reply.host = hostState;
+  reply.refuse = {};
   success.mockClear();
   warning.mockClear();
   window.history.replaceState(null, "", "/events/37/live");
@@ -121,9 +144,10 @@ describe("the live room", () => {
     expect(await screen.findByText(/power bank station/)).toBeInTheDocument();
     expect(screen.getByText(/TensorFlow Lite Micro/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
-    await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.path.endsWith("/live/questions/x1"))?.body).toEqual({ action: "approve" }));
+    // Approving opens Q&A: it says whether to tell the room (on by default).
+    await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.path.endsWith("/live/questions/x1"))?.body).toEqual({ action: "approve", notify: true }));
     fireEvent.click(screen.getByRole("switch", { name: "Approve before showing" }));
-    await waitFor(() => expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ approve_first: false }));
+    await waitFor(() => expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ approve_first: false, notify: true }));
   });
 
   it("draws each kind of poll its own way and launches a draft", async () => {
@@ -133,8 +157,8 @@ describe("the live room", () => {
     expect(screen.getByText("40%")).toBeInTheDocument();
     const card = screen.getByText("Rate the keynote").closest("div")!.parentElement!;
     fireEvent.click(within(card).getByRole("button", { name: /Launch/ }));
-    // A launch now says whether to notify the room (off for polls unless the host turns it on).
-    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p3/status"))?.body).toEqual({ status: "live", notify: false }));
+    // A launch says whether to notify the room (on unless the host turns it off).
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p3/status"))?.body).toEqual({ status: "live", notify: true }));
   });
 
   it("shows last time's results until this event's replies arrive", async () => {
@@ -177,15 +201,19 @@ describe("notifying the room", () => {
     await screen.findByText("wake word");
   };
 
-  it("is on beside Host live and off beside the polls, with the room's checked-in count", async () => {
+  it("is on beside Host live, beside the polls and in Q&A, with the room's checked-in count", async () => {
     render(<LivePage eventId={37} />);
     const quiz = await notifySwitch("Notify checked-in attendees (88)");
     expect(quiz).toHaveAttribute("aria-checked", "true");
     expect(quiz).toHaveAccessibleDescription("A push to join, as the quiz opens");
     await openPolls();
     const poll = await notifySwitch("Notify checked-in attendees (88)");
-    expect(poll).toHaveAttribute("aria-checked", "false");
+    expect(poll).toHaveAttribute("aria-checked", "true");
     expect(poll).toHaveAccessibleDescription("A push to vote, as each poll launches");
+    fireEvent.click(await screen.findByRole("button", { name: /Q&A/ }));
+    const qa = await notifySwitch("Notify checked-in attendees (88)");
+    expect(qa).toHaveAttribute("aria-checked", "true");
+    expect(qa).toHaveAccessibleDescription("A push that Q&A is open, as the first question goes up");
   });
 
   it("remembers the host's last choice for the event, and only that event", async () => {
@@ -194,7 +222,12 @@ describe("notifying the room", () => {
     expect(store.get("moa.live.37.notify.quiz")).toBe("0");
     await openPolls();
     fireEvent.click(await notifySwitch());
+    expect(store.get("moa.live.37.notify.poll")).toBe("0");
+    fireEvent.click(await notifySwitch());
     expect(store.get("moa.live.37.notify.poll")).toBe("1");
+    fireEvent.click(await screen.findByRole("button", { name: /Q&A/ }));
+    fireEvent.click(await notifySwitch());
+    expect(store.get("moa.live.37.notify.qa")).toBe("0");
     first.unmount();
 
     window.history.replaceState(null, "", "/events/37/live");
@@ -202,6 +235,8 @@ describe("notifying the room", () => {
     expect(await notifySwitch()).toHaveAttribute("aria-checked", "false");
     await openPolls();
     expect(await notifySwitch()).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(await screen.findByRole("button", { name: /Q&A/ }));
+    expect(await notifySwitch()).toHaveAttribute("aria-checked", "false");
     again.unmount();
 
     // Another event keeps the defaults.
@@ -209,7 +244,7 @@ describe("notifying the room", () => {
     render(<LivePage eventId={38} />);
     expect(await notifySwitch()).toHaveAttribute("aria-checked", "true");
     await openPolls();
-    expect(await notifySwitch()).toHaveAttribute("aria-checked", "false");
+    expect(await notifySwitch()).toHaveAttribute("aria-checked", "true");
   });
 
   it("still works when the browser keeps nothing", async () => {
@@ -245,20 +280,22 @@ describe("notifying the room", () => {
 
     await openPolls();
     await launchKeynote();
-    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p3/status"))?.body).toEqual({ status: "live", notify: false }));
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p3/status"))?.body).toEqual({ status: "live", notify: true }));
     calls.length = 0;
     fireEvent.click(await notifySwitch());
     await launchKeynote();
-    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p3/status"))?.body).toEqual({ status: "live", notify: true }));
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p3/status"))?.body).toEqual({ status: "live", notify: false }));
     fireEvent.click(screen.getByRole("button", { name: /Close poll/ }));
     await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/polls/p1/status"))?.body).toEqual({ status: "closed" }));
 
     calls.length = 0;
-    await hostAction(37, "next", true);
-    await hostAction(37, "end", true);
-    await hostAction(37, "reset");
+    await hostAction(37, "next");
+    await hostAction(37, "end", { notify: true, restart: true, expectedIndex: 1 });
+    await hostAction(37, "reset", { notify: true });
     await setPollStatus(37, "p1", "closed", true);
-    expect(calls.map((c) => c.body)).toEqual([{}, {}, {}, { status: "closed" }]);
+    await hostAction(37, "next", { notify: true, restart: true, expectedIndex: 0 });
+    await hostAction(37, "start", { notify: false, expectedIndex: 3 });
+    expect(calls.map((c) => c.body)).toEqual([{}, {}, {}, { status: "closed" }, { expected_index: 0 }, { notify: false }]);
   });
 
   it.each([
@@ -359,7 +396,113 @@ describe("notifying the room", () => {
     expect(limited(61)).toBe("Not notified — the room was notified recently; you can notify again in 2 min");
     expect(limited(180)).toBe("Not notified — the room was notified recently; you can notify again in 3 min");
     expect(notifiedNote({ sent: 0, skipped_reason: "disabled" })).toBeNull();
+    expect(notifiedNote({ sent: 0, skipped_reason: "already_sent" })).toBeNull();
     expect(notifiedNote(undefined)).toBeNull();
     expect(notifiedNote(null)).toBeNull();
+  });
+});
+
+describe("the host's guards", () => {
+  const question = { id: "q1", prompt: "Roughly how much RAM does an ESP32-S3 have on-chip?", options: quiz.questions[0]!.options, correct_key: "a", seconds: 20, time_left: 12, answered: 3, counts: [{ key: "a", label: "512 KB", count: 2, correct: true }, { key: "b", label: "8 MB", count: 1, correct: false }, { key: "c", label: "64 KB", count: 0, correct: false }, { key: "d", label: "2 GB", count: 0, correct: false }] };
+
+  it("asks before restarting a quiz another console started, and only a yes sends restart", async () => {
+    reply.refuse = { "/quiz/host/start": { status: 409, errorCode: "QUIZ_RUNNING" } };
+    render(<LivePage eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Host live" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Restart the quiz?")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Every player's score is cleared/)).toBeInTheDocument();
+    expect(success).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Restart" }));
+    await waitFor(() => expect(calls.filter((c) => c.path.endsWith("/quiz/host/start")).map((c) => c.body)).toEqual([{ notify: true }, { notify: true, restart: true }]));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    await waitFor(() => expect(success).toHaveBeenCalledWith("The quiz is open — players join with 4821"));
+  });
+
+  it("keeps the quiz running when the host says no", async () => {
+    reply.refuse = { "/quiz/host/start": { status: 409, errorCode: "QUIZ_RUNNING" } };
+    render(<LivePage eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Host live" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Keep it running" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(calls.filter((c) => c.path.endsWith("/quiz/host/start"))).toHaveLength(1);
+  });
+
+  it("says which question Next moves on from, and catches up quietly when the quiz has moved on", async () => {
+    reply.quizStatus = "live";
+    reply.host = { ...hostState, current_index: 0, players: 3, question };
+    render(<LivePage eventId={37} />);
+    const next = await screen.findByRole("button", { name: "Next question" });
+    fireEvent.click(next);
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/quiz/host/next"))?.body).toEqual({ expected_index: 0 }));
+
+    reply.refuse = { "/quiz/host/next": { status: 409, errorCode: "QUIZ_MOVED_ON" } };
+    calls.length = 0;
+    await waitFor(() => expect(next).toBeEnabled());
+    fireEvent.click(next);
+    // Refused: nothing said, and the host's view is read again.
+    await waitFor(() => expect(calls.some((c) => c.method === "GET" && c.path.endsWith("/live/quiz/host"))).toBe(true));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(success).not.toHaveBeenCalled();
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  it("asks the lobby's first question from -1", async () => {
+    reply.quizStatus = "live";
+    render(<LivePage eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Ask the first question/ }));
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/quiz/host/next"))?.body).toEqual({ expected_index: -1 }));
+  });
+});
+
+describe("opening Q&A", () => {
+  const openQA = async () => {
+    fireEvent.click(await screen.findByRole("button", { name: /Q&A/ }));
+    await screen.findByText(/power bank station/);
+  };
+
+  it("tells the room with the first question approved, and says so", async () => {
+    reply.moderate = { notified: { sent: 61, skipped_reason: null } };
+    render(<LivePage eventId={37} />);
+    await openQA();
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(success).toHaveBeenCalledWith("Q&A is open", { description: "Sent to 61" }));
+  });
+
+  it("says nothing once the room was told, or when nobody is there to tell", async () => {
+    reply.moderate = { notified: { sent: 0, skipped_reason: "already_sent" } };
+    render(<LivePage eventId={37} />);
+    await openQA();
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(calls.some((c) => c.path.endsWith("/live/questions/x1"))).toBe(true));
+    reply.moderate = { notified: { sent: 0, skipped_reason: "nobody_checked_in" } };
+    fireEvent.click(screen.getByRole("button", { name: "Pin to screen" }));
+    await waitFor(() => expect(calls.some((c) => c.path.endsWith("/live/questions/x2"))).toBe(true));
+    expect(success).not.toHaveBeenCalled();
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  it("warns when the room's limit held it", async () => {
+    reply.moderate = { notified: { sent: 0, skipped_reason: "rate_limited", retry_after: 120 } };
+    render(<LivePage eventId={37} />);
+    await openQA();
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(warning).toHaveBeenCalledWith("Q&A is open", expect.objectContaining({ description: "Not notified — the room was notified recently; you can notify again in 2 min" })));
+  });
+
+  it("with the switch off, approving and switching approval off say not to tell; a reject never asks", async () => {
+    store.set("moa.live.37.notify.qa", "0");
+    render(<LivePage eventId={37} />);
+    await openQA();
+    fireEvent.click(screen.getByRole("button", { name: "Reject" }));
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/questions/x1"))?.body).toEqual({ action: "reject" }));
+    calls.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: "Answered" }));
+    await waitFor(() => expect(calls.find((c) => c.path.endsWith("/live/questions/x2"))?.body).toEqual({ action: "answered" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pin to screen" }));
+    await waitFor(() => expect(calls.filter((c) => c.path.endsWith("/live/questions/x2")).map((c) => c.body)).toContainEqual({ action: "pin", notify: false }));
+    fireEvent.click(screen.getByRole("switch", { name: "Approve before showing" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ approve_first: false, notify: false }));
+    expect(success).toHaveBeenCalledWith("New questions go straight to the board");
   });
 });

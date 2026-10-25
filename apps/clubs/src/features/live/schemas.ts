@@ -4,10 +4,11 @@ import { z } from "zod";
 
 // --- notifying the room ----------------------------------------------------------------------
 
-/** What a quiz start or a poll launch says about the push to checked-in phones. */
+/** What a quiz start, a poll launch or Q&A opening says about the push to checked-in phones. */
 export const notifiedSchema = z.object({
   sent: z.number(),
-  skipped_reason: z.enum(["rate_limited", "nobody_checked_in", "all_muted", "disabled"]).nullish(),
+  /** `already_sent`: Q&A opening is told once per event, and it was. */
+  skipped_reason: z.enum(["rate_limited", "nobody_checked_in", "all_muted", "disabled", "already_sent"]).nullish(),
   /** Whole seconds until the room can be notified again; sent with `rate_limited`. */
   retry_after: z.number().nullish(),
 });
@@ -91,6 +92,11 @@ export const qaBoardSchema = z.object({
   rejected: z.number(),
 });
 export type ModerateAction = "approve" | "reject" | "answered" | "reopen" | "pin" | "unpin";
+
+/** A moderated question; an approve or a pin also says whether the room was told Q&A is open. */
+export const moderateSchema = questionSchema.extend({ notified: notifiedField });
+/** The board after switching approval; switching it off also says whether the room was told. */
+export const qaSettingsSchema = qaBoardSchema.extend({ notified: notifiedField });
 
 // --- polls ----------------------------------------------------------------------
 

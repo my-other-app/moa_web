@@ -21,16 +21,23 @@ import {
 
 import { useFeatureGate } from "@/features/plan";
 
+import { useNotifyChoice } from "../notify";
 import { useQAMutations, useQuestions } from "../queries";
 import type { ModerateAction, Question } from "../schemas";
+import { NotifySwitch } from "./notify-switch";
 
 /**
  * Live Q&A, as three columns: what waits for the organiser, what the room
  * sees and votes on, and what has been answered. One question at a time can
  * be pinned to the big screen.
+ *
+ * Opening Q&A -- the first question approved or pinned, or approval switched
+ * off -- can tell everyone checked in that the floor is open (the switch, on
+ * by default). The server tells the room once per event, so later approvals
+ * say nothing.
  */
-// The columns render dozens of buttons; the event id travels by context rather than props.
-const EventIdContext = React.createContext(0);
+// The columns render dozens of buttons; the event id (and the switch) travel by context rather than props.
+const EventIdContext = React.createContext<{ eventId: number; notify: boolean }>({ eventId: 0, notify: true });
 const useEventIdFromContext = () => React.useContext(EventIdContext);
 
 function Card({
@@ -96,15 +103,16 @@ function ActionButton({
   icon: React.ReactNode;
   tone?: "refuse";
 }) {
-  const eventId = useEventIdFromContext();
+  const { eventId, notify } = useEventIdFromContext();
   const { moderate } = useQAMutations(eventId);
   const gate = useFeatureGate("qa", { eventId });
+  const opens = action === "approve" || action === "pin";
   return (
     <Button
       size="xs"
       variant="outline"
       className={cn(tone === "refuse" && "text-refuse")}
-      onClick={gate.guard(() => moderate.mutate({ id: q.id, action }))}
+      onClick={gate.guard(() => moderate.mutate(opens ? { id: q.id, action, notify } : { id: q.id, action }))}
       disabled={moderate.isPending}
     >
       {icon} {label}
@@ -143,9 +151,17 @@ function Column({
   );
 }
 
-export function QAPanel({ eventId }: { eventId: number }) {
+export function QAPanel({
+  eventId,
+  checkedIn,
+}: {
+  eventId: number;
+  /** The room's checked-in count, when the console already has it. */
+  checkedIn?: number | null;
+}) {
   const board = useQuestions(eventId);
   const { approveFirst } = useQAMutations(eventId);
+  const [notify, setNotify] = useNotifyChoice(eventId, "qa");
   if (board.isPending) return <Skeleton className="h-72" />;
   if (board.isError || !board.data)
     return (
@@ -157,7 +173,7 @@ export function QAPanel({ eventId }: { eventId: number }) {
     );
   const b = board.data;
   return (
-    <EventIdContext.Provider value={eventId}>
+    <EventIdContext.Provider value={{ eventId, notify }}>
       <div className="grid gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -169,14 +185,22 @@ export function QAPanel({ eventId }: { eventId: number }) {
                 : "New questions go straight to the board."}
             </p>
           </div>
-          <label className="flex items-center gap-2 text-[13px]">
-            <Switch
-              checked={b.approve_first}
-              onCheckedChange={(v) => approveFirst.mutate(v)}
-              aria-label="Approve before showing"
+          <div className="flex flex-wrap items-start gap-x-5 gap-y-3">
+            <NotifySwitch
+              checked={notify}
+              onCheckedChange={setNotify}
+              checkedIn={checkedIn}
+              hint="A push that Q&A is open, as the first question goes up"
             />
-            Approve before showing
-          </label>
+            <label className="flex items-center gap-2 text-[13px]">
+              <Switch
+                checked={b.approve_first}
+                onCheckedChange={(v) => approveFirst.mutate(v ? { approveFirst: true } : { approveFirst: false, notify })}
+                aria-label="Approve before showing"
+              />
+              Approve before showing
+            </label>
+          </div>
         </div>
         <div className="grid gap-3 lg:grid-cols-3">
           <Column
