@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import { formatNumber } from "@moa/app-kit";
 import { cn } from "@moa/ui";
 
+import { useOpsMe } from "@/features/ops/queries";
 import { useOpenReportCount } from "@/features/reports";
 
-import { isActive, navItems, type NavItem } from "./nav-items";
+import { isActive, visibleNavItems, type NavItem } from "./nav-items";
 
 /** Counts that ask for something to be done, rather than state a fact: they take the brand. */
 const PROMPTS = new Set<NavItem["badge"]>(["pendingClubs", "openReports"]);
@@ -39,8 +40,9 @@ export function SidebarNav({
     ...badges,
     ...(openReports > 0 ? { openReports: openReports > 99 ? "99+" : formatNumber(openReports) } : {}),
   };
+  const ops = useOpsMe().data;
   const sections: { label: string; items: NavItem[] }[] = [];
-  for (const item of navItems) {
+  for (const item of visibleNavItems(ops?.features)) {
     if (item.group || sections.length === 0) sections.push({ label: item.group ?? "Menu", items: [] });
     sections[sections.length - 1]!.items.push(item);
   }

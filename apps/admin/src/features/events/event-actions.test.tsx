@@ -19,6 +19,11 @@ import summaryFixture from "../__fixtures__/event-summary.json";
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
 let refuse: Error | null = null;
 let analytics: Record<string, unknown> = analyticsFixture;
+let detail: Record<string, unknown> = detailFixture;
+const categories = [
+  { id: 2, name: "Hackathon" },
+  { id: 3, name: "Workshop" },
+];
 
 const nav = vi.hoisted(() => ({ replace: vi.fn() }));
 
@@ -40,7 +45,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path.includes("/analytics")) return analytics;
         if (/\/events\/\d+\/summary$/.test(path)) return summaryFixture;
         if (path.includes("/registration/") && path.includes("/list")) return registrationsFixture;
-        if (path.includes("/events/info/")) return detailFixture;
+        if (path.includes("/events/info/")) return detail;
+        if (path.endsWith("/events/categories/list")) return categories;
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(),
@@ -67,6 +73,7 @@ beforeEach(() => {
   calls.length = 0;
   refuse = null;
   analytics = { ...analyticsFixture, total_registrations: 0 };
+  detail = detailFixture;
   nav.replace.mockClear();
   success = vi.spyOn(toast, "success");
   failure = vi.spyOn(toast, "error");
@@ -165,11 +172,65 @@ describe("edit an event", () => {
       about: "A 48-hour hackathon.",
       location_name: "Main Hall",
       event_datetime: "2026-06-10T09:00",
-      reg_enddate: "2026-06-01T00:00",
+      reg_enddate: "2026-06-01T00:00:00",
       max_participants: "100",
       contact_email: "organiser@example.com",
       contact_phone: "9000000000",
+      // Required by the endpoint: it answered 422 without them.
+      category_id: "2",
+      duration: "480",
+      // What the form does not show, sent back as it is so the save keeps it.
+      reg_startdate: "2026-05-01T00:00:00",
+      is_online: "false",
+      has_fee: "true",
+      reg_fee: "250",
+      has_prize: "true",
+      prize_amount: "50000",
+      contact_name: "Organiser",
+      additional_details: "[]",
+      speakers: "[]",
     });
+  });
+
+  it("sends the event's category, and the one the admin picks", async () => {
+    const panel = await openEdit();
+    const category = within(panel).getByLabelText("Category");
+    expect(category).toHaveValue("2");
+    await within(panel).findByRole("option", { name: "Workshop" });
+    fireEvent.change(category, { target: { value: "3" } });
+    fireEvent.click(within(panel).getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(sent().category_id).toBe("3");
+  });
+
+  it("keeps the interests, questions and speakers the form does not show", async () => {
+    detail = {
+      ...detailFixture,
+      event_datetime: "2026-06-09T08:20:00+05:30",
+      interests: [{ id: 4, name: "AI" }, { id: 9, name: "Design" }],
+      additional_details: [{ key: "college", label: "College", field_type: "text", required: true }],
+      speakers: [{ id: 12, name: "Asha", designation: "CTO", photo: { url: "x" }, bio: null, link: "https://a.example" }],
+      event_tag: "Flagship",
+    };
+    const panel = await openEdit();
+    fireEvent.change(within(panel).getByLabelText("Starts"), { target: { value: "2026-06-09T10:00" } });
+    fireEvent.click(within(panel).getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    const body = sent();
+    expect(body.interest_ids).toBe("4,9");
+    expect(JSON.parse(String(body.additional_details))).toEqual([{ key: "college", label: "College", field_type: "text", required: true }]);
+    expect(JSON.parse(String(body.speakers))).toEqual([{ id: 12, name: "Asha", designation: "CTO", bio: null, link: "https://a.example" }]);
+    expect(body.event_tag).toBe("Flagship");
+    // A changed time keeps the API's offset, so the event doesn't move by hours.
+    expect(body.event_datetime).toBe("2026-06-09T10:00:00+05:30");
+  });
+
+  it("will not save without a category or a length", async () => {
+    const panel = await openEdit();
+    const save = within(panel).getByRole("button", { name: "Save changes" });
+    fireEvent.change(within(panel).getByLabelText("Length (hours)"), { target: { value: "" } });
+    expect(save).toBeDisabled();
+    expect(writes()).toEqual([]);
   });
 
   it("sends an emptied cap as 0, which the API reads as no limit", async () => {

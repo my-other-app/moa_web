@@ -20,10 +20,12 @@ import {
   GlobeIcon,
   HourglassIcon,
   IndianRupeeIcon,
+  ListXIcon,
   MailXIcon,
   PackageXIcon,
   PlugZapIcon,
   ReceiptTextIcon,
+  ScaleIcon,
   ShieldAlertIcon,
   SparklesIcon,
   TrendingDownIcon,
@@ -64,6 +66,8 @@ const ICON: Record<string, LucideIcon> = {
   store_oversold: PackageXIcon,
   subscription_orphan_charged: CreditCardIcon,
   email_dead_letter: MailXIcon,
+  job_dead: ListXIcon,
+  payment_disputed: ScaleIcon,
   [FREE_PLAN_GIVEN]: GiftIcon,
 };
 

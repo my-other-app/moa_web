@@ -6,11 +6,16 @@ import { formatDate, formatNumber } from "@moa/app-kit";
 import { InlineAlert, NativeSelect, Pager, Skeleton, cn } from "@moa/ui";
 
 import { ClubPicker, type PickedClub } from "@/components/club-picker";
+import { useCan } from "@/hooks/use-can";
+import { useOpsFeature } from "@/features/ops/queries";
+import { ChargeRefundDialog } from "@/features/refunds";
 
 import { formatPaise, monthLabel } from "../format";
 import { useCharges } from "../queries";
 
 const GRID = "grid grid-cols-[minmax(0,1fr)_auto] gap-3 md:grid-cols-[96px_minmax(160px,1.4fr)_minmax(120px,1fr)_110px_100px_100px_minmax(130px,1fr)]";
+/** With a refund column: the backend refunds plan charges, and this admin may move money. */
+const GRID_REFUND = "grid grid-cols-[minmax(0,1fr)_auto] gap-3 md:grid-cols-[96px_minmax(160px,1.4fr)_minmax(120px,1fr)_110px_100px_100px_minmax(130px,1fr)_84px]";
 const WIDE = "hidden md:block";
 
 const STATUS_TAG: Record<string, string> = {
@@ -19,6 +24,23 @@ const STATUS_TAG: Record<string, string> = {
   partially_refunded: "tag tag-outline",
   failed: "tag tag-outline",
 };
+
+type ChargeRow = { id: number | string; amount_paise: number; refunded_paise: number; status: string; club?: { name: string } | null };
+
+/** Refund a charge, for one that still has money left on it (not failed, not refunded in full). */
+function RefundCell({ row }: { row: ChargeRow }) {
+  const [open, setOpen] = React.useState(false);
+  const left = row.amount_paise - row.refunded_paise;
+  if (row.status === "failed" || left <= 0) return <span className="text-ink-3 text-[12px]">—</span>;
+  return (
+    <>
+      <button type="button" className="text-brand text-[12.5px] font-medium hover:underline" onClick={() => setOpen(true)}>
+        Refund…
+      </button>
+      <ChargeRefundDialog charge={row} open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
 
 /**
  * Every plan charge Razorpay took, newest first: by month, by club, paged,
@@ -35,6 +57,10 @@ export function ChargesPanel({ months }: { months: string[] }) {
   const rows = (charges.data?.items ?? []).slice(0, pageSize);
   const total = charges.data?.total ?? 0;
   const filtered = Boolean(month || club);
+  const refundsOn = useOpsFeature("refunds");
+  const canMoney = useCan("manage_money");
+  const canRefund = refundsOn && canMoney;
+  const grid = canRefund ? GRID_REFUND : GRID;
 
   return (
     <section aria-labelledby="charges-title" className="bg-surface border-line-soft shadow-card flex flex-col gap-3 rounded-[var(--radius-card)] border p-[18px]">
@@ -95,7 +121,7 @@ export function ChargesPanel({ months }: { months: string[] }) {
         <>
           <div className="overflow-x-auto">
             <div role="table" aria-label="Charges" className={cn("flex flex-col md:min-w-[860px]", charges.isPlaceholderData && "opacity-60 transition-opacity")}>
-              <div role="row" className={cn(GRID, "micro px-1.5 py-2")}>
+              <div role="row" className={cn(grid, "micro px-1.5 py-2")}>
                 <span role="columnheader" className={WIDE}>
                   Date
                 </span>
@@ -115,9 +141,14 @@ export function ChargesPanel({ months }: { months: string[] }) {
                 <span role="columnheader" className={WIDE}>
                   Razorpay
                 </span>
+                {canRefund ? (
+                  <span role="columnheader" className={WIDE}>
+                    <span className="sr-only">Refund</span>
+                  </span>
+                ) : null}
               </div>
               {rows.map((row) => (
-                <div role="row" key={row.id} className={cn(GRID, "rule-fade items-center px-1.5 py-2 text-[13px]")}>
+                <div role="row" key={row.id} className={cn(grid, "rule-fade items-center px-1.5 py-2 text-[13px]")}>
                   <span role="cell" className="text-ink-2 hidden text-[12.5px] md:block">
                     {formatDate(row.charged_at)}
                   </span>
@@ -149,6 +180,11 @@ export function ChargesPanel({ months }: { months: string[] }) {
                   <span role="cell" className={cn(WIDE, "text-ink-3 truncate font-mono text-[11.5px]")}>
                     {row.razorpay_payment_id ?? "—"}
                   </span>
+                  {canRefund ? (
+                    <span role="cell" className={WIDE}>
+                      <RefundCell row={row} />
+                    </span>
+                  ) : null}
                 </div>
               ))}
             </div>

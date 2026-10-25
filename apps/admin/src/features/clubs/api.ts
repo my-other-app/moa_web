@@ -39,6 +39,15 @@ export async function approveClub(clubId: number): Promise<void> {
   await api.post<void>(`/api/v1/clubs/${clubId}/approve`);
 }
 
+/**
+ * Turn down a pending application, with the reason its applicant is mailed.
+ * Only offered once the backend says it takes one (GET /admin/ops/me lists
+ * "club_reject"); the server soft-deletes the club, as it always has.
+ */
+export async function rejectClub(clubId: number, reason: string): Promise<void> {
+  await api.post<void>(`/api/v1/clubs/${clubId}/reject`, { reason });
+}
+
 export async function fetchClub(clubId: number): Promise<AdminClubDetail> {
   const raw = await api.get<unknown>(`/api/v1/clubs/admin/${clubId}`);
   return adminClubDetailSchema.parse(raw);

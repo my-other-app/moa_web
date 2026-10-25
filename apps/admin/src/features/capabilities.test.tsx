@@ -55,7 +55,7 @@ describe("capabilities per role", () => {
   it("lets an owner do everything", () => {
     for (const c of [
       "view", "moderate", "destroy", "manage_money", "impersonate",
-      "manage_admins", "manage_content", "reset_credentials", "export_data",
+      "manage_admins", "manage_content", "reset_credentials", "export_data", "broadcast",
     ] as const) {
       expect(can(owner, c)).toBe(true);
     }
@@ -74,6 +74,7 @@ describe("capabilities per role", () => {
     // Spelled out rather than counted: a count tells you the number changed,
     // this tells you which one, and names the backend set it must match.
     expect([...all].sort()).toEqual([
+      "broadcast",
       "destroy",
       "export_data",
       "impersonate",

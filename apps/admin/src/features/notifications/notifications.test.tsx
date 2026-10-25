@@ -552,3 +552,15 @@ describe("the Wave-1 alerts", () => {
     expect(within(kinds).getByRole("option", { name: "Emails failed after retries" })).toHaveValue("email_dead_letter");
   });
 });
+
+describe("the operator-tool alerts", () => {
+  it("lead a failed job to the Jobs page and a dispute to the Disputes page", () => {
+    expect(NOTIFICATION_KINDS).toEqual(expect.arrayContaining(["job_dead", "payment_disputed"]));
+    expect(kindLabel("job_dead")).toBe("Job failed");
+    expect(kindLabel("payment_disputed")).toBe("Payment disputed");
+    expect(kindTone("job_dead")).toBe("failure");
+    expect(kindTone("payment_disputed")).toBe("failure");
+    expect(notificationHref(item({ kind: "job_dead", data: { job_id: 4, name: "emails.send" }, club: null }))).toBe("/jobs");
+    expect(notificationHref(item({ kind: "payment_disputed", data: { dispute_id: "disp_1" } }))).toBe("/disputes");
+  });
+});

@@ -34,6 +34,7 @@ import { PlanLockHost } from "@/features/plan";
 import { AwaitingApproval, useClubNotVerified } from "./awaiting-approval";
 import { Breadcrumbs } from "./breadcrumbs";
 import { GateCard } from "./gate-card";
+import { MaintenanceBanner } from "./maintenance-banner";
 import { SidebarNav } from "./sidebar-nav";
 
 /**
@@ -213,6 +214,8 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           <main ref={mainRef} className="scroll-thin min-h-0 flex-1 overflow-auto">
             <div className="mx-auto max-w-[1180px] px-6 pt-5 pb-16 max-sm:px-4">
               {/* The free trial's days left (or Free's limits once it is over), on every page. */}
+              {/* A notice MyOtherApp set for every club: planned maintenance, an outage. */}
+              <MaintenanceBanner />
               <TrialBanner />
               <RouteGate>{children}</RouteGate>
             </div>

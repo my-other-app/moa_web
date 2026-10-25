@@ -15,6 +15,7 @@ import {
   UserCheckIcon,
   UsersIcon,
   WalletIcon,
+  XIcon,
 } from "lucide-react";
 import {
   PageHeader,
@@ -65,12 +66,16 @@ import {
   useClubFollowers,
   useClubLifetime,
   useDeleteClub,
+  useRejectClub,
 } from "../queries";
 import { useResolvedTopics } from "@/features/interests";
 import { ClubCreditsPanel, ClubMessagesPanel } from "@/features/messages";
 import { ClubPlanPanel } from "@/features/subscriptions";
 import { ClubWhatsAppCard } from "@/features/club-whatsapp";
 import { ClubMailboxCard } from "@/features/club-mailbox";
+import { ConfirmAction } from "@/features/ops";
+import { useOpsFeature } from "@/features/ops/queries";
+import { useCan } from "@/hooks/use-can";
 
 import { requestedPlanText, type ClubEvent, type ClubFollower } from "../schemas";
 import { ClubEditForm } from "./club-edit-form";
@@ -292,7 +297,13 @@ export function ClubDetail({ clubId }: { clubId: number }) {
   const clubTopics = useResolvedTopics(club);
   const approve = useApproveClub();
   const remove = useDeleteClub();
+  const reject = useRejectClub();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [rejectOpen, setRejectOpen] = React.useState(false);
+  // Turning an application down with a reason: a moderator's, once the backend takes one.
+  const canModerate = useCan("moderate");
+  const rejectOn = useOpsFeature("club_reject");
+  const canReject = canModerate && rejectOn;
 
   if (isError) {
     return (
@@ -380,6 +391,11 @@ export function ClubDetail({ clubId }: { clubId: number }) {
                     <CheckIcon />
                   )}
                   Approve
+                </Button>
+              ) : null}
+              {!club.is_verified && canReject ? (
+                <Button size="sm" variant="ghost" className={pressable} disabled={reject.isPending} onClick={() => setRejectOpen(true)}>
+                  <XIcon /> Reject
                 </Button>
               ) : null}
               <Button
@@ -547,6 +563,20 @@ export function ClubDetail({ clubId }: { clubId: number }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {canReject ? (
+        <ConfirmAction
+          open={rejectOpen}
+          onOpenChange={setRejectOpen}
+          title={`Reject “${club?.name ?? "this club"}”?`}
+          description="The application is turned down and the club goes to Trash. Its sign-in address is mailed the reason below. Recorded in the activity log."
+          confirmLabel="Reject application"
+          destructive
+          reason={{ label: "Reason (mailed to the applicant)", placeholder: "Not a student club, duplicate of an existing club…", min: 5 }}
+          pending={reject.isPending}
+          onConfirm={(reason) => reject.mutate({ clubId, reason }, { onSuccess: () => router.replace("/clubs") })}
+        />
+      ) : null}
     </div>
   );
 }

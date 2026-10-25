@@ -24,6 +24,8 @@ export const CAPABILITIES = {
   manageContent: "manage_content",
   resetCredentials: "reset_credentials",
   exportData: "export_data",
+  /** A push to every device on the platform (owner only, like the server's BROADCAST). */
+  broadcast: "broadcast",
 } as const;
 
 export type Capability = (typeof CAPABILITIES)[keyof typeof CAPABILITIES];
@@ -43,6 +45,7 @@ const ROLE_CAPABILITIES: Record<AdminRole, readonly Capability[]> = {
     "manage_content",
     "reset_credentials",
     "export_data",
+    "broadcast",
   ],
 };
 
