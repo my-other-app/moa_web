@@ -6,6 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { nullIfRouteMissing } from "@moa/api";
 import { formatDate } from "@moa/app-kit";
 import { toast } from "@moa/ui";
 
@@ -257,8 +258,13 @@ export function useEndTrial() {
   });
 }
 
+/**
+ * Who would get the free trial now; `null` while the backend has no such
+ * route (the dashboard deployed ahead of backend #111): the card is then
+ * not shown at all, and appears on a later read once the route exists.
+ */
 export function useTrialGiftPreview(enabled = true) {
-  return useQuery({ queryKey: [...KEY, "trial-gift"], queryFn: fetchTrialGift, enabled });
+  return useQuery({ queryKey: [...KEY, "trial-gift"], queryFn: () => nullIfRouteMissing(fetchTrialGift), enabled });
 }
 
 /** Give every eligible existing club the free trial. The card shows the result; a toast says it too. */

@@ -35,6 +35,8 @@ import {
   GROUP_LABELS,
   LIMIT_FIELDS,
   TRIAL_LIMIT_FIELDS,
+  hasTrialLimits,
+  limitFieldsFor,
   toForm,
   yearlyPriceProblem,
   type Plan,
@@ -153,6 +155,12 @@ export function PlansTab() {
     }
     setDraft(null);
   }
+
+  // A limit the backend does not have yet (pricing_adjust) is not offered:
+  // an older API would ignore it, and the editor would claim what it isn't.
+  const limitFields = limitFieldsFor(all);
+  const promotional = limitFields.some((f) => f.key === "whatsapp_marketing_per_month");
+  const trialLimits = hasTrialLimits(all);
 
   // The grouping comes from the API so this does not hold a second copy that
   // can drift. Falls back to one flat group if a plan predates it.
@@ -408,7 +416,7 @@ export function PlansTab() {
             <div className="flex flex-col gap-2">
               <span className="micro">Limits</span>
               <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
-                {LIMIT_FIELDS.map((field) => {
+                {limitFields.map((field) => {
                   const value = form.limits[field.key] ?? null;
                   const unlimited = value === null;
                   return (
@@ -496,12 +504,14 @@ export function PlansTab() {
               <span className="text-[12px] text-ink-3">
                 Past the monthly email and WhatsApp limits, a plan Razorpay bills keeps sending and the extra goes on the club&apos;s next invoice at these prices.
                 Free has no card to charge: past its limit, announcements, campaigns and reminders stop; tickets and certificates still go.
-                Promotional WhatsApp is never sold as an extra: past its own limit it is held back on every plan, while tickets, certificates and reminders always go.
+                {promotional
+                  ? " Promotional WhatsApp is never sold as an extra: past its own limit it is held back on every plan, while tickets, certificates and reminders always go."
+                  : null}
               </span>
             </div>
 
             {/* The free trial's own allowances, on the plan the trial gives */}
-            {form.key === FREE_TRIAL_PLAN_KEY ? (
+            {form.key === FREE_TRIAL_PLAN_KEY && trialLimits ? (
               <div className="flex flex-col gap-2" role="group" aria-labelledby="trial-limits-title">
                 <span id="trial-limits-title" className="micro">Free trial allowances</span>
                 <span className="text-[12px] text-ink-3">

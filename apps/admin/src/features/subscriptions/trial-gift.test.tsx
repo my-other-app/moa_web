@@ -9,7 +9,8 @@ import { ApiError } from "@moa/api";
  * default WhatsApp extra price.
  */
 let role: string | null = "owner";
-let preview: Record<string, unknown> = {};
+/** The preview's answer; an Error is thrown instead (a route the backend doesn't have yet, a fault). */
+let preview: Record<string, unknown> | Error = {};
 let plansResponse: unknown[] = [];
 const posts: Array<{ path: string; body?: Record<string, unknown> }> = [];
 const puts: Array<{ path: string; body: Record<string, unknown> }> = [];
@@ -62,7 +63,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     useSession: () => ({ data: { id: 1, username: "admin", email: "a@b.c", full_name: "Admin", user_type: "admin", admin_role: role } }),
     api: {
       get: vi.fn(async (path: string) => {
-        if (path === "/api/v1/admin/subscriptions/trial-gift") return preview;
+        if (path === "/api/v1/admin/subscriptions/trial-gift") {
+          if (preview instanceof Error) throw preview;
+          return preview;
+        }
         if (path === "/api/v1/admin/subscriptions/totals") return { mrr_paise: 0, arr_paise: 0 };
         if (path === "/api/v1/admin/plans") return plansResponse;
         if (path === "/api/v1/admin/subscriptions") return { limit: 25, offset: 0, total: 0, next: null, items: [] };
@@ -97,6 +101,7 @@ const { render } = await import("@/test/render");
 const { TrialGiftCard } = await import("./components/trial-gift-card");
 const { SubscriptionsV2 } = await import("./components/subscriptions-v2");
 const { PlansTab } = await import("./components/plans-tab");
+const { CompareTab } = await import("./components/compare-tab");
 const { allowancesLine, whatsappAllowance, planSchema, toForm, toPayload, DEFAULT_WHATSAPP_OVERAGE_PAISE, LIMIT_FIELDS } =
   await import("./schemas");
 
@@ -224,5 +229,57 @@ describe("words", () => {
     expect(allowancesLine(PREVIEW.allowances)).toBe("2,000 emails, 50 WhatsApp messages and 50 AI actions a month");
     expect(allowancesLine({ emails_per_month: 1 })).toBe("1 email a month");
     expect(allowancesLine({ emails_per_month: null })).toBeNull();
+  });
+});
+
+describe("deployed ahead of the backend (production before backend #111)", () => {
+  /** FastAPI's own 404 for a path nothing is mounted on: the route isn't on this backend yet. */
+  const routeMissing = () => new ApiError({ status: 404, message: "Not Found", routeMissing: true });
+  /** A plan as the older API sends it: no promotional cap, no trial allowances. */
+  const olderPlan = (overrides: Record<string, unknown> = {}) => {
+    const p = plan(overrides) as Record<string, unknown>;
+    const { whatsapp_marketing_per_month: _cap, ...limits } = p.limits as Record<string, number | null>;
+    delete p.trial_limits;
+    return { ...p, limits, whatsapp_overage_paise: 100 };
+  };
+
+  it("shows no trial card at all, and no error, when the preview's route doesn't exist yet", async () => {
+    preview = routeMissing();
+    render(<SubscriptionsV2 />);
+    expect(await screen.findByRole("heading", { name: "Subscriptions" })).toBeInTheDocument();
+    // Give the failed read time to land, then: nothing of the card, nothing that says it failed.
+    await waitFor(() => expect(screen.queryByText(/Give existing clubs/)).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: /the trial|Nothing to give/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Couldn.t work out|eligible|not available/i)).not.toBeInTheDocument();
+    expect(posts).toHaveLength(0);
+  });
+
+  it("shows no card either when the preview can't be read for another reason", async () => {
+    preview = new ApiError({ status: 500, message: "Something went wrong on our side." });
+    render(<TrialGiftCard />);
+    await waitFor(() => expect(screen.queryByText(/Give existing clubs/)).not.toBeInTheDocument());
+    expect(screen.queryByText(/went wrong/)).not.toBeInTheDocument();
+  });
+
+  it("offers neither the promotional cap nor the trial's allowances in the editor or the comparison", async () => {
+    plansResponse = [olderPlan(), olderPlan({ id: 3, key: "growth", name: "Growth" })];
+    const { unmount } = render(<PlansTab />);
+    expect(await screen.findByLabelText("Emails limit")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Promotional WhatsApp limit")).not.toBeInTheDocument();
+    expect(screen.queryByText("Free trial allowances")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Promotional WhatsApp is never sold/)).not.toBeInTheDocument();
+    // The price is the API's own (₹1 there), not this build's default.
+    expect(screen.getByLabelText("Each extra WhatsApp message (₹)")).toHaveValue(1);
+    unmount();
+    render(<CompareTab />);
+    expect(await screen.findByText(/Emails · per month/)).toBeInTheDocument();
+    expect(screen.queryByText(/Promotional WhatsApp/)).not.toBeInTheDocument();
+  });
+
+  it("offers both once the API sends them", async () => {
+    render(<PlansTab />);
+    expect(await screen.findByLabelText("Promotional WhatsApp limit")).toBeInTheDocument();
+    expect(screen.getByText("Free trial allowances")).toBeInTheDocument();
+    expect(screen.getByText(/Promotional WhatsApp is never sold/)).toBeInTheDocument();
   });
 });

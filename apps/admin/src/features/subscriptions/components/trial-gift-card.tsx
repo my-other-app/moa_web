@@ -3,7 +3,7 @@
 import * as React from "react";
 import { GiftIcon, Loader2Icon, SquareCheckIcon, SquareIcon } from "lucide-react";
 import { formatDate, formatNumber } from "@moa/app-kit";
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Notice, Skeleton, cn } from "@moa/ui";
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Notice, cn } from "@moa/ui";
 
 import { useApplyTrialGift, useTrialGiftPreview } from "../queries";
 import { allowancesLine, type TrialGiftResult } from "../schemas";
@@ -18,6 +18,11 @@ import { allowancesLine, type TrialGiftResult } from "../schemas";
  * few, and why the others are left out. Starting it asks once more, says
  * whether the owners are mailed, and the result stays on the card. Pressing
  * it twice starts nothing the second time: a club gets one trial.
+ *
+ * Nothing at all is shown until the server has answered: while it loads,
+ * when the backend has no such route yet (deployed ahead of it), when the
+ * answer cannot be read, or when there is no trial plan to give. Never an
+ * error, never a button that cannot work.
  */
 export function TrialGiftCard() {
   const preview = useTrialGiftPreview();
@@ -41,6 +46,8 @@ export function TrialGiftCard() {
       },
     });
 
+  if (!data || !data.available) return null;
+
   return (
     <section
       aria-labelledby="trial-gift-title"
@@ -61,18 +68,11 @@ export function TrialGiftCard() {
             </p>
           </div>
         </div>
-        {preview.isPending ? (
-          <Skeleton className="h-9 w-[180px] rounded-[var(--radius-md)]" />
-        ) : data ? (
-          <span className="text-[24px] leading-none tracking-[-0.02em]" aria-label={`${count} eligible clubs`}>
-            {formatNumber(count)}
-            <span className="ml-1.5 text-[12px] text-ink-3">eligible</span>
-          </span>
-        ) : null}
+        <span className="text-[24px] leading-none tracking-[-0.02em]" aria-label={`${count} eligible clubs`}>
+          {formatNumber(count)}
+          <span className="ml-1.5 text-[12px] text-ink-3">eligible</span>
+        </span>
       </div>
-
-      {preview.isError ? <Notice tone="refuse">Couldn&apos;t work out which clubs are eligible. Try again in a moment.</Notice> : null}
-      {data && !data.available ? <Notice tone="caution">There is no {planName} plan to give, so there is no trial to start.</Notice> : null}
 
       {result ? (
         <Notice tone="admit" tag="Done">
@@ -88,58 +88,54 @@ export function TrialGiftCard() {
         </Notice>
       ) : null}
 
-      {data && data.available ? (
-        <>
-          {data.sample.length ? (
-            <div className="flex flex-col gap-1">
-              <span className="micro">First {Math.min(data.sample.length, count)} of {formatNumber(count)}</span>
-              <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
-                {data.sample.map((club) => (
-                  <li key={club.id} className="tag tag-neutral">
-                    {club.name}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="m-0 text-[13px] text-ink-2">Every club has had its trial, or has a plan of its own. Nothing to give.</p>
-          )}
+      {data.sample.length ? (
+        <div className="flex flex-col gap-1">
+          <span className="micro">First {Math.min(data.sample.length, count)} of {formatNumber(count)}</span>
+          <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+            {data.sample.map((club) => (
+              <li key={club.id} className="tag tag-neutral">
+                {club.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="m-0 text-[13px] text-ink-2">Every club has had its trial, or has a plan of its own. Nothing to give.</p>
+      )}
 
-          {data.excluded.length ? (
-            <p className="m-0 text-[12px] text-ink-3">
-              Left out: {data.excluded.map((e) => `${e.label.toLowerCase()} (${formatNumber(e.count)})`).join(", ")}.
-            </p>
-          ) : null}
-
-          {allowed || data.unlocks.length ? (
-            <p className="m-0 text-[12px] text-ink-3">
-              {data.unlocks.length ? `It unlocks ${data.unlocks.slice(0, 5).join(", ")}${data.unlocks.length > 5 ? " and more" : ""}. ` : ""}
-              {allowed ? `During it a club can send ${allowed}.` : ""}
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <button
-              type="button"
-              aria-pressed={email}
-              onClick={() => setEmail((v) => !v)}
-              className={cn("flex items-start gap-2 text-left", email ? "text-brand" : "text-ink-2")}
-            >
-              {email ? <SquareCheckIcon className="mt-px size-4 shrink-0" /> : <SquareIcon className="mt-px size-4 shrink-0" />}
-              <span className="flex flex-col">
-                <span className="text-[13px]">Email each club&apos;s owner</span>
-                <span className="text-[11.5px] text-ink-3">&ldquo;Your club has {days} days of MyOtherApp {planName}, free&rdquo;, once</span>
-              </span>
-            </button>
-            <Button type="button" disabled={count === 0 || apply.isPending} onClick={() => setConfirming(true)}>
-              <GiftIcon className="size-4" />
-              {count === 0 ? "Nothing to give" : `Give ${formatNumber(count)} club${count === 1 ? "" : "s"} the trial`}
-            </Button>
-          </div>
-        </>
+      {data.excluded.length ? (
+        <p className="m-0 text-[12px] text-ink-3">
+          Left out: {data.excluded.map((e) => `${e.label.toLowerCase()} (${formatNumber(e.count)})`).join(", ")}.
+        </p>
       ) : null}
 
-      {confirming && data ? (
+      {allowed || data.unlocks.length ? (
+        <p className="m-0 text-[12px] text-ink-3">
+          {data.unlocks.length ? `It unlocks ${data.unlocks.slice(0, 5).join(", ")}${data.unlocks.length > 5 ? " and more" : ""}. ` : ""}
+          {allowed ? `During it a club can send ${allowed}.` : ""}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+        <button
+          type="button"
+          aria-pressed={email}
+          onClick={() => setEmail((v) => !v)}
+          className={cn("flex items-start gap-2 text-left", email ? "text-brand" : "text-ink-2")}
+        >
+          {email ? <SquareCheckIcon className="mt-px size-4 shrink-0" /> : <SquareIcon className="mt-px size-4 shrink-0" />}
+          <span className="flex flex-col">
+            <span className="text-[13px]">Email each club&apos;s owner</span>
+            <span className="text-[11.5px] text-ink-3">&ldquo;Your club has {days} days of MyOtherApp {planName}, free&rdquo;, once</span>
+          </span>
+        </button>
+        <Button type="button" disabled={count === 0 || apply.isPending} onClick={() => setConfirming(true)}>
+          <GiftIcon className="size-4" />
+          {count === 0 ? "Nothing to give" : `Give ${formatNumber(count)} club${count === 1 ? "" : "s"} the trial`}
+        </Button>
+      </div>
+
+      {confirming ? (
         <Dialog open onOpenChange={(open) => !open && setConfirming(false)}>
           <DialogContent className="sm:max-w-[460px]">
             <DialogHeader>

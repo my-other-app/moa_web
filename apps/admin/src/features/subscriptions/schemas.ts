@@ -37,6 +37,28 @@ export const LIMIT_FIELDS = [
   { key: "whatsapp_marketing_per_month", label: "Promotional WhatsApp", scope: "of those, marketing templates (20% by default)" },
 ] as const;
 
+/**
+ * Limits only a backend with migration pricing_adjust (backend #111) has.
+ * The dashboard can deploy first: until a plan from the API carries one, it
+ * is left out of the editor and the comparison rather than shown as
+ * "Unlimited", which an older backend would not enforce.
+ */
+export const PRICING_ADJUST_LIMITS: readonly string[] = ["whatsapp_marketing_per_month"];
+
+/** The limit rows to show for these plans: every one, less a pricing_adjust limit the API does not send yet. */
+export function limitFieldsFor(plans: ReadonlyArray<{ limits: Record<string, number | null> }>) {
+  return LIMIT_FIELDS.filter((f) => !PRICING_ADJUST_LIMITS.includes(f.key) || plans.some((p) => f.key in p.limits));
+}
+
+/**
+ * Whether the API has the free trial's own allowances (pricing_adjust): it
+ * then sends `trial_limits` on every plan. An older backend sends none and
+ * would ignore them, so the editor does not offer them.
+ */
+export function hasTrialLimits(plans: ReadonlyArray<{ trial_limits: Record<string, number | null> }>): boolean {
+  return plans.some((p) => Object.keys(p.trial_limits).length > 0);
+}
+
 /** The message limits: past them a paid plan pays the overage prices below, Free stops announcements. */
 export const MESSAGE_LIMIT_KEYS = ["emails_per_month", "whatsapp_per_month"] as const;
 
