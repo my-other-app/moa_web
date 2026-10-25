@@ -4,10 +4,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { nullIfRouteMissing } from "@moa/api";
 import { toast } from "@moa/ui";
 
-import { clearOwnLimits, fetchClubMessages, retryStatement, setOwnLimits } from "./api";
+import { clearOwnLimits, fetchClubMessages, setOwnLimits } from "./api";
+import {
+  createPack,
+  fetchClubCredits,
+  fetchPacks,
+  grantCredits,
+  refundPurchase,
+  updatePack,
+  type GrantInput,
+  type PackInput,
+} from "./credits";
 import type { OwnLimitsForm } from "./schemas";
 
 export const MESSAGES_KEY = ["admin", "club-messages"] as const;
+export const CREDITS_KEY = ["admin", "club-credits"] as const;
+export const PACKS_KEY = ["admin", "credit-packs"] as const;
 
 /** `null`: a backend from before message quotas (the route answers a bare 404): no panel yet. */
 export function useClubMessages(clubId: number | null | undefined) {
@@ -43,15 +55,74 @@ export function useClearOwnLimits(clubId: number) {
   });
 }
 
-export function useRetryStatement(clubId: number) {
+// ─── Prepaid credits ─────────────────────────────────────────────────────
+
+/** `null`: a backend from before prepaid credits: no Credits panel. */
+export function useClubCredits(clubId: number | null | undefined) {
+  return useQuery({
+    queryKey: [...CREDITS_KEY, clubId ?? 0],
+    queryFn: () => nullIfRouteMissing(() => fetchClubCredits(clubId!)),
+    enabled: Boolean(clubId && clubId > 0),
+    retry: false,
+  });
+}
+
+export function useGrantCredits(clubId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (statementId: number) => retryStatement(statementId),
-    onSuccess: (s) => {
+    mutationFn: (input: GrantInput) => grantCredits(clubId, input),
+    onSuccess: (data, input) => {
+      queryClient.setQueryData([...CREDITS_KEY, clubId], data);
       void queryClient.invalidateQueries({ queryKey: [...MESSAGES_KEY, clubId] });
-      if (s.status === "charged") toast.success(`${s.period_label}'s extra is on the club's next invoice`);
-      else toast.error("Razorpay still didn't take it. It's left to try again, or to invoice by hand.");
+      toast.success(`${input.quantity.toLocaleString("en-IN")} ${input.channel === "email" ? "email" : "WhatsApp"} credits granted`);
     },
-    onError: (error: Error) => toast.error(error.message || "Could not try the charge again"),
+    onError: (error: Error) => toast.error(error.message || "Could not grant the credits"),
+  });
+}
+
+export function useRefundPurchase(clubId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ purchaseId, reason, amount_paise }: { purchaseId: number; reason: string; amount_paise: number | null }) =>
+      refundPurchase(purchaseId, { reason, amount_paise }),
+    onSuccess: (p) => {
+      void queryClient.invalidateQueries({ queryKey: [...CREDITS_KEY, clubId] });
+      if (p.status === "refunded") toast.success(`${p.receipt_number || "Purchase"} refunded; its unused credits are removed`);
+      else if (p.status === "refund_failed") toast.error(p.refund_error || "Razorpay refused the refund. The credits are removed; try the refund again.");
+      else toast.success("Refund asked of Razorpay; its unused credits are removed");
+    },
+    onError: (error: Error) => {
+      void queryClient.invalidateQueries({ queryKey: [...CREDITS_KEY, clubId] });
+      toast.error(error.message || "Could not refund the purchase");
+    },
+  });
+}
+
+/** `null`: a backend from before prepaid credits: no packs editor. */
+export function useCreditPacks() {
+  return useQuery({ queryKey: PACKS_KEY, queryFn: () => nullIfRouteMissing(fetchPacks), retry: false, staleTime: 60_000 });
+}
+
+export function useCreatePack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PackInput) => createPack(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: PACKS_KEY });
+      toast.success("Pack added");
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not add the pack"),
+  });
+}
+
+export function useUpdatePack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, changes }: { id: number; changes: Partial<Omit<PackInput, "channel">> }) => updatePack(id, changes),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: PACKS_KEY });
+      toast.success("Pack saved");
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not save the pack"),
   });
 }

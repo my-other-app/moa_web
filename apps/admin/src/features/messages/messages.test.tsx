@@ -4,9 +4,10 @@ import { toApiError } from "@moa/api";
 
 /**
  * A club's messages on its admin page, against GET /admin/messages/clubs/{id}
- * ({club_id, club_name, usage, history, own_limits, own_limits_apply}),
- * PUT/DELETE .../limits and POST /admin/messages/statements/{id}/retry; and
- * the plan editor's two message limits and two overage prices.
+ * ({club_id, club_name, usage, history, own_limits, own_limits_apply}) and
+ * PUT/DELETE .../limits; and the plan editor's two message limits. Prepaid
+ * credits retired the per-message prices and the statements' Razorpay retry:
+ * neither is offered.
  */
 let role: string | null = "owner";
 let view: Record<string, unknown> = {};
@@ -105,51 +106,59 @@ beforeEach(() => {
 });
 
 describe("a club's messages on its page", () => {
-  it("shows the month against its limits, the extra and the closed months", async () => {
+  it("shows the month against its allowance and the closed months, with nothing priced per message", async () => {
     render(<ClubMessagesPanel clubId={5} />);
     const panel = await screen.findByRole("region", { name: "Messages" });
     expect(await within(panel).findByText("October 2026")).toBeInTheDocument();
     expect(within(panel).getByText("5,250 / 5,000")).toBeInTheDocument();
-    expect(within(panel).getByText("250 extra at ₹0.10 = ₹25")).toBeInTheDocument();
+    expect(within(panel).getByText("250 past the allowance")).toBeInTheDocument();
     expect(within(panel).getByRole("progressbar", { name: "Emails: 5250 of 5000" })).toBeInTheDocument();
-    expect(within(panel).getByText(/Extra goes on the club's next Razorpay invoice/)).toBeInTheDocument();
+    expect(within(panel).queryByText(/₹0\.10|Extra so far/)).toBeNull();
     const months = within(panel).getByRole("table", { name: "Closed months" });
     expect(within(months).getByText("September 2026")).toBeInTheDocument();
     expect(within(months).getByText("₹50")).toBeInTheDocument();
     expect(within(months).getByText("On next invoice")).toBeInTheDocument();
+    // The Razorpay retry went with overage billing.
+    expect(within(panel).queryByRole("button", { name: /Try again/ })).toBeNull();
     // Not Enterprise and nothing set: no own-limits form.
     expect(within(panel).queryByRole("group", { name: "Own message limits" })).toBeNull();
   });
 
-  it("offers to try a refused charge again, to an admin who manages money only", async () => {
-    view = { ...view, history: [statement({ id: 42, period_label: "August 2026", status: "gave_up", charged_at: null, razorpay_addon_id: null })] };
+  it("splits a prepaid month into the plan's and bought credits, and labels a cancelled overage", async () => {
+    view = {
+      ...view,
+      usage: usage({
+        billing: "prepaid",
+        estimated_extra_paise: 0,
+        channels: {
+          email: channel({ used: 1200, limit: 1000, extra: 200, rate_paise: 0, plan_used: 1000, plan_remaining: 0, credits_used: 200, credits_remaining: 4800, over: 0, total_remaining: 4800, state: "credits", blocked: 2 }),
+          whatsapp: channel({ used: 10, limit: 250, rate_paise: 0, plan_used: 10, plan_remaining: 240, credits_used: 0, credits_remaining: 0, over: 3, total_remaining: 240 }),
+        },
+      }),
+      history: [statement({ status: "void", charged_at: null, razorpay_addon_id: null })],
+    };
     render(<ClubMessagesPanel clubId={5} />);
-    expect(await screen.findByText("Invoice by hand")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Try again/ }));
-    await waitFor(() => expect(posts).toEqual(["/api/v1/admin/messages/statements/42/retry"]));
+    const panel = await screen.findByRole("region", { name: "Messages" });
+    expect(await within(panel).findByText("1,000 / 1,000")).toBeInTheDocument();
+    expect(within(panel).getByText("Plan: 0 left · bought: 4,800 left (200 used this month) · 2 held back")).toBeInTheDocument();
+    expect(within(panel).getByText("Plan: 240 left · bought: 0 left · 3 essential past everything, not charged")).toBeInTheDocument();
+    expect(within(panel).getByText(/Plan allowance, then bought credits/)).toBeInTheDocument();
+    expect(within(panel).getByText("Not charged (overage retired)")).toBeInTheDocument();
   });
 
-  it("never offers a retry to an admin without money, nor on a charged month", async () => {
-    role = "support";
-    view = { ...view, history: [statement({ status: "failed" }), statement({ id: 43, period_label: "July 2026" })] };
-    render(<ClubMessagesPanel clubId={5} />);
-    expect(await screen.findByText("Razorpay refused · retrying")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Try again/ })).toBeNull();
-  });
-
-  it("sets an Enterprise club's own limits, empty for unlimited and the plan's price", async () => {
+  it("sets an Enterprise club's own limits, empty for unlimited, with no per-message prices", async () => {
     view = { ...view, usage: usage({ plan_key: "enterprise", plan_name: "Enterprise", billing: "manual" }) };
     render(<ClubMessagesPanel clubId={5} />);
     const form = await screen.findByRole("group", { name: "Own message limits" });
-    expect(within(form).getByText("Unlimited, at the plan's prices, until set")).toBeInTheDocument();
+    expect(within(form).getByText("Unlimited until set")).toBeInTheDocument();
+    expect(within(form).queryByLabelText(/Each extra/)).toBeNull();
     fireEvent.change(within(form).getByLabelText("Emails a month"), { target: { value: "50000" } });
-    fireEvent.change(within(form).getByLabelText("Each extra WhatsApp (₹)"), { target: { value: "0.8" } });
     fireEvent.change(within(form).getByLabelText("Note"), { target: { value: "Fest deal" } });
     fireEvent.click(within(form).getByRole("button", { name: "Save limits" }));
     await waitFor(() => expect(puts).toHaveLength(1));
     expect(puts[0]).toEqual({
       path: "/api/v1/admin/messages/clubs/5/limits",
-      body: { emails_per_month: 50000, whatsapp_per_month: null, email_overage_paise: null, whatsapp_overage_paise: 80, note: "Fest deal" },
+      body: { emails_per_month: 50000, whatsapp_per_month: null, note: "Fest deal" },
     });
     expect(await screen.findByText("In use")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Back to the plan's" }));
@@ -179,38 +188,34 @@ describe("ahead of its backend", () => {
 });
 
 describe("the own-limits form's rules", () => {
-  it("takes whole numbers or nothing, and rupees to the paisa", () => {
+  it("takes whole numbers or nothing, and sends no prices", () => {
     const blank = toOwnLimitsForm(null);
-    expect(blank).toEqual({ emails: "", whatsapp: "", emailPrice: "", whatsappPrice: "", note: "" });
+    expect(blank).toEqual({ emails: "", whatsapp: "", note: "" });
     expect(ownLimitsProblems(blank)).toEqual({});
-    expect(ownLimitsProblems({ ...blank, emails: "12.5", emailPrice: "0.105" })).toEqual({
-      emails: "A whole number, or empty for no limit",
-      emailPrice: "Rupees, to the paisa (0.10), or empty for the plan's",
-    });
-    expect(toOwnLimitsPayload({ ...blank, whatsapp: "0", emailPrice: "0.15" })).toEqual({
-      emails_per_month: null, whatsapp_per_month: 0, email_overage_paise: 15, whatsapp_overage_paise: null, note: null,
-    });
+    expect(ownLimitsProblems({ ...blank, emails: "12.5" })).toEqual({ emails: "A whole number, or empty for no limit" });
+    expect(toOwnLimitsPayload({ ...blank, whatsapp: "0" })).toEqual({ emails_per_month: null, whatsapp_per_month: 0, note: null });
+    // A row saved with prices before they were retired: the limits are read, the prices left alone.
     expect(toOwnLimitsForm({ emails_per_month: 0, whatsapp_per_month: null, email_overage_paise: 12, whatsapp_overage_paise: 100, note: "x" })).toEqual({
-      emails: "0", whatsapp: "", emailPrice: "0.12", whatsappPrice: "1", note: "x",
+      emails: "0", whatsapp: "", note: "x",
     });
     expect([paiseText(10), paiseText(100), paiseText(234550)]).toEqual(["₹0.10", "₹1", "₹2,345.50"]);
   });
 });
 
-describe("the plan editor's message limits and prices", () => {
-  it("lists both limits and carries the prices in rupees, paise on the wire", () => {
+describe("the plan editor's message limits", () => {
+  it("lists both limits and neither edits nor sends the retired per-message prices", () => {
     expect(LIMIT_FIELDS.map((f) => f.key)).toEqual(expect.arrayContaining(["emails_per_month", "whatsapp_per_month"]));
     const plan = planSchema.parse({
       id: 3, key: "growth", name: "Growth", price_monthly_paise: 69900, price_yearly_paise: 699000,
       email_overage_paise: 10, whatsapp_overage_paise: 100, limits: { emails_per_month: 5000, whatsapp_per_month: 250 },
     });
     const form = toForm(plan);
-    expect([form.email_overage_rupees, form.whatsapp_overage_rupees]).toEqual([0.1, 1]);
-    const payload = toPayload({ ...form, email_overage_rupees: 0.15, whatsapp_overage_rupees: 1.2 });
-    expect([payload.email_overage_paise, payload.whatsapp_overage_paise]).toEqual([15, 120]);
+    expect(form).not.toHaveProperty("email_overage_rupees");
+    const payload = toPayload(form);
+    expect(payload).not.toHaveProperty("email_overage_paise");
+    expect(payload).not.toHaveProperty("whatsapp_overage_paise");
     expect(payload.limits).toMatchObject({ emails_per_month: 5000, whatsapp_per_month: 250 });
-    // A plan from a server before the prices: the owner's defaults.
-    const old = planSchema.parse({ id: 1, key: "free", name: "Free" });
-    expect([old.email_overage_paise, old.whatsapp_overage_paise]).toEqual([10, 150]);
+    // A current server sends null for them; an old one paise. Either reads.
+    expect(planSchema.parse({ id: 1, key: "free", name: "Free", email_overage_paise: null }).email_overage_paise).toBeNull();
   });
 });

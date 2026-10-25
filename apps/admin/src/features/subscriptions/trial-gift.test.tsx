@@ -12,6 +12,8 @@ let role: string | null = "owner";
 /** The preview's answer; an Error is thrown instead (a route the backend doesn't have yet, a fault). */
 let preview: Record<string, unknown> | Error = {};
 let plansResponse: unknown[] = [];
+/** GET /admin/messages/packs (prepaid credits); an Error is thrown instead. */
+let packsAnswer: unknown = null;
 const posts: Array<{ path: string; body?: Record<string, unknown> }> = [];
 const puts: Array<{ path: string; body: Record<string, unknown> }> = [];
 let refuse: ApiError | null = null;
@@ -69,6 +71,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         }
         if (path === "/api/v1/admin/subscriptions/totals") return { mrr_paise: 0, arr_paise: 0 };
         if (path === "/api/v1/admin/plans") return plansResponse;
+        if (path === "/api/v1/admin/messages/packs") {
+          if (packsAnswer instanceof Error) throw packsAnswer;
+          return packsAnswer;
+        }
         if (path === "/api/v1/admin/subscriptions") return { limit: 25, offset: 0, total: 0, next: null, items: [] };
         throw new Error(`unstubbed GET ${path}`);
       }),
@@ -102,11 +108,12 @@ const { TrialGiftCard } = await import("./components/trial-gift-card");
 const { SubscriptionsV2 } = await import("./components/subscriptions-v2");
 const { PlansTab } = await import("./components/plans-tab");
 const { CompareTab } = await import("./components/compare-tab");
-const { allowancesLine, whatsappAllowance, planSchema, toForm, toPayload, DEFAULT_WHATSAPP_OVERAGE_PAISE, LIMIT_FIELDS } =
+const { allowancesLine, whatsappAllowance, planSchema, toForm, toPayload, LIMIT_FIELDS } =
   await import("./schemas");
 
 beforeEach(() => {
   role = "owner";
+  packsAnswer = { prices_include_gst: true, validity_months: 12, packs: [] };
   preview = { ...PREVIEW };
   plansResponse = [plan()];
   posts.length = 0;
@@ -192,10 +199,12 @@ describe("the plan editor", () => {
     fireEvent.change(screen.getByLabelText("Trial ai actions a month"), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Save plan" }));
     await waitFor(() => expect(puts).toHaveLength(1));
-    const body = puts[0]!.body as { limits: Record<string, number | null>; trial_limits: Record<string, number | null>; whatsapp_overage_paise: number };
+    const body = puts[0]!.body as { limits: Record<string, number | null>; trial_limits: Record<string, number | null> };
     expect(body.limits.whatsapp_marketing_per_month).toBe(150);
     expect(body.trial_limits).toEqual({ emails_per_month: 2500, whatsapp_per_month: 50, whatsapp_marketing_per_month: 10, ai_actions_per_month: null });
-    expect(body.whatsapp_overage_paise).toBe(150);
+    // Per-message prices were retired with prepaid credits: never sent.
+    expect(body).not.toHaveProperty("whatsapp_overage_paise");
+    expect(body).not.toHaveProperty("email_overage_paise");
   });
 
   it("shows the trial's allowances only on the plan the trial gives", async () => {
@@ -205,8 +214,7 @@ describe("the plan editor", () => {
     expect(screen.queryByText("Free trial allowances")).not.toBeInTheDocument();
   });
 
-  it("starts a new plan at ₹1.50 a WhatsApp extra", () => {
-    expect(DEFAULT_WHATSAPP_OVERAGE_PAISE).toBe(150);
+  it("reads a server from before the trial allowances", () => {
     // A server from before the trial allowances sends none: the form has none, and sends nulls.
     const old = planSchema.parse({ ...plan(), trial_limits: undefined });
     expect(old.trial_limits).toEqual({});
@@ -243,6 +251,17 @@ describe("deployed ahead of the backend (production before backend #111)", () =>
     return { ...p, limits, whatsapp_overage_paise: 100 };
   };
 
+  it("leaves out the Credit packs tab while the packs' route doesn't exist yet, and shows it once it does", async () => {
+    packsAnswer = routeMissing();
+    const { unmount } = render(<SubscriptionsV2 />);
+    expect(await screen.findByRole("tab", { name: /Plans and features/ })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("tab", { name: /Credit packs/ })).not.toBeInTheDocument());
+    unmount();
+    packsAnswer = { prices_include_gst: true, validity_months: 12, packs: [] };
+    render(<SubscriptionsV2 />);
+    expect(await screen.findByRole("tab", { name: /Credit packs/ })).toBeInTheDocument();
+  });
+
   it("shows no trial card at all, and no error, when the preview's route doesn't exist yet", async () => {
     preview = routeMissing();
     render(<SubscriptionsV2 />);
@@ -267,9 +286,9 @@ describe("deployed ahead of the backend (production before backend #111)", () =>
     expect(await screen.findByLabelText("Emails limit")).toBeInTheDocument();
     expect(screen.queryByLabelText("Promotional WhatsApp limit")).not.toBeInTheDocument();
     expect(screen.queryByText("Free trial allowances")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Promotional WhatsApp is never sold/)).not.toBeInTheDocument();
-    // The price is the API's own (₹1 there), not this build's default.
-    expect(screen.getByLabelText("Each extra WhatsApp message (₹)")).toHaveValue(1);
+    expect(screen.queryByText(/bought credits can send promotional messages past it/)).not.toBeInTheDocument();
+    // Per-message prices were retired with prepaid credits: none offered, whatever the API sends.
+    expect(screen.queryByLabelText(/Each extra/)).not.toBeInTheDocument();
     unmount();
     render(<CompareTab />);
     expect(await screen.findByText(/Emails · per month/)).toBeInTheDocument();
@@ -280,6 +299,8 @@ describe("deployed ahead of the backend (production before backend #111)", () =>
     render(<PlansTab />);
     expect(await screen.findByLabelText("Promotional WhatsApp limit")).toBeInTheDocument();
     expect(screen.getByText("Free trial allowances")).toBeInTheDocument();
-    expect(screen.getByText(/Promotional WhatsApp is never sold/)).toBeInTheDocument();
+    expect(screen.getByText(/bought credits can send promotional messages past it/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is billed per extra message/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Each extra/)).not.toBeInTheDocument();
   });
 });
