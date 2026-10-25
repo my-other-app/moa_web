@@ -1,26 +1,4 @@
-export {
-  useAdminAnalytics,
-  useAdminTrends,
-  useModerationQueue,
-  useDashboardSignals,
-} from "./queries";
-export { fetchAdminAnalytics, fetchDashboardSignals } from "./api";
-export { adminAnalyticsSchema, type AdminAnalytics } from "./schemas";
-export { changeOf, comparisonCaption } from "./delta";
-export { DashboardView } from "./components/dashboard-view";
-export { MetricRail } from "./components/metric-rail";
-export { TrendsPanel } from "./components/trends-panel";
-export { AttentionPanel } from "./components/attention-panel";
-export { CompositionPanel } from "./components/composition-panel";
-export { RevenuePanel } from "./components/revenue-panel";
-export {
-  adminTrendsSchema,
-  moderationQueueSchema,
-  dashboardSignalsSchema,
-  type AdminTrends,
-  type ModerationQueue as ModerationQueueData,
-  type DashboardSignals,
-} from "./schemas";
+export { changeOf } from "./delta";
 export { AdminOverviewV2 } from "./components/overview-v2";
 export { useAdminOverview } from "./queries";
 export { adminOverviewSchema, type AdminOverview, type TopClubSort } from "./overview-schemas";

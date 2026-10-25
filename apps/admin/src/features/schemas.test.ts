@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import analyticsFixture from "./__fixtures__/analytics.json";
 import avatarsFixture from "./__fixtures__/avatars.json";
 import badgesFixture from "./__fixtures__/badges.json";
 import clubsFixture from "./__fixtures__/clubs.json";
@@ -8,7 +7,6 @@ import eventsFixture from "./__fixtures__/events.json";
 import orgsFixture from "./__fixtures__/orgs.json";
 import usersFixture from "./__fixtures__/users.json";
 
-import { adminAnalyticsSchema } from "./analytics/schemas";
 import { avatarListSchema } from "./avatars/schemas";
 import { badgeListSchema } from "./badges/schemas";
 import { adminClubPageSchema } from "./clubs/schemas";
@@ -56,12 +54,6 @@ describe("response schemas match the live API", () => {
 
   it("parses avatars", () => {
     expect(avatarListSchema.parse(avatarsFixture).length).toBeGreaterThan(0);
-  });
-
-  it("parses dashboard analytics, which has no published schema at all", () => {
-    const analytics = adminAnalyticsSchema.parse(analyticsFixture);
-    expect(typeof analytics.total_users).toBe("number");
-    expect(Array.isArray(analytics.user_growth_data)).toBe(true);
   });
 
   it("rejects a response whose field type changed", () => {
