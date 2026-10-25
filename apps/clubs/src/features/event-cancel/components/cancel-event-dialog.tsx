@@ -56,6 +56,7 @@ function WhatHappens({ s }: { s: CancelState }) {
  * it will do (guests told, payments refunded, cash to give back by hand), and
  * an explicit confirmation. The counts are sent back with the request, and
  * the server refuses (CANCEL_PREVIEW_STALE) if they changed meanwhile.
+ * Mounted afresh for each opening, so nothing typed last time is left in it.
  */
 export function CancelEventDialog({
   eventId,
@@ -75,14 +76,6 @@ export function CancelEventDialog({
   const [error, setError] = React.useState<string | null>(null);
   const [problem, setProblem] = React.useState<{ tone: "caution" | "refuse"; text: string } | null>(null);
 
-  React.useEffect(() => {
-    if (open) {
-      setReason("");
-      setSure(false);
-      setError(null);
-      setProblem(null);
-    }
-  }, [open]);
 
   const s = preview.data;
 

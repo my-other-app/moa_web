@@ -48,19 +48,9 @@ export function RefundDialog({ eventId, payment, open, onOpenChange }: { eventId
   const [reason, setReason] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [problem, setProblem] = React.useState<string | null>(null);
-  // One per opening: a second click on Refund sends the same request, which the server answers once.
-  const [ref, setRef] = React.useState(newRef);
-
-  React.useEffect(() => {
-    if (open) {
-      setWhole(true);
-      setAmount("");
-      setReason("");
-      setErrors({});
-      setProblem(null);
-      setRef(newRef());
-    }
-  }, [open]);
+  // One per opening (the page mounts the dialog afresh for each payment): a second click on
+  // Refund sends the same request, which the server answers once.
+  const [ref] = React.useState(newRef);
 
   const left = payment.refundable;
   const who = payment.guest_name || payment.guest_email || "this guest";

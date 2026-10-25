@@ -166,7 +166,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
               onCancel={canCancel ? () => setCancelOpen(true) : undefined}
             />
           ) : null}
-          {e && canCancel ? <CancelEventDialog eventId={eventId} eventName={e.name} open={cancelOpen} onOpenChange={setCancelOpen} /> : null}
+          {e && canCancel && cancelOpen ? <CancelEventDialog eventId={eventId} eventName={e.name} open onOpenChange={setCancelOpen} /> : null}
         </div>
       </header>
 
