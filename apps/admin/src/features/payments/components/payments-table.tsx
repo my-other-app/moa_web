@@ -103,7 +103,7 @@ function RefundButton({ payment }: { payment: Payment }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Refund {formatCurrency(payment.amount)}?
+              {parts ? `Refund what is left of ${formatCurrency(payment.amount)}?` : `Refund ${formatCurrency(payment.amount)}?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {parts
