@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 /**
- * Activity: every admin action from the audit log, newest first, filtered by
- * action or by the kind of record it touched. The filters live in the URL,
- * so what is asked of the API is what the address says; the actions offered
- * come from the API, not a list in the code that drifts from it.
+ * Activity: every admin action from the audit log, newest first, searched
+ * by words or filtered by action or by the kind of record it touched. The
+ * search and the filters live in the URL, so what is asked of the API is
+ * what the address says; the actions offered come from the API, not a list
+ * in the code that drifts from it.
  */
 let search = "";
 const push = vi.fn();
+const replace = vi.fn();
 const gets: Array<{ path: string; query?: Record<string, unknown> }> = [];
 let actions: () => unknown = () => ["badge.award", "club.approve", "user.suspend"];
 
@@ -17,6 +19,8 @@ const page = {
   offset: 0,
   total: 3,
   next: null,
+  // The API searches: it says what for (null: nothing).
+  search: null as string | null,
   items: [
     {
       id: 3,
@@ -52,7 +56,7 @@ const page = {
 let reply: () => unknown = () => page;
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ push, replace, refresh: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => "/activity",
   useSearchParams: () => new URLSearchParams(search),
 }));
@@ -89,6 +93,7 @@ const pick = async (filter: string, option: string) => {
 beforeEach(() => {
   search = "";
   push.mockClear();
+  replace.mockClear();
   gets.length = 0;
   reply = () => page;
   actions = () => ["badge.award", "club.approve", "user.suspend"];
@@ -100,7 +105,7 @@ describe("the activity log", () => {
     expect(screen.getByRole("heading", { name: "Activity" })).toBeInTheDocument();
     await screen.findByText("Approved club “Robotics”");
     expect(logCalls()).toEqual([
-      { path: "/api/v1/admin/audit-log", query: { action: undefined, entity_type: undefined, entity_id: undefined, offset: 0, limit: 20 } },
+      { path: "/api/v1/admin/audit-log", query: { action: undefined, entity_type: undefined, entity_id: undefined, q: undefined, offset: 0, limit: 20 } },
     ]);
   });
 
@@ -150,6 +155,7 @@ describe("the activity log", () => {
       action: "club.approve",
       entity_type: "club",
       entity_id: undefined,
+      q: undefined,
       offset: 40,
       limit: 20,
     });
@@ -186,7 +192,83 @@ describe("the activity log", () => {
     expect(screen.getByText(/Append-only — nothing here can be edited or removed/)).toBeInTheDocument();
   });
 
-  it.todo(
-    "has no text search to offer: the shared list draws a search box ('Filter below') that the audit-log endpoint cannot apply, so typing in it puts ?q= in the address and leaves the same rows on screen. Hiding it needs an option on ResourceList in packages/app-kit"
-  );
+  it("shows why, when the admin had to say: a session as someone else", async () => {
+    reply = () => ({
+      ...page,
+      items: [
+        {
+          id: 9,
+          action: "user.impersonate",
+          summary: "Started a session as robotics@example.com",
+          entity_type: "user",
+          entity_id: "77",
+          details: { target_user_type: "club", reason: "Ticket 4512: cannot publish" },
+          created_at: "2026-10-25T10:00:00Z",
+          actor: { id: 1, full_name: "Platform Owner", email: "owner@example.com", avatar: null },
+        },
+        ...page.items,
+      ],
+    });
+    render(<ActivityPage />);
+    const row = await rowOf("Started a session as robotics@example.com");
+    expect(within(row).getByText("Reason: Ticket 4512: cannot publish")).toBeInTheDocument();
+    // Only where a reason was given.
+    expect(within(await rowOf("Approved club “Robotics”")).queryByText(/^Reason:/)).toBeNull();
+  });
+});
+
+describe("searching the activity log", () => {
+  const box = () => screen.getByRole("searchbox", { name: "Search who, what, record or reason" });
+
+  it("asks the API for the words in the address, from the page the address says", async () => {
+    search = "q=robotics+priya&page=2";
+    reply = () => ({ ...page, offset: 20, search: "robotics priya" });
+    render(<ActivityPage />);
+    await screen.findByText("Approved club “Robotics”");
+    expect(logCalls()[0]!.query).toEqual({
+      action: undefined, entity_type: undefined, entity_id: undefined, q: "robotics priya", offset: 20, limit: 20,
+    });
+    expect(box()).toHaveValue("robotics priya");
+  });
+
+  it("puts what is typed in the address once typing settles, back on the first page", async () => {
+    search = "page=3";
+    render(<ActivityPage />);
+    await screen.findByText("Approved club “Robotics”");
+    fireEvent.change(box(), { target: { value: "club #12" } });
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/activity?q=club+%2312", { scroll: false }), { timeout: 2000 });
+  });
+
+  it("goes with the filters", async () => {
+    search = "q=desk&action=user.suspend";
+    render(<ActivityPage />);
+    await screen.findByText("Approved club “Robotics”");
+    expect(logCalls()[0]!.query).toMatchObject({ action: "user.suspend", q: "desk" });
+  });
+
+  it("says nothing matched, and offers to clear the search", async () => {
+    search = "q=zebra";
+    reply = () => ({ ...page, items: [], total: 0, search: "zebra" });
+    render(<ActivityPage />);
+    expect(await screen.findByText("No matches")).toBeInTheDocument();
+    expect(screen.getByText("Nothing matched “zebra”. Try a different term.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(push).toHaveBeenCalledWith("/activity", { scroll: false });
+  });
+
+  it("offers no search box to an API that cannot search, rather than one it would ignore", async () => {
+    // An API from before the log could be searched: no `search` in its answer.
+    const old: Record<string, unknown> = { ...page };
+    delete old.search;
+    reply = () => old;
+    search = "q=robotics";
+    render(<ActivityPage />);
+    // Every row, as that API answers whatever the address says, and not
+    // presented as what "robotics" matched.
+    expect(await screen.findByText("Awarded Regular")).toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByText("No matches")).toBeNull();
+    // The filters still work.
+    expect(screen.getByRole("combobox", { name: "Action" })).toBeInTheDocument();
+  });
 });
