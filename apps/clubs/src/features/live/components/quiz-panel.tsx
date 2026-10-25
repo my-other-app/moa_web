@@ -13,6 +13,14 @@ import {
   ZapIcon,
 } from "lucide-react";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Button,
   CardLabel,
   EmptyState,
@@ -25,7 +33,7 @@ import {
 import { useFeatureGate } from "@/features/plan";
 
 import { useNotifyChoice } from "../notify";
-import { useHostState, useQuiz, useQuizMutations } from "../queries";
+import { isQuizRunning, useHostState, useQuiz, useQuizMutations } from "../queries";
 import { OPTION_KEYS, SECONDS, type QuizQuestion } from "../schemas";
 import { NotifySwitch } from "./notify-switch";
 
@@ -294,11 +302,50 @@ function NewQuestion({
   );
 }
 
+/**
+ * Starting the quiz. The server refuses a start on a quiz that is running
+ * (409 QUIZ_RUNNING: another console started it, or this one is behind),
+ * because starting again clears every player's score: the host is asked
+ * first, and only a yes sends `restart`.
+ */
+function useStart(eventId: number, notify: boolean) {
+  const { host } = useQuizMutations(eventId);
+  const [asking, setAsking] = React.useState(false);
+  const start = () =>
+    host.mutate({ action: "start", notify }, { onError: (e) => (isQuizRunning(e) ? setAsking(true) : undefined) });
+  const dialog = (
+    <AlertDialog open={asking} onOpenChange={setAsking}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Restart the quiz?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Every player&apos;s score is cleared. The quiz is already running, on this console or another.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel variant="secondary">Keep it running</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={(e) => {
+              e.preventDefault();
+              host.mutate({ action: "start", notify, restart: true }, { onSettled: () => setAsking(false) });
+            }}
+          >
+            Restart
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+  return { start, dialog, pending: host.isPending };
+}
+
 function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: number | null }) {
   const { host } = useQuizMutations(eventId);
   const gate = useFeatureGate("quiz", { eventId });
   const state = useHostState(eventId, true);
   const [notify, setNotify] = useNotifyChoice(eventId, "quiz");
+  const again = useStart(eventId, notify);
   const s = state.data;
   if (!s) return <Skeleton className="h-64" />;
   const q = s.question;
@@ -314,10 +361,7 @@ function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: numb
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
               <div className="flex gap-2">
-                <Button
-                  onClick={gate.guard(() => host.mutate({ action: "start", notify }))}
-                  disabled={host.isPending}
-                >
+                <Button onClick={gate.guard(again.start)} disabled={host.isPending || again.pending}>
                   Run it again
                 </Button>
                 <Button variant="outline" onClick={() => host.mutate({ action: "reset" })}>
@@ -386,7 +430,7 @@ function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: numb
             </p>
             <div className="mt-4 flex gap-2">
               <Button
-                onClick={() => host.mutate({ action: "next" })}
+                onClick={() => host.mutate({ action: "next", expectedIndex: s.current_index })}
                 disabled={host.isPending}
               >
                 {last ? "Finish and show the board" : "Next question"}
@@ -414,7 +458,7 @@ function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: numb
             </p>
             <div className="mt-4 flex gap-2">
               <Button
-                onClick={() => host.mutate({ action: "next" })}
+                onClick={() => host.mutate({ action: "next", expectedIndex: s.current_index })}
                 disabled={host.isPending}
               >
                 <PlayIcon className="size-4" /> Ask the first question
@@ -425,6 +469,7 @@ function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: numb
             </div>
           </>
         )}
+        {again.dialog}
       </FigurePanel>
       <FigurePanel className="p-5">
         <CardLabel
@@ -480,6 +525,7 @@ export function QuizPanel({
   const [adding, setAdding] = React.useState(false);
   const [title, setTitle] = React.useState<string | null>(null);
   const [notify, setNotify] = useNotifyChoice(eventId, "quiz");
+  const hosting = useStart(eventId, notify);
   // Not on the plan: what was written stays readable; writing and hosting open the upgrade dialog.
   const gate = useFeatureGate("quiz", { eventId });
   if (quiz.isPending) return <Skeleton className="h-72" />;
@@ -535,8 +581,8 @@ export function QuizPanel({
                 {gate.locked ? <LockIcon className="size-4" /> : <PlusIcon className="size-4" />} Add question
               </Button>
               <Button
-                onClick={gate.guard(() => host.mutate({ action: "start", notify }))}
-                disabled={q.questions.length === 0 || host.isPending}
+                onClick={gate.guard(hosting.start)}
+                disabled={q.questions.length === 0 || host.isPending || hosting.pending}
               >
                 {gate.locked ? <LockIcon className="size-4" /> : <ZapIcon className="size-4" />} Host live
               </Button>
@@ -544,6 +590,7 @@ export function QuizPanel({
           </div>
         ) : null}
       </div>
+      {hosting.dialog}
 
       {running ? (
         <HostConsole eventId={eventId} checkedIn={checkedIn} />

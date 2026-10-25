@@ -5,10 +5,11 @@ import {
   feedbackSchema,
   hostActionSchema,
   hostStateSchema,
+  moderateSchema,
   pollSchema,
   pollStatusSchema,
   qaBoardSchema,
-  questionSchema,
+  qaSettingsSchema,
   quizQuestionSchema,
   quizSchema,
   screenSchema,
@@ -53,13 +54,26 @@ export async function fetchHostState(eventId: number) {
   return hostStateSchema.parse(await api.get<unknown>(`${base(eventId)}/quiz/host`));
 }
 
+export type HostOptions = {
+  /** start: tell the room. */
+  notify?: boolean;
+  /** start: start again a quiz that is running (it clears every score); without it the server answers 409 QUIZ_RUNNING. */
+  restart?: boolean;
+  /** next: the question the console shows; the server answers 409 QUIZ_MOVED_ON when the quiz is no longer on it. */
+  expectedIndex?: number;
+};
+
 /**
- * A start says whether to notify the room; the other moves send `{}` as they
- * always have. Servers from before notifying the room take no body here and
- * ignore it, so the same request is safe against either.
+ * A start says whether to notify the room (and, confirmed, to restart a
+ * running quiz); a next says which question it moves on from; end and reset
+ * send `{}` as they always have. Servers from before take no body here, or
+ * drop fields they do not know, so the same request is safe against either.
  */
-export async function hostAction(eventId: number, action: HostAction, notify?: boolean) {
-  const body = action === "start" && notify !== undefined ? { notify } : {};
+export async function hostAction(eventId: number, action: HostAction, opts: HostOptions = {}) {
+  const body: Record<string, unknown> = {};
+  if (action === "start" && opts.notify !== undefined) body.notify = opts.notify;
+  if (action === "start" && opts.restart) body.restart = true;
+  if (action === "next" && opts.expectedIndex !== undefined) body.expected_index = opts.expectedIndex;
   return hostActionSchema.parse(await api.post<unknown>(`${base(eventId)}/quiz/host/${action}`, body));
 }
 
@@ -69,12 +83,21 @@ export async function fetchQuestions(eventId: number) {
   return qaBoardSchema.parse(await api.get<unknown>(`${base(eventId)}/questions`));
 }
 
-export async function setApproveFirst(eventId: number, approve_first: boolean) {
-  return qaBoardSchema.parse(await api.patch<unknown>(`${base(eventId)}/questions/settings`, { approve_first }));
+/**
+ * Switching approval off opens the floor, and says whether to tell the room
+ * Q&A is open; switching it on sends `{ approve_first }` alone. Servers from
+ * before drop the field.
+ */
+export async function setApproveFirst(eventId: number, approve_first: boolean, notify?: boolean) {
+  const body = !approve_first && notify !== undefined ? { approve_first, notify } : { approve_first };
+  return qaSettingsSchema.parse(await api.patch<unknown>(`${base(eventId)}/questions/settings`, body));
 }
 
-export async function moderateQuestion(eventId: number, id: string, action: ModerateAction) {
-  return questionSchema.parse(await api.post<unknown>(`${base(eventId)}/questions/${id}`, { action }));
+/** An approve or a pin puts a question up, and says whether to tell the room Q&A is open (once per event, on the server). */
+export async function moderateQuestion(eventId: number, id: string, action: ModerateAction, notify?: boolean) {
+  const opens = action === "approve" || action === "pin";
+  const body = opens && notify !== undefined ? { action, notify } : { action };
+  return moderateSchema.parse(await api.post<unknown>(`${base(eventId)}/questions/${id}`, body));
 }
 
 // --- polls ----------------------------------------------------------------------

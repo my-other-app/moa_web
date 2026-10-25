@@ -294,6 +294,26 @@ describe("hosting it live", () => {
     await waitFor(() => expect(sentTo("POST", "/live/quiz/host/reset")).toHaveLength(1));
   });
 
+  it("sends the question it moves on from, and catches up quietly when the quiz has moved on already", async () => {
+    const error = vi.spyOn(toast, "error");
+    state.host = asking(0);
+    render(<QuizPanel eventId={37} />);
+    await screen.findByText("Question 1 of 2");
+    fireEvent.click(screen.getByRole("button", { name: "Next question" }));
+    await waitFor(() => expect(sentTo("POST", "/live/quiz/host/next")).toHaveLength(1));
+    expect(sentTo("POST", "/live/quiz/host/next")[0]!.body).toEqual({ expected_index: 0 });
+
+    // A double press, or another console: 409 QUIZ_MOVED_ON. No error toast; the host's view is read again.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Next question" })).toBeEnabled());
+    calls.length = 0;
+    state.refuse = new ApiError({ status: 409, message: "The quiz has already moved on.", errorCode: "QUIZ_MOVED_ON" });
+    fireEvent.click(screen.getByRole("button", { name: "Next question" }));
+    await waitFor(() => expect(sentTo("POST", "/live/quiz/host/next")).toHaveLength(1));
+    state.refuse = null;
+    await waitFor(() => expect(sentTo("GET", "/live/quiz/host").length).toBeGreaterThan(0));
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it("says why when the server refuses a move, instead of doing nothing", async () => {
     const said = vi.spyOn(toast, "error");
     state.host = asking(0);

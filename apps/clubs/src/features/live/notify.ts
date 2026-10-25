@@ -6,14 +6,15 @@ import { toast } from "@moa/ui";
 import type { Notified } from "./schemas";
 
 /**
- * "Notify the room": starting the quiz or launching a poll can push a nudge
- * to every checked-in phone. The host's last choice is kept per event on this
- * device, and the server's answer is read back into the action's own toast.
+ * "Notify the room": starting the quiz, launching a poll or opening Q&A (the
+ * first question put up, or approval switched off) can push a nudge to every
+ * checked-in phone. The host's last choice is kept per event on this device,
+ * and the server's answer is read back into the action's own toast.
  */
-export type NotifyWhat = "quiz" | "poll";
+export type NotifyWhat = "quiz" | "poll" | "qa";
 
-/** A quiz is the moment to bring the room in; a poll mid-talk usually is not. */
-export const NOTIFY_DEFAULT: Record<NotifyWhat, boolean> = { quiz: true, poll: false };
+/** All on unless the host says otherwise: each is a moment to bring the room in, and the server holds them to one every few minutes. */
+export const NOTIFY_DEFAULT: Record<NotifyWhat, boolean> = { quiz: true, poll: true, qa: true };
 
 export const NOTIFY_STORAGE = (eventId: number, what: NotifyWhat) => `moa.live.${eventId}.notify.${what}`;
 
@@ -47,8 +48,9 @@ export function useNotifyChoice(eventId: number, what: NotifyWhat) {
 
 /**
  * What to tell the host about the push. Nothing when they did not ask for
- * one, when the server has it switched off, or when the server says nothing
- * at all (one that predates notifying the room).
+ * one, when the server has it switched off, when it went once already (Q&A
+ * opening is told once per event), or when the server says nothing at all
+ * (one that predates notifying the room).
  */
 export function notifiedNote(notified: Notified | null | undefined): { tone: "success" | "warning"; text: string } | null {
   if (!notified) return null;
@@ -60,6 +62,7 @@ export function notifiedNote(notified: Notified | null | undefined): { tone: "su
     case "all_muted":
       return { tone: "success", text: "Not notified — everyone checked in has muted these notifications" };
     case "disabled":
+    case "already_sent":
       return null;
     default:
       return { tone: "success", text: notified.sent ? `Sent to ${notified.sent}` : "Nobody to notify" };

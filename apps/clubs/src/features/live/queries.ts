@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { qk } from "@moa/api";
+import { ApiError, qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
 import { toastError } from "@/features/plan/errors";
@@ -28,10 +28,11 @@ import {
   setApproveFirst,
   setPollStatus,
   shiftSchedule,
+  type HostOptions,
   type QuizQuestionBody,
 } from "./api";
 import { announce } from "./notify";
-import type { HostAction, LiveUpdate, ModerateAction, Poll, SurveyQuestion } from "./schemas";
+import type { HostAction, LiveUpdate, ModerateAction, Notified, Poll, SurveyQuestion } from "./schemas";
 
 export const liveKey = (eventId: number) => ["live", eventId] as const;
 
@@ -51,6 +52,11 @@ export function useHostState(eventId: number, running: boolean) {
   return useQuery({ queryKey: [...liveKey(eventId), "quiz", "host"], queryFn: () => fetchHostState(eventId), refetchInterval: running ? 2_000 : false, staleTime: 1_000 });
 }
 
+/** Start on a quiz that is running (another console started it): restarting clears every score, so the host is asked first. */
+export const isQuizRunning = (e: unknown) => e instanceof ApiError && e.status === 409 && e.errorCode === "QUIZ_RUNNING";
+/** Next from a question the quiz has left (a double press, another console): nothing moved; the console just catches up. */
+export const isMovedOn = (e: unknown) => e instanceof ApiError && e.status === 409 && e.errorCode === "QUIZ_MOVED_ON";
+
 export function useQuizMutations(eventId: number) {
   const refresh = useRefresh(eventId, "quiz");
   // Each refusal is said, as the survey's are: a host pressing Next in front of the room must not be met with nothing.
@@ -59,13 +65,20 @@ export function useQuizMutations(eventId: number) {
   const edit = useMutation({ mutationFn: ({ id, patch }: { id: string; patch: Partial<QuizQuestionBody> }) => patchQuizQuestion(eventId, id, patch), onSuccess: refresh, onError: toastError });
   const remove = useMutation({ mutationFn: (id: string) => deleteQuizQuestion(eventId, id), onSuccess: () => (toast.success("Question removed"), refresh()), onError: toastError });
   const host = useMutation({
-    mutationFn: ({ action, notify }: { action: HostAction; notify?: boolean }) => hostAction(eventId, action, notify),
+    mutationFn: ({ action, ...opts }: { action: HostAction } & HostOptions) => hostAction(eventId, action, opts),
     onSuccess: (s, { action, notify }) => {
       if (action === "start") announce(`The quiz is open — players join with ${s.join_code}`, notify ? s.notified : null);
       if (action === "end") toast.success("Quiz finished");
       refresh();
     },
-    onError: toastError,
+    // Every refusal is said (a host pressing Next in front of the room must not be met with nothing),
+    // but two are not refusals of what the host meant: the quiz moved on already (a double press,
+    // another console) or is running already -- the console just catches up, and a start that
+    // met a running quiz asks first (quiz-panel's restart confirm).
+    onError: (e) => {
+      if (isMovedOn(e) || isQuizRunning(e)) return refresh();
+      toastError(e);
+    },
   });
   return { rename, add, edit, remove, host };
 }
@@ -76,10 +89,27 @@ export function useQuestions(eventId: number) {
   return useQuery({ queryKey: [...liveKey(eventId), "questions"], queryFn: () => fetchQuestions(eventId), refetchInterval: 5_000, staleTime: 2_000 });
 }
 
+/** Whether the server's answer about telling the room is worth a toast: it went, or the limit held it (the host should know). */
+const worthSaying = (n: Notified | null | undefined) => Boolean(n && (n.sent > 0 || n.skipped_reason === "rate_limited"));
+
 export function useQAMutations(eventId: number) {
   const refresh = useRefresh(eventId, "questions");
-  const approveFirst = useMutation({ mutationFn: (v: boolean) => setApproveFirst(eventId, v), onSuccess: (b) => (toast.success(b.approve_first ? "New questions wait for you" : "New questions go straight to the board"), refresh()) });
-  const moderate = useMutation({ mutationFn: ({ id, action }: { id: string; action: ModerateAction }) => moderateQuestion(eventId, id, action), onSuccess: refresh });
+  const approveFirst = useMutation({
+    mutationFn: ({ approveFirst: v, notify }: { approveFirst: boolean; notify?: boolean }) => setApproveFirst(eventId, v, notify),
+    onSuccess: (b, { notify }) => {
+      if (b.approve_first) toast.success("New questions wait for you");
+      else announce("New questions go straight to the board", notify ? b.notified : null);
+      refresh();
+    },
+  });
+  const moderate = useMutation({
+    mutationFn: ({ id, action, notify }: { id: string; action: ModerateAction; notify?: boolean }) => moderateQuestion(eventId, id, action, notify),
+    onSuccess: (q, { notify }) => {
+      // The first question up opens Q&A: the room is told once; later ones say nothing.
+      if (notify && worthSaying(q.notified)) announce("Q&A is open", q.notified);
+      refresh();
+    },
+  });
   return { approveFirst, moderate };
 }
 

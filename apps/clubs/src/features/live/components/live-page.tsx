@@ -167,7 +167,7 @@ export function LivePage({ eventId }: { eventId: number }) {
       {view === "quiz" ? (
         <QuizPanel eventId={eventId} checkedIn={checkedIn} />
       ) : view === "qa" ? (
-        <QAPanel eventId={eventId} />
+        <QAPanel eventId={eventId} checkedIn={checkedIn} />
       ) : view === "polls" ? (
         <PollsPanel eventId={eventId} checkedIn={checkedIn} />
       ) : view === "feedback" ? (
