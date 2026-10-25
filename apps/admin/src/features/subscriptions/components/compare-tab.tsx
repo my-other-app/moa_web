@@ -5,7 +5,7 @@ import { formatNumber } from "@moa/app-kit";
 import { Skeleton, cn } from "@moa/ui";
 
 import { usePlans } from "../queries";
-import { FEATURE_LABELS, GROUP_LABELS, LIMIT_FIELDS, rupees } from "../schemas";
+import { FEATURE_LABELS, GROUP_LABELS, limitFieldsFor, rupees } from "../schemas";
 
 /**
  * Every plan side by side.
@@ -69,7 +69,7 @@ export function CompareTab() {
         ))}
 
         {/* Limits */}
-        {LIMIT_FIELDS.map((field) => (
+        {limitFieldsFor(list).map((field) => (
           <ComparisonRow
             key={field.key}
             label={`${field.label} · ${field.scope}`}
