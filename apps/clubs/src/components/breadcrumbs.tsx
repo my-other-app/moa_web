@@ -44,6 +44,8 @@ export function Breadcrumbs() {
       }
     } else if (first.href === "/whatsapp" && (parts[1] === "templates" || parts[1] === "settings")) {
       crumbs.push({ label: parts[1] === "templates" ? "Templates" : "Settings" });
+    } else if (first.href === "/mail" && parts[1] === "settings") {
+      crumbs.push({ label: "Settings" });
     } else if (parts[1] === "new") {
       crumbs.push({ label: "New" });
     } else if (parts[1] === "edit") {

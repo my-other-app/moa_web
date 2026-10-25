@@ -2,6 +2,7 @@ import {
   BanknoteIcon,
   GlobeIcon,
   BellIcon,
+  InboxIcon,
   KeyRoundIcon,
   BuildingIcon,
   CalendarDaysIcon,
@@ -43,7 +44,7 @@ export interface NavItem {
    * is known to have its routes (see SidebarNav). The dashboard can then go
    * out ahead of its backend, and the item appears when the backend does.
    */
-  server?: "whatsapp";
+  server?: "whatsapp" | "mailbox";
 }
 
 export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
@@ -76,6 +77,9 @@ export const navItems: NavItem[] = [
   // The club's own WhatsApp number (Enterprise): its inbox, templates and settings. Owners and admins
   // (the connection) and members given the WhatsApp permission (the inbox) see it -- once the API has it.
   { href: "/whatsapp", label: "WhatsApp", icon: MessageCircleIcon, needs: "whatsapp", feature: "whatsapp_own", server: "whatsapp" },
+  // The club's mailbox, <handle>@mail.myotherapp.in (Pro and Enterprise): owners and admins (its address) and members given
+  // the Mail permission (the mail) see it -- once the API has it and has switched it on.
+  { href: "/mail", label: "Mail", icon: InboxIcon, needs: "mail", feature: "mailbox", server: "mailbox" },
   { href: "/links", label: "Tracking links", icon: LinkIcon, group: "grow", needs: "edit_events", feature: "links" },
   { href: "/website", label: "Website", icon: GlobeIcon, group: "grow", needs: "edit_events", feature: "website" },
   { href: "/templates", label: "Templates", icon: PaletteIcon, group: "grow", needs: "edit_events" },

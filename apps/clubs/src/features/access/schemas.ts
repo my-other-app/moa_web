@@ -21,6 +21,8 @@ export const memberRowSchema = z.object({
   last_seen_at: z.string().nullable().catch(null),
   /** The WhatsApp permission: reads and answers the club's own WhatsApp inbox, whatever the role. */
   whatsapp: z.boolean().catch(false),
+  /** The Mail permission: reads, answers and sends from the club's mailbox, whatever the role. A server without it: false. */
+  mail: z.boolean().catch(false),
 });
 export type MemberRow = z.infer<typeof memberRowSchema>;
 
@@ -56,6 +58,10 @@ export const capsSchema = z
     whatsapp_account: z.boolean().optional(),
     /** The club's WhatsApp inbox and templates: the owner, and members given the WhatsApp permission. */
     whatsapp_inbox: z.boolean().optional(),
+    /** The club's mailbox: its mail, for the owner and members given the Mail permission. */
+    mail_inbox: z.boolean().optional(),
+    /** The mailbox's address and settings (owner and admin). */
+    mailbox_manage: z.boolean().optional(),
   })
   // A server from before connected assistants does not send the last two: they follow the roles they mirror.
   // One from before clubs' own WhatsApp sends neither of those: there is nothing to open.
@@ -73,6 +79,12 @@ export const capsSchema = z
      * refused: the page says the section isn't available yet (RouteGate).
      */
     whatsapp_known: c.whatsapp_account !== undefined || c.whatsapp_inbox !== undefined,
+    mail_inbox: c.mail_inbox ?? false,
+    mailbox_manage: c.mailbox_manage ?? false,
+    /** Either: the Mail section opens at all (once the server says mailboxes are on). */
+    mail: Boolean(c.mail_inbox || c.mailbox_manage),
+    /** The server sent either Mail cap: it has clubs' mailboxes. Neither: a /mail address refuses no role. */
+    mail_known: c.mail_inbox !== undefined || c.mailbox_manage !== undefined,
   }));
 export type Caps = z.infer<typeof capsSchema>;
 export type Cap = keyof Caps;
@@ -122,6 +134,10 @@ export const OWNER_CAN: Caps = {
   whatsapp_inbox: true,
   whatsapp: true,
   whatsapp_known: true,
+  mail_inbox: true,
+  mailbox_manage: true,
+  mail: true,
+  mail_known: true,
 };
 
 export const MIN_PASSWORD = 8;

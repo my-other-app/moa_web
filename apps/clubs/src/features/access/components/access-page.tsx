@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { MailIcon, MessageCircleIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react";
+import { InboxIcon, MailIcon, MessageCircleIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react";
 import { formatDate, initials } from "@moa/app-kit";
 import {
   Button,
@@ -16,9 +16,10 @@ import {
   Switch,
 } from "@moa/ui";
 
+import { useMailboxOnServer } from "@/features/mailbox/queries";
 import { LimitMeter, openUpgrade, usePlan } from "@/features/plan";
 
-import { useAccess, useAccessList, useChangeRole, useRemoveMember, useResendInvite, useSetMemberWhatsApp } from "../queries";
+import { useAccess, useAccessList, useChangeRole, useRemoveMember, useResendInvite, useSetMemberMail, useSetMemberWhatsApp } from "../queries";
 import { DEFAULT_MEMBER_ROLE, type AccessList, type MemberRole, type MemberRow } from "../schemas";
 import { InviteDialog, InviteLink } from "./invite-dialog";
 
@@ -52,6 +53,7 @@ function MemberLine({
   canManage,
   now,
   whatsappOn,
+  mailOn = false,
 }: {
   m: MemberRow;
   roles: AccessList["roles"];
@@ -59,11 +61,14 @@ function MemberLine({
   now: number;
   /** The server has clubs' own WhatsApp: only then is there a permission to give. */
   whatsappOn: boolean;
+  /** The server has clubs' mailboxes, switched on: only then is there a Mail permission to give. */
+  mailOn?: boolean;
 }) {
   const changeRole = useChangeRole();
   const remove = useRemoveMember();
   const resend = useResendInvite();
   const whatsapp = useSetMemberWhatsApp();
+  const mail = useSetMemberMail();
   // Any role but the default is the plan's `roles`; a member who already has one keeps it.
   const rolesLock = usePlan().featureLock("roles");
   const [asking, setAsking] = React.useState(false);
@@ -105,6 +110,20 @@ function MemberLine({
             </label>
           ) : m.whatsapp ? (
             <span className="tag">WhatsApp</span>
+          ) : null}
+          {!mailOn ? null : canManage ? (
+            <label className="text-ink-2 inline-flex shrink-0 items-center gap-1.5 text-[12px]" title="Reads, answers and sends the club's mail">
+              <InboxIcon className="size-3.5" aria-hidden="true" />
+              Mail
+              <Switch
+                aria-label={`Mail permission for ${name}`}
+                checked={m.mail}
+                disabled={mail.isPending}
+                onCheckedChange={(allowed) => mail.mutate({ id: m.id, allowed })}
+              />
+            </label>
+          ) : m.mail ? (
+            <span className="tag">Mail</span>
           ) : null}
           {canManage ? (
             <NativeSelect
@@ -176,7 +195,10 @@ export function AccessPage() {
   const plan = usePlan();
   const seatsUsed = plan.used("committee_seats") ?? active.length + waiting.length;
   // A server from before clubs' own WhatsApp has no such permission: no switch, no row about it.
-  const whatsappOn = useAccess().can.whatsapp_known !== false;
+  const can = useAccess().can;
+  const whatsappOn = can.whatsapp_known !== false;
+  // Clubs' mailboxes: a server that has them, switched on (APP_CLUB_MAILBOX), for the owner to give.
+  const mailOn = useMailboxOnServer(can.mail_known !== false && Boolean(can.mail)) === true;
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -230,7 +252,7 @@ export function AccessPage() {
                   <span className="tag">Owner</span>
                 </li>
                 {members.map((m) => (
-                  <MemberLine key={m.id} m={m} roles={a.roles} canManage={a.can_manage} now={now} whatsappOn={whatsappOn} />
+                  <MemberLine key={m.id} m={m} roles={a.roles} canManage={a.can_manage} now={now} whatsappOn={whatsappOn} mailOn={mailOn} />
                 ))}
               </ul>
               {members.length === 0 ? (
@@ -254,6 +276,7 @@ export function AccessPage() {
                     ...(whatsappOn
                       ? [{ k: "WhatsApp", v: "Given person by person, whatever the role: reads and answers the club's WhatsApp messages." }]
                       : []),
+                    ...(mailOn ? [{ k: "Mail", v: "Given person by person, whatever the role: reads, answers and sends the club's mail." }] : []),
                   ]}
                 />
               </div>

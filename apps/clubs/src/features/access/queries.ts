@@ -16,6 +16,7 @@ import {
   inviteMember,
   removeMember,
   resendInvite,
+  setMemberMail,
   setMemberWhatsApp,
 } from "./api";
 import { OWNER_CAN, type Caps, type Me, type MemberRole, type Role } from "./schemas";
@@ -101,6 +102,18 @@ export function useSetMemberWhatsApp() {
     mutationFn: ({ id, allowed }: { id: number; allowed: boolean }) => setMemberWhatsApp(id, allowed),
     onSuccess: (m) => {
       toast.success(m.whatsapp ? `${m.full_name ?? m.email} can now read and answer WhatsApp` : `${m.full_name ?? m.email} no longer sees WhatsApp`);
+      refresh();
+    },
+    onError: toastError,
+  });
+}
+
+export function useSetMemberMail() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: ({ id, allowed }: { id: number; allowed: boolean }) => setMemberMail(id, allowed),
+    onSuccess: (m) => {
+      toast.success(m.mail ? `${m.full_name ?? m.email} can now read and send the club's mail` : `${m.full_name ?? m.email} no longer sees the club's mail`);
       refresh();
     },
     onError: toastError,
