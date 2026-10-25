@@ -2,16 +2,38 @@ import { describe, expect, it } from "vitest";
 
 import {
   BLOCK_KINDS,
+  EMAIL_TEXT_MAX,
   audienceSummary,
   blankTemplate,
   emailDesignSchema,
   emailTemplateFieldsSchema,
+  emailTemplateSchema,
   fieldsOf,
   newBlock,
   triggerSummary,
 } from "./schemas";
 
 describe("the email contract", () => {
+  it("reads a block as long as the server saved it, so one long block cannot blank the screens", () => {
+    // The server takes 4,000 characters (app/core/mail/schema.py, Text); this
+    // build read at most 2,000, and the template, the event's Emails tab and
+    // the library all failed to load after one long paragraph was saved.
+    expect(EMAIL_TEXT_MAX).toBe(4000);
+    const long = "word ".repeat(900); // 4,500 characters
+    const saved = {
+      ...blankTemplate(),
+      id: "t1", clubId: 5, eventId: 9, stage: "CUSTOM", version: 2, sourceId: null,
+      createdAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-02T00:00:00Z",
+      design: { blocks: [
+        { kind: "paragraph", id: "p1", text: long },
+        { kind: "list", id: "l1", items: [long] },
+        { kind: "details", id: "d1", rows: [{ label: "Note", value: long }] },
+      ] },
+    };
+    const parsed = emailTemplateSchema.parse(saved);
+    expect(parsed.design.blocks[0]).toMatchObject({ kind: "paragraph", text: long });
+  });
+
   it("makes a block of every kind the designer can add, each with its own id", () => {
     const blocks = BLOCK_KINDS.map(newBlock);
     expect(new Set(blocks.map((b) => b.id)).size).toBe(blocks.length);

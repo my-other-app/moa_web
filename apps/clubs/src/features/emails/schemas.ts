@@ -58,7 +58,16 @@ export const blockStyleSchema = z.object({
 export type BlockStyle = z.infer<typeof blockStyleSchema>;
 
 const base = { id: z.string().min(1).max(40), style: blockStyleSchema.default({}) };
-const text = z.string().max(2000);
+/**
+ * The server's limit on a block's text (app/core/mail/schema.py, Text): the
+ * editor holds a block to it. This build read text as at most 2,000, while
+ * the server saved up to 4,000, so one long paragraph made its template, the
+ * event's Emails tab and the club's library all fail to load.
+ */
+export const EMAIL_TEXT_MAX = 4000;
+// Read without a length check: what the server saved is what it will send,
+// and no limit this build believes in should blank the screens that show it.
+const text = z.string();
 
 export const detailsRowSchema = z.object({ label: z.string().max(60), value: text });
 export type DetailsRow = z.infer<typeof detailsRowSchema>;
