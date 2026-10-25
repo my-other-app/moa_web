@@ -67,7 +67,7 @@ export function ClubBell() {
               const body = (
                 <span className="flex flex-col gap-0.5">
                   {info ? (
-                    <span className={cn("eyebrow text-[10.5px]", info.tone === "refuse" ? "text-refuse" : "text-caution")}>{info.label}</span>
+                    <span className={cn("eyebrow text-[10.5px]", info.tone === "refuse" ? "text-refuse" : info.tone === "info" ? "text-info" : "text-caution")}>{info.label}</span>
                   ) : null}
                   <span className={cn("text-[13px]", a.read ? "text-ink-2" : "text-ink font-semibold")}>{a.title}</span>
                   {a.body ? <span className="text-ink-3 text-[12px] leading-[1.45]">{a.body}</span> : null}

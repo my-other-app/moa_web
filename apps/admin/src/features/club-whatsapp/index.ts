@@ -1,4 +1,5 @@
 export { ClubWhatsAppCard } from "./components/club-whatsapp-card";
-export { useClubWhatsApp } from "./queries";
-export { fetchClubWhatsApp } from "./api";
-export { clubWhatsAppSchema, tierWords, qualityTone, type ClubWhatsApp } from "./schemas";
+export { WhatsAppFallbacksCard } from "./components/fallbacks-card";
+export { useClubWhatsApp, useFallbackClubs } from "./queries";
+export { fetchClubWhatsApp, fetchFallbackClubs } from "./api";
+export { clubWhatsAppSchema, fallbackClubsSchema, tierWords, qualityTone, type ClubWhatsApp, type FallbackClubs } from "./schemas";

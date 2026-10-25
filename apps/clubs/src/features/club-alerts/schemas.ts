@@ -10,6 +10,8 @@ import { z } from "zod";
  * whatsapp_failed      the club's own WhatsApp number stopped working
  * whatsapp_quality     its quality rating or messaging limit dropped
  * whatsapp_restricted  Meta restricted its WhatsApp account
+ * whatsapp_message     a conversation has unread WhatsApp messages (a name and a count; the inbox's people only)
+ * whatsapp_waiting     a WhatsApp conversation has waited too long for an answer (the inbox's people only)
  */
 export const clubAlertSchema = z.object({
   id: z.coerce.number(),
@@ -35,7 +37,7 @@ export function safeLink(link: string | null | undefined): string | null {
   return link && link.startsWith("/") && !link.startsWith("//") ? link : null;
 }
 
-export type AlertTone = "caution" | "refuse";
+export type AlertTone = "caution" | "refuse" | "info";
 
 /**
  * What each kind is about, as the bell labels it, and where it leads when
@@ -48,6 +50,8 @@ export const KIND_INFO: Record<string, { label: string; link: string; tone: Aler
   whatsapp_failed: { label: "WhatsApp number", link: "/whatsapp/settings", tone: "refuse" },
   whatsapp_quality: { label: "WhatsApp quality", link: "/whatsapp/settings", tone: "caution" },
   whatsapp_restricted: { label: "WhatsApp account", link: "/whatsapp/settings", tone: "refuse" },
+  whatsapp_message: { label: "WhatsApp message", link: "/whatsapp", tone: "info" },
+  whatsapp_waiting: { label: "WhatsApp: waiting for an answer", link: "/whatsapp", tone: "caution" },
 };
 
 /**

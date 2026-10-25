@@ -24,8 +24,32 @@ export const clubWhatsAppSchema = z.object({
   connected_at: str,
   conversations: z.number().catch(0),
   plan_allows: z.boolean().catch(false),
+  /**
+   * This month: WhatsApp deliveries sent from the club's own number, and those
+   * that went from MyOtherApp's though the club wanted its own. Newer servers
+   * only: null on an older one, and the card leaves the line off.
+   */
+  club_sends_this_month: z.coerce.number().nullish().default(null).catch(null),
+  fallbacks_this_month: z.coerce.number().nullish().default(null).catch(null),
 });
 export type ClubWhatsApp = z.infer<typeof clubWhatsAppSchema>;
+
+/** GET /admin/club-whatsapp/fallbacks: the clubs whose deliveries fell back most this month. */
+export const fallbackClubsSchema = z.object({
+  since: str,
+  items: z
+    .array(
+      z.object({
+        club_id: z.coerce.number(),
+        club_name: str,
+        fallbacks: z.coerce.number().catch(0),
+        top_code: str,
+        top_reason: str,
+      }),
+    )
+    .catch([]),
+});
+export type FallbackClubs = z.infer<typeof fallbackClubsSchema>;
 
 export const QUALITY_LABEL: Record<string, string> = { GREEN: "High", YELLOW: "Medium", RED: "Low", UNKNOWN: "Not rated yet" };
 

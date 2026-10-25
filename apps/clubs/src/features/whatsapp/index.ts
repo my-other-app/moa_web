@@ -5,6 +5,7 @@ export { WhatsAppOverviewCard, OverviewFigures } from "./components/overview-car
 export { Bubble, StatusTicks, Thread, mediaProblem } from "./components/thread";
 export { Composer, fillTemplate } from "./components/composer";
 export { WhatsAppUnavailable } from "./components/shared";
+export { WhatsAppBroadcastsPage } from "./reach";
 export {
   useInboxStream,
   useCoalesced,
@@ -16,7 +17,10 @@ export {
   type StreamMode,
   type StreamChange,
 } from "./stream";
+export { useBrowserNotify, useNewMessageNotifier, useUnreadTitle, titled, readNotify, writeNotify, resetNotifyCache, notificationFor, NOTIFY_KEY } from "./alerts";
 export {
+  useSummary,
+  errorText,
   useAccount,
   useOverview,
   useWhatsAppOnServer,

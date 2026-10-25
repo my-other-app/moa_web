@@ -4,6 +4,7 @@ export { DeliveryLog } from "./components/delivery-log";
 export {
   deliveryBriefSchema,
   verdictOf,
+  viaText,
   tallyFigures,
   addTallies,
   isProblem,

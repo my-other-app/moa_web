@@ -18,7 +18,7 @@ import {
   toast,
 } from "@moa/ui";
 
-import { type DeliveryBrief, verdictOf } from "@/features/deliveries";
+import { type DeliveryBrief, verdictOf, viaText } from "@/features/deliveries";
 import { answerText } from "@/lib/answers";
 
 import { useRegistration } from "../queries";
@@ -75,6 +75,8 @@ function Sends({ sends, empty }: { sends: DeliveryBrief[]; empty: string }) {
         <span key={d.channel} className="flex flex-wrap items-center gap-1.5">
           <StatusBadge tone={verdictOf(d).tone} label={d.channel === "email" ? "Email" : d.channel} />
           <span className="text-ink-2 text-[12px]">{sendLine(d)}</span>
+          {/* WhatsApp: the club's own number, or MyOtherApp's and why. */}
+          {viaText(d) ? <span className={d.fallback_code || d.fallback_reason ? "text-caution text-[12px]" : "text-ink-3 text-[12px]"}>{viaText(d)}</span> : null}
         </span>
       ))}
     </span>
