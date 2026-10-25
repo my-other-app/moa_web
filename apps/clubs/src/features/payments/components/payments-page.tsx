@@ -25,6 +25,8 @@ import {
   toast,
 } from "@moa/ui";
 
+
+import { useAccess } from "@/features/access";
 import { AiKeyCard } from "@/features/ai";
 import { SALES_EMAIL, mailto } from "@/features/billing/schemas";
 
@@ -484,6 +486,8 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
 // ─── Help ───────────────────────────────────────────────────────────────
 
 function Help() {
+  // A backend with club refunds: a guest is refunded from the event's Payments, through this account.
+  const { can } = useAccess();
   return (
     <FigurePanel className="flex flex-col gap-3 p-4" role="region" aria-label="Help">
       <CardLabel>Help</CardLabel>
@@ -498,9 +502,16 @@ function Help() {
       </section>
       <section className="border-line-soft border-t pt-3">
         <h4 className="text-ink m-0 text-[13.5px] font-semibold">Refunds and disputes</h4>
-        <p className="text-ink-2 m-0 mt-1 text-[12.5px] leading-[1.5]">
-          Payments made to your Razorpay account are yours: refunds and disputes for them are handled in your own Razorpay Dashboard, not by MyOtherApp.
-        </p>
+        {can.refunds_known ? (
+          <p className="text-ink-2 m-0 mt-1 text-[12.5px] leading-[1.5]">
+            Refund a guest from the event&apos;s <span className="text-ink font-medium">Payments</span> tab: the money goes back through your Razorpay account,
+            and the guest is told. Disputes are handled in your own Razorpay Dashboard.
+          </p>
+        ) : (
+          <p className="text-ink-2 m-0 mt-1 text-[12.5px] leading-[1.5]">
+            Payments made to your Razorpay account are yours: refunds and disputes for them are handled in your own Razorpay Dashboard, not by MyOtherApp.
+          </p>
+        )}
       </section>
       <section className="border-line-soft border-t pt-3">
         <h4 className="text-ink m-0 text-[13.5px] font-semibold">Stuck?</h4>

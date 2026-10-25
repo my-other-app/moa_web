@@ -78,6 +78,8 @@ export const capsSchema = z
     // A server from before the contact book and cancelling: they follow the roles that have them there.
     contacts: c.contacts ?? c.edit_events,
     cancel_events: c.cancel_events ?? c.money,
+    /** The server sent `cancel_events`: it has cancelling and club refunds (the same release). */
+    refunds_known: c.cancel_events !== undefined,
     /** Either: the WhatsApp section opens at all. */
     whatsapp: Boolean(c.whatsapp_account || c.whatsapp_inbox),
     /**
@@ -147,6 +149,8 @@ export const OWNER_CAN: Caps = {
   mail_known: true,
   contacts: true,
   cancel_events: true,
+  // Until the server says who is signed in, nothing is known about what it has.
+  refunds_known: false,
 };
 
 export const MIN_PASSWORD = 8;
