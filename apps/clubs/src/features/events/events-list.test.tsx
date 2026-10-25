@@ -70,12 +70,30 @@ describe("the events page", () => {
     expect(within(row).getByText("Sign-up closes in 20h")).toBeInTheDocument();
     expect(within(row).getByText("of 3")).toBeInTheDocument();
     expect(within(row).getByText("₹200")).toBeInTheDocument();
+    // The ticket price; the free one says so.
+    expect(within(row).getByText("₹100 entry")).toBeInTheDocument();
+    const free = (await screen.findByText("Annual Summit", { selector: "a" })).closest("li")!;
+    expect(within(free).getByText("Free")).toBeInTheDocument();
     expect(within(row).getByText("4% sign up")).toBeInTheDocument();
     expect(within(row).getByRole("link", { name: "Open console" })).toHaveAttribute("href", "/events/68");
     expect(within(row).getByRole("button", { name: "More for Hack Night 04" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "This week" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "This month" })).toBeInTheDocument();
     expect(calls.find((c) => c.path.endsWith("/events/list"))?.query).toMatchObject({ scope: "upcoming", limit: 20, offset: 0 });
+  });
+
+  it("never calls a paid event free when its price is missing", async () => {
+    // The list the server sent had no reg_fee, so every paid event read "Free".
+    const paid = rows[0] as { reg_fee: number | null };
+    paid.reg_fee = null;
+    try {
+      render(<ClubEventsList />);
+      const row = (await screen.findByText("Hack Night 04", { selector: "a" })).closest("li")!;
+      expect(within(row).getByText("Paid")).toBeInTheDocument();
+      expect(within(row).queryByText("Free")).toBeNull();
+    } finally {
+      paid.reg_fee = 100;
+    }
   });
 
   it("shows an empty past scope with its own words", async () => {

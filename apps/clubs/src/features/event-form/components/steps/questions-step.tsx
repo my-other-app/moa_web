@@ -7,9 +7,7 @@ import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, F
 import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
 
 import { ANSWER_TYPES } from "../../readiness";
-import { questionKey as toKey, type EventFormValues } from "../../schemas";
-
-const NEEDS_OPTIONS = new Set(["radio", "checkbox"]);
+import { CHOICE_TYPES as NEEDS_OPTIONS, questionKey as toKey, type EventFormValues } from "../../schemas";
 const STARTERS = [
   { label: "College", field_type: "text" },
   { label: "Year of study", field_type: "number" },

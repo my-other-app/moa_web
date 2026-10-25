@@ -106,11 +106,12 @@ describe("the club's logo", () => {
     expect(logoShown()).toBe(savedLogo);
   });
 
-  it("refuses an image over 5 MB, sending nothing", async () => {
+  it("refuses an image too big for the gateway that cannot be made smaller here, sending nothing", async () => {
+    // jsdom has no canvas to redraw it on (lib/images shrinks it in a browser).
     const said = vi.spyOn(toast, "error");
     render(<ClubProfilePage />);
     pickWith(await screen.findByRole("button", { name: "Replace logo" }), image("huge.png", "image/png", 5 * 1024 * 1024 + 1));
-    expect(said).toHaveBeenCalledWith("The logo must be under 5 MB");
+    await waitFor(() => expect(said).toHaveBeenCalledWith(expect.stringMatching(/^The logo is 5\.0 MB, more than the 4\.0 MB that can be sent/)));
     expect(puts).toEqual([]);
   });
 
@@ -140,11 +141,11 @@ describe("the club's cover", () => {
     expect(coverShown()).toBe("blob:stage.jpg");
   });
 
-  it("refuses an image over 5 MB", async () => {
+  it("refuses an image too big to send that cannot be made smaller here", async () => {
     const said = vi.spyOn(toast, "error");
     render(<ClubProfilePage />);
     pickWith(await screen.findByRole("button", { name: "Cover banner" }), image("huge.jpg", "image/jpeg", 6 * 1024 * 1024));
-    expect(said).toHaveBeenCalledWith("The cover must be under 5 MB");
+    await waitFor(() => expect(said).toHaveBeenCalledWith(expect.stringMatching(/^The cover is 6\.0 MB/)));
     expect(puts).toEqual([]);
   });
 

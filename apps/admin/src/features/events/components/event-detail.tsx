@@ -56,6 +56,8 @@ import { enter, hoverLift, pressable, stagger } from "@moa/ui/motion";
 
 import { ArrivalCurveCard, EventAnalyticsPanels } from "@moa/app-kit";
 
+import { useCan } from "@/hooks/use-can";
+
 import { eventExportUrl } from "../api";
 import {
   useDeleteEvent,
@@ -79,6 +81,10 @@ import { EventEditForm } from "./event-edit-form";
 function RegistrationsTab({ eventId }: { eventId: number }) {
   const params = useListParams();
   const [attendedOnly, setAttendedOnly] = React.useState(false);
+  // What the server lets this role do (the club routes hold an admin to it):
+  // the guest list as a file is a data export; a placing is an edit.
+  const canExport = useCan("export_data");
+  const canPlace = useCan("manage_content");
 
   const { data, isPending, isError } = useEventRegistrations(eventId, {
     offset: params.offset,
@@ -112,11 +118,13 @@ function RegistrationsTab({ eventId }: { eventId: number }) {
           >
             <UserCheckIcon /> Attended only
           </Button>
-          <Button size="sm" variant="outline" className={pressable} asChild>
-            <a href={eventExportUrl(eventId)} download>
-              <DownloadIcon /> Export
-            </a>
-          </Button>
+          {canExport ? (
+            <Button size="sm" variant="outline" className={pressable} asChild>
+              <a href={eventExportUrl(eventId)} download>
+                <DownloadIcon /> Export
+              </a>
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -167,12 +175,14 @@ function RegistrationsTab({ eventId }: { eventId: number }) {
                     {row.position ? `#${row.position}` : "Placed"}
                   </Badge>
                 ) : null}
-                <PlacingControl
-                  eventId={eventId}
-                  registrationId={row.id}
-                  position={row.position}
-                  name={row.full_name || "this participant"}
-                />
+                {canPlace ? (
+                  <PlacingControl
+                    eventId={eventId}
+                    registrationId={row.id}
+                    position={row.position}
+                    name={row.full_name || "this participant"}
+                  />
+                ) : null}
                 {row.is_attended ? (
                   <StatusBadge tone="success" label="Attended" />
                 ) : null}
@@ -283,6 +293,10 @@ export function EventDetail({ eventId }: { eventId: number }) {
   const { data: analytics } = useEventAnalytics(eventId);
   const remove = useDeleteEvent();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  // Deleting needs destroy and editing manage_content, as on the server; a
+  // viewer or support admin is not offered either.
+  const canDelete = useCan("destroy");
+  const canEdit = useCan("manage_content");
 
   if (isError) {
     return (
@@ -349,7 +363,7 @@ export function EventDetail({ eventId }: { eventId: number }) {
       <PageHeader
         title={event?.name ?? "Event"}
         action={
-          event ? (
+          event && canDelete ? (
             <Button
               size="sm"
               variant="ghost"
@@ -449,7 +463,7 @@ export function EventDetail({ eventId }: { eventId: number }) {
             <TabsTrigger value="registrations">Registrations</TabsTrigger>
             <TabsTrigger value="door">Door</TabsTrigger>
             <TabsTrigger value="institutions">Institutions</TabsTrigger>
-            <TabsTrigger value="edit">Edit</TabsTrigger>
+            {canEdit ? <TabsTrigger value="edit">Edit</TabsTrigger> : null}
           </TabsList>
           <TabsContent value="registrations">
             <RegistrationsTab eventId={eventId} />
@@ -460,13 +474,15 @@ export function EventDetail({ eventId }: { eventId: number }) {
           <TabsContent value="institutions">
             <InstitutionsTab eventId={eventId} />
           </TabsContent>
-          <TabsContent value="edit">
-            {event ? (
-              <EventEditForm event={event} />
-            ) : (
-              <Skeleton className="h-96 w-full" />
-            )}
-          </TabsContent>
+          {canEdit ? (
+            <TabsContent value="edit">
+              {event ? (
+                <EventEditForm event={event} />
+              ) : (
+                <Skeleton className="h-96 w-full" />
+              )}
+            </TabsContent>
+          ) : null}
         </Tabs>
       </div>
 

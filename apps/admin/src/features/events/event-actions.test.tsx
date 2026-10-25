@@ -32,6 +32,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
   return {
     ...actual,
+    // An owner, whose role may delete and edit (event-detail.test.tsx covers the others).
+    useSession: () => ({ data: { id: 1, username: "a", email: "a@b.c", full_name: "A", user_type: "admin", admin_role: "owner" } }),
     api: {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });

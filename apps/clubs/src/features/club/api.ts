@@ -57,8 +57,9 @@ export async function fetchOrganizations(): Promise<Organization[]> {
 export async function updateMyClub(input: ClubProfileForm): Promise<void> {
   const form = new FormData();
 
+  // Not the name: the server ignores it here, and refuses one over 20
+  // characters (its Form limit) before it gets that far.
   const text = {
-    name: input.name,
     about: input.about ?? "",
     tagline: input.tagline ?? "",
     location_name: input.location_name ?? "",

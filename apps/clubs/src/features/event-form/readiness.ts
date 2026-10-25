@@ -53,6 +53,7 @@ export function readiness(v: EventFormValues): Readiness {
 /** The answer types, in words a person would use. */
 export const ANSWER_TYPES: ReadonlyArray<{ value: FieldType; label: string; hint: string }> = [
   { value: "text", label: "Short text", hint: "A line, like a college name" },
+  { value: "textarea", label: "Long text", hint: "A few lines, like why they want to come" },
   { value: "number", label: "Number", hint: "Year of study, team size" },
   { value: "email", label: "Email", hint: "Checked for shape" },
   { value: "tel", label: "Phone", hint: "A phone number" },
@@ -62,6 +63,7 @@ export const ANSWER_TYPES: ReadonlyArray<{ value: FieldType; label: string; hint
   { value: "datetime", label: "Date & time", hint: "Both together" },
   { value: "radio", label: "One choice", hint: "Pick one of your options" },
   { value: "checkbox", label: "Several choices", hint: "Tick any of your options" },
+  { value: "select", label: "Dropdown", hint: "Pick one of your options from a list" },
 ];
 
 /** "Sat 17 Oct, 5:00 pm – 8:00 pm" from a datetime-local string and hours. */

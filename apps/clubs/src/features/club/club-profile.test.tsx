@@ -98,7 +98,8 @@ describe("club profile", () => {
     const form = put.body as FormData;
     expect(form.get("tagline")).toBe("Pune's student electronics and robotics club");
     expect(form.get("brand_primary")).toBe("#2f6fed");
-    expect(form.get("name")).toBe("LetMeGoo");
+    // The name is not the club's to change here, and the server refuses one over 20 characters.
+    expect(form.get("name")).toBeNull();
     expect(form.get("slug")).toBeNull();
   });
 

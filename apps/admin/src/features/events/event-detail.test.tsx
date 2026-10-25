@@ -8,11 +8,14 @@ import summaryFixture from "../__fixtures__/event-summary.json";
 
 const calls: string[] = [];
 const putBodies: unknown[] = [];
+/** The signed-in admin's role: what the page offers depends on it. */
+let role = "owner";
 
 vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
   return {
     ...actual,
+    useSession: () => ({ data: { id: 1, username: "a", email: "a@b.c", full_name: "A", user_type: "admin", admin_role: role } }),
     api: {
       get: vi.fn(async (path: string, init?: { query?: Record<string, unknown> }) => {
         const q = new URLSearchParams(
@@ -47,6 +50,7 @@ const { fetchEventRegistrations, setEventWinner } = await import("./api");
 beforeEach(() => {
   calls.length = 0;
   putBodies.length = 0;
+  role = "owner";
 });
 
 describe("admin event schemas", () => {
@@ -132,6 +136,39 @@ describe("admin event page", () => {
     render(<EventDetail eventId={37} />);
     const link = await screen.findByRole("link", { name: /Export/ });
     expect(link).toHaveAttribute("download");
+  });
+});
+
+/**
+ * The server holds an admin to the role on the club's routes: editing an
+ * event or a placing needs manage_content, deleting needs destroy, the guest
+ * list as a file needs export_data. A role is not offered what would 403.
+ */
+describe("what each admin role is offered on an event", () => {
+  async function page() {
+    render(<EventDetail eventId={37} />);
+    expect(await screen.findByText("Test Participant One")).toBeInTheDocument();
+  }
+
+  it.each(["viewer", "support"])("a %s reads the event and its guests, and changes nothing", async (r) => {
+    role = r;
+    await page();
+    expect(screen.queryByRole("button", { name: /Delete/ })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Export/ })).toBeNull();
+    expect(screen.queryByLabelText("Placing for Test Participant One")).toBeNull();
+    // Still reads everything.
+    expect(screen.getByRole("tab", { name: "Registrations" })).toBeInTheDocument();
+    expect(screen.getByText("#1")).toBeInTheDocument();
+  });
+
+  it("an owner is offered every one of them", async () => {
+    role = "owner";
+    await page();
+    expect(screen.getByRole("button", { name: /Delete/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Export/ })).toBeInTheDocument();
+    expect(screen.getByLabelText("Placing for Test Participant One")).toBeInTheDocument();
   });
 });
 

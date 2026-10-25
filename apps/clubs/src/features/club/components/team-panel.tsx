@@ -105,7 +105,7 @@ export function TeamPanel({ club }: { club: ClubSelf }) {
   const [draft, setDraft] = React.useState<TeamMemberForm>(() => draftOf());
   const [file, setFile] = React.useState<File | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const { open: pickPhoto, preview, input, clear } = usePick((f) => setFile(f), "photo");
+  const { open: pickPhoto, preview, input, preparing, clear } = usePick((f) => setFile(f), "photo");
   const set = (k: keyof TeamMemberForm) => (e: React.ChangeEvent<HTMLInputElement>) => setDraft((d) => ({ ...d, [k]: e.target.value }));
 
   const reset = () => {
@@ -168,7 +168,7 @@ export function TeamPanel({ club }: { club: ClubSelf }) {
             {error ? <p className="text-refuse text-[12px] sm:col-span-2">{error}</p> : null}
           </div>
           <div className="flex items-center gap-2 self-center">
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => void add()} disabled={create.isPending || photoUpload.isPending}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => void add()} disabled={create.isPending || photoUpload.isPending || preparing}>
               {create.isPending || photoUpload.isPending ? <Loader2Icon className="animate-spin" /> : <PlusIcon />} Add
             </button>
             <IconButton label="Cancel" variant="ghost" onClick={reset}>

@@ -2,9 +2,15 @@ import { z } from "zod";
 
 import { pinFormShape, refinePin } from "@/features/venue";
 
-/** Mirrors the backend's FieldTypes enum (app/api/events/schemas.py). */
+/**
+ * Mirrors the backend's FieldTypes enum (app/api/events/schemas.py), less the
+ * file uploads. `select` (a dropdown) and `textarea` (long text) were missing,
+ * so a question of either kind -- an AI assistant writes them through MCP --
+ * was read as text, and the next save in the dashboard turned it into one.
+ */
 export const FIELD_TYPES = [
   "text",
+  "textarea",
   "number",
   "email",
   "url",
@@ -14,7 +20,11 @@ export const FIELD_TYPES = [
   "datetime",
   "checkbox",
   "radio",
+  "select",
 ] as const;
+
+/** The answer types that are a choice among the organiser's options. */
+export const CHOICE_TYPES: ReadonlySet<string> = new Set(["radio", "checkbox", "select"]);
 
 export type FieldType = (typeof FIELD_TYPES)[number];
 
@@ -41,9 +51,9 @@ export const questionSchema = z
     options: z.array(z.string().trim().min(1)).optional(),
   })
   .superRefine((value, ctx) => {
-    // radio and checkbox are meaningless without choices, and the attendee
-    // would be shown an unanswerable question.
-    if ((value.field_type === "radio" || value.field_type === "checkbox") && !value.options?.length) {
+    // radio, checkbox and select are meaningless without choices, and the
+    // attendee would be shown an unanswerable question.
+    if (CHOICE_TYPES.has(value.field_type) && !value.options?.length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["options"],

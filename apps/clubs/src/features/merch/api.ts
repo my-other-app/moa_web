@@ -20,7 +20,10 @@ export async function updateMerchItem(eventId: number, itemId: string, body: Par
   return merchItemSchema.parse(await api.patch<unknown>(`${base(eventId)}/${itemId}`, body));
 }
 export async function deleteMerchItem(eventId: number, itemId: string, withCollections = false) {
-  await api.del<unknown>(`${base(eventId)}/${itemId}`, { query: { with_collections: withCollections } });
+  // The flag is a query parameter (with_collections=Query on the server): as
+  // the second argument it went in the body, the server never saw it, and
+  // removing an item guests had collected always failed with 409.
+  await api.del<unknown>(`${base(eventId)}/${itemId}`, undefined, { query: { with_collections: withCollections } });
 }
 export async function addMerchVariant(eventId: number, itemId: string, body: { label: string; stock: number }) {
   return merchItemSchema.parse(await api.post<unknown>(`${base(eventId)}/${itemId}/variants`, body));

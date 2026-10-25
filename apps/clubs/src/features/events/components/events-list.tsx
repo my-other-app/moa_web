@@ -283,8 +283,12 @@ export function EventRow({ event, now }: { event: ClubEvent; now: number }) {
             </span>
           ) : null}
           <span>
-            {event.has_fee && event.reg_fee
-              ? `${inr(event.reg_fee)} entry`
+            {/* A paid event without its price (a server from before the
+                list carried reg_fee) still reads as paid, never "Free". */}
+            {event.has_fee
+              ? event.reg_fee
+                ? `${inr(event.reg_fee)} entry`
+                : "Paid"
               : "Free"}
           </span>
           {event.category?.name ? (

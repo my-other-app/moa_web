@@ -90,7 +90,6 @@ describe("updateMyClub sends everything the endpoint overwrites", () => {
     await updateMyClub(baseForm());
     const entries = formEntries(put.mock.calls[0]![1]);
     for (const key of [
-      "name",
       "about",
       "location_name",
       "location_link",
@@ -191,18 +190,22 @@ describe("the form schema covers every column the endpoint assigns", () => {
 });
 
 describe("club profile form validation", () => {
-  it("rejects a name longer than the endpoint's 20-character limit", () => {
-    const result = clubProfileFormSchema.safeParse({
-      ...baseForm(),
-      name: "A club with a really long name",
-    });
-    expect(result.success).toBe(false);
+  it("does not hold the profile to the name, which the form cannot change", () => {
+    // A club an admin or the demo seed made can be named past the old
+    // 20-character check ("Thattukada Design Club"); that check made Save do
+    // nothing for it.
+    expect(
+      clubProfileFormSchema.safeParse({ ...baseForm(), name: "Thattukada Design Club" }).success
+    ).toBe(true);
+    expect(clubProfileFormSchema.safeParse({ ...baseForm(), name: undefined }).success).toBe(true);
   });
 
-  it("rejects a name shorter than 3 characters", () => {
-    expect(
-      clubProfileFormSchema.safeParse({ ...baseForm(), name: "AB" }).success
-    ).toBe(false);
+  it("saves a long-named club's profile without sending the name", async () => {
+    // PUT /clubs/update ignores the name and refuses one over 20 characters.
+    await updateMyClub({ ...baseForm(), name: "Thattukada Design Club" });
+    const entries = formEntries(put.mock.calls[0]![1]);
+    expect(entries).not.toHaveProperty("name");
+    expect(entries.about).toBe("We build things.");
   });
 
   it("accepts an empty social link but not a bare handle", () => {

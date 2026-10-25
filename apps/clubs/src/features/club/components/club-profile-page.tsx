@@ -367,7 +367,7 @@ function PartnersPanel({ club }: { club: ClubSelf }) {
 
   const logoUpload = useUpdatePartnerLogo();
   const [newLogo, setNewLogo] = React.useState<File | null>(null);
-  const { open: pickNewLogo, preview: newLogoPreview, input: newLogoInput, clear: clearNewLogo } = usePick((f) => setNewLogo(f), "partner logo");
+  const { open: pickNewLogo, preview: newLogoPreview, input: newLogoInput, preparing: logoPreparing, clear: clearNewLogo } = usePick((f) => setNewLogo(f), "partner logo");
 
   const add = async () => {
     const parsed = partnerFormSchema.safeParse(draft);
@@ -450,7 +450,7 @@ function PartnersPanel({ club }: { club: ClubSelf }) {
             type="button"
             className="btn btn-primary"
             onClick={add}
-            disabled={create.isPending}
+            disabled={create.isPending || logoPreparing}
           >
             Add
           </button>

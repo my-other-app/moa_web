@@ -15,7 +15,7 @@ import {
 } from "@moa/ui";
 import { ChevronDownIcon, Loader2Icon } from "lucide-react";
 
-import { EMAIL_TOKEN_KEYS, type EmailToken } from "../schemas";
+import { EMAIL_TEXT_MAX, EMAIL_TOKEN_KEYS, type EmailToken } from "../schemas";
 
 /**
  * The few class lists the email screens share, in the Meridian vocabulary:
@@ -167,6 +167,7 @@ export const TemplateField = ({
   placeholder,
   single,
   extra,
+  maxLength = single ? undefined : EMAIL_TEXT_MAX,
 }: {
   id: string;
   label: string;
@@ -180,6 +181,8 @@ export const TemplateField = ({
   single?: boolean;
   /** Beside the token menu: "Write with AI". */
   extra?: React.ReactNode;
+  /** The server's limit; a block's text by default (EMAIL_TEXT_MAX). */
+  maxLength?: number;
 }) => {
   const ref = React.useRef<HTMLTextAreaElement | HTMLInputElement>(null);
   const insert = (snippet: string) => {
@@ -192,7 +195,12 @@ export const TemplateField = ({
       el?.setSelectionRange(s + snippet.length, s + snippet.length);
     });
   };
-  const problems = problemsOf(value);
+  const problems = [
+    ...(maxLength !== undefined && value.length > maxLength
+      ? [`Keep this under ${maxLength.toLocaleString("en-IN")} characters: it is ${value.length.toLocaleString("en-IN")}.`]
+      : []),
+    ...problemsOf(value),
+  ];
   return (
     <div className="min-w-0">
       <div className="mb-1 flex items-end justify-between gap-2">
@@ -220,6 +228,7 @@ export const TemplateField = ({
           value={value}
           rows={rows}
           placeholder={placeholder}
+          maxLength={maxLength}
           onChange={(e) => onChange(e.target.value)}
           className={cn(ui.control, "leading-[1.5]")}
         />
