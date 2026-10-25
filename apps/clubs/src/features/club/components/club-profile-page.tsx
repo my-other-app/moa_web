@@ -78,7 +78,8 @@ function Err({ message }: { message?: string }) {
 
 function LogoControl({ club }: { club: ClubSelf }) {
   const upload = useUpdateClubLogo();
-  const { open, preview, input } = usePick((f) => upload.mutate(f), "logo");
+  // Handing back the upload's promise lets a refused logo come down again (usePick).
+  const { open, preview, input } = usePick((f) => upload.mutateAsync(f), "logo");
   const shown =
     preview ??
     pickImage(club.logo, ["medium", "large", "thumbnail", "original"]);
@@ -128,7 +129,7 @@ function LogoControl({ club }: { club: ClubSelf }) {
 
 function CoverControl({ club, colour }: { club: ClubSelf; colour: string }) {
   const upload = useUpdateClubCover();
-  const { open, preview, input } = usePick((f) => upload.mutate(f), "cover");
+  const { open, preview, input } = usePick((f) => upload.mutateAsync(f), "cover");
   const shown =
     preview ??
     pickImage(club.cover, ["large", "medium", "original", "thumbnail"]);
@@ -239,12 +240,13 @@ function PartnerRow({ partner }: { partner: ClubPartner }) {
   const update = useUpdatePartner();
   const remove = useDeletePartner();
   const logoUpload = useUpdatePartnerLogo();
+  // As with the club's logo: handing back the upload's promise lets a refused partner logo come down again.
   const {
     open: pickLogo,
     preview,
     input: logoInput,
   } = usePick(
-    (f) => logoUpload.mutate({ id: partner.id, file: f }),
+    (f) => logoUpload.mutateAsync({ id: partner.id, file: f }),
     "partner logo",
   );
   const logo =
@@ -374,8 +376,12 @@ function PartnersPanel({ club }: { club: ClubSelf }) {
         parsed.error.issues[0]?.message ?? "Check the partner",
       );
     setError(null);
-    const made = await create.mutateAsync(parsed.data);
-    if (newLogo) await logoUpload.mutateAsync({ id: made.id, file: newLogo });
+    // A refusal is already toasted by the mutation; the row stays for another try.
+    const made = await create.mutateAsync(parsed.data).catch(() => null);
+    if (!made) return;
+    // The partner exists now, so the row closes even if the logo is refused
+    // (toasted too): a second Add would list the partner twice.
+    if (newLogo) await logoUpload.mutateAsync({ id: made.id, file: newLogo }).catch(() => null);
     setDraft(draftOf());
     setNewLogo(null);
     clearNewLogo();
