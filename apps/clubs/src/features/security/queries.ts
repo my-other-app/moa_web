@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ApiError } from "@moa/api";
 import { toast } from "@moa/ui";
 
 import { toastError } from "@/features/plan/errors";
 
-import { disableTwoFactor, enableTwoFactor, fetchSecurity, revokeSession, setNotifyNewDevice, signOutOthers, startTwoFactor } from "./api";
+import { disableTwoFactor, enableTwoFactor, fetchSecurity, renewRecoveryCodes, revokeSession, setNotifyNewDevice, signOutOthers, startTwoFactor } from "./api";
 
 const KEY = ["security"] as const;
 
@@ -76,5 +77,27 @@ export function useDisableTwoFactor() {
       refresh();
     },
     onError: toastError,
+  });
+}
+
+/** An admin acting as the club: the club's second factor is the club's own business. */
+export const IMPERSONATING_MESSAGE =
+  "You're signed in as this club from MyOtherApp's admin. Only the club's own sign-in can make new recovery codes.";
+
+export function useRenewRecoveryCodes() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (code: string) => renewRecoveryCodes(code),
+    onSuccess: () => {
+      toast.success("New recovery codes made. The old ones no longer work.");
+      refresh();
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.errorCode === "NOT_WHILE_IMPERSONATING") {
+        toast.error(IMPERSONATING_MESSAGE);
+        return;
+      }
+      toastError(error);
+    },
   });
 }
