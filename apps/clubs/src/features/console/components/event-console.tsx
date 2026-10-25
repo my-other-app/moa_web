@@ -23,6 +23,7 @@ import { enter } from "@moa/ui/motion";
 import { useAccess } from "@/features/access";
 import { EventRowMenu, EventStatusBadge, useEventDetail } from "@/features/events";
 import { useEventPlan, usePlan } from "@/features/plan";
+import { useTicketTypes } from "@/features/ticketing/queries";
 import { useEventSummary } from "../queries";
 import { DESIGN_LINKS, EVENT_TABS, STATUS_ACTION, STATUS_NOTICE, TAB_FEATURE, clockNotices, tabFor } from "../schemas";
 
@@ -62,6 +63,9 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   // so a grandfathered event's tabs carry no lock.
   const clubPlan = usePlan();
   const eventPlan = useEventPlan(eventId);
+  // The Tickets tab, once the API has ticket types (null from one without).
+  const tickets = useTicketTypes(eventId);
+  const ticketsOn = Boolean(tickets.data);
   // A clock read once per navigation is enough for a "has it started" notice.
   const now = React.useMemo(() => new Date(), [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -175,7 +179,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
         className="mt-5"
         label="Event sections"
         value={tab}
-        items={EVENT_TABS.filter((t) => (!("when" in t) || event.data?.[t.when] !== false) && (t.key !== "finance" || can.money)).map((t) => ({
+        items={EVENT_TABS.filter((t) => (!("when" in t) || event.data?.[t.when] !== false) && (t.key !== "finance" || can.money) && (t.key !== "tickets" || ticketsOn)).map((t) => ({
           key: t.key,
           label: <TabLabel label={t.label} lock={TAB_FEATURE[t.key] ? (t.key === "finance" ? clubPlan : eventPlan).featureLock(TAB_FEATURE[t.key]!) : null} />,
           href: `${base}${t.path}`,

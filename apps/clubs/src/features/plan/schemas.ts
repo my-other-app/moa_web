@@ -40,6 +40,8 @@ export const GATED_FEATURES = [
   "mcp",
   "whatsapp_own",
   "mailbox",
+  "coupons",
+  "waitlist",
 ] as const;
 export type GatedFeature = (typeof GATED_FEATURES)[number];
 export type PlanFeature = GatedFeature | (typeof ALWAYS_ON)[number];
@@ -70,6 +72,8 @@ export const FEATURE_LABEL: Record<GatedFeature, string> = {
   mcp: "Connecting AI assistants",
   whatsapp_own: "Your own WhatsApp Business number",
   mailbox: "A club mailbox",
+  coupons: "Discount codes",
+  waitlist: "Waiting lists",
 };
 
 /**
@@ -103,9 +107,12 @@ const FALLBACK_TIER: Partial<Record<GatedFeature, { key: string; name: string }>
   whatsapp_own: { key: "enterprise", name: "Enterprise" },
   // plan_features.mailbox: Pro and Enterprise (the backend's club_mailbox migration).
   mailbox: { key: "pro", name: "Pro" },
+  // plan_features.coupons and .waitlist: Starter and up (the backend's ticketing migration).
+  coupons: { key: "starter", name: "Starter" },
+  waitlist: { key: "starter", name: "Starter" },
 };
 
-/** The limits the server holds a club to. Storage, ticket types and coupons are not among them. */
+/** The limits the server holds a club to. Storage is not among them. */
 export const ENFORCED_LIMITS = [
   "events_per_month",
   "committee_seats",
@@ -114,6 +121,8 @@ export const ENFORCED_LIMITS = [
   "website_templates",
   "registrations_per_event",
   "registrations_per_month",
+  "ticket_types_per_event",
+  "coupons_per_event",
 ] as const;
 export type EnforcedLimit = (typeof ENFORCED_LIMITS)[number];
 
@@ -126,6 +135,8 @@ export const LIMIT_COPY: Record<EnforcedLimit, { noun: string; period?: string; 
   website_templates: { noun: "templates", label: "Website templates" },
   registrations_per_event: { noun: "registrations", period: "for one event", label: "Registrations per event" },
   registrations_per_month: { noun: "registrations", period: "this month", label: "Registrations" },
+  ticket_types_per_event: { noun: "ticket types", period: "for one event", label: "Ticket types" },
+  coupons_per_event: { noun: "discount codes", period: "for one event", label: "Discount codes" },
 };
 
 /** Where every "See plans" goes. */

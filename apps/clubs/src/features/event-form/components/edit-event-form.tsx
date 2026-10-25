@@ -5,6 +5,8 @@ import { ApiError } from "@moa/api";
 import { Card, CardContent, Skeleton } from "@moa/ui";
 
 import { useEventOffers } from "@/features/catalogue";
+import { useTicketTypes } from "@/features/ticketing/queries";
+import { formDefaultsFrom } from "@/features/ticketing/schemas";
 
 import { useEvent } from "../queries";
 import { eventDetailToFormValues } from "../mapper";
@@ -26,8 +28,12 @@ export function EditEventForm({ eventId }: { eventId: number }) {
   // the ticks are the form's starting point rather than an edit; when it
   // cannot be read the form opens anyway and leaves them as they are.
   const offers = useEventOffers(eventId);
+  // Its ticket types, the form's starting point too. Null from a server
+  // without them, and on failure the form opens without the editor (and
+  // saves nothing about types).
+  const tickets = useTicketTypes(eventId);
 
-  if (isPending || offers.isLoading) {
+  if (isPending || offers.isLoading || tickets.isLoading) {
     return (
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <Skeleton className="h-[40rem] w-full rounded-2xl" />
@@ -52,7 +58,7 @@ export function EditEventForm({ eventId }: { eventId: number }) {
 
   let defaultValues;
   try {
-    defaultValues = { ...eventDetailToFormValues(data), store_item_ids: offers.data?.item_ids };
+    defaultValues = { ...eventDetailToFormValues(data), store_item_ids: offers.data?.item_ids, ...formDefaultsFrom(tickets.data) };
   } catch {
     // A shape the mapper cannot read is better surfaced than half-filled: a
     // partially populated form would silently blank fields on save.

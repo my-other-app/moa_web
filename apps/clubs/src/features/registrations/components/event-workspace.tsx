@@ -8,6 +8,7 @@ import { enter } from "@moa/ui/motion";
 import { EventOverviewTab, type OverviewAttention } from "@/features/console";
 import { useEventDetail } from "@/features/events";
 import { EventReviewsPanel } from "@/features/reviews";
+import { TicketSalesCard } from "@/features/ticketing";
 import { useEventAnalytics } from "../queries";
 import { EventInsightsPanel } from "./event-insights-panel";
 import { EventStatCards } from "./event-stat-cards";
@@ -64,7 +65,13 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
         event={event}
         attention={attention}
         figures={<EventStatCards eventId={eventId} event={event} />}
-        signups={<EventInsightsPanel eventId={eventId} pageViews={event?.page_views} />}
+        signups={
+          <>
+            {/* Per ticket type, once the event sells more than one (or a code or a waiting list is in play). */}
+            <TicketSalesCard eventId={eventId} />
+            <EventInsightsPanel eventId={eventId} pageViews={event?.page_views} />
+          </>
+        }
         notify={event ? <NotifyGuestsPanel eventId={eventId} eventName={event.name} recipientCount={analytics?.total_registrations ?? 0} /> : undefined}
         reviews={
           <EventReviewsPanel

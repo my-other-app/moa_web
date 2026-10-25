@@ -15,6 +15,8 @@ export {
 export const EVENT_TABS = [
   { key: "overview", label: "Overview", path: "" },
   { key: "attendees", label: "Attendees", path: "/attendees" },
+  // Shown once the API has ticket types (event-console asks).
+  { key: "tickets", label: "Tickets", path: "/tickets" },
   { key: "links", label: "Links", path: "/links" },
   { key: "finance", label: "Finance", path: "/finance" },
   { key: "check-ins", label: "Check-ins", path: "/check-ins" },

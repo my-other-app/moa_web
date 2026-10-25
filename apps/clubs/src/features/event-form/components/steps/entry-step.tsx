@@ -9,6 +9,7 @@ import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
 import { ItemChecklist, useClubStore } from "@/features/catalogue";
 import { PaymentsToNote } from "@/features/payments";
 import { LockBadge, openUpgrade, useEventPlan, type PlanLock } from "@/features/plan";
+import { TicketTypesField } from "@/features/ticketing";
 
 import type { EventFormValues } from "../../schemas";
 
@@ -125,6 +126,8 @@ export function EntryStep({ eventId }: { eventId?: number } = {}) {
   // While editing, the event's own view of the plan: a grandfathered event is exempt.
   const plan = useEventPlan(eventId);
   const feeLock = plan.featureLock("tickets");
+  // Several ticket types: each has its own price and places, and "Places" is a total across them.
+  const several = Boolean(useWatch({ control: form.control, name: "several_types" }));
   return (
     <div className="grid gap-5">
       <FormField
@@ -133,19 +136,22 @@ export function EntryStep({ eventId }: { eventId?: number } = {}) {
         render={({ field }) => (
           <FormItem className={cn("sm:max-w-[320px]", aiFilledClass(ai.has("max_participants")))}>
             <FormLabel>
-              Places
+              {several ? "Total places, all ticket types" : "Places"}
               <AiFilledTag on={ai.has("max_participants")} />
             </FormLabel>
             <FormControl>
-              <Input {...field} value={field.value ?? ""} type="number" min="1" step="1" inputMode="numeric" placeholder="Unlimited" />
+              <Input {...field} value={(field.value as number | string | undefined) ?? ""} type="number" min="1" step="1" inputMode="numeric" placeholder={several ? "No total" : "Unlimited"} />
             </FormControl>
-            <FormDescription>Sign-up closes by itself when they are taken. Leave it blank for no limit.</FormDescription>
+            <FormDescription>{several ? "Optional: a cap on the whole event. Each ticket type below has its own places." : "Sign-up closes by itself when they are taken. Leave it blank for no limit."}</FormDescription>
             <FormMessage />
           </FormItem>
         )}
       />
 
+      <TicketTypesField eventId={eventId} />
+
       <div className="grid gap-3 lg:grid-cols-2">
+        {several ? null : (
         <Offer name="has_fee" icon={<IndianRupeeIcon className="size-4" />} title="Paid entry" hint="People pay through Razorpay before their ticket is issued." lock={feeLock}>
           <FormField
             control={form.control}
@@ -163,6 +169,7 @@ export function EntryStep({ eventId }: { eventId?: number } = {}) {
           {/* Whose Razorpay the money lands in: the club's own, or MyOtherApp's. */}
           <PaymentsToNote eventId={eventId} />
         </Offer>
+        )}
         <Offer name="has_prize" icon={<TrophyIcon className="size-4" />} title="A prize" hint="Shown on the card. Worth saying when it pulls people in.">
           <FormField
             control={form.control}

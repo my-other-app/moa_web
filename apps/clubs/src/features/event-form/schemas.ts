@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { ticketTypeDraftSchema } from "@/features/ticketing/schemas";
 import { pinFormShape, refinePin } from "@/features/venue";
 
 /**
@@ -130,7 +131,8 @@ export const eventFormSchema = z
     reg_fee: z.coerce.number().nonnegative().optional(),
     has_prize: z.boolean().default(false),
     prize_amount: z.coerce.number().nonnegative().optional(),
-    max_participants: z.coerce.number().int().positive().optional(),
+    // An emptied field ("") is no limit, not a zero.
+    max_participants: z.preprocess((v) => (v === "" || v === null ? undefined : v), z.coerce.number().int().positive().optional()),
     /** Sell merchandise at registration, paid with the ticket. */
     merch_enabled: z.boolean().default(false),
     /**
@@ -141,6 +143,14 @@ export const eventFormSchema = z
     store_item_ids: z.array(z.string()).optional(),
     /** Free giveaways counted out at the door. */
     swag_enabled: z.boolean().default(false),
+    /**
+     * Ticket types (features/ticketing): several, each with its own price and
+     * places, or (false) one kind of ticket at the fee and places above.
+     * `ticket_types` undefined: the server has none to offer, and nothing
+     * about types is saved.
+     */
+    several_types: z.boolean().optional(),
+    ticket_types: z.array(ticketTypeDraftSchema).optional(),
 
     // --- contact
     contact_name: z.string().trim().max(100).optional(),
@@ -200,6 +210,9 @@ export const eventFormSchema = z
         path: ["reg_enddate"],
         message: "Registration must close after it opens",
       });
+    }
+    if (value.several_types && !value.ticket_types?.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ticket_types"], message: "Add at least one ticket type" });
     }
     // Duplicate keys would silently overwrite each other in the stored JSON.
     const keys = value.additional_details.map((q) => q.key);
