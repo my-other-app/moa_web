@@ -18,13 +18,9 @@ import { CHUNK_SIZE, NOTE_MAX, people } from "../schemas";
  */
 
 function RunProgress({ progress, verb }: { progress: BulkProgress | null; verb: string }) {
-  if (!progress) return null;
-  const big = progress.total > CHUNK_SIZE || progress.phase === "reading";
-  if (!big) return null;
-  const label =
-    progress.phase === "reading"
-      ? `Reading the waiting list: ${formatNumber(progress.done)} of ${formatNumber(progress.total)}`
-      : `${verb} ${formatNumber(progress.done)} of ${formatNumber(progress.total)}`;
+  // Only for a run of more than one call: a small one is done before a bar could say anything.
+  if (!progress || progress.total <= CHUNK_SIZE) return null;
+  const label = `${verb} ${formatNumber(progress.done)} of ${formatNumber(progress.total)}`;
   return (
     <div className="grid gap-1.5" aria-live="polite">
       <ProgressBar value={progress.done} max={Math.max(1, progress.total)} tone="accent" height={8} label={label} />

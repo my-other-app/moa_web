@@ -1,12 +1,12 @@
 import {
   CHUNK_SIZE,
+  DECLINE_CHUNK_SIZE,
   MAX_IDS_PER_CALL,
   indiaTime,
   people,
   skippedLines,
   type ApproveResult,
   type DeclineResult,
-  type RegistrationRequest,
 } from "./schemas";
 
 /**
@@ -18,12 +18,11 @@ import {
  * rest are still waiting, which the summary says. Confirming stops early
  * once the server says no place is left (the rest would only be skipped).
  *
- * "Every waiting request" uses the server's `all_pending`: the oldest
- * waiting, whoever they are, so nothing is loaded first. A request the
- * server skips stays waiting at the front of the queue, so each round asks
- * for the ones it skipped plus the next few, and stops when a round brings
- * no one new. Declining has no `all_pending`, so its ids are read from the
- * list a page at a time first.
+ * "Every waiting request" uses the server's `all_pending`, for confirming
+ * and for declining: the oldest waiting, whoever they are, so nothing is
+ * loaded first. A request the server skips stays waiting at the front of
+ * the queue, so each confirming round asks for the ones it skipped plus the
+ * next few; any run stops when a round brings no one new.
  *
  * Pure (the calls are passed in), so every rule is tested without a server.
  */
@@ -31,8 +30,6 @@ import {
 export interface BulkProgress {
   done: number;
   total: number;
-  /** "Reading the list" while declining everyone: the ids come first. */
-  phase: "reading" | "sending";
 }
 
 export type StopReason = { reason: "event_full" } | { reason: "error"; message: string } | { reason: "stuck" };
@@ -93,7 +90,7 @@ export async function confirmIds(ids: readonly string[], send: (ids: string[]) =
   const approved = new Set<string>();
   const parts = chunk(ids, size);
   let sent = 0;
-  onProgress?.({ done: 0, total: ids.length, phase: "sending" });
+  onProgress?.({ done: 0, total: ids.length });
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i]!;
     let res: ApproveResult;
@@ -106,7 +103,7 @@ export async function confirmIds(ids: readonly string[], send: (ids: string[]) =
     }
     absorbApproved(out, res, approved);
     sent += part.length;
-    onProgress?.({ done: sent, total: ids.length, phase: "sending" });
+    onProgress?.({ done: sent, total: ids.length });
     if (res.places_left === 0 && i < parts.length - 1) {
       out.stopped = { reason: "event_full" };
       out.unsent = ids.length - sent;
@@ -125,7 +122,7 @@ export async function confirmAllWaiting(total: number, send: (limit: number) => 
   const out = outcome("confirm", total);
   const approved = new Set<string>();
   const seen = new Set<string>();
-  onProgress?.({ done: 0, total, phase: "sending" });
+  onProgress?.({ done: 0, total });
   // Each round either brings someone new or ends the run, so it ends; the bound is a backstop.
   for (let round = 0; round < total + 2; round++) {
     const reached = approved.size + out.skipped.size;
@@ -148,7 +145,7 @@ export async function confirmAllWaiting(total: number, send: (limit: number) => 
     const fresh = [...res.approved.map((a) => a.id), ...res.skipped.map((s) => s.id)].filter((id) => !seen.has(id));
     for (const id of fresh) seen.add(id);
     absorbApproved(out, res, approved);
-    onProgress?.({ done: Math.min(total, approved.size + out.skipped.size), total, phase: "sending" });
+    onProgress?.({ done: Math.min(total, approved.size + out.skipped.size), total });
     if (res.places_left === 0) {
       const left = total - approved.size - out.skipped.size;
       if (left > 0) {
@@ -170,11 +167,11 @@ export interface DeclineOptions {
 }
 
 /** Declines these ids, a chunk at a time. */
-export async function declineIds(ids: readonly string[], send: (ids: string[]) => Promise<DeclineResult>, options: DeclineOptions, onProgress?: Progress, size: number = CHUNK_SIZE): Promise<BulkOutcome> {
+export async function declineIds(ids: readonly string[], send: (ids: string[]) => Promise<DeclineResult>, options: DeclineOptions, onProgress?: Progress, size: number = DECLINE_CHUNK_SIZE): Promise<BulkOutcome> {
   const out = { ...outcome("decline", ids.length), notified: options.notify };
   const declined = new Set<string>();
   let sent = 0;
-  onProgress?.({ done: 0, total: ids.length, phase: "sending" });
+  onProgress?.({ done: 0, total: ids.length });
   for (const part of chunk(ids, size)) {
     let res: DeclineResult;
     try {
@@ -190,36 +187,44 @@ export async function declineIds(ids: readonly string[], send: (ids: string[]) =
     }
     for (const s of res.skipped) if (!declined.has(s.id)) out.skipped.set(s.id, s.reason);
     sent += part.length;
-    onProgress?.({ done: sent, total: ids.length, phase: "sending" });
+    onProgress?.({ done: sent, total: ids.length });
   }
   out.done = [...declined];
   return out;
 }
 
-/** Every waiting request's id, oldest first, read a page at a time (up to `total`). */
-export async function collectWaitingIds(
-  total: number,
-  fetchPage: (after: string | null) => Promise<{ items: Pick<RegistrationRequest, "id">[]; next: string | null } | null>,
-  onProgress?: Progress,
-): Promise<string[]> {
-  const ids: string[] = [];
-  const seen = new Set<string>();
-  let after: string | null = null;
-  onProgress?.({ done: 0, total, phase: "reading" });
-  // A page always moves the cursor on; the bound stops a server that doesn't.
-  for (let pages = 0; pages < total + 2; pages++) {
-    const page = await fetchPage(after);
-    if (!page) break;
-    for (const r of page.items) {
-      if (seen.has(r.id)) continue;
-      seen.add(r.id);
-      ids.push(r.id);
+/**
+ * Declines the oldest `total` waiting with `all_pending`, a round at a
+ * time, never past them. A round that declines nobody new ends the run
+ * (nobody else is waiting, or what's left is being confirmed right now).
+ */
+export async function declineAllWaiting(total: number, send: (limit: number) => Promise<DeclineResult>, options: DeclineOptions, onProgress?: Progress, size: number = DECLINE_CHUNK_SIZE): Promise<BulkOutcome> {
+  const out = { ...outcome("decline", total), notified: options.notify };
+  const declined = new Set<string>();
+  onProgress?.({ done: 0, total });
+  // Each round declines someone new or ends the run; the bound is a backstop.
+  for (let round = 0; round < total + 2; round++) {
+    const next = Math.min(size, total - declined.size);
+    if (next <= 0) break;
+    let res: DeclineResult;
+    try {
+      res = await send(next);
+    } catch (e) {
+      out.stopped = { reason: "error", message: messageOf(e) };
+      out.unsent = total - declined.size - out.skipped.size;
+      break;
     }
-    onProgress?.({ done: Math.min(ids.length, total), total, phase: "reading" });
-    if (!page.next || page.next === after || ids.length >= total || page.items.length === 0) break;
-    after = page.next;
+    const fresh = res.declined.filter((id) => !declined.has(id));
+    for (const id of fresh) {
+      declined.add(id);
+      out.skipped.delete(id);
+    }
+    for (const s of res.skipped) if (!declined.has(s.id)) out.skipped.set(s.id, s.reason);
+    onProgress?.({ done: Math.min(total, declined.size + out.skipped.size), total });
+    if (fresh.length === 0) break;
   }
-  return ids.slice(0, total);
+  out.done = [...declined];
+  return out;
 }
 
 // ─── The summary ────────────────────────────────────────────────────────

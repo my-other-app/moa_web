@@ -7,8 +7,8 @@ import { toast } from "@moa/ui";
 
 import { TICKETING_KEY } from "@/features/ticketing/queries";
 
-import { approveAllPending, approveRequests, declineRequests, fetchRequests, reopenRequests } from "./api";
-import { collectWaitingIds, confirmAllWaiting, confirmIds, declineIds, summarise, type BulkOutcome, type BulkProgress } from "./bulk";
+import { approveAllPending, approveRequests, declineAllPending, declineRequests, fetchRequests, reopenRequests } from "./api";
+import { confirmAllWaiting, confirmIds, declineAllWaiting, declineIds, summarise, type BulkOutcome, type BulkProgress } from "./bulk";
 import { PAGE_SIZE, indiaTime, skipReasonText, type RegistrationRequest, type RequestPage, type RequestStatus } from "./schemas";
 
 /**
@@ -126,9 +126,12 @@ export function useReopenRequest(eventId: number) {
   return useMutation({
     mutationFn: (r: RegistrationRequest) => reopenRequests(eventId, [r.id]),
     onSuccess: (res, r) => {
-      const refused = res.skipped?.find((s) => s.id === r.id);
+      const refused = res.skipped.find((s) => s.id === r.id);
       if (refused) {
         toast.error(`${r.full_name} couldn't be put back on the waiting list, because ${skipReasonText(refused.reason)}.`);
+        // Whatever it is now (decided again, or asked afresh), the lists say so.
+        void queryClient.invalidateQueries({ queryKey: listsKey(eventId) });
+        refreshAround(queryClient, eventId);
         return;
       }
       toast.success(`${r.full_name} is back on the waiting list.`);
@@ -165,24 +168,16 @@ export function useBulkDecision(eventId: number) {
           out = await confirmIds(plan.ids, (ids) => approveRequests(eventId, ids), setProgress);
         } else if (plan.kind === "confirm-all") {
           out = await confirmAllWaiting(plan.total, (limit) => approveAllPending(eventId, limit), setProgress);
+        } else if (plan.kind === "decline") {
+          out = await declineIds(plan.ids, (part) => declineRequests(eventId, { ids: part, notify: plan.notify, note: plan.note }), { notify: plan.notify, note: plan.note }, setProgress);
         } else {
-          const ids =
-            plan.kind === "decline"
-              ? plan.ids
-              : await collectWaitingIds(plan.total, (after) => fetchRequests(eventId, { status: "pending", after, limit: PAGE_SIZE }), setProgress);
-          out = await declineIds(ids, (part) => declineRequests(eventId, { ids: part, notify: plan.notify, note: plan.note }), { notify: plan.notify, note: plan.note }, setProgress);
-          if (plan.kind === "decline-all") out.asked = plan.total;
+          out = await declineAllWaiting(plan.total, (limit) => declineAllPending(eventId, { limit, notify: plan.notify, note: plan.note }), { notify: plan.notify, note: plan.note }, setProgress);
         }
         const s = summarise(out);
         if (s.tone === "admit") toast.success(s.title);
         else if (s.tone === "caution") toast.warning(s.title);
         else toast.error(s.title);
         return out;
-      } catch (e) {
-        // Reading the list for "decline everyone" failed before anything was sent.
-        const message = e instanceof Error && e.message ? e.message : "The server didn't answer.";
-        toast.error(`Nothing was sent: ${message}`);
-        throw e;
       } finally {
         setRunning(false);
         setProgress(null);

@@ -62,6 +62,8 @@ export const eventsFiguresSchema = z.object({
     doors_open: z.array(attentionRef).default([]),
     unmarked: z.array(attentionRef).default([]),
     stale_drafts: z.array(attentionRef).default([]),
+    /** Events with registration requests waiting for the club ("Confirm each registration"); absent from an API without them. */
+    requests_pending: z.array(z.object({ id: z.number(), name: z.string(), count: z.number() })).catch([]).default([]),
   }),
   past: z.number(),
   drafts: z.number(),

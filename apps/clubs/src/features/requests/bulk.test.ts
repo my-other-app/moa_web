@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { chunk, collectWaitingIds, confirmAllWaiting, confirmIds, declineIds, overCapacity, summarise, type BulkProgress } from "./bulk";
-import { CHUNK_SIZE, MAX_IDS_PER_CALL, answerRows, indiaTime, queueOrder, requestPageSchema, skippedLines, type ApproveResult } from "./schemas";
+import { chunk, confirmAllWaiting, confirmIds, declineAllWaiting, declineIds, overCapacity, summarise, type BulkProgress } from "./bulk";
+import { CHUNK_SIZE, DECLINE_CHUNK_SIZE, MAX_IDS_PER_CALL, answerRows, indiaTime, queueOrder, reopenResultSchema, requestPageSchema, skipReasonText, skippedLines, type ApproveResult, type DeclineResult } from "./schemas";
 
 /**
  * Deciding many requests: ids go in chunks the server accepts, in queue
@@ -54,7 +54,7 @@ describe("confirming ticked requests", () => {
     expect(calls.map((c) => c.length)).toEqual([100, 100, 50]);
     expect(calls.flat()).toEqual(ids(250));
     expect(out.done).toHaveLength(250);
-    expect(progress.at(-1)).toEqual({ done: 250, total: 250, phase: "sending" });
+    expect(progress.at(-1)).toEqual({ done: 250, total: 250 });
     expect(progress.map((p) => p.done)).toEqual([0, 100, 200, 250]);
     expect(summarise(out)).toMatchObject({ tone: "admit", title: "250 confirmed" });
   });
@@ -110,7 +110,7 @@ describe("confirming ticked requests", () => {
     const s = summarise(out);
     expect(s.title).toBe("3 confirmed, 5 skipped");
     expect(s.lines[0]).toBe(
-      "Skipped: 2 because their ticket type is sold out; 1 because their discount code no longer applies, so they wait for you to decide (they're never charged full price without being asked); 1 because someone had already decided them, or they withdrew; 1 because of “something new”.",
+      "Skipped: 2 because their ticket type is sold out; 1 because their discount code no longer applies, so they wait for you to decide (they're never charged full price without being asked); 1 because they were already decided or withdrawn, or someone else was deciding them at that moment; 1 because of “something new”.",
     );
     expect(s.lines[1]).toBe(`1 person got their ticket by email. 2 people have a paid ticket and were sent a link to pay; their places are held until ${indiaTime("2026-10-27T10:30:00+00:00")}. Unpaid by then, they go back.`);
   });
@@ -187,31 +187,76 @@ describe("confirming every waiting request (all_pending)", () => {
 });
 
 describe("declining", () => {
-  it("sends the choice to email them and the note with every chunk", async () => {
+  it("sends the choice to email them and the note with every chunk, up to the server's 500 a call", async () => {
+    expect(DECLINE_CHUNK_SIZE).toBe(MAX_IDS_PER_CALL);
     const calls: string[][] = [];
     const out = await declineIds(
-      ids(150),
+      ids(650),
       async (part) => {
         calls.push(part);
         return { declined: part.filter((id) => id !== "r7"), skipped: part.includes("r7") ? [{ id: "r7", reason: "not_pending" }] : [] };
       },
       { notify: false, note: "Full house" },
     );
-    expect(calls.map((c) => c.length)).toEqual([100, 50]);
-    expect(out.done).toHaveLength(149);
-    expect(summarise(out)).toMatchObject({ title: "149 declined, not emailed, 1 skipped", tone: "caution" });
+    expect(calls.map((c) => c.length)).toEqual([500, 150]);
+    expect(out.done).toHaveLength(649);
+    expect(summarise(out)).toMatchObject({ title: "649 declined, not emailed, 1 skipped", tone: "caution" });
   });
 
-  it("reads every waiting id a page at a time first, when declining them all", async () => {
-    const pages: Record<string, { items: { id: string }[]; next: string | null }> = {
-      start: { items: ids(50).map((id) => ({ id })), next: "c1" },
-      c1: { items: ids(50, 51).map((id) => ({ id })), next: "c2" },
-      c2: { items: ids(20, 101).map((id) => ({ id })), next: null },
-    };
+  /** A queue on the server: decline's all_pending takes the oldest `limit` still waiting. */
+  function waitingQueue(n: number, locked: string[] = []) {
+    const waiting = ids(n);
+    const limits: number[] = [];
+    const send = vi.fn(async (limit: number): Promise<DeclineResult> => {
+      limits.push(limit);
+      const batch = waiting.slice(0, limit);
+      const declined = batch.filter((id) => !locked.includes(id));
+      for (const id of declined) waiting.splice(waiting.indexOf(id), 1);
+      return { declined, skipped: batch.filter((id) => locked.includes(id)).map((id) => ({ id, reason: "not_pending" })) };
+    });
+    return { send, limits, waiting };
+  }
+
+  it("declines every waiting request in all_pending rounds, never past the number shown", async () => {
+    const q = waitingQueue(1300);
     const progress: BulkProgress[] = [];
-    const got = await collectWaitingIds(120, async (after) => pages[after ?? "start"]!, (p) => progress.push(p));
-    expect(got).toEqual(ids(120));
-    expect(progress.at(-1)).toEqual({ done: 120, total: 120, phase: "reading" });
+    const out = await declineAllWaiting(1200, q.send, { notify: true }, (p) => progress.push(p));
+    expect(q.limits).toEqual([500, 500, 200]);
+    expect(out.done).toHaveLength(1200);
+    expect(q.waiting).toHaveLength(100);
+    expect(progress.at(-1)).toEqual({ done: 1200, total: 1200 });
+    expect(summarise(out)).toMatchObject({ title: "1,200 declined and emailed", tone: "admit" });
+  });
+
+  it("stops when a round declines nobody new (others decided them, or a confirmation holds them)", async () => {
+    const q = waitingQueue(40, ["r1", "r2"]);
+    const out = await declineAllWaiting(60, q.send, { notify: false });
+    expect(out.done).toHaveLength(38);
+    expect([...out.skipped.keys()]).toEqual(["r1", "r2"]);
+    expect(q.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops at a failed round and says how many are still waiting", async () => {
+    let n = 0;
+    const out = await declineAllWaiting(700, async (limit) => {
+      if (++n === 2) throw new Error("Network down.");
+      return { declined: ids(limit), skipped: [] };
+    }, { notify: true });
+    expect(out.done).toHaveLength(500);
+    expect(out.unsent).toBe(200);
+    expect(summarise(out).lines.at(-1)).toBe("Stopped: Network down. The other 200 people weren't sent and are still waiting. Try again.");
+  });
+});
+
+describe("reopening", () => {
+  it("reads the answer, and says why one couldn't be reopened", () => {
+    const res = reopenResultSchema.parse({ reopened: ["a"], skipped: [{ id: "b", reason: "already_open" }, { id: "c", reason: "not_reopenable" }] });
+    expect(res.reopened).toEqual(["a"]);
+    expect(res.skipped.map((s) => skipReasonText(s.reason))).toEqual([
+      "they have asked again since, and that request is still open",
+      "it isn't declined or lapsed any more",
+    ]);
+    expect(reopenResultSchema.parse({})).toEqual({ reopened: [], skipped: [] });
   });
 });
 
