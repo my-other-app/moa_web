@@ -427,7 +427,7 @@ function Editor({
             <DropdownMenuContent align="end" className="w-64">
               {eventId !== undefined ? (
                 <>
-                  {template.stage === "INVITE" ? (
+                  {stageMeta.when ? null : template.stage === "INVITE" ? (
                     <DropdownMenuItem
                       onSelect={() =>
                         router.push(`/events/${eventId}/attendees`)

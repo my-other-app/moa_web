@@ -6,16 +6,62 @@ import { z } from "zod";
  * with its subject, audience, attachments and timer.
  */
 export const EMAIL_STAGES = ["INVITE", "PRE_EVENT", "REMINDER", "POST_EVENT", "CUSTOM"] as const;
-export type EmailStage = (typeof EMAIL_STAGES)[number];
 export const JOURNEY_STAGES = ["INVITE", "PRE_EVENT", "REMINDER", "POST_EVENT"] as const;
+/**
+ * The emails of "Confirm each registration" (features/requests): sent by
+ * the server as a request moves, never on a timer or by hand. A confirmed
+ * free ticket gets the normal ticket email (the invite).
+ */
+export const REQUEST_STAGES = ["REQUEST_RECEIVED", "REQUEST_APPROVED_PAY", "REQUEST_DECLINED", "REQUEST_LAPSED"] as const;
+export const KNOWN_STAGES = [...EMAIL_STAGES, ...REQUEST_STAGES] as const;
+export type EmailStage = (typeof KNOWN_STAGES)[number];
 
-export const STAGE_META: Record<EmailStage, { label: string; note: string }> = {
+export const STAGE_META: Record<EmailStage, { label: string; note: string; when?: string }> = {
   INVITE: { label: "Invite", note: "The ticket email. Goes out with the ticket, once it is switched on here." },
   PRE_EVENT: { label: "Pre-event", note: "The day before: venue, what to bring." },
   REMINDER: { label: "Reminder", note: "As the doors open, to guests not yet inside." },
   POST_EVENT: { label: "Post-event", note: "After the close: thanks, the certificate, what is next." },
   CUSTOM: { label: "Custom", note: "Any other email, sent by hand or on a timer." },
+  REQUEST_RECEIVED: {
+    label: "Request received",
+    note: "They're on the waiting list: you confirm each place and their ticket comes when you do. With a link to their request, and to withdraw.",
+    when: "when someone fills the form of an event where you confirm each registration",
+  },
+  REQUEST_APPROVED_PAY: {
+    label: "Confirmed, pay for the ticket",
+    note: "You confirmed them and the ticket is paid: the amount, the link to pay, and how long the place is held.",
+    when: "when you confirm someone with a paid ticket",
+  },
+  REQUEST_DECLINED: {
+    label: "Request declined",
+    note: "Sorry, no place this time, with the note you wrote.",
+    when: "when you decline someone and choose to email them",
+  },
+  REQUEST_LAPSED: {
+    label: "Place released",
+    note: "Their place went back because the payment didn't arrive in time.",
+    when: "when a confirmed person doesn't pay before the place is released",
+  },
 };
+
+/**
+ * A stage as the server names it, as one this build knows: the request
+ * emails in either case; anything newer reads as a custom email, so the
+ * pages that list them show it rather than failing to load.
+ */
+export function stageOf(value: string): EmailStage {
+  const upper = value.toUpperCase();
+  return (KNOWN_STAGES as readonly string[]).includes(upper) ? (upper as EmailStage) : "CUSTOM";
+}
+const stageSchema = z.string().transform(stageOf);
+
+export const isRequestStage = (stage: string): boolean => (REQUEST_STAGES as readonly string[]).includes(stage.toUpperCase());
+
+/** A stage's name for a sentence, whatever the server called it. */
+export function stageLabel(stage: string): string {
+  const known = (KNOWN_STAGES as readonly string[]).includes(stage.toUpperCase()) ? STAGE_META[stage.toUpperCase() as EmailStage] : null;
+  return known?.label ?? stage.toLowerCase().replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
 
 export const DEFAULT_FOOTER = "{{org_name}}{% if organiser_email %} · {{organiser_email}}{% endif %}";
 
@@ -173,7 +219,7 @@ export const emailTemplateSchema = emailTemplateFieldsSchema.extend({
   id: z.string(),
   clubId: z.number(),
   eventId: z.number().nullable(),
-  stage: z.enum(EMAIL_STAGES),
+  stage: stageSchema,
   version: z.number(),
   sourceId: z.string().nullish(),
   createdAt: z.string(),
@@ -202,7 +248,7 @@ export const messageSchema = z.object({
 export type Message = z.infer<typeof messageSchema>;
 
 export const journeyStageSchema = z.object({
-  stage: z.enum(EMAIL_STAGES),
+  stage: stageSchema,
   label: z.string(),
   description: z.string(),
   template: emailTemplateSchema,
@@ -389,6 +435,19 @@ export const templateUsageSchema = z.object({
 });
 
 export const libraryTemplateSchema = emailTemplateSchema.extend({ label: z.string(), usage: templateUsageSchema });
+
+/** One email the server sends by itself, as the library lists it: what it's called, its subject, and when it goes. */
+export const automaticEmailSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  subject: z.string().nullish(),
+  when: z.string().nullish(),
+  /** The heading it's listed under ("Registration requests"). */
+  group: z.string().nullish(),
+  /** Whether the club can change it here (not yet: false). */
+  customisable: z.boolean().catch(false),
+});
+export type AutomaticEmail = z.infer<typeof automaticEmailSchema>;
 export type LibraryTemplate = z.infer<typeof libraryTemplateSchema>;
 
 export const libraryOverviewSchema = z.object({
@@ -401,5 +460,11 @@ export const libraryOverviewSchema = z.object({
   attention: z.object({ disabled_stages: z.array(z.string()), bounced_30d: z.number(), failed_30d: z.number() }),
   all_time: z.object({ messages: z.number(), recipients: z.number() }),
   generated_at: z.string(),
+  /**
+   * Emails that go out by themselves and aren't edited here (yet): the
+   * registration requests' ("Confirm each registration"). Absent from an
+   * API without them.
+   */
+  automatic: z.array(automaticEmailSchema).catch([]).default([]),
 });
 export type LibraryOverview = z.infer<typeof libraryOverviewSchema>;

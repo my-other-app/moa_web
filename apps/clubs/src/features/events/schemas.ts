@@ -120,6 +120,11 @@ export const eventDetailSchema = z
      * form then works it out from the club's gateway.
      */
     payments_to: z.enum(["club", "platform"]).nullish().catch(null),
+    /**
+     * Confirm each registration: people who fill the form wait until the
+     * club confirms them (the Requests tab). Absent on an older server: off.
+     */
+    requires_approval: z.boolean().catch(false),
     /** What it is about, for the Overview: its interests, and the topics they fall under (null from a server before topics). */
     interests: z.array(linkedInterestSchema).catch([]).default([]),
     topics: topicRefsField,

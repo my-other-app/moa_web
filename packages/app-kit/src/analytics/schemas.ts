@@ -106,6 +106,8 @@ export const eventSummarySchema = z.object({
   analytics: eventFiguresSchema,
   from_report: z.boolean(),
   generated_at: z.string(),
+  /** Registration requests waiting for the club to confirm them (0 from an API without requests). */
+  requests_pending: z.number().catch(0),
 });
 
 export type EventSummary = z.infer<typeof eventSummarySchema>;
@@ -181,6 +183,9 @@ export function attentionPath(item: AttentionItem): string | null {
     case "TICKETS_MISSING":
     case "REDESIGNED_AFTER_ISSUE":
       return `/events/${item.event_id}/attendees`;
+    // People waiting for the club to confirm their registration.
+    case "REQUESTS_PENDING":
+      return `/events/${item.event_id}/requests`;
     default:
       return `/events/${item.event_id}`;
   }

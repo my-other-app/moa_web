@@ -5,7 +5,11 @@ export { EmailLibraryPage } from "./components/library-page";
 export {
   EMAIL_STAGES,
   JOURNEY_STAGES,
+  REQUEST_STAGES,
   STAGE_META,
+  isRequestStage,
+  stageLabel,
+  stageOf,
   BLOCK_META,
   emailDesignSchema,
   emailTemplateSchema,

@@ -7,6 +7,7 @@ import { ChoiceCard, Chip } from "@moa/ui";
 import { useAudienceCount } from "../queries";
 import {
   AUDIENCE_WHO,
+  STAGE_META,
   TRIGGER_MODES,
   type EmailAudience,
   type EmailScope,
@@ -342,6 +343,8 @@ export function SendingPanel({
 } & TokenProps) {
   const patch = (p: Partial<EmailTemplateFields>) =>
     onChange({ ...fields, ...p });
+  // A registration request's email goes to that one person as the request moves: no audience, no timer.
+  const when = STAGE_META[stage].when;
   return (
     <div className="space-y-3">
       <div className="min-w-0">
@@ -365,6 +368,15 @@ export function SendingPanel({
         tokens={tokens}
         samples={samples}
       />
+      {when ? (
+        <div className="border-line-soft space-y-2 border-t pt-3">
+          <p className={ui.heading}>Who and when</p>
+          <p className={ui.note}>
+            Sent to the person whose request it is, {when}.
+          </p>
+        </div>
+      ) : (
+      <>
       <div className="border-line-soft space-y-2 border-t pt-3">
         <AudienceFields
           audience={fields.audience}
@@ -409,6 +421,8 @@ export function SendingPanel({
           />
         )}
       </div>
+      </>
+      )}
       <div className="border-line-soft border-t pt-3">
         <Toggle
           id="f-enabled"
@@ -418,7 +432,9 @@ export function SendingPanel({
           note={
             stage === "INVITE"
               ? "On: tickets go out in this email. Off: the plain ticket email."
-              : "Off: timers do not fire and it is not sent."
+              : when
+                ? "Off: this version of the email is not used."
+                : "Off: timers do not fire and it is not sent."
           }
         />
       </div>

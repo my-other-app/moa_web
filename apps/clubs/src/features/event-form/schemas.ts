@@ -151,6 +151,13 @@ export const eventFormSchema = z
      */
     several_types: z.boolean().optional(),
     ticket_types: z.array(ticketTypeDraftSchema).optional(),
+    /**
+     * Confirm each registration (features/requests): people who fill the
+     * form wait until the club confirms them. Undefined when the event's
+     * detail doesn't say, or on a new event until its switch is used: then
+     * never sent.
+     */
+    requires_approval: z.boolean().optional(),
 
     // --- contact
     contact_name: z.string().trim().max(100).optional(),
