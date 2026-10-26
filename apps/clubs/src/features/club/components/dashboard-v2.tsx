@@ -35,6 +35,7 @@ import { fetchClubOverview } from "../api";
 import { useClubDashboard, useMyClub } from "../queries";
 import {
   PERIOD_OPTIONS,
+  pendingRequestItems,
   type ClubOverview,
   type Kpi,
   type OverviewEvent,
@@ -596,6 +597,8 @@ export function ClubDashboardV2() {
   // One list of decisions: the pulse's, then the finished events nobody marked attendance for.
   const attention: AttentionItem[] = [
     ...(d?.attention ?? []),
+    // People waiting for the club to confirm their registration, per event.
+    ...pendingRequestItems(o, d?.attention ?? []),
     ...o.needs_attention.map((e) => ({
       kind: "NO_ATTENDANCE",
       tone: "amber" as const,

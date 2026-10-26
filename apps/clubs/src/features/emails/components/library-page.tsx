@@ -51,12 +51,16 @@ import {
 } from "../queries";
 import {
   JOURNEY_STAGES,
+  REQUEST_STAGES,
   STAGE_META,
   audienceSummary,
   blankTemplate,
   triggerSummary,
   type LibraryOverview,
+  type AutomaticEmail,
   type LibraryTemplate,
+  isRequestStage,
+  stageLabel,
 } from "../schemas";
 import { EmailPreview, MiniFigures, PreviewToggle } from "./parts";
 
@@ -71,6 +75,7 @@ import { EmailPreview, MiniFigures, PreviewToggle } from "./parts";
  * stays on its own page.
  */
 const STAGE_ORDER = JOURNEY_STAGES as readonly string[];
+const REQUEST_ORDER = REQUEST_STAGES as readonly string[];
 
 function Queue({ o }: { o: LibraryOverview }) {
   return (
@@ -214,16 +219,23 @@ function StageCard({ t }: { t: LibraryTemplate }) {
           </span>
         ) : null}
       </div>
-      <p className="text-ink-2 mt-2 text-[12.5px]">
-        Goes out{" "}
-        <span className="text-ink">
-          {triggerSummary(t.trigger).toLowerCase()}
-        </span>{" "}
-        · to{" "}
-        <span className="text-ink">
-          {audienceSummary(t.audience).toLowerCase()}
-        </span>
-      </p>
+      {meta.when ? (
+        // Sent by the server as a request moves, not on a timer or to an audience.
+        <p className="text-ink-2 mt-2 text-[12.5px]">
+          Goes out <span className="text-ink">{meta.when}</span>
+        </p>
+      ) : (
+        <p className="text-ink-2 mt-2 text-[12.5px]">
+          Goes out{" "}
+          <span className="text-ink">
+            {triggerSummary(t.trigger).toLowerCase()}
+          </span>{" "}
+          · to{" "}
+          <span className="text-ink">
+            {audienceSummary(t.audience).toLowerCase()}
+          </span>
+        </p>
+      )}
       <p className="text-ink-3 mt-0.5 text-[12px]">{meta.note}</p>
       <MiniFigures
         items={
@@ -282,6 +294,49 @@ function StageCard({ t }: { t: LibraryTemplate }) {
         </span>
       </div>
       <Preview t={t} open={open} />
+    </FigurePanel>
+  );
+}
+
+const REQUESTS_GROUP = "Registration requests";
+
+/** The emails that go by themselves, under their headings, in the server's order; the request emails' heading is there for their templates too. */
+function groupAutomatic(emails: readonly AutomaticEmail[], requestTemplates: boolean): [string, AutomaticEmail[]][] {
+  const groups = new Map<string, AutomaticEmail[]>();
+  if (requestTemplates) groups.set(REQUESTS_GROUP, []);
+  for (const e of emails) {
+    const g = e.group?.trim() || "Sent by themselves";
+    groups.set(g, [...(groups.get(g) ?? []), e]);
+  }
+  return [...groups.entries()];
+}
+
+/** An email the server sends by itself: its name, its subject, and when it goes. Not edited here (yet). */
+function AutomaticCard({ e }: { e: AutomaticEmail }) {
+  return (
+    <FigurePanel className="flex flex-col p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-ink truncate text-[15px] font-semibold">
+            {e.name}
+          </p>
+          {e.subject ? (
+            <p className="text-ink-3 truncate text-[12px]">{e.subject}</p>
+          ) : null}
+        </div>
+        {!e.customisable ? (
+          <span className="text-ink-3 shrink-0 font-mono text-[10px] tracking-[0.06em] uppercase">
+            Automatic
+          </span>
+        ) : null}
+      </div>
+      {e.when ? (
+        <p className="text-ink-2 mt-2 text-[12.5px]">{e.when}</p>
+      ) : null}
+      <p className="text-ink-3 mt-auto pt-2 text-[11.5px]">
+        In your club&apos;s colours and logo, like the ticket email.
+        {e.customisable ? "" : " Its words can't be changed here yet."}
+      </p>
     </FigurePanel>
   );
 }
@@ -358,10 +413,19 @@ export function EmailLibraryPage() {
   const [deleting, setDeleting] = React.useState<LibraryTemplate | null>(null);
   const o = overview.data;
   const journey = (o?.templates ?? [])
-    .filter((t) => t.stage !== "CUSTOM")
+    .filter((t) => STAGE_ORDER.includes(t.stage))
     .sort(
       (a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage),
     );
+  // Confirm each registration's emails, once the server lists them: as
+  // emails that go by themselves (`automatic`), or as templates of their own.
+  const requestEmails = (o?.templates ?? [])
+    .filter((t) => isRequestStage(t.stage))
+    .sort(
+      (a, b) =>
+        REQUEST_ORDER.indexOf(a.stage) - REQUEST_ORDER.indexOf(b.stage),
+    );
+  const automaticGroups = groupAutomatic(o?.automatic ?? [], requestEmails.length > 0);
   const custom = (o?.templates ?? []).filter((t) => t.stage === "CUSTOM");
   const f = o?.figures;
   const delta = (d: number | null | undefined) =>
@@ -472,14 +536,14 @@ export function EmailLibraryPage() {
               tag="Journey"
               action={
                 <Link
-                  href={`/emails/${journey.find((t) => t.stage === off[0])?.id ?? ""}`}
+                  href={`/emails/${(o.templates.find((t) => t.stage === off[0]) ?? journey[0])?.id ?? ""}`}
                   className="btn btn-secondary btn-sm"
                 >
                   Open it
                 </Link>
               }
             >
-              {off.map((s) => STAGE_META[s as "INVITE"].label).join(", ")}{" "}
+              {off.map(stageLabel).join(", ")}{" "}
               {off.length === 1 ? "is" : "are"} switched off in the library, so
               new events start without {off.length === 1 ? "it" : "them"}.
             </Notice>
@@ -503,6 +567,28 @@ export function EmailLibraryPage() {
               ))}
             </div>
           </section>
+
+          {automaticGroups.map(([group, emails]) => {
+            const requests = group === REQUESTS_GROUP;
+            return (
+              <section key={group}>
+                <h2 className="eyebrow mb-1">{group}</h2>
+                <p className="text-ink-3 mb-2 text-[12.5px]">
+                  {requests
+                    ? "For events where you confirm each registration. Each goes to the one person, by itself, as their request moves."
+                    : "These go out by themselves."}
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {requests
+                    ? requestEmails.map((t) => <StageCard key={t.id} t={t} />)
+                    : null}
+                  {emails.map((e) => (
+                    <AutomaticCard key={e.key} e={e} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
 
           <section>
             <h2 className="eyebrow mb-2">Other emails</h2>

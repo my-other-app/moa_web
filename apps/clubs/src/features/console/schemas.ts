@@ -15,6 +15,8 @@ export {
 export const EVENT_TABS = [
   { key: "overview", label: "Overview", path: "" },
   { key: "attendees", label: "Attendees", path: "/attendees" },
+  // Confirm each registration: once the API has requests, and the event asks for them or has any.
+  { key: "requests", label: "Requests", path: "/requests" },
   // Shown once the API has ticket types (event-console asks).
   { key: "tickets", label: "Tickets", path: "/tickets" },
   { key: "links", label: "Links", path: "/links" },
@@ -137,11 +139,12 @@ const n = (count: number, one: string, many: string) => `${count.toLocaleString(
 /**
  * What on this event needs somebody now, from the summary alone: sends the
  * provider refused, guests without a ticket (or holding an old design),
- * addresses that bounced, ID cards that failed to print. Red before amber.
+ * people waiting for the club to confirm their registration, addresses that
+ * bounced, ID cards that failed to print. Red before amber.
  * Once the list has been scrubbed there is nobody left to act on, so it is
  * empty; a draft sends no tickets by design, so a missing one is not news.
  */
-export function overviewAttention(s: Pick<EventSummary, "status" | "from_report" | "tickets" | "analytics">): OverviewAttention[] {
+export function overviewAttention(s: Pick<EventSummary, "status" | "from_report" | "tickets" | "analytics" | "requests_pending">): OverviewAttention[] {
   if (s.from_report) return [];
   const out: OverviewAttention[] = [];
   const failed = s.analytics.deliveries.reduce((sum, d) => sum + d.failed, 0);
@@ -170,6 +173,15 @@ export function overviewAttention(s: Pick<EventSummary, "status" | "from_report"
       title: `${n(t.missing, "guest", "guests")} without a ticket`,
       body: `${t.missing === 1 ? "No ticket has" : "No tickets have"} reached them yet. Send from the guest list; sending is safe to repeat.`,
       path: "/attendees",
+    });
+  }
+  if (s.requests_pending > 0) {
+    out.push({
+      kind: "REQUESTS_PENDING",
+      tone: "amber",
+      title: `${n(s.requests_pending, "person", "people")} waiting for you to confirm`,
+      body: "They filled the form and have no place yet. Their ticket goes out when you confirm them.",
+      path: "/requests",
     });
   }
   const bounced = s.analytics.contacts.bounced;

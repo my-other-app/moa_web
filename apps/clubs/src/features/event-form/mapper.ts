@@ -35,6 +35,8 @@ const detailSchema = z
     prize_amount: z.coerce.number().nullish(),
     merch_enabled: z.boolean().nullish(),
     swag_enabled: z.boolean().nullish(),
+    // Confirm each registration; absent from an API without it: off.
+    requires_approval: z.boolean().nullish(),
     max_participants: z.coerce.number().nullish(),
     contact_name: z.string().nullish(),
     contact_phone: z.string().nullish(),
@@ -126,6 +128,9 @@ export function eventDetailToFormValues(raw: unknown): EventFormValues {
     prize_amount: d.prize_amount ?? undefined,
     merch_enabled: d.merch_enabled ?? false,
     swag_enabled: d.swag_enabled ?? false,
+    // Only what the event said: absent (an API without it), it stays unset and is never sent,
+    // so a save can't switch off what it never read.
+    requires_approval: d.requires_approval ?? undefined,
     max_participants: d.max_participants ?? undefined,
 
     contact_name: d.contact_name ?? "",

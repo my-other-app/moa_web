@@ -25,6 +25,8 @@ import { CancelEventDialog, useCancelState } from "@/features/event-cancel";
 import { useResults } from "@/features/results";
 import { EventRowMenu, EventStatusBadge, useEventDetail } from "@/features/events";
 import { useEventPlan, usePlan } from "@/features/plan";
+import { useRequestCounts } from "@/features/requests/queries";
+import { totalOf } from "@/features/requests/schemas";
 import { useTicketTypes } from "@/features/ticketing/queries";
 import { useEventSummary } from "../queries";
 import { DESIGN_LINKS, EVENT_TABS, STATUS_ACTION, STATUS_NOTICE, TAB_FEATURE, clockNotices, tabFor } from "../schemas";
@@ -41,6 +43,21 @@ import { DESIGN_LINKS, EVENT_TABS, STATUS_ACTION, STATUS_NOTICE, TAB_FEATURE, cl
  * acts on the event as a whole sits behind the one "More" menu the events
  * list uses, so a row and its page offer the same verbs.
  */
+/** The Requests tab's name, with how many wait for a decision. */
+function RequestsLabel({ pending }: { pending: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      Requests
+      {pending > 0 ? (
+        <span className="bg-caution-soft text-caution border-caution-line rounded-full border px-1.5 font-mono text-[10.5px] leading-[16px] font-semibold tabular-nums">
+          {pending > 999 ? "999+" : pending.toLocaleString("en-IN")}
+          <span className="sr-only"> waiting</span>
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 /** A section's name, with a lock when the plan does not include it. */
 function TabLabel({ label, lock }: { label: string; lock: { requiredPlanName: string | null } | null }) {
   if (!lock) return <>{label}</>;
@@ -73,6 +90,10 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   // The Tickets tab, once the API has ticket types (null from one without).
   const tickets = useTicketTypes(eventId);
   const ticketsOn = Boolean(tickets.data);
+  // The Requests tab, once the API has registration requests (null from one without), for an
+  // event that asks the club to confirm each registration or has any requests at all.
+  const requests = useRequestCounts(eventId);
+  const pending = requests.data?.counts.pending ?? 0;
   // A clock read once per navigation is enough for a "has it started" notice.
   const now = React.useMemo(() => new Date(), [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -101,6 +122,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
     results: results.data != null,
     // The payments of a paid event, and the aftermath of a cancelled one.
     payments: moneyTools && can.money && (Boolean(e?.has_fee) || status === "cancelled"),
+    requests: requests.data != null && (Boolean(e?.requires_approval) || totalOf(requests.data.counts) > 0),
   };
   const notices = s ? clockNotices(s, now) : [];
 
@@ -216,7 +238,12 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
             (!(t.key in onServer) || onServer[t.key] === true),
         ).map((t) => ({
           key: t.key,
-          label: <TabLabel label={t.label} lock={TAB_FEATURE[t.key] ? (t.key === "finance" ? clubPlan : eventPlan).featureLock(TAB_FEATURE[t.key]!) : null} />,
+          label:
+            t.key === "requests" ? (
+              <RequestsLabel pending={pending} />
+            ) : (
+              <TabLabel label={t.label} lock={TAB_FEATURE[t.key] ? (t.key === "finance" ? clubPlan : eventPlan).featureLock(TAB_FEATURE[t.key]!) : null} />
+            ),
           href: `${base}${t.path}`,
           count: t.key === "attendees" ? (s?.registered ?? null) : t.key === "check-ins" ? (s?.checked_in ?? null) : null,
         }))}

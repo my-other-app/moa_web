@@ -147,6 +147,8 @@ function StageCard({
   const meta = STAGE_META[t.stage];
   const last = stage.lastMessage ?? null;
   const isInvite = t.stage === "INVITE";
+  // A registration request's email: the server sends it as the request moves, never by hand.
+  const automatic = Boolean(meta.when);
   const attach = [
     t.attachments.ticketPdf || isInvite ? "the ticket" : null,
     t.attachments.certificatePdf ? "the certificate" : null,
@@ -250,15 +252,21 @@ function StageCard({
           />
         </label>
       </div>
-      <p className="text-ink-2 mt-2 text-[12.5px]">
-        Goes out{" "}
-        <span className="text-ink">
-          {isInvite ? "with every ticket" : lower(triggerSummary(t.trigger))}
-        </span>{" "}
-        · to{" "}
-        <span className="text-ink">{lower(audienceSummary(t.audience))}</span>
-        {attach.length ? ` · with ${attach.join(" and ")}` : ""}
-      </p>
+      {automatic ? (
+        <p className="text-ink-2 mt-2 text-[12.5px]">
+          Goes out <span className="text-ink">{meta.when}</span>
+        </p>
+      ) : (
+        <p className="text-ink-2 mt-2 text-[12.5px]">
+          Goes out{" "}
+          <span className="text-ink">
+            {isInvite ? "with every ticket" : lower(triggerSummary(t.trigger))}
+          </span>{" "}
+          · to{" "}
+          <span className="text-ink">{lower(audienceSummary(t.audience))}</span>
+          {attach.length ? ` · with ${attach.join(" and ")}` : ""}
+        </p>
+      )}
       <p
         className={cn(
           "mt-0.5 text-[12px]",
@@ -298,7 +306,7 @@ function StageCard({
             >
               <SendIcon /> Send tickets
             </Link>
-          ) : (
+          ) : automatic ? null : (
             <Button size="sm" variant="secondary" onClick={() => onSend(t)}>
               <SendIcon /> Send now
             </Button>

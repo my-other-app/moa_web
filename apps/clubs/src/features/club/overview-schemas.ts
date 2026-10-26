@@ -33,6 +33,8 @@ export const overviewEventSchema = z.object({
      club that did nothing wrong. */
   view_to_signup: z.number().nullable(),
   turnout: z.number().nullable(),
+  /** Registration requests waiting for the club to confirm them (0 from an API without requests). */
+  requests_pending: z.number().catch(0),
 });
 
 export const seriesPointSchema = z.object({
@@ -80,3 +82,37 @@ export const PERIOD_OPTIONS = [
   { value: 30, label: "Last 30 days" },
   { value: 90, label: "Last 90 days" },
 ] as const;
+
+/** One decision the dashboard's attention card lists, as the club pulse sends them. */
+interface PulseItem {
+  kind: string;
+  tone: "red" | "amber";
+  title: string;
+  body: string;
+  event_id: number | null;
+}
+
+/**
+ * "N people waiting for you to confirm", one per event that has requests
+ * waiting, from the overview's events: unless the pulse already said it for
+ * that event (a server that puts it among its attention items). The link is
+ * the event's Requests (attentionPath, REQUESTS_PENDING).
+ */
+export function pendingRequestItems(o: Pick<ClubOverview, "next_event" | "upcoming" | "needs_attention" | "reach">, pulse: readonly PulseItem[] = []): PulseItem[] {
+  const said = new Set(pulse.filter((p) => p.kind === "REQUESTS_PENDING").map((p) => p.event_id));
+  const seen = new Set<number>();
+  const out: PulseItem[] = [];
+  for (const e of [...(o.next_event ? [o.next_event] : []), ...o.upcoming, ...o.needs_attention, ...o.reach]) {
+    if (seen.has(e.id) || said.has(e.id) || e.requests_pending <= 0) continue;
+    seen.add(e.id);
+    const n = e.requests_pending;
+    out.push({
+      kind: "REQUESTS_PENDING",
+      tone: "amber",
+      title: `${n.toLocaleString("en-IN")} ${n === 1 ? "person" : "people"} waiting for you to confirm`,
+      body: `For ${e.name}. They have no place until you confirm them; their ticket goes out when you do.`,
+      event_id: e.id,
+    });
+  }
+  return out;
+}

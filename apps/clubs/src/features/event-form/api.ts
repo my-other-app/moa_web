@@ -32,6 +32,10 @@ import type { AgendaDraftItem, EventFormParsed } from "./schemas";
  *   clear_point        "true" to drop the club's own pin: Remove pin, a
  *                      pasted map link replacing it, or an online event.
  *   booleans           sent as "true"/"false".
+ *   requires_approval  "true"/"false": confirm each registration. Sent
+ *                      only when the form carries it: editing, as read
+ *                      from the event's detail; making one, once its switch
+ *                      (shown when the server has requests) was used.
  *   store_item_ids     JSON array string of the club's items the event
  *                      sells, in the order ticked. Sent only with
  *                      merch_enabled on and the list known: switching
@@ -70,6 +74,8 @@ export function toEventFormData(values: EventFormParsed, status?: "draft" | "pub
   fd.append("merch_enabled", String(values.merch_enabled));
   if (values.merch_enabled && values.store_item_ids) fd.append("store_item_ids", JSON.stringify(values.store_item_ids));
   fd.append("swag_enabled", String(values.swag_enabled));
+  // Only when the form carries it: an API without it never sees the field.
+  if (values.requires_approval !== undefined) fd.append("requires_approval", String(values.requires_approval));
 
   put("location_name", values.is_online ? undefined : values.location_name);
   // The map link, for an in-person event. Left empty (or the event went
