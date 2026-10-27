@@ -380,7 +380,8 @@ function Season({ f, now }: { f: EventsFigures; now: number }) {
     f.attention.closing_soon.length +
     f.attention.doors_open.length +
     f.attention.unmarked.length +
-    f.attention.stale_drafts.length;
+    f.attention.stale_drafts.length +
+    f.attention.requests_pending.length;
   const next = f.next_event
     ? `next ${relativeDay(f.next_event.starts_at, now)}`
     : "nothing scheduled";
@@ -446,6 +447,21 @@ function Attention({ f, now }: { f: EventsFigures; now: number }) {
       ),
       href: `/gate/${e.id}`,
       action: "Open gate",
+    });
+  // People who filled the form and have no place until the club confirms them.
+  for (const e of f.attention.requests_pending)
+    items.push({
+      key: `r${e.id}`,
+      tone: "caution",
+      tag: "Requests",
+      text: (
+        <>
+          {formatNumber(e.count)} {e.count === 1 ? "person" : "people"} waiting
+          for you to confirm at <strong>{e.name}</strong>.
+        </>
+      ),
+      href: `/events/${e.id}/requests`,
+      action: "Open requests",
     });
   for (const e of f.attention.closing_soon)
     items.push({

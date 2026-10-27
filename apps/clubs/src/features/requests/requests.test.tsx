@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { ApiError } from "@moa/api";
+import { toast } from "@moa/ui";
 
 import eventFixture from "../__fixtures__/event-detail.json";
 
@@ -23,10 +24,13 @@ interface Req {
   answers: Record<string, unknown> | null;
   submitted_at: string;
   decided_at: string | null;
-  decided_by: string | null;
+  decided_by: { id: number | null; name: string | null } | null;
   decline_note: string | null;
   registration_id: string | null;
   pay_by: string | null;
+  amount: number | null;
+  discount_code: string | null;
+  whatsapp_opt_in: boolean;
 }
 
 const calls: Array<{ method: string; path: string; query?: Record<string, unknown>; body?: Record<string, unknown> }> = [];
@@ -37,6 +41,8 @@ let requests: Req[] = [];
 /** Holds an approve call until released, to see the progress of a long run. */
 let gate: { at: number; wait: Promise<void> } | null = null;
 let approveCalls = 0;
+/** The server's reason for refusing a reopen, when it should. */
+let reopenRefusal: string | null = null;
 
 const at = (minute: number) => new Date(Date.UTC(2026, 9, 26, 4, minute)).toISOString();
 
@@ -55,6 +61,9 @@ function req(i: number, over: Partial<Req> = {}): Req {
     decline_note: null,
     registration_id: null,
     pay_by: null,
+    amount: null,
+    discount_code: null,
+    whatsapp_opt_in: false,
     ...over,
   };
 }
@@ -125,19 +134,31 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
           return approve(body);
         }
         if (path.endsWith("/requests/decline")) {
+          const targets = body.all_pending
+            ? requests.filter((r) => r.status === "pending").sort(byQueue).slice(0, Number(body.limit)).map((r) => r.id)
+            : (body.ids as string[]);
           const declined: string[] = [];
-          for (const id of body.ids as string[]) {
+          for (const id of targets) {
             const r = requests.find((x) => x.id === id)!;
             if (r.status !== "pending") continue;
             r.status = "declined";
             r.decline_note = (body.note as string) ?? null;
             declined.push(id);
           }
-          return { declined, skipped: [] };
+          return { declined, skipped: targets.filter((id) => !declined.includes(id)).map((id) => ({ id, reason: "not_pending" })) };
         }
         if (path.endsWith("/requests/reopen")) {
-          for (const id of body.ids as string[]) requests.find((x) => x.id === id)!.status = "pending";
-          return { reopened: body.ids, skipped: [] };
+          const reopened: string[] = [];
+          const skipped: Array<{ id: string; reason: string }> = [];
+          for (const id of body.ids as string[]) {
+            const r = requests.find((x) => x.id === id)!;
+            if (reopenRefusal) skipped.push({ id, reason: reopenRefusal });
+            else {
+              r.status = "pending";
+              reopened.push(id);
+            }
+          }
+          return { reopened, skipped };
         }
         throw new Error(`unstubbed POST ${path}`);
       }),
@@ -161,11 +182,12 @@ beforeEach(() => {
   places = null;
   gate = null;
   approveCalls = 0;
+  reopenRefusal = null;
   requests = [
     req(1, { full_name: "Asha Rao", email: "asha@example.com", phone: "+91 98470 00001", answers: { college: "CET", diet: "veg" } }),
     req(2, { full_name: "Bilal Khan", email: "bilal@example.com", ticket_type: { id: 4, name: "Early bird" } }),
     req(3, { full_name: "Chitra Nair", email: "chitra@example.com" }),
-    req(4, { full_name: "Dev Menon", status: "declined", decided_at: at(30), decided_by: "Priya", decline_note: "Full house" }),
+    req(4, { full_name: "Dev Menon", status: "declined", decided_at: at(30), decided_by: { id: 9, name: "Priya" }, decline_note: "Full house" }),
   ];
 });
 
@@ -317,19 +339,24 @@ describe("deciding", () => {
     expect(posts("/decline")[0]!.body).toEqual({ ids: ["rq-0002"], notify: false, note: "We had far more requests than seats." });
   });
 
-  it("declines everyone waiting by reading their ids a page at a time, emailing them by default", async () => {
-    requests = Array.from({ length: 120 }, (_, i) => req(i + 1));
+  it("declines everyone waiting through all_pending without loading them, emailing them by default", async () => {
+    requests = Array.from({ length: 620 }, (_, i) => req(i + 1));
     render(<RequestsPage eventId={37} />);
-    await screen.findByText("Showing 50 of 120");
+    await screen.findByText("Showing 50 of 620");
     fireEvent.click(screen.getByRole("checkbox", { name: "Select all on this page" }));
-    fireEvent.click(screen.getByRole("button", { name: "Select all 120 waiting" }));
-    fireEvent.click(screen.getByRole("button", { name: "Decline 120" }));
-    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Decline 120" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select all 620 waiting" }));
+    fireEvent.click(screen.getByRole("button", { name: "Decline 620" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("A note for them (optional)"), { target: { value: "Full house" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Decline 620" }));
 
-    expect(await screen.findByText("120 declined and emailed.")).toBeInTheDocument();
-    const bodies = posts("/decline").map((c) => c.body as { ids: string[]; notify: boolean });
-    expect(bodies.map((b) => b.ids.length)).toEqual([100, 20]);
-    expect(bodies.every((b) => b.notify === true)).toBe(true);
+    expect(await screen.findByText("620 declined and emailed.")).toBeInTheDocument();
+    expect(posts("/decline").map((c) => c.body)).toEqual([
+      { all_pending: true, limit: 500, notify: true, note: "Full house" },
+      { all_pending: true, limit: 120, notify: true, note: "Full house" },
+    ]);
+    // Nothing was read to do it: the list's first page only.
+    expect(calls.filter((c) => c.method === "GET" && c.query?.after).length).toBe(0);
   });
 
   it("reopens a declined request", async () => {
@@ -340,6 +367,33 @@ describe("deciding", () => {
     await waitFor(() => expect(screen.queryByText("Dev Menon")).toBeNull());
     expect(posts("/reopen")[0]!.body).toEqual({ ids: ["rq-0004"] });
     expect(screen.getByRole("button", { name: /^Waiting/ })).toHaveTextContent("4");
+  });
+
+  it("says why a request couldn't be reopened, and leaves it where it is", async () => {
+    reopenRefusal = "already_open";
+    const error = vi.spyOn(toast, "error");
+    render(<RequestsPage eventId={37} />);
+    await screen.findByText("Asha Rao");
+    fireEvent.click(screen.getByRole("button", { name: /^Declined/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Reopen Dev Menon's request" }));
+    await waitFor(() =>
+      expect(error).toHaveBeenCalledWith("Dev Menon couldn't be put back on the waiting list, because they have asked again since, and that request is still open."),
+    );
+    expect(screen.getByText("Dev Menon")).toBeInTheDocument();
+    error.mockRestore();
+  });
+
+  it("shows a confirmed paid ticket's price and its pay-by, and a WhatsApp ask", async () => {
+    requests = [
+      req(1, { full_name: "Esha Pillai", phone: "+91 98470 00009", whatsapp_opt_in: true }),
+      req(2, { full_name: "Farah Ali", status: "approved", decided_at: at(40), amount: 199, pay_by: "2026-10-27T10:30:00Z" }),
+      req(3, { full_name: "Gopal Das", status: "approved", decided_at: at(41), amount: 149.5, registration_id: "reg-3" }),
+    ];
+    render(<RequestsPage eventId={37} />);
+    expect(await screen.findByText("p1@example.com · +91 98470 00009 · WhatsApp")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Confirmed/ }));
+    expect(await screen.findByText(`Confirmed ${indiaTime(at(40))} · ₹199 to pay by ${indiaTime("2026-10-27T10:30:00Z")}`)).toBeInTheDocument();
+    expect(screen.getByText(`Confirmed ${indiaTime(at(41))} · registered · ₹149.50`)).toBeInTheDocument();
   });
 });
 

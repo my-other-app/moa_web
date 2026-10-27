@@ -17,6 +17,7 @@ import {
   Toolbar,
   ToolbarEnd,
   cn,
+  toast,
   type StatusTone,
 } from "@moa/ui";
 
@@ -32,6 +33,7 @@ import {
   indiaTime,
   people,
   queueOrder,
+  rupees,
   type QuestionField,
   type RegistrationRequest,
   type RequestStatus,
@@ -82,15 +84,18 @@ function useQuestions(eventId: number): QuestionField[] {
 /** What happened to a decided request, in a line. */
 function decidedLine(r: RegistrationRequest): string | null {
   switch (r.status) {
-    case "approved":
-      if (r.pay_by && !r.registration_id) return `Confirmed${r.decided_at ? ` ${indiaTime(r.decided_at)}` : ""} · to pay by ${indiaTime(r.pay_by)}`;
-      return `Confirmed${r.decided_at ? ` ${indiaTime(r.decided_at)}` : ""}${r.registration_id ? " · registered" : ""}`;
+    case "approved": {
+      const when = r.decided_at ? ` ${indiaTime(r.decided_at)}` : "";
+      // A paid ticket's price, as confirmed (its code taken off): owed while the place is held, then paid.
+      if (r.pay_by && !r.registration_id) return `Confirmed${when} · ${r.amount !== null ? `${rupees(r.amount)} ` : ""}to pay by ${indiaTime(r.pay_by)}`;
+      return `Confirmed${when}${r.registration_id ? " · registered" : ""}${r.amount !== null ? ` · ${rupees(r.amount)}` : ""}`;
+    }
     case "declined":
       return `Declined${r.decided_at ? ` ${indiaTime(r.decided_at)}` : ""}`;
     case "withdrawn":
       return `Withdrew${r.decided_at ? ` ${indiaTime(r.decided_at)}` : ""}`;
     case "lapsed":
-      return `Didn't pay in time${r.pay_by ? ` (by ${indiaTime(r.pay_by)})` : ""}: the place was released`;
+      return `Didn't pay${r.amount !== null ? ` ${rupees(r.amount)}` : ""} in time${r.pay_by ? ` (by ${indiaTime(r.pay_by)})` : ""}: the place was released`;
     case "closed":
       return "Closed with the event";
     default:
@@ -128,7 +133,8 @@ function RequestRow({
   busy: boolean;
 }) {
   const answers = answerRows(r.answers, fields);
-  const contact = [r.email, r.phone].filter(Boolean).join(" · ");
+  // As the waiting list says it: their ticket on WhatsApp too, when they asked.
+  const contact = [r.email, r.phone, r.whatsapp_opt_in && r.phone ? "WhatsApp" : null].filter(Boolean).join(" · ");
   const columns = 4 + (selectable ? 1 : 0) + (showDecided ? 1 : 0) + (canDecide ? 1 : 0);
   return (
     <>
@@ -280,8 +286,9 @@ export function RequestsPage({ eventId }: { eventId: number }) {
     try {
       const out = await bulk.run(plan);
       setOutcome(summarise(out));
-    } catch {
-      // Toasted by the run; nothing was sent.
+    } catch (e) {
+      // The runs report a failed call in their summary; this is anything else, said as it is.
+      toast.error(e instanceof Error && e.message ? e.message : "That didn't go through. Try again.");
     } finally {
       setDialog(null);
       setSelection((cur) => {

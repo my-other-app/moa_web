@@ -2,6 +2,7 @@ import { api } from "@moa/app-kit";
 
 import {
   CHUNK_SIZE,
+  DECLINE_CHUNK_SIZE,
   MAX_IDS_PER_CALL,
   approveResultSchema,
   declineResultSchema,
@@ -24,7 +25,8 @@ export interface RequestQuery {
 /** GET …/requests: one page of a status, oldest first, with every status's count and the places left. */
 export async function fetchRequests(eventId: number, query: RequestQuery) {
   const raw = await api.get<unknown>(base(eventId), {
-    query: { status: query.status, q: query.q?.trim() || undefined, after: query.after ?? undefined, limit: query.limit },
+    // The server takes a search of up to 100 characters.
+    query: { status: query.status, q: query.q?.trim().slice(0, 100) || undefined, after: query.after ?? undefined, limit: query.limit },
   });
   return requestPageSchema.parse(raw);
 }
@@ -59,7 +61,14 @@ export async function declineRequests(eventId: number, body: DeclineBody) {
   return declineResultSchema.parse(await api.post<unknown>(`${base(eventId)}/decline`, { ids: body.ids, notify: body.notify, ...(note ? { note } : {}) }));
 }
 
-/** POST …/requests/reopen: declined or lapsed, back to waiting. */
+/** POST …/requests/decline with all_pending: the oldest `limit` waiting, whoever they are. */
+export async function declineAllPending(eventId: number, options: { limit?: number; notify: boolean; note?: string }) {
+  const note = options.note?.trim();
+  const limit = Math.min(MAX_IDS_PER_CALL, Math.max(1, options.limit ?? DECLINE_CHUNK_SIZE));
+  return declineResultSchema.parse(await api.post<unknown>(`${base(eventId)}/decline`, { all_pending: true, limit, notify: options.notify, ...(note ? { note } : {}) }));
+}
+
+/** POST …/requests/reopen: declined or lapsed, back to waiting where they were in the queue. */
 export async function reopenRequests(eventId: number, ids: readonly string[]) {
   guard(ids);
   return reopenResultSchema.parse(await api.post<unknown>(`${base(eventId)}/reopen`, { ids }));

@@ -58,6 +58,19 @@ beforeEach(() => {
 });
 
 describe("the events page", () => {
+  it("says which events have people waiting for the club to confirm them", async () => {
+    const held = figures.attention;
+    (figures as { attention: unknown }).attention = { ...held, closing_soon: [], unmarked: [], requests_pending: [{ id: 69, name: "Annual Summit", count: 12 }] };
+    try {
+      render(<ClubEventsList />);
+      const notice = (await screen.findByText(/people waiting for you to confirm at/)).closest("[role]")!;
+      expect(notice).toHaveTextContent("12 people waiting for you to confirm at Annual Summit.");
+      expect(within(notice as HTMLElement).getByRole("link", { name: "Open requests" })).toHaveAttribute("href", "/events/69/requests");
+    } finally {
+      figures.attention = held;
+    }
+  });
+
   it("reads the season, what waits, and each row's figures and state", async () => {
     render(<ClubEventsList />);
     expect(await screen.findByText("2 upcoming · 2 registered · ₹200 collected · 1 past")).toBeInTheDocument();

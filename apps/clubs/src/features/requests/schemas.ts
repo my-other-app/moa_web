@@ -26,14 +26,16 @@ export const STATUS_LABEL: Record<RequestStatus, string> = {
 /** The page's tabs, in the order a request moves. Closed shows only once any request is (the event ended or was cancelled). */
 export const STATUS_TABS: readonly RequestStatus[] = ["pending", "approved", "declined", "withdrawn", "lapsed"];
 
-/** One request of the club's ids in a call: the server takes at most 500. */
+/** The most requests one call may name (or take, with all_pending): the server's 500. */
 export const MAX_IDS_PER_CALL = 500;
 /**
- * What the dashboard sends per call. Under the server's 500 so each call is
- * about one of its transactions (it confirms 100 at a time) and finishes
+ * What the dashboard confirms per call. Under the server's 500 so each call
+ * is about one of its transactions (it confirms 100 at a time) and finishes
  * well inside the gateway's time, and so the progress bar moves.
  */
 export const CHUNK_SIZE = 100;
+/** What it declines per call: the server's most, since a decline is one statement however many it takes. */
+export const DECLINE_CHUNK_SIZE = MAX_IDS_PER_CALL;
 /** A page of the list. */
 export const PAGE_SIZE = 50;
 /** The longest note a decline can carry. */
@@ -73,6 +75,10 @@ export const requestSchema = z.object({
   pay_by: optionalText,
   /** The code they typed, re-checked when they're confirmed (code_invalid when it no longer applies). */
   discount_code: optionalText,
+  /** A confirmed paid ticket's price, its code taken off; null until then, and for a free one. */
+  amount: z.coerce.number().nullish().catch(null).transform((v) => (v === null || v === undefined || Number.isNaN(v) ? null : v)),
+  /** They asked for their ticket on WhatsApp too. */
+  whatsapp_opt_in: z.boolean().catch(false).default(false),
 });
 export type RegistrationRequest = z.infer<typeof requestSchema>;
 
@@ -109,14 +115,12 @@ export const declineResultSchema = z.object({
 });
 export type DeclineResult = z.infer<typeof declineResultSchema>;
 
-/** The contract leaves reopen's answer open: whatever it says, the ids asked for are what was sent. */
-export const reopenResultSchema = z
-  .object({
-    reopened: z.array(z.coerce.string()).optional(),
-    skipped: skippedSchema.optional(),
-  })
-  .passthrough()
-  .catch({});
+/** Reopen's answer: the ones back in the queue, and the ones that couldn't be (not_reopenable, already_open). */
+export const reopenResultSchema = z.object({
+  reopened: z.array(z.coerce.string()).catch([]).default([]),
+  skipped: skippedSchema.default([]),
+});
+export type ReopenResult = z.infer<typeof reopenResultSchema>;
 
 export const totalOf = (c: RequestCounts | null | undefined): number => (c ? REQUEST_STATUSES.reduce((sum, s) => sum + c[s], 0) : 0);
 
@@ -130,13 +134,16 @@ export const people = (n: number) => `${num(n)} ${n === 1 ? "person" : "people"}
  * reasons; anything else is said as the server named it.
  */
 export const SKIP_REASON: Record<string, string> = {
-  not_pending: "someone had already decided them, or they withdrew",
+  not_pending: "they were already decided or withdrawn, or someone else was deciding them at that moment",
   event_full: "the event is full",
   type_sold_out: "their ticket type is sold out",
-  type_unavailable: "their ticket type isn't on sale any more",
+  type_unavailable: "their ticket type isn't available any more",
   already_registered: "they're already registered",
   code_invalid: "their discount code no longer applies, so they wait for you to decide (they're never charged full price without being asked)",
   event_closed: "the event has closed",
+  // Reopening.
+  not_reopenable: "it isn't declined or lapsed any more",
+  already_open: "they have asked again since, and that request is still open",
 };
 
 export function skipReasonText(reason: string): string {
@@ -151,6 +158,11 @@ export function skippedLines(skipped: Iterable<string>): { reason: string; count
     .sort((a, b) => b[1] - a[1])
     .map(([reason, count]) => ({ reason, count, text: `${num(count)} because ${skipReasonText(reason)}` }));
 }
+
+const RUPEES = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const PAISE = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** ₹199, ₹99.50. */
+export const rupees = (value: number) => (Number.isInteger(value) ? RUPEES : PAISE).format(value);
 
 /** "26 Oct 2026, 3:45 pm": a moment in India time, the zone the clubs run in. */
 const INDIA = new Intl.DateTimeFormat("en-IN", {
