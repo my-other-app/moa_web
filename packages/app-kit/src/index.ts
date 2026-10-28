@@ -43,8 +43,8 @@ export {
 export {
   PICTURE_SPECS,
   POSTER_SHAPE_NOTE,
-  BANNER_SIZES,
   SQUARE_ENOUGH,
+  bannerSizes,
   hasShape,
   isSquareEnough,
   logoSizes,

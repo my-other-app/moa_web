@@ -2,6 +2,7 @@
 
 import { AlertTriangleIcon } from "lucide-react";
 import { ApiError } from "@moa/api";
+import { posterSizes } from "@moa/app-kit";
 import { Card, CardContent, Skeleton } from "@moa/ui";
 
 import { useEventOffers } from "@/features/catalogue";
@@ -16,7 +17,8 @@ import { EventForm, type EventFormContext } from "./event-form";
 function contextOf(raw: unknown): EventFormContext {
   const d = (raw ?? {}) as Record<string, unknown>;
   const poster = d.poster as Record<string, unknown> | null | undefined;
-  const posterUrl = poster ? (["medium", "large", "original", "thumbnail"].map((k) => poster[k]).find((v) => typeof v === "string" && v) as string | undefined) : undefined;
+  // For the widest place the form shows it, the 300-px card preview (the poster step is 168).
+  const posterUrl = poster ? (posterSizes(300).map((k) => poster[k]).find((v) => typeof v === "string" && v) as string | undefined) : undefined;
   const status = typeof d.status === "string" ? (d.status as EventFormContext["status"]) : undefined;
   const registered = typeof d.registration_count === "number" ? d.registration_count : typeof d.registrations_count === "number" ? d.registrations_count : 0;
   return { posterUrl: posterUrl ?? null, status, registered };

@@ -44,7 +44,8 @@ const { toast } = await import("@moa/ui");
 const { render } = await import("@/test/render");
 const { ClubProfilePage } = await import("./components/club-profile-page");
 
-const savedLogo = (clubInfoFixture as { logo: { medium?: string } }).logo.medium;
+// A 72-px tile asks for the 150-px thumbnail: the smallest size at least twice as wide (logoSizes).
+const savedLogo = (clubInfoFixture as { logo: { thumbnail?: string } }).logo.thumbnail;
 
 beforeEach(() => {
   puts.length = 0;

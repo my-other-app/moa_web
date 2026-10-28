@@ -63,21 +63,42 @@ export function isSquareEnough(width: number, height: number): boolean {
 type Size = "thumbnail" | "medium" | "large" | "original";
 
 /**
- * Which of a poster's sizes to ask for first, by how wide its frame is
- * drawn. The API makes them as boxes of 240×300, 540×675 and 1080×1350.
+ * The order to try a picture's sizes in for a frame `frameWidth` CSS px
+ * wide: the smallest size whose box is at least twice the frame (sharp on
+ * a 2x screen), then the larger ones, the original, and the smaller ones
+ * last. Wider than every box: the original first.
+ *
+ * The boxes are what the API makes now (backend app/core/storage/shapes.py).
+ * A picture uploaded before has smaller boxes (a poster's large was 800,
+ * a logo's 800, a banner's 1200 and 1800), so on an old picture a frame
+ * may get a file a little under twice its width until it is re-uploaded.
  */
+function sizesFor(boxes: ReadonlyArray<readonly [Exclude<Size, "original">, number]>, frameWidth: number): Size[] {
+  const at = boxes.findIndex(([, width]) => width >= 2 * frameWidth);
+  if (at < 0) return ["original", ...boxes.map(([name]) => name).reverse()];
+  const larger = boxes.slice(at).map(([name]) => name);
+  const smaller = boxes.slice(0, at).map(([name]) => name).reverse();
+  return [...larger, "original", ...smaller];
+}
+
+/** A poster's boxes: 240×300, 540×675, 1080×1350. */
+const POSTER_BOXES = [["thumbnail", 240], ["medium", 540], ["large", 1080]] as const;
+/** A logo's: 150, 500 and 1080 square. */
+const LOGO_BOXES = [["thumbnail", 150], ["medium", 500], ["large", 1080]] as const;
+/** A banner's: 1500×500 and twice that. It has no thumbnail. */
+const BANNER_BOXES = [["medium", 1500], ["large", 3000]] as const;
+
+/** thumbnail up to a 120-px frame, medium to 270, large to 540, then the original. */
 export function posterSizes(frameWidth: number): Size[] {
-  if (frameWidth <= 120) return ["thumbnail", "medium", "large", "original"];
-  if (frameWidth <= 400) return ["medium", "large", "thumbnail", "original"];
-  return ["large", "medium", "original", "thumbnail"];
+  return sizesFor(POSTER_BOXES, frameWidth);
 }
 
-/** A logo's sizes are 150, 500 and 1080 square. */
+/** thumbnail up to a 75-px tile, medium to 250, large to 540, then the original. */
 export function logoSizes(frameWidth: number): Size[] {
-  if (frameWidth <= 48) return ["thumbnail", "medium", "large", "original"];
-  if (frameWidth <= 160) return ["medium", "large", "thumbnail", "original"];
-  return ["large", "medium", "original", "thumbnail"];
+  return sizesFor(LOGO_BOXES, frameWidth);
 }
 
-/** A banner has two: 1500×500 and twice that. Never a thumbnail. */
-export const BANNER_SIZES: Size[] = ["large", "medium", "original"];
+/** medium up to a 750-px banner, large to 1500, then the original. Never a thumbnail. */
+export function bannerSizes(frameWidth: number): Size[] {
+  return sizesFor(BANNER_BOXES, frameWidth);
+}

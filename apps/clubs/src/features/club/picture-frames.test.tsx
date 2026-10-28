@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import {
-  BANNER_SIZES,
   BannerFrame,
+  bannerSizes,
   LogoTile,
   PICTURE_SPECS,
   POSTER_SHAPE_NOTE,
@@ -63,21 +63,34 @@ describe("what the pickers say", () => {
 });
 
 describe("which size of a picture is asked for", () => {
-  it("asks a small poster frame for the thumbnail, a card for medium, a page for large", () => {
-    expect(posterSizes(56)[0]).toBe("thumbnail");
-    expect(posterSizes(300)[0]).toBe("medium");
+  // The smallest size whose box is at least twice the frame, then larger, the original, smaller.
+  it("asks a poster frame for the smallest size at least twice as wide", () => {
+    expect(posterSizes(56)).toEqual(["thumbnail", "medium", "large", "original"]);
+    expect(posterSizes(120)[0]).toBe("thumbnail");
+    expect(posterSizes(121)[0]).toBe("medium");
+    expect(posterSizes(270)[0]).toBe("medium");
+    expect(posterSizes(300)).toEqual(["large", "original", "medium", "thumbnail"]);
     expect(posterSizes(540)[0]).toBe("large");
+    expect(posterSizes(541)).toEqual(["original", "large", "medium", "thumbnail"]);
   });
 
-  it("asks a row's logo for the thumbnail and a header's for medium", () => {
+  it("asks a logo tile the same way", () => {
     expect(logoSizes(40)[0]).toBe("thumbnail");
-    expect(logoSizes(72)[0]).toBe("medium");
-    expect(logoSizes(240)[0]).toBe("large");
+    expect(logoSizes(75)[0]).toBe("thumbnail");
+    expect(logoSizes(76)[0]).toBe("medium");
+    expect(logoSizes(250)[0]).toBe("medium");
+    expect(logoSizes(251)[0]).toBe("large");
+    expect(logoSizes(540)[0]).toBe("large");
+    expect(logoSizes(600)[0]).toBe("original");
   });
 
   it("never asks a banner for a thumbnail, which the API does not make", () => {
-    expect(BANNER_SIZES).not.toContain("thumbnail");
-    expect(BANNER_SIZES[0]).toBe("large");
+    expect(bannerSizes(640)).toEqual(["medium", "large", "original"]);
+    expect(bannerSizes(750)[0]).toBe("medium");
+    expect(bannerSizes(751)).toEqual(["large", "original", "medium"]);
+    expect(bannerSizes(1500)[0]).toBe("large");
+    expect(bannerSizes(1600)).toEqual(["original", "large", "medium"]);
+    for (const w of [100, 900, 2000]) expect(bannerSizes(w)).not.toContain("thumbnail");
   });
 });
 

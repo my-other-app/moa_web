@@ -16,7 +16,7 @@ import {
   XIcon,
   YoutubeIcon,
   type LucideIcon, ImagePlusIcon } from "lucide-react";
-import { BANNER_SIZES, BannerFrame, LogoTile, PICTURE_SPECS, initials, logoSizes, pickImage } from "@moa/app-kit";
+import { BannerFrame, LogoTile, bannerSizes, PICTURE_SPECS, initials, logoSizes, pickImage } from "@moa/app-kit";
 import {
   CardLabel,
   EmptyState,
@@ -120,7 +120,7 @@ function LogoControl({ club }: { club: ClubSelf }) {
 function CoverControl({ club, colour }: { club: ClubSelf; colour: string }) {
   const upload = useUpdateClubCover();
   const { open, preview, input } = usePick((f) => upload.mutateAsync(f), "cover", "banner");
-  const shown = preview ?? pickImage(club.cover, BANNER_SIZES);
+  const shown = preview ?? pickImage(club.cover, bannerSizes(640));
   return (
     <div>
       {/* 3:1, as on the club page and in the app: what shows here is what they show. */}
