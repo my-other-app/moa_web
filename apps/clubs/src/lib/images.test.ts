@@ -4,6 +4,7 @@ import { stubPictureBrowser } from "@/test/pictures";
 
 import {
   API_IMAGE_MAX,
+  COLUMN_IMAGE_MAX,
   GATEWAY_BODY_MAX,
   IMAGE_ACCEPT,
   ImageTooBigError,
@@ -183,6 +184,12 @@ describe("a picture in a format the API does not keep", () => {
     expect(fits.size).toBe(API_IMAGE_MAX);
     await expect(fitImage(file("IMG.heic", "image/heic", "x", 6 * MB), "poster")).rejects.toThrow(
       /^The poster is 6\.0 MB, more than the 5\.0 MB that can be sent, and it couldn't be made smaller here\./,
+    );
+    // An image column (a logo, a cover, a poster) takes 10 MB: a 24 MP iPhone photo goes.
+    const column = await fitImage(file("IMG.heic", "image/heic", "x", 6 * MB), "logo", { limit: COLUMN_IMAGE_MAX });
+    expect(column.type).toBe("image/heic");
+    await expect(fitImage(file("IMG.heic", "image/heic", "x", 10 * MB), "logo", { limit: COLUMN_IMAGE_MAX })).rejects.toThrow(
+      /^The logo is 10\.0 MB, more than the 9\.0 MB that can be sent/,
     );
   });
 

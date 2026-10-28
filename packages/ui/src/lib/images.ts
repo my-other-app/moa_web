@@ -22,17 +22,20 @@
  * columns (logos, covers, posters, photos); the server in front of it and the
  * dashboards refuses a request over 10 MB. So a picture is redrawn under 4 MB
  * (`GATEWAY_BODY_MAX`, room for the form around it), and one that cannot be
- * brought under that is still sent when it is within 5 MB (`API_IMAGE_MAX`),
- * which every path takes. Over that it is refused here, with words, before
- * anything is sent.
+ * brought under that (a HEIC that Chrome cannot open) is still sent when it
+ * is within what its path takes: 5 MB (`API_IMAGE_MAX`) unless the caller
+ * says the path is an image column (`limit: COLUMN_IMAGE_MAX`, 9 MB). Over
+ * that it is refused here, with words, before anything is sent.
  */
 
 const MB = 1024 * 1024;
 
 /** What one picture is redrawn under before it is sent. */
 export const GATEWAY_BODY_MAX = 4 * MB;
-/** The API's smallest limit for one picture: the most any picture is sent at. */
+/** The API's smallest limit for one picture (the designer, emails, product photos): what any picture may be sent at. */
 export const API_IMAGE_MAX = 5 * MB;
+/** What the API's image columns take (logos, covers, posters, photos: 10 MB), with room for the form. */
+export const COLUMN_IMAGE_MAX = 9 * MB;
 /** What one request may carry in all (pictures and the form): the server refuses one over 10 MB. */
 export const REQUEST_MAX = 9 * MB;
 
@@ -344,6 +347,12 @@ export interface ShrinkOptions {
   maxBytes?: number;
   /** Its longest side, in pixels, at the first try; each later try is smaller. */
   longestSide?: number;
+  /**
+   * fitImage only: the most this picture's path takes. One that cannot be
+   * brought under `maxBytes` is still sent when it is within this. Defaults
+   * to API_IMAGE_MAX, the smallest; COLUMN_IMAGE_MAX for an image column.
+   */
+  limit?: number;
 }
 
 /** Fractions of `longestSide`, and the JPEG quality, tried in turn. */
@@ -414,14 +423,14 @@ export async function shrinkImage(file: File, { maxBytes = GATEWAY_BODY_MAX, lon
 /**
  * The picture, ready to send: normalised (normaliseImage), then redrawn under
  * `maxBytes` when it is over and can be. One that still weighs more is sent
- * as long as it is within API_IMAGE_MAX (a HEIC that Chrome cannot open goes
- * as it is, for the API to convert); over that, an ImageTooBigError whose
- * message says what to do.
+ * as long as it is within what its path takes (`limit`; a HEIC that Chrome
+ * cannot open goes as it is, for the API to convert); over that, an
+ * ImageTooBigError whose message says what to do.
  */
 export async function fitImage(file: File, what: string, options: ShrinkOptions = {}): Promise<File> {
   const ready = (await normalised(file)).file;
   const fitted = await shrinkImage(ready, options);
-  const limit = Math.max(options.maxBytes ?? GATEWAY_BODY_MAX, API_IMAGE_MAX);
-  if (fitted.size > limit) throw new ImageTooBigError(what, file.size, API_IMAGE_MAX);
+  const limit = Math.max(options.maxBytes ?? GATEWAY_BODY_MAX, options.limit ?? API_IMAGE_MAX);
+  if (fitted.size > limit) throw new ImageTooBigError(what, file.size, limit);
   return fitted;
 }

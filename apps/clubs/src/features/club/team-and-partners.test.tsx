@@ -120,9 +120,9 @@ describe("a partner's logo", () => {
     await pick(button, new File(["%PDF"], "deck.pdf", { type: "application/pdf" }));
     expect(error).toHaveBeenCalledWith("Choose a picture for the partner logo: JPG, PNG, WebP, GIF, HEIC, AVIF, SVG, BMP or TIFF");
 
-    // Over the API's 5 MB, and no canvas here to redraw it smaller.
-    await pick(button, png("huge.png", 5 * 1024 * 1024 + 1));
-    await waitFor(() => expect(error).toHaveBeenCalledWith(expect.stringMatching(/^The partner logo is 5\.0 MB/)));
+    // Over the 9 MB an image column is sent, and no canvas here to redraw it smaller.
+    await pick(button, png("huge.png", 10 * 1024 * 1024));
+    await waitFor(() => expect(error).toHaveBeenCalledWith(expect.stringMatching(/^The partner logo is 10\.0 MB, more than the 9\.0 MB/)));
 
     expect(of("PUT")).toHaveLength(0);
   });

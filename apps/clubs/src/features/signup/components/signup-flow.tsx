@@ -14,7 +14,7 @@ import { isFree, priceLine, usePlans, type Catalog, type Cycle } from "@/feature
 import { useOrganizations } from "@/features/club";
 import { TopicPicker, useTopicTree } from "@/features/topics";
 import { VenuePicker } from "@/features/venue";
-import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@/lib/images";
+import { COLUMN_IMAGE_MAX, IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@/lib/images";
 
 import { applyForClub } from "../api";
 import {
@@ -203,7 +203,7 @@ function ClubStep({ form, logo, logoError, onLogo, disabled }: { form: Form; log
     if (!isPicture(file)) return onLogo(null, `Choose a picture: ${IMAGE_FORMATS_LABEL}.`);
     try {
       // Converted when the API does not keep its format (an SVG, a HEIC...), and redrawn smaller when over budget.
-      onLogo(await fitImage(file, "logo"), null);
+      onLogo(await fitImage(file, "logo", { limit: COLUMN_IMAGE_MAX }), null);
     } catch (error) {
       onLogo(null, error instanceof Error ? error.message : "That picture is too big to send.");
     }

@@ -4,7 +4,7 @@ import * as React from "react";
 import { toast } from "@moa/ui";
 import { useObjectUrl } from "@moa/ui/hooks";
 
-import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@/lib/images";
+import { COLUMN_IMAGE_MAX, IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@/lib/images";
 
 /**
  * A hidden file input and a way to open it. The picked image is handed
@@ -31,7 +31,8 @@ export function usePick(onFile: (f: File) => void | Promise<unknown>, what: stri
     let ready: File;
     setPreparing(true);
     try {
-      ready = await fitImage(file, what);
+      // Every picture picked here (logo, cover, partner logo, team photo) goes to an image column.
+      ready = await fitImage(file, what, { limit: COLUMN_IMAGE_MAX });
     } catch (error) {
       return void toast.error(error instanceof Error ? error.message : `The ${what} is too big to send`);
     } finally {

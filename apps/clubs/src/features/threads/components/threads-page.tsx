@@ -9,7 +9,7 @@ import { CardLabel, Chip, EmptyState, FigurePanel, InitialsAvatar, Notice, Pager
 import { useObjectUrl } from "@moa/ui/hooks";
 
 import { useMyClub } from "@/features/club";
-import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@/lib/images";
+import { COLUMN_IMAGE_MAX, IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@/lib/images";
 
 import { useComments, useCreateThread, useDeleteComment, useDeleteThread, useReplyAsClub, useSetPinned, useThreadInsights, useThreadsPage } from "../queries";
 import { MAX_BODY, MAX_POLL_OPTIONS, SCOPE_LABEL, SORT_LABEL, THREAD_SCOPES, THREAD_SORTS, composeSchema, type Thread, type ThreadInsights, type ThreadScope, type ThreadSort } from "../schemas";
@@ -42,7 +42,7 @@ function Composer({ clubName, followers }: { clubName: string; followers: number
     if (!isPicture(f)) return void toast.error(`Choose a picture: ${IMAGE_FORMATS_LABEL}`);
     // Converted when the API does not keep its format, and redrawn smaller when over budget (lib/images).
     try {
-      setPhoto(await fitImage(f, "photo"));
+      setPhoto(await fitImage(f, "photo", { limit: COLUMN_IMAGE_MAX }));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "The photo is too big to send");
     }

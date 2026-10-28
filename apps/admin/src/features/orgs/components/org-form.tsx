@@ -21,7 +21,7 @@ import {
   SelectValue,
   cn,
 } from "@moa/ui";
-import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@moa/ui/images";
+import { COLUMN_IMAGE_MAX, IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@moa/ui/images";
 import { pressable } from "@moa/ui/motion";
 
 import { useCreateOrg, useUpdateOrg } from "../queries";
@@ -114,7 +114,7 @@ export function OrgFormDialog({
     if (!isPicture(file)) return setLogoError(`Choose a picture: ${IMAGE_FORMATS_LABEL}.`);
     setPreparingLogo(true);
     try {
-      setLogo(await fitImage(file, "logo"));
+      setLogo(await fitImage(file, "logo", { limit: COLUMN_IMAGE_MAX }));
     } catch (error) {
       setLogoError(error instanceof Error ? error.message : "That picture is too big to send.");
     } finally {

@@ -62,10 +62,10 @@ describe("the event's pictures before a save", () => {
   });
 
   it("refuses with words a poster that cannot be made small enough, before sending", async () => {
-    // A browser that cannot open a HEIC (Chrome) cannot redraw a 9 MB one either.
+    // A browser that cannot open a HEIC (Chrome) cannot redraw a 12 MB one either.
     stubPictureBrowser({ opens: ["image/jpeg", "image/png"] });
-    await expect(fitEventImages(values({ posterFile: bigFile("poster.heic", "image/heic", 9 * MB) }))).rejects.toThrow(
-      /^The poster is 9\.0 MB, more than the 5\.0 MB that can be sent/,
+    await expect(fitEventImages(values({ posterFile: bigFile("poster.heic", "image/heic", 12 * MB) }))).rejects.toThrow(
+      /^The poster is 12\.0 MB, more than the 9\.0 MB that can be sent/,
     );
   });
 

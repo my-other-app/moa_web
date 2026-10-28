@@ -114,8 +114,8 @@ describe("the club's logo", () => {
     // jsdom has no canvas to redraw it on (lib/images shrinks it in a browser).
     const said = vi.spyOn(toast, "error");
     render(<ClubProfilePage />);
-    pickWith(await screen.findByRole("button", { name: "Replace logo" }), image("huge.png", "image/png", 5 * 1024 * 1024 + 1));
-    await waitFor(() => expect(said).toHaveBeenCalledWith(expect.stringMatching(/^The logo is 5\.0 MB, more than the 5\.0 MB that can be sent/)));
+    pickWith(await screen.findByRole("button", { name: "Replace logo" }), image("huge.png", "image/png", 10 * 1024 * 1024));
+    await waitFor(() => expect(said).toHaveBeenCalledWith(expect.stringMatching(/^The logo is 10\.0 MB, more than the 9\.0 MB that can be sent/)));
     expect(puts).toEqual([]);
   });
 
@@ -131,10 +131,11 @@ describe("the club's logo", () => {
   });
 
   it("sends an iPhone's HEIC that this browser cannot open as it is, typed, for the API to convert", async () => {
-    // Chrome opens neither a HEIC nor, on Windows, knows its type.
+    // Chrome opens neither a HEIC nor, on Windows, knows its type. 6 MB: a 24 MP photo, over the
+    // 4 MB budget and the 5 MB of the API's strictest paths, within the 10 MB a logo takes.
     stubPictureBrowser({ opens: ["image/png", "image/jpeg", "image/avif"] });
     render(<ClubProfilePage />);
-    pickWith(await screen.findByRole("button", { name: "Replace logo" }), image("IMG_0042.HEIC", "", 2 * 1024 * 1024));
+    pickWith(await screen.findByRole("button", { name: "Replace logo" }), image("IMG_0042.HEIC", "", 6 * 1024 * 1024));
     await waitFor(() => expect(puts).toHaveLength(1));
     const sent = puts[0]!.body.get("logo") as File;
     expect(sent.name).toBe("IMG_0042.HEIC");
@@ -170,8 +171,8 @@ describe("the club's cover", () => {
   it("refuses an image too big to send that cannot be made smaller here", async () => {
     const said = vi.spyOn(toast, "error");
     render(<ClubProfilePage />);
-    pickWith(await screen.findByRole("button", { name: "Cover banner" }), image("huge.jpg", "image/jpeg", 6 * 1024 * 1024));
-    await waitFor(() => expect(said).toHaveBeenCalledWith(expect.stringMatching(/^The cover is 6\.0 MB/)));
+    pickWith(await screen.findByRole("button", { name: "Cover banner" }), image("huge.jpg", "image/jpeg", 12 * 1024 * 1024));
+    await waitFor(() => expect(said).toHaveBeenCalledWith(expect.stringMatching(/^The cover is 12\.0 MB/)));
     expect(puts).toEqual([]);
   });
 

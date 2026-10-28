@@ -4,7 +4,7 @@ import { z } from "zod";
 // The api module, not the feature's surface: the agenda page imports events, which imports this form.
 import { createAgendaItem } from "@/features/agenda/api";
 import { pinWireFields } from "@/features/venue";
-import { REQUEST_MAX, fitImage, sizeLabel } from "@/lib/images";
+import { COLUMN_IMAGE_MAX, REQUEST_MAX, fitImage, sizeLabel } from "@/lib/images";
 
 import type { AgendaDraftItem, EventFormParsed } from "./schemas";
 
@@ -149,9 +149,9 @@ export function toEventFormData(values: EventFormParsed, status?: "draft" | "pub
 const createdSchema = z.object({ id: z.coerce.number(), name: z.string() }).passthrough();
 
 /** A poster is read on a phone and printed on a ticket: 2,400 px is plenty. */
-export const POSTER_IMAGE = { maxBytes: 3 * 1024 * 1024, longestSide: 2400 };
+export const POSTER_IMAGE = { maxBytes: 3 * 1024 * 1024, longestSide: 2400, limit: COLUMN_IMAGE_MAX };
 /** A speaker's photo is shown small everywhere it appears. */
-export const SPEAKER_IMAGE = { maxBytes: 600 * 1024, longestSide: 800 };
+export const SPEAKER_IMAGE = { maxBytes: 600 * 1024, longestSide: 800, limit: COLUMN_IMAGE_MAX };
 
 /**
  * The poster and the new speaker photos, ready to send: each converted when
