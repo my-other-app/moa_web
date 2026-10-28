@@ -2,8 +2,8 @@ import type { EventFormValues } from "./schemas";
 
 /**
  * The sections, in the order an organiser decides things: what it is, when,
- * where, how many and at what price, who is involved, how far it reaches,
- * and what to ask at the door. `fields` ties each to the values it owns, so
+ * where, how many and at what price, who is involved, who backs it, how far
+ * it reaches, and what to ask at the door. `fields` ties each to the values it owns, so
  * a problem can be pointed at and the rail can mark it.
  */
 export interface StepDef {
@@ -19,6 +19,8 @@ export const STEPS: StepDef[] = [
   { id: "where", title: "Where", description: "A venue, or a link", fields: ["is_online", "location_name", "location_link", "lat", "lng", "url"] },
   { id: "entry", title: "Places and money", description: "How many can come, what it costs, and what is on offer", fields: ["max_participants", "has_fee", "reg_fee", "several_types", "ticket_types", "requires_approval", "high_demand_label", "has_prize", "prize_amount", "merch_enabled", "store_item_ids", "swag_enabled"] },
   { id: "people", title: "People", description: "Who is speaking, and who to ask", fields: ["speakers", "contact_name", "contact_phone", "contact_email"] },
+  // Saved row by row, not with the form: it owns no form values (features/event-partners).
+  { id: "sponsors", title: "Sponsors & partners", description: "Their logos on the event page, sponsors first", fields: [] },
   { id: "reach", title: "Reach and rules", description: "Interests that put it in front of the right followers, a label, and the rules", fields: ["interest_ids", "event_tag", "event_guidelines"] },
   { id: "questions", title: "Sign-up questions", description: "What to ask beyond a name and an email", fields: ["additional_details"] },
 ];

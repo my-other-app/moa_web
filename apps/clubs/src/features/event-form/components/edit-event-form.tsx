@@ -5,6 +5,7 @@ import { ApiError } from "@moa/api";
 import { Card, CardContent, Skeleton } from "@moa/ui";
 
 import { useEventOffers } from "@/features/catalogue";
+import { partnersSupported } from "@/features/event-partners";
 import { useTicketTypes } from "@/features/ticketing/queries";
 import { formDefaultsFrom } from "@/features/ticketing/schemas";
 
@@ -19,7 +20,7 @@ function contextOf(raw: unknown): EventFormContext {
   const posterUrl = poster ? (["medium", "large", "original", "thumbnail"].map((k) => poster[k]).find((v) => typeof v === "string" && v) as string | undefined) : undefined;
   const status = typeof d.status === "string" ? (d.status as EventFormContext["status"]) : undefined;
   const registered = typeof d.registration_count === "number" ? d.registration_count : typeof d.registrations_count === "number" ? d.registrations_count : 0;
-  return { posterUrl: posterUrl ?? null, status, registered };
+  return { posterUrl: posterUrl ?? null, status, registered, partnersSupported: partnersSupported(raw) };
 }
 
 export function EditEventForm({ eventId }: { eventId: number }) {

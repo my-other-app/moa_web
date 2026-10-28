@@ -37,6 +37,8 @@ export {
   type Organization,
 } from "./schemas";
 export { ClubProfilePage } from "./components/club-profile-page";
+/** Pick an image, fitted for the gateway, previewed while it uploads (club logo, partner logos, event sponsors). */
+export { usePick } from "./components/use-pick";
 export { NextEventCard } from "./components/next-event-card";
 export { ReachPanel } from "./components/reach-panel";
 export { isUpcoming, isClosingSoon, needsAttendance, summariseReach, byDateAscending, hoursUntil, CLOSING_SOON_HOURS, type ReachSummary } from "./insights";
