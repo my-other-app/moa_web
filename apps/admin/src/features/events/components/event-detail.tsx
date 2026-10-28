@@ -71,6 +71,7 @@ import type { EventRegistration } from "../schemas";
 import { PlacingControl } from "./placing-control";
 import { EventEditForm } from "./event-edit-form";
 import { EventPartnersCard } from "./event-partners-card";
+import { UnderReviewSection } from "./under-review-section";
 
 /**
  * One event, for an admin.
@@ -322,6 +323,10 @@ export function EventDetail({ eventId }: { eventId: number }) {
   const requestFigures = summary?.requests;
   // Registrations under review: closed with a polite email if the event is deleted.
   const waiting = event?.requests_pending ?? requestFigures?.pending ?? summary?.requests_pending ?? 0;
+  // Who they are: on an event that reviews registrations, or once anyone registered for review.
+  const reviews = Boolean(
+    event?.requires_approval || (event?.requests_total ?? 0) > 0 || hasRequestFigures(requestFigures)
+  );
 
   const cards = [
     {
@@ -475,6 +480,8 @@ export function EventDetail({ eventId }: { eventId: number }) {
             />
           </section>
         ) : null}
+
+        {reviews ? <UnderReviewSection eventId={eventId} /> : null}
 
         {event ? <EventPartnersCard sponsors={event.sponsors} partners={event.partners} /> : null}
 

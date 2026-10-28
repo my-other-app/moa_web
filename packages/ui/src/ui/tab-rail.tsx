@@ -31,12 +31,20 @@ export interface TabRailProps {
  */
 function TabRail({ items, value, onChange, renderLink, label, className }: TabRailProps) {
   const ref = React.useRef<HTMLElement>(null);
-  const [bar, setBar] = React.useState<{ left: number; width: number } | null>(null);
+  const [bar, setBar] = React.useState<{ left: number; width: number; top: number | null } | null>(null);
+  // A count arriving widens its tab: measure again, as for a new tab or a new value.
+  const shape = items.map((t) => `${t.key}:${t.count ?? ""}`).join("|");
 
   React.useLayoutEffect(() => {
-    const el = ref.current?.querySelector<HTMLElement>(`[data-tab="${value}"]`);
-    setBar(el ? { left: el.offsetLeft, width: el.offsetWidth } : null);
-  }, [value, items.length]);
+    const rail = ref.current;
+    const el = rail?.querySelector<HTMLElement>(`[data-tab="${value}"]`);
+    if (!rail || !el) return setBar(null);
+    // On a rail that has wrapped (a phone), the active tab can sit on a row
+    // above the last: the bar goes under it, not along the rail's foot.
+    const foot = el.offsetTop + el.offsetHeight;
+    const above = el.offsetHeight > 0 && foot < rail.clientHeight - 1;
+    setBar({ left: el.offsetLeft, width: el.offsetWidth, top: above ? foot - 1 : null });
+  }, [value, shape]);
 
   const navigational = !!renderLink && items.every((t) => t.href);
   const Rail = (navigational ? "nav" : "div") as "nav";
@@ -74,7 +82,7 @@ function TabRail({ items, value, onChange, renderLink, label, className }: TabRa
       {bar ? (
         <span
           aria-hidden="true"
-          style={{ left: bar.left, width: bar.width }}
+          style={{ left: bar.left, width: bar.width, ...(bar.top !== null ? { top: bar.top, bottom: "auto" } : {}) }}
           className="bg-brand absolute -bottom-px h-0.5 transition-[left,width] duration-200 ease-out motion-reduce:transition-none"
         />
       ) : null}
