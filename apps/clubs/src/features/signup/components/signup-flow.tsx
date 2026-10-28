@@ -14,11 +14,11 @@ import { isFree, priceLine, usePlans, type Catalog, type Cycle } from "@/feature
 import { useOrganizations } from "@/features/club";
 import { TopicPicker, useTopicTree } from "@/features/topics";
 import { VenuePicker } from "@/features/venue";
+import { COLUMN_IMAGE_MAX, IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@/lib/images";
 
 import { applyForClub } from "../api";
 import {
   ABOUT_MAX,
-  LOGO_MAX_BYTES,
   NAME_MAX,
   PASSWORD_MIN,
   STEPS,
@@ -198,11 +198,15 @@ function ClubStep({ form, logo, logoError, onLogo, disabled }: { form: Form; log
   const fileRef = React.useRef<HTMLInputElement>(null);
   const over = name.trim().length > NAME_MAX;
 
-  const pick = (file: File | undefined) => {
+  const pick = async (file: File | undefined) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) return onLogo(null, "Choose an image: PNG, JPG or WebP.");
-    if (file.size > LOGO_MAX_BYTES) return onLogo(null, "That image is over 5 MB. Choose a smaller one.");
-    onLogo(file, null);
+    if (!isPicture(file)) return onLogo(null, `Choose a picture: ${IMAGE_FORMATS_LABEL}.`);
+    try {
+      // Converted when the API does not keep its format (an SVG, a HEIC...), and redrawn smaller when over budget.
+      onLogo(await fitImage(file, "logo", { limit: COLUMN_IMAGE_MAX }), null);
+    } catch (error) {
+      onLogo(null, error instanceof Error ? error.message : "That picture is too big to send.");
+    }
   };
 
   return (
@@ -242,12 +246,12 @@ function ClubStep({ form, logo, logoError, onLogo, disabled }: { form: Form; log
           <input
             ref={fileRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept={IMAGE_ACCEPT}
             className="sr-only"
             aria-label="Logo file"
             tabIndex={-1}
             onChange={(e) => {
-              pick(e.target.files?.[0]);
+              void pick(e.target.files?.[0]);
               e.target.value = "";
             }}
           />

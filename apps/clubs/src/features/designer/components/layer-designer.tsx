@@ -28,7 +28,7 @@ import {
 import { AlertTriangleIcon, CheckCircle2Icon, Loader2Icon, Redo2Icon, RotateCcwIcon, Undo2Icon } from "lucide-react";
 import * as React from "react";
 
-import { fitImage } from "@/lib/images";
+import { fitImage, isPicture } from "@/lib/images";
 
 import { previewLayout, uploadLayoutImage } from "../api";
 import { DESIGNERS, designSamples, type DesignerConfig } from "../config";
@@ -372,7 +372,7 @@ const Editor = ({ config, scope, eventId, design, audience, picker, onSaved, onD
   const upload = async (picked: File, purpose: "template" | "image") => {
     let file: File;
     try {
-      // Over the gateway's 4.5 MB (a Vercel limit) it is redrawn smaller first (lib/images).
+      // Converted when the API does not keep its format, and redrawn smaller when over budget (lib/images).
       file = await fitImage(picked, purpose === "template" ? "background" : "image");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "That image is too big to send");
@@ -531,7 +531,7 @@ const Editor = ({ config, scope, eventId, design, audience, picker, onSaved, onD
   };
   const [dropSlot, setDropSlot] = React.useState<string | null>(null);
   const onDropFile = async (file: File, slotId: string | null) => {
-    if (!file.type.startsWith("image/")) return;
+    if (!isPicture(file)) return;
     const target = layers.find((l) => l.id === selected);
     if (target?.kind === "image" && target.source === "upload" && !/-photo$/.test(target.id)) {
       const res = await upload(file, "image");

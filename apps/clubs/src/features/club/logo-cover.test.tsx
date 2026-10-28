@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { ApiError } from "@moa/api";
 
@@ -38,6 +38,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { api } = await import("@moa/app-kit");
+const { IMAGE_ACCEPT } = await import("@/lib/images");
+const { stubPictureBrowser } = await import("@/test/pictures");
 const { toast } = await import("@moa/ui");
 const { render } = await import("@/test/render");
 const { ClubProfilePage } = await import("./components/club-profile-page");
@@ -54,12 +56,14 @@ beforeEach(() => {
   vi.mocked(api.get).mockClear();
 });
 
+afterEach(() => vi.unstubAllGlobals());
+
 const image = (name: string, type: string, bytes = 1024) => new File([new Uint8Array(bytes)], name, { type });
 
 /** The picker's hidden input sits beside its button. */
 const pickWith = (button: HTMLElement, file: File) => {
   const input = button.parentElement!.querySelector('input[type="file"]') as HTMLInputElement;
-  expect(input).toHaveAttribute("accept", "image/*");
+  expect(input).toHaveAttribute("accept", IMAGE_ACCEPT);
   fireEvent.change(input, { target: { files: [file] } });
 };
 const logoShown = () => {
@@ -101,18 +105,41 @@ describe("the club's logo", () => {
     const said = vi.spyOn(toast, "error");
     render(<ClubProfilePage />);
     pickWith(await screen.findByRole("button", { name: "Replace logo" }), image("crest.pdf", "application/pdf"));
-    expect(said).toHaveBeenCalledWith("Choose an image file for the logo");
+    expect(said).toHaveBeenCalledWith("Choose a picture for the logo: JPG, PNG, WebP, GIF, HEIC, AVIF, SVG, BMP or TIFF");
     expect(puts).toEqual([]);
     expect(logoShown()).toBe(savedLogo);
   });
 
-  it("refuses an image too big for the gateway that cannot be made smaller here, sending nothing", async () => {
+  it("refuses an image too big to send that cannot be made smaller here, sending nothing", async () => {
     // jsdom has no canvas to redraw it on (lib/images shrinks it in a browser).
     const said = vi.spyOn(toast, "error");
     render(<ClubProfilePage />);
-    pickWith(await screen.findByRole("button", { name: "Replace logo" }), image("huge.png", "image/png", 5 * 1024 * 1024 + 1));
-    await waitFor(() => expect(said).toHaveBeenCalledWith(expect.stringMatching(/^The logo is 5\.0 MB, more than the 4\.0 MB that can be sent/)));
+    pickWith(await screen.findByRole("button", { name: "Replace logo" }), image("huge.png", "image/png", 10 * 1024 * 1024));
+    await waitFor(() => expect(said).toHaveBeenCalledWith(expect.stringMatching(/^The logo is 10\.0 MB, more than the 9\.0 MB that can be sent/)));
     expect(puts).toEqual([]);
+  });
+
+  it("sends an SVG logo as a PNG drawn in the browser", async () => {
+    stubPictureBrowser({ opens: ["image/png", "image/jpeg"] });
+    render(<ClubProfilePage />);
+    const svg = new File(['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30"/></svg>'], "crest.svg", { type: "image/svg+xml" });
+    pickWith(await screen.findByRole("button", { name: "Replace logo" }), svg);
+    await waitFor(() => expect(puts).toHaveLength(1));
+    const sent = puts[0]!.body.get("logo") as File;
+    expect(sent.name).toBe("crest.png");
+    expect(sent.type).toBe("image/png");
+  });
+
+  it("sends an iPhone's HEIC that this browser cannot open as it is, typed, for the API to convert", async () => {
+    // Chrome opens neither a HEIC nor, on Windows, knows its type. 6 MB: a 24 MP photo, over the
+    // 4 MB budget and the 5 MB of the API's strictest paths, within the 10 MB a logo takes.
+    stubPictureBrowser({ opens: ["image/png", "image/jpeg", "image/avif"] });
+    render(<ClubProfilePage />);
+    pickWith(await screen.findByRole("button", { name: "Replace logo" }), image("IMG_0042.HEIC", "", 6 * 1024 * 1024));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    const sent = puts[0]!.body.get("logo") as File;
+    expect(sent.name).toBe("IMG_0042.HEIC");
+    expect(sent.type).toBe("image/heic");
   });
 
   it("says the server's refusal and goes back to the logo that is saved", async () => {
@@ -144,8 +171,8 @@ describe("the club's cover", () => {
   it("refuses an image too big to send that cannot be made smaller here", async () => {
     const said = vi.spyOn(toast, "error");
     render(<ClubProfilePage />);
-    pickWith(await screen.findByRole("button", { name: "Cover banner" }), image("huge.jpg", "image/jpeg", 6 * 1024 * 1024));
-    await waitFor(() => expect(said).toHaveBeenCalledWith(expect.stringMatching(/^The cover is 6\.0 MB/)));
+    pickWith(await screen.findByRole("button", { name: "Cover banner" }), image("huge.jpg", "image/jpeg", 12 * 1024 * 1024));
+    await waitFor(() => expect(said).toHaveBeenCalledWith(expect.stringMatching(/^The cover is 12\.0 MB/)));
     expect(puts).toEqual([]);
   });
 

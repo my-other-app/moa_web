@@ -8,7 +8,8 @@ import { FileTextIcon, ImagePlusIcon, Loader2Icon, SparklesIcon, XIcon } from "l
 import { useObjectUrl } from "@moa/ui/hooks";
 import { Checkbox, ChoiceCard, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Notice, cn } from "@moa/ui";
 
-import { AI_KEY_PATH, AiUsageMeter, DRAFT_FILE_TYPES, DRAFT_TEXT_MAX, aiProblem, draftFileProblem, shrinkForUpload, useAiGate, useEventDraft, type AiProblem, type AiStatus } from "@/features/ai";
+import { AI_KEY_PATH, AiUsageMeter, DRAFT_FILE_ACCEPT, DRAFT_TEXT_MAX, aiProblem, draftFileProblem, shrinkForUpload, useAiGate, useEventDraft, type AiProblem, type AiStatus } from "@/features/ai";
+import { isPicture } from "@/lib/images";
 import { LockBadge, useFeatureGate } from "@/features/plan";
 import { useTopicTree } from "@/features/topics";
 
@@ -125,7 +126,7 @@ function DraftDialog({
   const [dragging, setDragging] = React.useState(false);
   const [step, setStep] = React.useState(0);
   const abort = React.useRef<AbortController | null>(null);
-  const isImage = Boolean(file?.type.startsWith("image/"));
+  const isImage = Boolean(file && isPicture(file));
   const preview = useObjectUrl(isImage ? (file ?? undefined) : undefined);
   // Anything the organiser has changed: the contact filled from the club is not counted.
   const typed = Object.keys(dirtyFields).length > 0;
@@ -165,7 +166,8 @@ function DraftDialog({
         categories: categories.data ?? [],
         tree: tree.data,
         feeLocked: tickets.locked,
-        poster: isImage && usePoster ? file : null,
+        // The picture as sent: a HEIC or an SVG is already a JPEG or a PNG here.
+        poster: isImage && usePoster ? (upload ?? file) : null,
       });
       onApplied({ patch: fill.patch, warnings: res.warnings, notes: fill.notes });
     } catch (error) {
@@ -246,10 +248,10 @@ function DraftDialog({
             >
               <ImagePlusIcon className="text-ink-3 size-6" aria-hidden="true" />
               <span className="text-ink text-[13px] font-medium">Drop the poster here, or choose a file</span>
-              <span className="text-ink-3 text-[11.5px]">PNG, JPEG, WebP or PDF, up to 10 MB</span>
+              <span className="text-ink-3 text-[11.5px]">A picture (JPG, PNG, HEIC…) or a PDF, up to 10 MB</span>
               <input
                 type="file"
-                accept={DRAFT_FILE_TYPES.join(",")}
+                accept={DRAFT_FILE_ACCEPT}
                 className="sr-only"
                 aria-labelledby={`${ids}-file-label`}
                 aria-describedby={fileProblem ? `${ids}-file-problem` : undefined}

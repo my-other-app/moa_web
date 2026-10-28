@@ -7,6 +7,7 @@ import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, F
 import { useObjectUrl } from "@moa/ui/hooks";
 
 import { AiFilledTag, WriteWithAi, aiFilledClass, useAiFilled } from "@/features/ai";
+import { IMAGE_ACCEPT } from "@/lib/images";
 
 import { useEventCategories } from "../../queries";
 import { spanLabel } from "../../readiness";
@@ -57,7 +58,7 @@ export function EventStep({ posterUrl, eventId }: { posterUrl?: string | null; e
                       <span className="text-[10.5px]">Portrait, 4:5</span>
                     </span>
                   )}
-                  <input type="file" accept="image/*" className="sr-only" onChange={(e) => field.onChange(e.target.files?.[0])} />
+                  <input type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={(e) => field.onChange(e.target.files?.[0])} />
                 </label>
                 {posterFile ? (
                   <Button type="button" variant="ghost" size="sm" onClick={() => field.onChange(undefined)}>

@@ -5,7 +5,7 @@ import { ImageIcon, Loader2Icon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useObjectUrl } from "@moa/ui/hooks";
 import { Button, Chip, IconButton, Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, Switch, cn } from "@moa/ui";
 
-import { fitImage } from "@/lib/images";
+import { IMAGE_ACCEPT, fitImage } from "@/lib/images";
 
 import { uploadClubItemPhoto } from "../api";
 import { useCreateClubItem, useUpdateClubItem } from "../queries";
@@ -53,7 +53,7 @@ function PhotoField({ value, onChange, onBusy }: { value: Photo; onChange: (v: P
     if (wrong) return;
     let ready: File;
     try {
-      // Over the gateway's 4.5 MB (a Vercel limit) it is redrawn smaller first.
+      // Converted when the API does not keep its format, and redrawn smaller when over budget (lib/images).
       ready = await fitImage(picked, "photo");
     } catch (err) {
       return void setProblem(err instanceof Error ? err.message : "That image is too big to send");
@@ -92,7 +92,7 @@ function PhotoField({ value, onChange, onBusy }: { value: Photo; onChange: (v: P
           <label htmlFor={id} className="btn btn-secondary btn-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--brand)]" aria-disabled={busy || undefined}>
             {busy ? "Uploading…" : preview ? "Replace photo" : "Add a photo"}
           </label>
-          <input id={id} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" aria-label="Item photo" disabled={busy} onChange={(e) => void pick(e.target.files?.[0])} />
+          <input id={id} type="file" accept={IMAGE_ACCEPT} className="sr-only" aria-label="Item photo" disabled={busy} onChange={(e) => void pick(e.target.files?.[0])} />
           {preview && !busy ? (
             <Button
               type="button"

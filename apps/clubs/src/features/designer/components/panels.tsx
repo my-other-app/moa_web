@@ -39,6 +39,8 @@ import {
 } from "lucide-react";
 import * as React from "react";
 
+import { IMAGE_ACCEPT } from "@/lib/images";
+
 import type { DesignerConfig } from "../config";
 import type { DesignToken } from "../schemas";
 import { Busy, ColorRefField, NumberField, Section, SegmentedField, SelectField, TokenMenu } from "./fields";
@@ -766,7 +768,7 @@ const ImagePicker = ({
         ref={input}
         type="file"
         aria-label="Upload an image"
-        accept="image/png,image/jpeg,image/webp"
+        accept={IMAGE_ACCEPT}
         className="hidden"
         onChange={async (e) => {
           const f = e.target.files?.[0];
@@ -1018,7 +1020,7 @@ export const CanvasPanel = ({
           ref={input}
           type="file"
           aria-label="Upload a template"
-          accept="image/png,image/jpeg,image/webp"
+          accept={IMAGE_ACCEPT}
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -1097,7 +1099,7 @@ export const CanvasPanel = ({
           ref={photoInput}
           type="file"
           aria-label="Upload a background picture"
-          accept="image/png,image/jpeg,image/webp"
+          accept={IMAGE_ACCEPT}
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];

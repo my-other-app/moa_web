@@ -4,7 +4,7 @@ import { z } from "zod";
 // The api module, not the feature's surface: the agenda page imports events, which imports this form.
 import { createAgendaItem } from "@/features/agenda/api";
 import { pinWireFields } from "@/features/venue";
-import { GATEWAY_BODY_MAX, fitImage, sizeLabel } from "@/lib/images";
+import { COLUMN_IMAGE_MAX, REQUEST_MAX, fitImage, sizeLabel } from "@/lib/images";
 
 import type { AgendaDraftItem, EventFormParsed } from "./schemas";
 
@@ -149,18 +149,16 @@ export function toEventFormData(values: EventFormParsed, status?: "draft" | "pub
 const createdSchema = z.object({ id: z.coerce.number(), name: z.string() }).passthrough();
 
 /** A poster is read on a phone and printed on a ticket: 2,400 px is plenty. */
-export const POSTER_IMAGE = { maxBytes: 3 * 1024 * 1024, longestSide: 2400 };
+export const POSTER_IMAGE = { maxBytes: 3 * 1024 * 1024, longestSide: 2400, limit: COLUMN_IMAGE_MAX };
 /** A speaker's photo is shown small everywhere it appears. */
-export const SPEAKER_IMAGE = { maxBytes: 600 * 1024, longestSide: 800 };
+export const SPEAKER_IMAGE = { maxBytes: 600 * 1024, longestSide: 800, limit: COLUMN_IMAGE_MAX };
 
 /**
- * The poster and the new speaker photos, made small enough to send.
- *
- * The save goes through the gateway, a Vercel function that refuses a body
- * over 4.5 MB before it reaches the API, so a phone photo as the poster (or
- * one an AI draft picked up) failed with an error that said nothing. Each
- * picture is redrawn under its budget (lib/images); one that cannot be, or a
- * save whose pictures still come to too much, is refused here with words.
+ * The poster and the new speaker photos, ready to send: each converted when
+ * the API does not keep its format (an SVG, a HEIC, an AVIF...) and redrawn
+ * under its budget (lib/images). One that cannot be sent, or a save whose
+ * pictures still come to more than one request may carry (REQUEST_MAX: the
+ * server refuses a request over 10 MB), is refused here with words.
  */
 export async function fitEventImages(values: EventFormParsed): Promise<EventFormParsed> {
   const posterFile = values.posterFile ? await fitImage(values.posterFile, "poster", POSTER_IMAGE) : values.posterFile;
@@ -172,9 +170,9 @@ export async function fitEventImages(values: EventFormParsed): Promise<EventForm
     ),
   );
   const total = (posterFile?.size ?? 0) + speakers.reduce((sum, s) => sum + (s.photoFile?.size ?? 0), 0);
-  if (total > GATEWAY_BODY_MAX) {
+  if (total > REQUEST_MAX) {
     throw new Error(
-      `The poster and the new speaker photos come to ${sizeLabel(total)}, more than the ${sizeLabel(GATEWAY_BODY_MAX)} one save can send. Save with fewer new photos, then add the rest.`,
+      `The poster and the new speaker photos come to ${sizeLabel(total)}, more than the ${sizeLabel(REQUEST_MAX)} one save can send. Save with fewer new photos, then add the rest.`,
     );
   }
   return { ...values, posterFile, speakers };

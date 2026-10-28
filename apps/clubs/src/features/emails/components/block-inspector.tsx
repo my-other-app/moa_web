@@ -4,7 +4,7 @@ import * as React from "react";
 import { PlusIcon, Trash2Icon, UploadIcon, XIcon } from "lucide-react";
 import { Button, IconButton, cn, toast } from "@moa/ui";
 
-import { fitImage } from "@/lib/images";
+import { IMAGE_ACCEPT, fitImage } from "@/lib/images";
 
 import { uploadEmailImage } from "../api";
 import {
@@ -125,7 +125,7 @@ const ImageSource = ({
     if (!file) return;
     setBusy(true);
     try {
-      // Over the gateway's 4.5 MB (a Vercel limit) it is redrawn smaller first (lib/images).
+      // Converted when the API does not keep its format, and redrawn smaller when over budget (lib/images).
       const up = await uploadEmailImage(scope, await fitImage(file, "image"));
       patch({ imageKey: up.key });
       toast.success("Image uploaded", {
@@ -157,12 +157,12 @@ const ImageSource = ({
           <p className={cn(ui.note, "mb-1.5 truncate")}>
             {block.imageKey
               ? block.imageKey.split("/").pop()
-              : "No image yet. PNG, JPEG or WebP; a big one is made smaller to send."}
+              : "No image yet. Any picture: an SVG, a HEIC or an AVIF is converted, and a big one made smaller to send."}
           </p>
           <input
             ref={inputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept={IMAGE_ACCEPT}
             className="hidden"
             onChange={(e) => void onFile(e.target.files?.[0])}
           />

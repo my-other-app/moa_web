@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { IMAGE_FORMATS_LABEL, isPicture } from "@/lib/images";
+
 /**
  * The club's merchandise catalogue: items made once, under the club, and
  * offered on as many events as it likes. Stock is the club's, shared by
@@ -70,13 +72,12 @@ export const offersSchema = z.object({ merch_enabled: z.boolean(), item_ids: z.a
 
 export const photoUploadSchema = z.object({ key: z.string(), url: z.string() });
 
-/** What POST /clubs/store/photo takes. */
-export const PHOTO_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
-
-/** Why a picked file will not do, before it is sent; null when it will. Its
- *  size is not one: a big one is redrawn smaller before it goes (lib/images). */
+/** Why a picked file will not do, before it is sent; null when it will. Any
+ *  picture will: one POST /clubs/store/photo does not keep (an SVG, a HEIC,
+ *  an AVIF...) is converted, and a big one redrawn smaller, before it goes
+ *  (lib/images). */
 export function photoProblem(file: File): string | null {
-  if (!(PHOTO_TYPES as readonly string[]).includes(file.type)) return "Use a PNG, JPEG or WebP image";
+  if (!isPicture(file)) return `Choose a picture: ${IMAGE_FORMATS_LABEL}`;
   return null;
 }
 
