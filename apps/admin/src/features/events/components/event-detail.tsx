@@ -69,6 +69,7 @@ import {
 import type { EventRegistration } from "../schemas";
 import { PlacingControl } from "./placing-control";
 import { EventEditForm } from "./event-edit-form";
+import { EventPartnersCard } from "./event-partners-card";
 
 /**
  * One event, for an admin.
@@ -480,6 +481,8 @@ export function EventDetail({ eventId }: { eventId: number }) {
             />
           </section>
         ) : null}
+
+        {event ? <EventPartnersCard sponsors={event.sponsors} partners={event.partners} /> : null}
 
         <Tabs defaultValue="registrations">
           <TabsList>

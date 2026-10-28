@@ -13,6 +13,7 @@ import { Form, InlineAlert, Notice, ProgressBar, cn, toast } from "@moa/ui";
 
 import { AiFilledProvider, AiFilledTag } from "@/features/ai";
 import { useMyClub } from "@/features/club";
+import { EventPartnersSection } from "@/features/event-partners";
 import { LimitMeter, isPlanLockError, lockCopy, useLimitGate } from "@/features/plan";
 
 import { useCreateEvent, usePublishEvent, useUpdateEvent } from "../queries";
@@ -31,7 +32,7 @@ import { WhereStep } from "./steps/where-step";
 /**
  * The event form, in two columns.
  *
- * The left is the form, seven sections in the order things get decided.
+ * The left is the form, eight sections in the order things get decided.
  * The right stays put: how ready the event is (the four things publishing
  * needs, the six that make a page people sign up from), each a link to its
  * section; the card as people will see it; and, while editing, who is
@@ -42,6 +43,12 @@ export interface EventFormContext {
   posterUrl?: string | null;
   status?: "draft" | "published" | "live" | "closed" | "archived";
   registered?: number;
+  /**
+   * Whether the server has an event's own sponsors and partners (its detail
+   * carried a `sponsors` list). Without them the section is left out of an
+   * edit; a new event's form shows it as a note, since rows wait for the event.
+   */
+  partnersSupported?: boolean;
 }
 
 export const emptyEventForm: EventFormValues = {
@@ -303,12 +310,17 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
 
   const actionProps: ActionsProps = { mode, isSaving, intent, canDraft: Boolean(values.name?.trim()), publishable: ready.publishable, isDirty, isDraft, publishing: publish.isPending, submitAs, onPublish: () => publish.mutate(undefined, { onSuccess: () => router.push(`/events/${eventId}`) }) };
 
+  // Sponsors and partners hang on a saved event; on an older server, an edit leaves them out.
+  const steps = STEPS.filter((s) => s.id !== "sponsors" || mode === "create" || context?.partnersSupported === true);
+  const showsPartners = steps.some((s) => s.id === "sponsors");
+
   const sections: Record<string, React.ReactNode> = {
     event: <EventStep posterUrl={context?.posterUrl} eventId={mode === "edit" ? eventId : undefined} />,
     when: <WhenStep withAgenda={mode === "create"} />,
     where: <WhereStep />,
     entry: <EntryStep eventId={mode === "edit" ? eventId : undefined} />,
     people: <PeopleStep />,
+    sponsors: <EventPartnersSection eventId={mode === "edit" ? eventId : undefined} />,
     reach: <ReachStep />,
     questions: <QuestionsStep />,
   };
@@ -348,7 +360,7 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
           <div className="flex min-w-0 flex-col gap-4">
-            {STEPS.map((s, i) => (
+            {steps.map((s, i) => (
               <section key={s.id} id={`section-${s.id}`} aria-labelledby={`section-${s.id}-title`} className="bg-surface shadow-card border-line-soft scroll-mt-4 rounded-[var(--radius-card)] border p-5">
                 <div className="mb-4 flex items-start gap-3">
                   <span className="bg-sunken text-ink-3 grid size-7 shrink-0 place-items-center rounded-lg font-mono text-[11px]">{i + 1}</span>
@@ -370,7 +382,7 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
               </p>
             ) : null}
             <div className="bg-surface/90 border-line-soft sticky bottom-0 flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border px-4 py-3 backdrop-blur-sm">
-              <span className="text-ink-3 text-[12.5px]">{Object.keys(errors).length > 0 ? "Something to fix above." : mode === "create" ? (ready.publishable ? "Publishing puts it on your club page and in followers' feeds." : `${ready.required.filter((i) => !i.done).length} to go before it can be published.`) : "Every section saves together."}</span>
+              <span className="text-ink-3 text-[12.5px]">{Object.keys(errors).length > 0 ? "Something to fix above." : mode === "create" ? (ready.publishable ? "Publishing puts it on your club page and in followers' feeds." : `${ready.required.filter((i) => !i.done).length} to go before it can be published.`) : showsPartners ? "Every section saves together; sponsors and partners save as you add them." : "Every section saves together."}</span>
               <div className="flex-1" />
               <Actions {...actionProps} />
             </div>

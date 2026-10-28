@@ -52,6 +52,24 @@ export const adminEventPageSchema = paginatedSchema(adminEventSchema);
 
 export type AdminEvent = z.infer<typeof adminEventSchema>;
 
+/**
+ * One of an event's own sponsors or partners (backend docs/EVENT_PARTNERS.md).
+ * Read-only here; the club adds them in its event editor.
+ */
+export const eventPartnerSchema = z.object({
+  id: z.coerce.number(),
+  kind: z.enum(["sponsor", "partner"]).catch("partner"),
+  name: z.string(),
+  label: z.string().nullish(),
+  link: z.string().nullish(),
+  position: z.number().catch(0).default(0),
+  logo: imageFieldSchema.catch(null),
+});
+export type EventPartner = z.infer<typeof eventPartnerSchema>;
+
+/** A list an older server doesn't send: empty, so the section stays hidden. */
+const partnerList = z.array(eventPartnerSchema).catch([]).default([]);
+
 /** GET /events/info/{id} — the full record, narrowed to what the page shows. */
 export const adminEventDetailSchema = z
   .object({
@@ -81,6 +99,8 @@ export const adminEventDetailSchema = z
     category: namedRefSchema,
     club: namedRefSchema,
     ...approvalShape,
+    sponsors: partnerList,
+    partners: partnerList,
   })
   .passthrough();
 
