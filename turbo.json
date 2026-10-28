@@ -13,6 +13,7 @@
       ],
       "env": [
         "NEXT_PUBLIC_SENTRY_*",
+        "NEXT_PUBLIC_GOOGLE_CLIENT_ID",
         "SENTRY_ORG",
         "SENTRY_PROJECT",
         "SENTRY_RELEASE",
