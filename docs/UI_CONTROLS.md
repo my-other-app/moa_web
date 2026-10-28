@@ -23,6 +23,10 @@ One stylesheet (`.btn` in `meridian.css`) and one component (`<Button>`) that em
 
 Add `btn-danger` to a secondary or ghost button whose action removes something (refuse text). Add `btn-icon` for a square icon-only button, `btn-round` to make it round. Nothing else sets a button's height, padding, radius or type: never `h-8 px-2 text-[12px]`.
 
+One tone per button. A button whose tone changes with its state names the base and one tone, `cn("btn", dirty ? "btn-primary" : "btn-secondary")`, never `btn btn-secondary` plus a second tone: the browser applies both, and the primary's white text sat on the secondary's white fill (Save changes, Oct 2026). `cn()` keeps the last tone and the last size given, and `packages/ui/src/contract.test.ts` refuses two tones in one class string.
+
+Text on a filled tone takes that tone's foreground: `text-brand-foreground` on `bg-brand`, `text-refuse-foreground` on `bg-refuse` (a count badge). Never `text-white`: both fills turn pale in dark mode. `packages/ui/src/styles/meridian.test.ts` checks every ink and tone pair at 4.5:1 in both modes.
+
 `<IconButton label="Copy">` is the icon-only button for a row: round, 32px, a line around it, with the label as its accessible name and tooltip. `variant="quiet"` is the one for a dense row (a layer list): ink, no line, 28px with `size="xs"`.
 
 `<IconToggle on labelOn labelOff iconOn iconOff onToggle>` is a square icon toggle whose icon says the state and whose label says what pressing it does: an open eye to hide, a crossed eye to show; an open lock to hold in place, a closed lock (caution) to release. Never a glyph character, never a filled or empty box.

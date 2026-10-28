@@ -362,7 +362,7 @@ export function EventRow({ event, now }: { event: ClubEvent; now: number }) {
         <Link
           href={primary.href}
           className={cn(
-            "btn btn-secondary btn-sm",
+            "btn btn-sm",
             event.door_open ? "btn-primary" : "btn-secondary",
           )}
         >

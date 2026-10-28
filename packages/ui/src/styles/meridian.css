@@ -32,9 +32,11 @@
   --line-soft: #ebede8;
   --ink: #15181a;
   --ink-2: #596059;
-  --ink-3: #868d89;
+  /* Tertiary ink at AA: 4.5:1 or better on the canvas, a sheet, the sunken ground and the brand tint. */
+  --ink-3: #676e6a;
 
-  --brand: #0f8a73;
+  /* Deep enough that white on it, and it on white or its tint, read at 4.5:1 or better. */
+  --brand: #0c7a66;
   --brand-foreground: #ffffff;
   /* The focus ring on a field: the brand at a fifth, three pixels wide — seen, not shouted. */
   --focus-ring: color-mix(in srgb, var(--brand) 22%, transparent);
@@ -48,6 +50,8 @@
   --caution-soft: #fbf2dd;
   --caution-line: #efdcae;
   --refuse: #a2271b;
+  /* Text on a refuse fill: a destructive button, a count badge. */
+  --refuse-foreground: #ffffff;
   --refuse-soft: #fbe9e6;
   --refuse-line: #f1d0ca;
   --info: #1f5f8c;
@@ -93,7 +97,7 @@
   --line-soft: #222826;
   --ink: #eef1ee;
   --ink-2: #a4aba6;
-  --ink-3: #777e7a;
+  --ink-3: #8e9591;
 
   --brand: #4fcdb0;
   --brand-foreground: #06201c;
@@ -108,6 +112,8 @@
   --caution-soft: #2b2112;
   --caution-line: #574521;
   --refuse: #f08b7d;
+  /* Dark refuse is a light salmon: white on it read at about 2.4:1, so its text is the canvas. */
+  --refuse-foreground: #0b0e0d;
   --refuse-soft: #2d1613;
   --refuse-line: #5b2b25;
   --info: #7fbbe8;
@@ -194,7 +200,7 @@
   --accent-foreground: var(--ink);
 
   --destructive: var(--refuse);
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: var(--refuse-foreground);
   --border: var(--line);
   --input: var(--line);
   --ring: var(--brand);
@@ -238,6 +244,7 @@
   --color-caution-soft: var(--caution-soft);
   --color-caution-line: var(--caution-line);
   --color-refuse: var(--refuse);
+  --color-refuse-foreground: var(--refuse-foreground);
   --color-refuse-soft: var(--refuse-soft);
   --color-refuse-line: var(--refuse-line);
   --color-info: var(--info);
@@ -413,7 +420,12 @@
   .btn-primary:not(:disabled):hover {
     filter: brightness(1.06);
   }
+  /*
+   * Every tone sets its own text colour. A stray second tone on one element
+   * used to leave the primary's white text on the secondary's white fill.
+   */
   .btn-secondary {
+    color: var(--ink);
     background: var(--surface);
     border-color: var(--line);
   }
@@ -439,13 +451,9 @@
     color: var(--brand);
   }
   .btn-destructive {
-    color: #ffffff;
+    color: var(--refuse-foreground);
     background: var(--refuse);
     border-color: var(--refuse);
-  }
-  /* Dark refuse is a light salmon: white on it read at about 2.3:1. */
-  .dark .btn-destructive {
-    color: var(--canvas);
   }
   .btn-destructive:not(:disabled):hover {
     filter: brightness(1.06);

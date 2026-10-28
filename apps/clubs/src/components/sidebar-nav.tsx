@@ -96,7 +96,7 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
                       <span
                         data-testid={`${item.server ?? "item"}-unread`}
                         className={cn(
-                          "bg-refuse shrink-0 rounded-full px-1.5 font-mono text-[10.5px] leading-[18px] font-semibold text-white tabular-nums",
+                          "bg-refuse shrink-0 rounded-full px-1.5 font-mono text-[10.5px] leading-[18px] font-semibold text-refuse-foreground tabular-nums",
                           collapsed && "sr-only",
                         )}
                       >

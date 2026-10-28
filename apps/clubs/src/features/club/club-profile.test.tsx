@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { ApiError } from "@moa/api";
 
 import clubInfoFixture from "../__fixtures__/club-info.json";
 import interestsFixture from "../__fixtures__/interests.json";
 import orgsFixture from "../__fixtures__/orgs.json";
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
+/** What PUT /clubs/update does: resolve, or throw what the server said. */
+let putAnswer: () => unknown = () => undefined;
 let club = {
   ...clubInfoFixture,
   tagline: "Trivandrum's maker collective",
@@ -29,6 +32,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       }),
       put: vi.fn(async (path: string, body: unknown) => {
         calls.push({ method: "PUT", path, body });
+        return putAnswer();
       }),
       post: vi.fn(async (path: string, body: unknown) => {
         calls.push({ method: "POST", path, body });
@@ -52,6 +56,7 @@ const baseClub = club;
 beforeEach(() => {
   calls.length = 0;
   club = baseClub;
+  putAnswer = () => undefined;
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -61,6 +66,10 @@ const putBody = async () => {
   await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
   return calls.find((c) => c.method === "PUT")!.body as FormData;
 };
+
+/** The header's Save changes; once something has changed, the bar at the foot has one too. */
+const saveButton = async () => (await screen.findAllByRole("button", { name: "Save changes" }))[0]!;
+const tones = (el: HTMLElement) => el.className.split(/\s+/).filter((c) => /^btn-(primary|secondary|ghost|quiet|destructive)$/.test(c));
 
 describe("club profile", () => {
   it("shows the club, its handle read-only, its partners, and nothing about follower counts", async () => {
@@ -90,7 +99,7 @@ describe("club profile", () => {
     await screen.findByTestId("club-name");
     fireEvent.change(screen.getByLabelText("Tagline"), { target: { value: "Pune's student electronics and robotics club" } });
     fireEvent.click(screen.getByRole("button", { name: "Brand colour #2f6fed" }));
-    const save = await screen.findByRole("button", { name: "Save changes" });
+    const save = await saveButton();
     fireEvent.click(save);
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.method === "PUT")!;
@@ -147,7 +156,7 @@ describe("club profile", () => {
     expect(screen.getByText("Set by you")).toBeInTheDocument();
     expect(screen.getByTitle("Map of College of Engineering Trivandrum")).toBeInTheDocument();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Save changes" }));
+    fireEvent.click(await saveButton());
     const form = await putBody();
     expect(form.get("location_name")).toBe("College of Engineering Trivandrum");
     expect(form.get("lat")).toBe("8.5459");
@@ -163,7 +172,7 @@ describe("club profile", () => {
     await screen.findByTestId("club-name");
     expect(screen.getByText("Found from the venue name")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Remove pin" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Save changes" }));
+    fireEvent.click(await saveButton());
     const form = await putBody();
     expect(form.get("clear_point")).toBe("true");
     expect(form.get("lat")).toBeNull();
@@ -177,8 +186,74 @@ describe("club profile", () => {
     expect(screen.getByText("4 interests picked")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Remove Marketing" }));
     expect(screen.getByRole("checkbox", { name: "Marketing" })).not.toBeChecked();
-    fireEvent.click(await screen.findByRole("button", { name: "Save changes" }));
+    fireEvent.click(await saveButton());
     const form = await putBody();
     expect(form.get("interest_ids")).toBe("6,7,21");
+  });
+  it("makes Save changes one primary button once something changes, in the header and in a bar at the foot", async () => {
+    render(<ClubProfilePage />);
+    await screen.findByTestId("club-name");
+    const idle = screen.getByRole("button", { name: /All changes saved/ });
+    expect(tones(idle)).toEqual(["btn-secondary"]);
+    expect(screen.queryByRole("region", { name: "Save the profile" })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Tagline"), { target: { value: "Robots, after class" } });
+    const saves = await screen.findAllByRole("button", { name: "Save changes" });
+    expect(saves).toHaveLength(2);
+    // Both tones at once put the primary's white text on the secondary's white fill.
+    for (const b of saves) expect(tones(b)).toEqual(["btn-primary"]);
+    const bar = screen.getByRole("region", { name: "Save the profile" });
+    expect(within(bar).getByRole("status")).toHaveTextContent("You have unsaved changes.");
+  });
+
+  it("says it is saving, then that it saved", async () => {
+    let release: () => void = () => {};
+    putAnswer = () => new Promise<void>((r) => (release = r));
+    render(<ClubProfilePage />);
+    await screen.findByTestId("club-name");
+    fireEvent.change(screen.getByLabelText("Tagline"), { target: { value: "Robots, after class" } });
+    fireEvent.click(await saveButton());
+
+    expect(await screen.findAllByRole("button", { name: /Saving…/ })).toHaveLength(2);
+    expect(screen.getByRole("status")).toHaveTextContent("Saving your changes…");
+    release();
+    expect(await screen.findByRole("button", { name: /All changes saved/ })).toBeDisabled();
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Save the profile" })).not.toBeInTheDocument());
+  });
+
+  it("says why when the server refuses, keeps the edit, and lets Save try again", async () => {
+    putAnswer = () => {
+      throw new ApiError({ status: 500, message: "The server could not save the profile just now." });
+    };
+    render(<ClubProfilePage />);
+    await screen.findByTestId("club-name");
+    fireEvent.change(screen.getByLabelText("Tagline"), { target: { value: "Robots, after class" } });
+    fireEvent.click(await saveButton());
+
+    expect(await screen.findByText("Not saved: The server could not save the profile just now.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tagline")).toHaveValue("Robots, after class");
+    expect(await saveButton()).toBeEnabled();
+
+    putAnswer = () => undefined;
+    fireEvent.click(await saveButton());
+    expect(await screen.findByRole("button", { name: /All changes saved/ })).toBeDisabled();
+  });
+
+  it("does not send a field the server would refuse, and says so", async () => {
+    render(<ClubProfilePage />);
+    await screen.findByTestId("club-name");
+    fireEvent.change(screen.getByLabelText("Instagram"), { target: { value: "instagram.com/club" } });
+    fireEvent.click(await saveButton());
+
+    expect(await screen.findByText("Enter a full URL")).toBeInTheDocument();
+    expect(screen.getByText("Not saved: fix the marked field above.")).toBeInTheDocument();
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+
+    // Fixed, the old reason goes; saved, it is said.
+    fireEvent.change(screen.getByLabelText("Instagram"), { target: { value: "https://instagram.com/club" } });
+    expect(screen.queryByText("Not saved: fix the marked field above.")).not.toBeInTheDocument();
+    fireEvent.click(await saveButton());
+    expect(await screen.findByRole("button", { name: /All changes saved/ })).toBeDisabled();
+    expect((await putBody()).get("instagram")).toBe("https://instagram.com/club");
   });
 });

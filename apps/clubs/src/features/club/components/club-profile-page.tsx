@@ -4,6 +4,7 @@ import * as React from "react";
 import { Controller, useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
+import { ApiError } from "@moa/api";
 import {
   CheckIcon,
   GlobeIcon,
@@ -59,7 +60,8 @@ import { usePick } from "./use-pick";
  * about), then brand and appearance (cover, colour, tagline, the handle
  * nobody can edit), then the year-round partners, then the links. The logo
  * and the cover upload the moment they are picked; partners save row by
- * row; everything else waits for Save changes.
+ * row; everything else waits for Save changes, in the header and, once
+ * something has changed, in a bar that stays at the foot of the screen.
  */
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const CLUB_PAGE = `${PUBLIC_SITE_HOST}/clubs`;
@@ -552,6 +554,19 @@ function LocationPin({ form, disabled }: { form: UseFormReturn<Values>; disabled
   );
 }
 
+/**
+ * Save changes: brand when there is something to save, quiet once it is all
+ * saved. One tone at a time: with both, the primary's text sat on the
+ * secondary's fill and the label vanished.
+ */
+function SaveButton({ dirty, saving }: { dirty: boolean; saving: boolean }) {
+  return (
+    <button type="submit" className={cn("btn", dirty ? "btn-primary" : "btn-secondary")} disabled={saving || !dirty}>
+      {saving ? <Loader2Icon className="size-4 animate-spin" /> : <CheckIcon className="size-4" />} {saving ? "Saving…" : dirty ? "Save changes" : "All changes saved"}
+    </button>
+  );
+}
+
 function ProfileForm({ club }: { club: ClubSelf }) {
   const { data: orgs } = useOrganizations();
   const update = useUpdateMyClub();
@@ -568,15 +583,30 @@ function ProfileForm({ club }: { club: ClubSelf }) {
   const { errors, isDirty } = form.formState;
   const saving = update.isPending || form.formState.isSubmitting;
   const colour = HEX.test(brandPrimary) ? brandPrimary : "#17a58f";
+  // Why the last Save did not take, kept in the bar until the next edit or try.
+  const [problem, setProblem] = React.useState<string | null>(null);
 
   const onSubmit = async (values: Values) => {
-    await update.mutateAsync(values);
-    form.reset(values);
+    setProblem(null);
+    try {
+      await update.mutateAsync(values);
+      form.reset(values);
+    } catch (error) {
+      // The mutation has toasted it; the bar says it too, next to the button that tries again.
+      // Caught, too: it used to escape the submit handler as an unhandled rejection.
+      setProblem(error instanceof ApiError && error.message ? `Not saved: ${error.message}` : "Not saved. Try again.");
+    }
+  };
+  // A field the server would refuse: said, rather than Save seeming to do nothing.
+  const onInvalid = () => {
+    setProblem("Not saved: fix the marked field above.");
+    toast.error("Not saved", { description: "Fix the marked field, then save again." });
   };
 
   return (
     <form
-      onSubmit={form.handleSubmit(onSubmit)}
+      onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+      onChange={() => setProblem(null)}
       noValidate
       className="flex flex-col gap-3.5"
     >
@@ -590,25 +620,7 @@ function ProfileForm({ club }: { club: ClubSelf }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="submit"
-            className={cn(
-              "btn btn-secondary",
-              isDirty ? "btn-primary" : "btn-secondary",
-            )}
-            disabled={saving || !isDirty}
-          >
-            {saving ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <CheckIcon className="size-4" />
-            )}{" "}
-            {saving
-              ? "Saving…"
-              : isDirty
-                ? "Save changes"
-                : "All changes saved"}
-          </button>
+          <SaveButton dirty={isDirty} saving={saving} />
         </div>
       </header>
 
@@ -867,6 +879,17 @@ function ProfileForm({ club }: { club: ClubSelf }) {
           </div>
         </div>
       </FigurePanel>
+
+      {/* The page is long and its header scrolls away: once something changed, Save stays at the foot. */}
+      {isDirty || saving || problem ? (
+        <div role="region" aria-label="Save the profile" className="bg-surface/90 border-line-soft sticky bottom-0 flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border px-4 py-3 backdrop-blur-sm">
+          <span role="status" className={cn("text-[12.5px]", problem ? "text-refuse" : "text-ink-3")}>
+            {problem ?? (saving ? "Saving your changes…" : "You have unsaved changes.")}
+          </span>
+          <div className="flex-1" />
+          <SaveButton dirty={isDirty} saving={saving} />
+        </div>
+      ) : null}
     </form>
   );
 }

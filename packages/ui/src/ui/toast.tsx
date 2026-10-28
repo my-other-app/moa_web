@@ -25,6 +25,23 @@ function Toaster({ theme = "system", ...props }: ToasterProps) {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
+          /*
+           * The rich colours in Meridian's four tones, so a toast reads at
+           * AA in both modes and follows the app's theme. Sonner's own read
+           * at about 4.3:1 in light mode (green on mint, red on pink).
+           */
+          "--success-bg": "var(--admit-soft)",
+          "--success-border": "var(--admit-line)",
+          "--success-text": "var(--admit)",
+          "--error-bg": "var(--refuse-soft)",
+          "--error-border": "var(--refuse-line)",
+          "--error-text": "var(--refuse)",
+          "--warning-bg": "var(--caution-soft)",
+          "--warning-border": "var(--caution-line)",
+          "--warning-text": "var(--caution)",
+          "--info-bg": "var(--info-soft)",
+          "--info-border": "var(--info-line)",
+          "--info-text": "var(--info)",
         } as React.CSSProperties
       }
       {...props}

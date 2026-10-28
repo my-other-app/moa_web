@@ -233,7 +233,7 @@ export function NewAnnouncementDialog() {
             <div className="bg-sunken rounded-[22px] p-3">
               <div className="bg-surface shadow-card rounded-2xl p-3">
                 <div className="flex items-center gap-2">
-                  <span className="bg-brand grid size-5 place-items-center rounded-md text-[9px] font-bold text-white">
+                  <span className="bg-brand text-brand-foreground grid size-5 place-items-center rounded-md text-[9px] font-bold">
                     M
                   </span>
                   <span className="text-ink-3 text-[10px] tracking-[0.04em] uppercase">
