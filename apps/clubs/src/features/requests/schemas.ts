@@ -1,12 +1,14 @@
 import { z } from "zod";
 
 /**
- * Registration requests ("Confirm each registration"), as the club's API
- * sends them (the contract: feature-register/approvals-contract.md).
+ * Registrations under review ("Review registrations before sending
+ * tickets"), as the club's API sends them (the contracts:
+ * feature-register/approvals-contract.md and review-wording-contract.md).
+ * In code and in the API they are still "requests".
  *
- * With the setting on, filling the form does not register anyone: it makes
- * a request, which holds no place. The club confirms (a free ticket goes
- * out at once; a paid one gets a pay link and a held place) or declines.
+ * With the setting on, a registration waits for the club's review and holds
+ * no place. The club confirms it (a free ticket goes out at once; a paid one
+ * gets a pay link and a held place) or declines it.
  * The queue is oldest first, (submitted_at, id), and the lists page by a
  * keyset cursor (`next`), never by offset.
  */
@@ -14,17 +16,23 @@ import { z } from "zod";
 export const REQUEST_STATUSES = ["pending", "approved", "declined", "withdrawn", "lapsed", "closed"] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
+/** The club's words for each status (review-wording-contract.md, section 0). */
 export const STATUS_LABEL: Record<RequestStatus, string> = {
-  pending: "Waiting",
+  pending: "Under review",
   approved: "Confirmed",
   declined: "Declined",
-  withdrawn: "Withdrawn",
-  lapsed: "Lapsed",
+  withdrawn: "Cancelled",
+  lapsed: "Expired",
   closed: "Closed",
 };
 
-/** The page's tabs, in the order a request moves. Closed shows only once any request is (the event ended or was cancelled). */
-export const STATUS_TABS: readonly RequestStatus[] = ["pending", "approved", "declined", "withdrawn", "lapsed"];
+/**
+ * The page's tabs, in the order a registration moves. Expired and Closed
+ * show only once any registration is (not paid in time; the event ended or
+ * was cancelled): OPTIONAL_TABS.
+ */
+export const STATUS_TABS: readonly RequestStatus[] = ["pending", "approved", "declined", "withdrawn"];
+export const OPTIONAL_TABS: readonly RequestStatus[] = ["lapsed", "closed"];
 
 /** A tab: one status, or every request (`status=all`, newest first). */
 export type RequestTab = RequestStatus | "all";
@@ -146,16 +154,16 @@ export const people = (n: number) => `${num(n)} ${n === 1 ? "person" : "people"}
  * reasons; anything else is said as the server named it.
  */
 export const SKIP_REASON: Record<string, string> = {
-  not_pending: "they were already decided or withdrawn, or someone else was deciding them at that moment",
+  not_pending: "they were already reviewed or cancelled, or someone else was reviewing them at that moment",
   event_full: "the event is full",
   type_sold_out: "their ticket type is sold out",
   type_unavailable: "their ticket type isn't available any more",
   already_registered: "they're already registered",
-  code_invalid: "their discount code no longer applies, so they wait for you to decide (they're never charged full price without being asked)",
+  code_invalid: "their discount code no longer applies, so their registration stays under review (they're never charged full price without being asked)",
   event_closed: "the event has closed",
   // Reopening.
-  not_reopenable: "it isn't declined or lapsed any more",
-  already_open: "they have asked again since, and that request is still open",
+  not_reopenable: "their registration isn't declined or expired any more",
+  already_open: "they have registered again since, and that registration is still open",
 };
 
 export function skipReasonText(reason: string): string {

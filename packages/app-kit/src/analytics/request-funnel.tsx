@@ -8,11 +8,12 @@ import { formatDateTime, formatNumber, plural, relativeTime } from "../format";
 import type { Places, RequestFigures } from "./schemas";
 
 /**
- * "Confirm each registration" in numbers: who asked, who is still waiting
- * for the club, who was confirmed (and, on a paid event, who paid, who is
- * paying inside their hold and who didn't pay), who was declined or
- * withdrew, and who came in. Then four rates and the places as the server
- * counts them (the ticket picker's own calculation, so the two agree).
+ * "Review registrations" in numbers: the registrations received, the ones
+ * still under review, who was confirmed (and, on a paid event, who paid and
+ * who is paying inside their hold), who was declined, cancelled or expired
+ * (confirmed, not paid in time), and who came in. Then four rates and the
+ * places as the server counts them (the ticket picker's own calculation, so
+ * the two agree).
  *
  * Shared by the club's event overview and the admin's event page (read-only
  * there), and by the club's closeout. Everything comes from the server's
@@ -26,7 +27,7 @@ export interface RequestRates {
   paid: number | null;
   /** Of those holding a ticket through a request, how many came in. */
   turnout: number | null;
-  /** Of the people who opened the event page, how many asked. */
+  /** Of the people who opened the event page, how many registered. */
   asked: number | null;
 }
 
@@ -54,7 +55,7 @@ export function requestRates(r: RequestFigures, opts: { paidEvent?: boolean; pag
   };
 }
 
-/** How many waiting people the places left can't take: 0 with no cap, or room for all. */
+/** How many registrations under review the places left can't take: 0 with no cap, or room for all. */
 export function placesShortfall(places: Places | null | undefined, waiting: number): number {
   if (!places || places.left === null) return 0;
   return Math.max(0, waiting - places.left);
@@ -129,7 +130,7 @@ function PlacesBlock({ places, waiting, readOnly }: { places: Places; waiting: n
     `${formatNumber(places.taken)} taken`,
     `${formatNumber(places.held)} held`,
     places.left === null ? null : `${formatNumber(places.left)} left`,
-    `${formatNumber(waiting)} waiting`,
+    `${formatNumber(waiting)} under review`,
   ].filter(Boolean);
   const whole = places.capacity ?? places.taken + places.held;
   const share = (n: number) => (whole > 0 ? `${Math.min(100, (n / whole) * 100)}%` : "0%");
@@ -145,10 +146,10 @@ function PlacesBlock({ places, waiting, readOnly }: { places: Places; waiting: n
           <span className="bg-caution h-full" style={{ width: share(places.held) }} />
         </div>
       ) : null}
-      <p className="text-ink-3 m-0 text-[11.5px]">Held places are kept for people you confirmed until they pay. Waiting requests hold no place.</p>
+      <p className="text-ink-3 m-0 text-[11.5px]">Held places are kept for people you confirmed until they pay. Registrations under review hold none.</p>
       {short > 0 ? (
         <Notice tone="caution" tag="Places">
-          {plural(waiting, "person is", "people are")} waiting and {places.left === 0 ? "no place is" : `only ${plural(places.left ?? 0, "place is", "places are")}`} left.{" "}
+          {plural(waiting, "registration is", "registrations are")} under review and {places.left === 0 ? "no place is" : `only ${plural(places.left ?? 0, "place is", "places are")}`} left.{" "}
           {readOnly ? "Confirming stops when the places run out." : "Confirming stops when the places run out: decline the rest, or add places under Settings."}
         </Notice>
       ) : null}
@@ -163,7 +164,7 @@ export function RequestFunnelCard({
   pageViews,
   requestsHref,
   readOnly = false,
-  title = "Requests",
+  title = "Registration review",
   now,
   className,
 }: {
@@ -172,42 +173,42 @@ export function RequestFunnelCard({
   places?: Places | null;
   /** A paid event: the confirmed split into paid, paying and didn't pay. Absent: read from the figures. */
   paidEvent?: boolean;
-  /** The event page's views, for page views → asked. */
+  /** The event page's views, for page views → registered. */
   pageViews?: number | null;
   /** Where the queue is, for the link in the corner. */
   requestsHref?: string;
   /** Someone who can't decide (the admin): no advice to act. */
   readOnly?: boolean;
   title?: string;
-  /** The moment "oldest asked … ago" is read against (the server's generated_at). */
+  /** The moment "oldest registered … ago" is read against (the server's generated_at). */
   now?: Date;
   className?: string;
 }) {
   const at = now ?? new Date();
   const paid = isPaid(r, paidEvent);
   const rates = requestRates(r, { paidEvent: paid, pageViews });
-  const confirmed = r.approved + r.lapsed;
   const max = Math.max(1, r.total);
 
   const steps: Step[] = [
     {
-      key: "asked",
-      label: "Asked",
+      key: "received",
+      label: "Received",
       value: r.total,
       tone: "accent",
       note: r.added_directly > 0 ? `${plural(r.added_directly, "more person", "more people")} added directly (the desk, an import)` : undefined,
     },
     {
-      key: "waiting",
-      label: "Waiting for you",
+      key: "under_review",
+      label: "Under review",
       value: r.pending,
       tone: r.pending > 0 ? "caution" : "muted",
-      note: r.pending > 0 && r.oldest_pending_at ? `oldest asked ${relativeTime(r.oldest_pending_at, at)}` : r.pending > 0 ? undefined : "nobody waiting",
+      note: r.pending > 0 && r.oldest_pending_at ? `oldest registered ${relativeTime(r.oldest_pending_at, at)}` : r.pending > 0 ? undefined : "none left to review",
     },
     {
       key: "confirmed",
       label: "Confirmed",
-      value: confirmed,
+      // Confirmed and still holding a ticket (or paying for it): the expired are counted with the declined.
+      value: r.approved,
       tone: "admit",
       sub: paid
         ? [
@@ -222,16 +223,15 @@ export function RequestFunnelCard({
                   ? `${rupees(r.awaiting_payment_amount)} to come${r.earliest_hold_expires_at ? ` · first hold ends ${formatDateTime(r.earliest_hold_expires_at)}` : ""}`
                   : undefined,
             },
-            { key: "lapsed", label: "Didn't pay", value: r.lapsed, tone: "refuse", note: r.lapsed > 0 ? "their places went back" : undefined },
           ]
         : undefined,
     },
     {
       key: "declined",
-      label: "Declined · Withdrew",
-      value: r.declined + r.withdrawn,
+      label: "Declined · Cancelled · Expired",
+      value: r.declined + r.withdrawn + r.lapsed,
       tone: "muted",
-      note: `${formatNumber(r.declined)} declined · ${formatNumber(r.withdrawn)} withdrew${r.closed > 0 ? ` · ${formatNumber(r.closed)} closed unanswered` : ""}`,
+      note: `${formatNumber(r.declined)} declined · ${formatNumber(r.withdrawn)} cancelled · ${formatNumber(r.lapsed)} expired (not paid in time)${r.closed > 0 ? ` · ${formatNumber(r.closed)} closed before review` : ""}`,
     },
     {
       key: "checked_in",
@@ -247,27 +247,27 @@ export function RequestFunnelCard({
         <CardLabel>{title}</CardLabel>
         {requestsHref ? (
           <Link href={requestsHref} className="text-brand hover:text-ink text-[12px] font-medium">
-            Open requests →
+            Open Review →
           </Link>
         ) : (
-          <span className="text-ink-3 text-[11.5px]">{r.enabled ? "Confirms each registration" : "Confirming each registration is off"}</span>
+          <span className="text-ink-3 text-[11.5px]">{r.enabled ? "Reviews registrations" : "Reviewing registrations is off"}</span>
         )}
       </div>
       <div className="grid gap-4 px-4 py-3.5 lg:grid-cols-[1.35fr_1fr]">
-        <ol className="m-0 grid list-none gap-3 p-0" aria-label="From asking to the door">
+        <ol className="m-0 grid list-none gap-3 p-0" aria-label="From registering to the door">
           {steps.map((s) => (
             <StepRow key={s.key} step={s} max={max} />
           ))}
         </ol>
         <div className="grid content-start gap-2">
           <dl className="m-0 grid grid-cols-2 gap-2" aria-label="Rates">
-            <Rate label="Confirmed" value={pctText(rates.confirmed)} note="of everyone you decided" />
+            <Rate label="Confirmed" value={pctText(rates.confirmed)} note={readOnly ? "of everyone reviewed" : "of everyone you reviewed"} />
             {paid ? <Rate label="Paid" value={pctText(rates.paid)} note="of everyone confirmed" /> : null}
             <Rate label="Turnout" value={pctText(rates.turnout)} note={paid ? "of the paid came in" : "of the confirmed came in"} />
-            {rates.asked !== null ? <Rate label="Views → asked" value={pctText(rates.asked)} note={`of ${plural(pageViews ?? 0, "page view")}`} /> : null}
+            {rates.asked !== null ? <Rate label="Views → registered" value={pctText(rates.asked)} note={`of ${plural(pageViews ?? 0, "page view")}`} /> : null}
           </dl>
           {r.avg_decision_hours !== null ? (
-            <p className="text-ink-3 m-0 text-[11.5px]">{readOnly ? "The club decides" : "You decide"} in {hoursText(r.avg_decision_hours)} on average.</p>
+            <p className="text-ink-3 m-0 text-[11.5px]">Average time to review: {hoursText(r.avg_decision_hours)}.</p>
           ) : null}
         </div>
       </div>

@@ -60,6 +60,7 @@ import {
   useDuplicateTemplate,
   useEmailContext,
   usePreview,
+  useResetLibraryTemplate,
   useResetTemplate,
   useSaveTemplate,
   useSaveToLibrary,
@@ -71,7 +72,9 @@ import {
   BLOCK_META,
   STAGE_META,
   fieldsOf,
+  isRequestStage,
   newBlock,
+  tokensForStage,
   type BlockKind,
   type EmailBlock,
   type EmailContext,
@@ -81,7 +84,7 @@ import {
 } from "../schemas";
 import { BlockInspector } from "./block-inspector";
 import { useDebounced, ui } from "./kit";
-import { SendingPanel, ThemePanel } from "./panels";
+import { SendingPanel, SubjectPanel, ThemePanel } from "./panels";
 import { isCustomised } from "./parts";
 import { SendTemplateDialog } from "./send-dialog";
 
@@ -274,11 +277,17 @@ function GuestPicker({
   );
 }
 
-type InspectorTab = "block" | "theme" | "sending";
+type InspectorTab = "block" | "theme" | "sending" | "subject";
 const TABS: { key: InspectorTab; label: string }[] = [
   { key: "block", label: "Block" },
   { key: "theme", label: "Theme" },
   { key: "sending", label: "Sending" },
+];
+/** A registration review email's: no Sending (it goes by itself, always on), its subject on a tab of its own. */
+const REVIEW_TABS: { key: InspectorTab; label: string }[] = [
+  { key: "block", label: "Block" },
+  { key: "theme", label: "Theme" },
+  { key: "subject", label: "Subject" },
 ];
 
 function Editor({
@@ -307,14 +316,22 @@ function Editor({
   const [testOpen, setTestOpen] = React.useState(false);
   const [testTo, setTestTo] = React.useState("");
   const [sendOpen, setSendOpen] = React.useState(false);
-  const [confirm, setConfirm] = React.useState<"reset" | "delete" | null>(null);
+  const [confirm, setConfirm] = React.useState<"reset" | "default" | "delete" | null>(null);
 
   const save = useSaveTemplate(scope);
   const sendTest = useSendTest(eventId ?? 0);
   const toLibrary = useSaveToLibrary(eventId ?? 0);
   const reset = useResetTemplate(eventId ?? 0);
+  const resetToDefault = useResetLibraryTemplate();
   const duplicate = useDuplicateTemplate(scope);
   const remove = useDeleteTemplate(scope);
+  // A registration review email: the club's library only, always on, sent by itself as a registration moves.
+  const review = isRequestStage(template.stage);
+  // Its token menus offer the tokens its stage may use (the request tokens only to theirs).
+  const tokens = React.useMemo(
+    () => tokensForStage(context.tokens, template.stage),
+    [context.tokens, template.stage],
+  );
 
   const previewBody = useDebounced(
     React.useMemo(
@@ -398,14 +415,24 @@ function Editor({
             {fields.name || "Untitled email"}
           </Title>
           <p className="text-ink-3 mt-1 text-[12.5px]">
-            {event
-              ? isCustomised(template)
-                ? "This event's copy, changed from the club's version."
-                : "This event's copy of the club's version."
-              : "The club's version: every new event starts from it."}{" "}
-            {fields.enabled
-              ? "Switched on."
-              : "Switched off: it does not go out."}
+            {review ? (
+              <>
+                The club&apos;s email for every event that reviews
+                registrations. Goes out {stageMeta.when}
+                {/[.!?]$/.test(stageMeta.when ?? "") ? "" : "."} Always on.
+              </>
+            ) : (
+              <>
+                {event
+                  ? isCustomised(template)
+                    ? "This event's copy, changed from the club's version."
+                    : "This event's copy of the club's version."
+                  : "The club's version: every new event starts from it."}{" "}
+                {fields.enabled
+                  ? "Switched on."
+                  : "Switched off: it does not go out."}
+              </>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -425,9 +452,19 @@ function Editor({
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              {eventId !== undefined ? (
+              {review ? (
+                <DropdownMenuItem onSelect={() => setConfirm("default")}>
+                  <span className="flex flex-col">
+                    <span>Reset to default…</span>
+                    <span className="text-ink-3 text-xs">
+                      Back to MyOtherApp&apos;s words for this email.
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+              ) : null}
+              {eventId !== undefined && !review ? (
                 <>
-                  {stageMeta.when ? null : template.stage === "INVITE" ? (
+                  {template.stage === "INVITE" ? (
                     <DropdownMenuItem
                       onSelect={() =>
                         router.push(`/events/${eventId}/attendees`)
@@ -477,6 +514,7 @@ function Editor({
                   <DropdownMenuSeparator />
                 </>
               ) : null}
+              {review ? null : (
               <DropdownMenuItem
                 onSelect={() =>
                   duplicate.mutate(template.id, {
@@ -491,6 +529,7 @@ function Editor({
               >
                 Duplicate
               </DropdownMenuItem>
+              )}
               {template.stage === "CUSTOM" ? (
                 <DropdownMenuItem
                   variant="destructive"
@@ -553,7 +592,8 @@ function Editor({
             Blocks · {blocks.length}
           </CardLabel>
           {blocks.length ? (
-            <ol className="grid gap-1">
+            // One column held to the panel: a long line truncates rather than running under the preview.
+            <ol className="grid grid-cols-1 gap-1">
               {blocks.map((b, i) => {
                 const on = selected === b.id;
                 const line = blockLine(b) || "…";
@@ -695,7 +735,7 @@ function Editor({
             label="Edit"
             value={tab}
             onChange={(k) => setTab(k as InspectorTab)}
-            items={TABS}
+            items={review ? REVIEW_TABS : TABS}
             className="mb-3"
           />
           <TabPanel id={tab}>
@@ -705,7 +745,7 @@ function Editor({
                   key={current.id}
                   block={current}
                   scope={scope}
-                  tokens={context.tokens}
+                  tokens={tokens}
                   samples={context.sampleValues}
                   textColor={fields.design.theme.text}
                   onChange={(b) =>
@@ -731,7 +771,15 @@ function Editor({
                   setFields((f) => ({ ...f, design: { ...f.design, theme } }))
                 }
                 brandPrimary={context.brandPrimary}
-                tokens={context.tokens}
+                tokens={tokens}
+                samples={context.sampleValues}
+              />
+            ) : review ? (
+              <SubjectPanel
+                fields={fields}
+                onChange={setFields}
+                stage={template.stage}
+                tokens={tokens}
                 samples={context.sampleValues}
               />
             ) : (
@@ -740,7 +788,7 @@ function Editor({
                 onChange={setFields}
                 scope={scope}
                 stage={template.stage}
-                tokens={context.tokens}
+                tokens={tokens}
                 samples={context.sampleValues}
               />
             )}
@@ -822,24 +870,35 @@ function Editor({
             <AlertDialogTitle>
               {confirm === "delete"
                 ? `Delete “${fields.name}”?`
-                : "Back to the club's version?"}
+                : confirm === "default"
+                  ? "Reset to the default words?"
+                  : "Back to the club's version?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirm === "delete"
                 ? "Messages already sent from it stay in the history. This cannot be undone."
-                : "Everything you changed on this event's copy is replaced by the library's version of this email."}
+                : confirm === "default"
+                  ? "Your changes to this email are replaced by MyOtherApp's default."
+                  : "Everything you changed on this event's copy is replaced by the library's version of this email."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel variant="secondary">Keep it</AlertDialogCancel>
             <AlertDialogAction
               variant={confirm === "delete" ? "destructive" : "primary"}
-              disabled={remove.isPending || reset.isPending}
+              disabled={
+                remove.isPending || reset.isPending || resetToDefault.isPending
+              }
               onClick={(e) => {
                 e.preventDefault();
                 if (confirm === "delete")
                   remove.mutate(template.id, {
                     onSuccess: () => router.push(scopeHref(scope)),
+                  });
+                else if (confirm === "default")
+                  // Refused or done, the question is answered: a refusal is said in a toast.
+                  resetToDefault.mutate(template.id, {
+                    onSettled: () => setConfirm(null),
                   });
                 else if (eventId !== undefined)
                   reset.mutate(template.id, {
@@ -847,7 +906,11 @@ function Editor({
                   });
               }}
             >
-              {confirm === "delete" ? "Delete" : "Replace"}
+              {confirm === "delete"
+                ? "Delete"
+                : confirm === "default"
+                  ? "Reset"
+                  : "Replace"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

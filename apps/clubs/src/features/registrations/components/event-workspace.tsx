@@ -68,7 +68,7 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
         figures={<EventStatCards eventId={eventId} event={event} />}
         signups={
           <>
-            {/* Confirm each registration: from asking to the door, with the places. */}
+            {/* Registration review: from registering to the door, with the places. */}
             <EventRequestsFunnel eventId={eventId} event={event} />
             {/* Per ticket type, once the event sells more than one (or a code or a waiting list is in play). */}
             <TicketSalesCard eventId={eventId} />

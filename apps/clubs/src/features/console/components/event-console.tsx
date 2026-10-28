@@ -43,15 +43,15 @@ import { DESIGN_LINKS, EVENT_TABS, STATUS_ACTION, STATUS_NOTICE, TAB_FEATURE, cl
  * acts on the event as a whole sits behind the one "More" menu the events
  * list uses, so a row and its page offer the same verbs.
  */
-/** The Requests tab's name, with how many wait for a decision. */
+/** The Review tab's name, with how many registrations are under review. */
 function RequestsLabel({ pending }: { pending: number }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      Requests
+      Review
       {pending > 0 ? (
         <span className="bg-caution-soft text-caution border-caution-line rounded-full border px-1.5 font-mono text-[10.5px] leading-[16px] font-semibold tabular-nums">
           {pending > 999 ? "999+" : pending.toLocaleString("en-IN")}
-          <span className="sr-only"> waiting</span>
+          <span className="sr-only"> under review</span>
         </span>
       ) : null}
     </span>
@@ -90,8 +90,8 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   // The Tickets tab, once the API has ticket types (null from one without).
   const tickets = useTicketTypes(eventId);
   const ticketsOn = Boolean(tickets.data);
-  // The Requests tab, once the API has registration requests (null from one without), for an
-  // event that asks the club to confirm each registration or has any requests at all.
+  // The Review tab, once the API has registration requests (null from one without), for an
+  // event that reviews registrations or has any at all.
   const requests = useRequestCounts(eventId);
   const pending = requests.data?.counts.pending ?? 0;
   // A clock read once per navigation is enough for a "has it started" notice.

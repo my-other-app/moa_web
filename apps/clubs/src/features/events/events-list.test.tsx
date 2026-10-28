@@ -58,14 +58,15 @@ beforeEach(() => {
 });
 
 describe("the events page", () => {
-  it("says which events have people waiting for the club to confirm them", async () => {
+  it("says which events have registrations to review", async () => {
     const held = figures.attention;
     (figures as { attention: unknown }).attention = { ...held, closing_soon: [], unmarked: [], requests_pending: [{ id: 69, name: "Annual Summit", count: 12 }] };
     try {
       render(<ClubEventsList />);
-      const notice = (await screen.findByText(/people waiting for you to confirm at/)).closest("[role]")!;
-      expect(notice).toHaveTextContent("12 people waiting for you to confirm at Annual Summit.");
-      expect(within(notice as HTMLElement).getByRole("link", { name: "Open requests" })).toHaveAttribute("href", "/events/69/requests");
+      const notice = (await screen.findByText(/registrations to review at/)).closest("[role]")!;
+      expect(notice).toHaveTextContent("12 registrations to review at Annual Summit.");
+      expect(within(notice as HTMLElement).getByRole("link", { name: "Open Review" })).toHaveAttribute("href", "/events/69/requests");
+      expect(notice).not.toHaveTextContent(/waiting|request/i);
     } finally {
       figures.attention = held;
     }

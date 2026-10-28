@@ -10,7 +10,7 @@ import {
 } from "./schemas";
 
 /**
- * Deciding many requests at once, without the browser holding them all.
+ * Reviewing many registrations at once, without the browser holding them all.
  *
  * Ids go to the server in chunks (CHUNK_SIZE, never over the server's 500),
  * one after another, so each call is short and the progress bar moves. A
@@ -243,20 +243,30 @@ const num = (n: number) => n.toLocaleString("en-IN");
 const theOthers = (n: number, one: string, many: string) => (n === 1 ? `the other person ${one}` : `the other ${num(n)} people ${many}`);
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export function summarise(o: BulkOutcome): OutcomeSummary {
+/**
+ * The outcome in plain words. `name`: the one person it was about (a row's
+ * own decision), so the title reads "Meera Nair is declined".
+ */
+export function summarise(o: BulkOutcome, name?: string | null): OutcomeSummary {
   const done = o.done.length;
   const skipped = o.skipped.size;
   const verb = o.kind === "confirm" ? "confirmed" : "declined";
-  const head = o.kind === "decline" && done > 0 ? `${num(done)} ${verb}${o.notified ? " and emailed" : ", not emailed"}` : `${num(done)} ${verb}`;
+  const one = Boolean(name) && o.asked === 1 && done === 1;
+  const head = one
+    ? `${name} is ${verb}`
+    : o.kind === "decline" && done > 0
+      ? `${num(done)} ${verb}${o.notified ? " and emailed" : ", not emailed"}`
+      : `${num(done)} ${verb}`;
   const title = skipped > 0 ? `${head}, ${num(skipped)} skipped` : head;
 
   const lines: string[] = [];
+  if (one && o.kind === "decline") lines.push(o.notified ? "They were emailed to say so." : "They weren't emailed.");
   if (skipped > 0) lines.push(`Skipped: ${skippedLines(o.skipped.values()).map((l) => l.text).join("; ")}.`);
   if (o.kind === "confirm" && done > 0) {
     const free = done - o.payLinks;
     if (o.payLinks > 0) {
       lines.push(
-        `${free > 0 ? `${people(free)} got their ticket by email. ` : ""}${o.payLinks === 1 ? "1 person has a paid ticket and was" : `${num(o.payLinks)} people have a paid ticket and were`} sent a link to pay; ${o.payLinks === 1 ? "their place is" : "their places are"} held until ${indiaTime(o.payBy)}. Unpaid by then, ${o.payLinks === 1 ? "it goes" : "they go"} back.`,
+        `${free > 0 ? `${people(free)} got their ticket by email. ` : ""}${o.payLinks === 1 ? "1 person has a paid ticket and was" : `${num(o.payLinks)} people have a paid ticket and were`} sent a link to pay; ${o.payLinks === 1 ? "their ticket is" : "their tickets are"} held until ${indiaTime(o.payBy)}. If ${o.payLinks === 1 ? "it isn't" : "they aren't"} paid by then, ${o.payLinks === 1 ? "the registration expires" : "those registrations expire"}.`,
       );
     } else {
       lines.push(done === 1 ? "Their ticket is on its way by email." : "Their tickets are on their way by email.");
@@ -264,13 +274,13 @@ export function summarise(o: BulkOutcome): OutcomeSummary {
   }
   const stop = o.stopped;
   if (stop?.reason === "event_full" && o.unsent > 0) {
-    lines.push(`The event filled up, so ${theOthers(o.unsent, "wasn't sent", "weren't sent")}. They're still waiting.`);
+    lines.push(`The event filled up, so ${theOthers(o.unsent, "wasn't sent", "weren't sent")}. They're still under review.`);
   } else if (stop?.reason === "stuck" && o.unsent > 0) {
     lines.push(
-      `The oldest requests can't be confirmed (see why above), so ${o.unsent === 1 ? "the person behind them wasn't" : `the ${num(o.unsent)} people behind them weren't`} reached. Tick the ones you want and confirm them.`,
+      `The oldest registrations under review can't be confirmed (see why above), so ${o.unsent === 1 ? "the person behind them wasn't" : `the ${num(o.unsent)} people behind them weren't`} reached. Tick the ones you want and confirm them.`,
     );
   } else if (stop?.reason === "error") {
-    lines.push(`Stopped: ${stop.message} ${o.unsent > 0 ? `${capital(theOthers(o.unsent, "wasn't sent and is", "weren't sent and are"))} still waiting. Try again.` : "Try again."}`);
+    lines.push(`Stopped: ${stop.message} ${o.unsent > 0 ? `${capital(theOthers(o.unsent, "wasn't sent and is", "weren't sent and are"))} still under review. Try again.` : "Try again."}`);
   }
   const tone: OutcomeSummary["tone"] = stop?.reason === "error" ? "refuse" : skipped > 0 || o.unsent > 0 || done === 0 ? "caution" : "admit";
   return { tone, title, lines };
@@ -285,6 +295,6 @@ export function overCapacity(count: number, placesLeft: number | null | undefine
   if (placesLeft <= 0) return { full: true, text: "No places are left, so nobody can be confirmed. Raise the places under Settings, or wait for someone to cancel." };
   return {
     full: false,
-    text: `Only ${num(placesLeft)} ${placesLeft === 1 ? "place is" : "places are"} left. Only the first ${num(placesLeft)} in order (oldest request first) will be confirmed; ${theOthers(count - placesLeft, "stays", "stay")} waiting.`,
+    text: `Only ${num(placesLeft)} ${placesLeft === 1 ? "place is" : "places are"} left. Only the first ${num(placesLeft)} in order (oldest registration first) will be confirmed; ${theOthers(count - placesLeft, "stays", "stay")} under review.`,
   };
 }

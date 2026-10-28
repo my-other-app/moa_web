@@ -15,7 +15,7 @@ import {
 } from "@moa/ui";
 import { ChevronDownIcon, Loader2Icon } from "lucide-react";
 
-import { EMAIL_TEXT_MAX, EMAIL_TOKEN_KEYS, type EmailToken } from "../schemas";
+import { EMAIL_TEXT_MAX, EMAIL_TOKEN_KEYS, REVIEW_GROUP, type EmailToken } from "../schemas";
 
 /**
  * The few class lists the email screens share, in the Meridian vocabulary:
@@ -47,7 +47,9 @@ export function useDebounced<T>(value: T, ms = 400): T {
 export const problemsOf = (src: string): string[] =>
   parseTicketTemplate(src, EMAIL_TOKEN_KEYS).errors;
 
+// The registration review emails' own tokens first: only those emails get them (tokensForStage).
 const TOKEN_GROUPS = [
+  REVIEW_GROUP,
   "Guest",
   "Ticket",
   "Event",
@@ -70,6 +72,7 @@ export const TokenMenu = ({
   size?: "xs" | "sm";
 }) => {
   const fields = tokens.filter((t) => t.group === "Guest fields");
+  const has = (key: string) => tokens.some((t) => t.key === key);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -147,6 +150,33 @@ export const TokenMenu = ({
         >
           A link to the ticket
         </DropdownMenuItem>
+        {has("status_url") ? (
+          <DropdownMenuItem
+            onSelect={() => onInsert("[See your registration]({{status_url}})")}
+          >
+            A link to their registration
+          </DropdownMenuItem>
+        ) : null}
+        {has("cancel_url") ? (
+          <DropdownMenuItem
+            onSelect={() =>
+              onInsert("Can't make it? [Cancel my registration]({{cancel_url}}).")
+            }
+          >
+            A link to cancel their registration
+          </DropdownMenuItem>
+        ) : null}
+        {has("decline_note") ? (
+          <DropdownMenuItem
+            onSelect={() =>
+              onInsert(
+                "{% if decline_note %}A note from {{org_name}}: “{{decline_note}}”{% endif %}",
+              )
+            }
+          >
+            Your note, only when you wrote one
+          </DropdownMenuItem>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -620,11 +620,11 @@ export function CloseoutPage({ eventId }: { eventId: number }) {
 
           {f ? <FiguresPanel f={f} /> : null}
 
-          {/* Confirm each registration: who asked and what came of it, as the report says. */}
+          {/* Registration review: the registrations received and what came of them, as the report says. */}
           {f && hasRequestFigures(f.requests) ? (
             <RequestFunnelCard
               requests={f.requests}
-              title="Requests"
+              title="Registration review"
               paidEvent={event.data?.has_fee ? true : undefined}
               pageViews={event.data?.page_views}
               requestsHref={`${base}/requests`}

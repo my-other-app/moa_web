@@ -8,10 +8,10 @@ import registrationsFixture from "../__fixtures__/event-registrations-admin.json
 import summaryFixture from "../__fixtures__/event-summary.json";
 
 /**
- * Confirm each registration, for an admin: the events list marks the
- * events that confirm each place and how many wait; the event page reads
- * the requests as a funnel (read-only, nothing to decide here) and its
- * delete says the waiting people get a polite email. From an older server
+ * Review registrations, for an admin: the events list marks the events
+ * that review registrations and how many are under review; the event page
+ * reads them as a funnel (read-only, nothing to decide here) and its delete
+ * says the people under review get a polite email. From an older server
  * none of it shows.
  */
 
@@ -83,22 +83,23 @@ beforeEach(() => {
 });
 
 describe("the events list", () => {
-  it("marks an event that confirms each registration, with how many wait and how many asked", async () => {
+  it("marks an event that reviews registrations, with how many are under review and how many were received", async () => {
     const [first, ...rest] = eventsFixture.items;
     listRows = [{ ...first, requires_approval: true, requests_pending: 37, requests_total: 412 }, ...rest];
     render(<EventsV2 />);
     const row = (await screen.findByText("Mutate")).closest("a")!;
-    expect(within(row).getByText("Confirms each")).toBeInTheDocument();
-    expect(within(row).getByText("37 waiting")).toBeInTheDocument();
-    expect(within(row).getByText("412 asked")).toBeInTheDocument();
+    expect(within(row).getByText("Reviews registrations")).toBeInTheDocument();
+    expect(within(row).getByText("37 under review")).toBeInTheDocument();
+    expect(within(row).getByText("412 received")).toBeInTheDocument();
+    expect(row).not.toHaveTextContent(/waiting|asked|request/i);
   });
 
-  it("marks nothing from an older server, nor an event that doesn't confirm each", async () => {
+  it("marks nothing from an older server, nor an event that doesn't review registrations", async () => {
     render(<EventsV2 />);
     await screen.findByText("Mutate");
-    expect(screen.queryByText("Confirms each")).toBeNull();
-    expect(screen.queryByText(/waiting$/)).toBeNull();
-    expect(screen.queryByText(/asked$/)).toBeNull();
+    expect(screen.queryByText("Reviews registrations")).toBeNull();
+    expect(screen.queryByText(/under review$/)).toBeNull();
+    expect(screen.queryByText(/received$/)).toBeNull();
     const old = adminEventSchema.parse(eventsFixture.items[0]);
     expect(old).toMatchObject({ requires_approval: false, requests_pending: null, requests_total: null });
   });
@@ -109,38 +110,41 @@ describe("the event page", () => {
     detail = { ...detailFixture, requires_approval: true, requests_pending: 37, requests_total: 412 };
     summary = { ...summaryFixture, requests, places: { capacity: 300, taken: 281, held: 12, left: 7 } };
     render(<EventDetail eventId={37} />);
-    const card = await screen.findByRole("region", { name: "From asking to the door" });
+    expect(await screen.findByRole("heading", { name: "Registration review" })).toBeInTheDocument();
+    const card = await screen.findByRole("region", { name: "From registering to the door" });
     // The badge in the header (and the card says so too).
-    expect(screen.getAllByText("Confirms each registration").length).toBeGreaterThanOrEqual(1);
-    const steps = within(card).getByRole("list", { name: "From asking to the door" });
-    expect(steps).toHaveTextContent("Asked412");
-    expect(steps).toHaveTextContent("Waiting for you37");
+    expect(screen.getAllByText("Reviews registrations").length).toBeGreaterThanOrEqual(1);
+    const steps = within(card).getByRole("list", { name: "From registering to the door" });
+    expect(steps).toHaveTextContent("Received412");
+    expect(steps).toHaveTextContent("Under review37");
+    expect(steps).toHaveTextContent("Declined · Cancelled · Expired65");
     expect(within(card).getByRole("list", { name: "Confirmed, split" })).toHaveTextContent("Paying12");
-    expect(within(card).getByText("Capacity 300 · 281 taken · 12 held · 7 left · 37 waiting")).toBeInTheDocument();
+    expect(within(card).getByText("Capacity 300 · 281 taken · 12 held · 7 left · 37 under review")).toBeInTheDocument();
     // Read-only: no way into the queue, and no advice to change the event.
     expect(within(card).queryByRole("link")).toBeNull();
-    expect(within(card).getByRole("alert")).toHaveTextContent("37 people are waiting and only 7 places are left. Confirming stops when the places run out.");
+    expect(within(card).getByRole("alert")).toHaveTextContent("37 registrations are under review and only 7 places are left. Confirming stops when the places run out.");
     expect(within(card).getByRole("alert")).not.toHaveTextContent("Settings");
-    expect(within(card).getByText("The club decides in about 21 h on average.")).toBeInTheDocument();
+    expect(within(card).getByText("Average time to review: about 21 h.")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent(/waiting|asked|withdr|lapsed|request/i);
   });
 
-  it("says, before deleting, that the people waiting get a polite email", async () => {
+  it("says, before deleting, that the people under review get a polite email", async () => {
     detail = { ...detailFixture, requires_approval: true, requests_pending: 37, requests_total: 412 };
     render(<EventDetail eventId={37} />);
-    await screen.findByText("Confirms each registration");
+    await screen.findByText("Reviews registrations");
     fireEvent.click(screen.getByRole("button", { name: /Delete/ }));
     const dialog = await screen.findByRole("alertdialog");
-    expect(dialog).toHaveTextContent("37 people are waiting for the club to confirm them.");
-    expect(dialog).toHaveTextContent("Their requests close, and they’ll get a polite email saying the club wasn’t able to confirm their place.");
+    expect(dialog).toHaveTextContent("37 registrations are under review.");
+    expect(dialog).toHaveTextContent("They close, and each person gets a polite email saying the club wasn’t able to confirm their registration.");
   });
 
-  it("shows no funnel and says nothing of waiting people from an older server", async () => {
+  it("shows no funnel and says nothing of registrations under review from an older server", async () => {
     render(<EventDetail eventId={37} />);
     await screen.findByText("Test Participant One");
-    expect(screen.queryByRole("region", { name: "From asking to the door" })).toBeNull();
-    expect(screen.queryByText("Confirms each registration")).toBeNull();
+    expect(screen.queryByRole("region", { name: "From registering to the door" })).toBeNull();
+    expect(screen.queryByText("Reviews registrations")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Delete/ }));
     const dialog = await screen.findByRole("alertdialog");
-    expect(dialog).not.toHaveTextContent("waiting");
+    expect(dialog).not.toHaveTextContent("under review");
   });
 });

@@ -9,10 +9,10 @@ import eventFixture from "../__fixtures__/event-detail.json";
 import summaryFixture from "../__fixtures__/event-summary.json";
 
 /**
- * Confirm each registration around the dashboard: the event's Requests tab
- * and its badge, the switch in the event form and what a save sends, the
- * attention items on the event's overview and the dashboard's home, and the
- * four emails in the library. Against an API without requests none of it
+ * Review registrations around the dashboard: the event's Review tab and its
+ * badge, the switch in the event form and what a save sends, the attention
+ * items on the event's overview and the dashboard's home, and the six
+ * emails in the library. Against an API without requests none of it
  * shows, and the form sends nothing new.
  */
 
@@ -112,20 +112,21 @@ async function rail() {
   return screen.findByRole("navigation", { name: "Event sections" });
 }
 
-describe("the Requests tab", () => {
-  it("shows on an event that confirms each registration, with how many wait", async () => {
+describe("the Review tab", () => {
+  it("shows on an event that reviews registrations, with how many are under review", async () => {
     const nav = await rail();
-    const tab = await within(nav).findByRole("link", { name: /Requests/ });
+    const tab = await within(nav).findByRole("link", { name: /^Review/ });
     expect(tab).toHaveAttribute("href", "/events/37/requests");
-    expect(tab).toHaveTextContent("Requests3 waiting");
+    expect(tab).toHaveTextContent("Review3 under review");
+    expect(within(nav).queryByRole("link", { name: /Requests/ })).toBeNull();
   });
 
-  it("shows without a badge when nobody waits, and on an event that turned it off but still has requests", async () => {
+  it("shows without a badge when none are under review, and on an event that turned it off but still has some", async () => {
     counts = { pending: 0, approved: 0, declined: 2, withdrawn: 0, lapsed: 0, closed: 0 };
     requiresApproval = false;
     const nav = await rail();
-    const tab = await within(nav).findByRole("link", { name: /Requests/ });
-    expect(tab).toHaveTextContent(/^Requests$/);
+    const tab = await within(nav).findByRole("link", { name: /^Review/ });
+    expect(tab).toHaveTextContent(/^Review$/);
   });
 
   it("stays away from an event that doesn't ask and has none, and when the detail doesn't say (off)", async () => {
@@ -133,57 +134,69 @@ describe("the Requests tab", () => {
     requiresApproval = undefined;
     const nav = await rail();
     await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/registration/37/requests")).toBe(true));
-    expect(within(nav).queryByRole("link", { name: /Requests/ })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: /^Review/ })).toBeNull();
   });
 
   it("stays away when the API has no requests, whatever the event says", async () => {
     server = "old";
     const nav = await rail();
     await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/registration/37/requests")).toBe(true));
-    expect(within(nav).queryByRole("link", { name: /Requests/ })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: /^Review/ })).toBeNull();
     expect(within(nav).getByRole("link", { name: /Attendees/ })).toBeInTheDocument();
   });
 });
 
 describe("the switch in the event form", () => {
-  const sw = () => screen.findByRole("switch", { name: "Confirm each registration yourself" });
+  const sw = () => screen.findByRole("switch", { name: "Review registrations before sending tickets" });
 
-  it("reads the event's setting, and a save sends the change", async () => {
+  it("reads the event's setting, says what switching it on does, and a save sends the change", async () => {
     requiresApproval = false;
     render(<EditEventForm eventId={37} />);
     const toggle = await sw();
     expect(toggle).not.toBeChecked();
-    expect(screen.getByText("People who fill the form wait for you to confirm them, under Requests. Their ticket goes out when you do.")).toBeInTheDocument();
+    expect(screen.getByText("Review registrations before sending tickets")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Everyone who registers gets a 'Thanks for registering' email. You confirm or decline each registration in the Review tab, and confirmed people get their ticket by email.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/moves into Review/)).toBeNull();
     fireEvent.click(toggle);
     expect(toggle).toBeChecked();
+    expect(
+      screen.getByText("Anyone on this event's waiting list moves into Review as a registration under review, and gets the 'Thanks for registering' email once."),
+    ).toBeInTheDocument();
     fireEvent.click((await screen.findAllByRole("button", { name: /Save changes/ }))[0]!);
     await waitFor(() => expect(calls.some((c) => c.method === "PUT" && c.path === "/api/v1/events/update/37")).toBe(true));
     const fd = calls.find((c) => c.method === "PUT")!.body as FormData;
     expect(fd.get("requires_approval")).toBe("true");
   });
 
-  it("says how many are waiting when it is switched off: they stay waiting for the club", async () => {
+  it("says how many are under review when it is switched off: they stay under review", async () => {
     render(<EditEventForm eventId={37} />);
     const toggle = await sw();
     expect(toggle).toBeChecked();
-    // Before the switch moves, no warning.
+    // Before the switch moves, no warning (and no note about the waiting list: it was on already).
     await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/registration/37/requests")).toBe(true));
-    expect(screen.queryByText(/people are waiting/)).toBeNull();
+    expect(screen.queryByText(/registrations are under review/)).toBeNull();
+    expect(screen.queryByText(/moves into Review/)).toBeNull();
     fireEvent.click(toggle);
-    expect(await screen.findByText(/3 people are waiting — they stay waiting until you confirm or decline them\./)).toBeInTheDocument();
+    expect(
+      await screen.findByText("3 registrations are under review. They stay under review until you confirm or decline them; new people get their ticket straight away."),
+    ).toBeInTheDocument();
     // Switched back on, the warning goes.
     fireEvent.click(toggle);
-    expect(screen.queryByText(/people are waiting/)).toBeNull();
+    expect(screen.queryByText(/registrations are under review/)).toBeNull();
   });
 
-  it("says nobody waits when it is switched off on an event with nobody waiting", async () => {
+  it("says none are under review when it is switched off on an event with none", async () => {
     counts = { pending: 0, approved: 2, declined: 0, withdrawn: 0, lapsed: 0, closed: 0 };
     render(<EditEventForm eventId={37} />);
     const toggle = await sw();
     await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/registration/37/requests")).toBe(true));
     fireEvent.click(toggle);
-    expect(await screen.findByText("Once saved, new people register directly. Nobody is waiting for you now.")).toBeInTheDocument();
-    expect(screen.queryByText(/people are waiting/)).toBeNull();
+    expect(await screen.findByText("Once saved, new people get their ticket straight away. No registrations are under review now.")).toBeInTheDocument();
+    expect(screen.queryByText(/registrations are under review\./)).toBeNull();
   });
 
   it("is not there, and nothing is sent, when the API has no requests", async () => {
@@ -192,7 +205,7 @@ describe("the switch in the event form", () => {
     render(<EditEventForm eventId={37} />);
     await screen.findByRole("checkbox", { name: "Merchandise for sale" });
     await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/registration/37/requests")).toBe(true));
-    expect(screen.queryByRole("switch", { name: "Confirm each registration yourself" })).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Review registrations before sending tickets" })).toBeNull();
     // A change elsewhere, saved: the form sends no requires_approval.
     fireEvent.click(screen.getByRole("switch", { name: "Swag to hand out" }));
     fireEvent.click((await screen.findAllByRole("button", { name: /Save changes/ }))[0]!);
@@ -220,7 +233,7 @@ describe("the High demand label", () => {
   it("isn't there for an older server, and a save sends nothing about it", async () => {
     highDemand = undefined;
     render(<EditEventForm eventId={37} />);
-    await screen.findByRole("switch", { name: "Confirm each registration yourself" });
+    await screen.findByRole("switch", { name: "Review registrations before sending tickets" });
     expect(screen.queryByRole("switch", { name: "High demand label" })).toBeNull();
     fireEvent.click(screen.getByRole("switch", { name: "Swag to hand out" }));
     fireEvent.click((await screen.findAllByRole("button", { name: /Save changes/ }))[0]!);
@@ -234,7 +247,7 @@ describe("the High demand label", () => {
   });
 });
 
-describe("making an event that confirms each registration", () => {
+describe("making an event that reviews registrations", () => {
   it("says so when the server made the event without it", async () => {
     const warn = vi.spyOn(toast, "warning");
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -245,7 +258,7 @@ describe("making an event that confirms each registration", () => {
     const { result } = renderHook(() => useCreateEvent(), { wrapper });
     await act(() => result.current.mutateAsync({ values, status: "draft" }));
     expect((calls.find((c) => c.path === "/api/v1/events/create")!.body as FormData).get("requires_approval")).toBe("true");
-    expect(warn).toHaveBeenCalledWith("The event is saved, but confirming each registration isn't on yet. Turn it on under the event's Settings.");
+    expect(warn).toHaveBeenCalledWith("The event is saved, but reviewing registrations isn't on yet. Turn it on under the event's Settings.");
 
     warn.mockClear();
     createdApproval = true;
@@ -256,17 +269,18 @@ describe("making an event that confirms each registration", () => {
 });
 
 describe("what needs attention", () => {
-  it("puts the people waiting on the event's overview, with the way to Requests", () => {
+  it("puts the registrations under review on the event's overview, with the way to Review", () => {
     const s = eventSummarySchema.parse({ ...summaryFixture, requests_pending: 5 });
     const item = overviewAttention(s).find((i) => i.kind === "REQUESTS_PENDING");
-    expect(item).toMatchObject({ tone: "amber", title: "5 people waiting for you to confirm", path: "/requests" });
+    expect(item).toMatchObject({ tone: "amber", title: "5 registrations to review", path: "/requests" });
+    expect(overviewAttention(eventSummarySchema.parse({ ...summaryFixture, requests_pending: 1 })).find((i) => i.kind === "REQUESTS_PENDING")?.title).toBe("1 registration to review");
     // A summary from an API without requests: none, and nothing breaks.
     const old = eventSummarySchema.parse(summaryFixture);
     expect(old.requests_pending).toBe(0);
     expect(overviewAttention(old).map((i) => i.kind)).not.toContain("REQUESTS_PENDING");
   });
 
-  it("lists each event's waiting people on the dashboard's home, once per event, linking to its Requests", () => {
+  it("lists each event's registrations to review on the dashboard's home, once per event, linking to its Review tab", () => {
     const event = (id: number, name: string, requests_pending?: number) => ({
       id, name, event_datetime: null, location_name: null, has_fee: false, reg_fee: null, page_views: 0, registrations: 0, attended: 0, view_to_signup: null, turnout: null, ...(requests_pending === undefined ? {} : { requests_pending }),
     });
@@ -285,8 +299,8 @@ describe("what needs attention", () => {
     });
     const items = pendingRequestItems(o);
     expect(items.map((i) => [i.event_id, i.title])).toEqual([
-      [37, "1 person waiting for you to confirm"],
-      [38, "12 people waiting for you to confirm"],
+      [37, "1 registration to review"],
+      [38, "12 registrations to review"],
     ]);
     expect(items[1]!.body).toMatch(/^For Demo Day\./);
     expect(attentionPath(items[0]!)).toBe("/events/37/requests");
@@ -297,44 +311,71 @@ describe("what needs attention", () => {
 });
 
 describe("the email library", () => {
-  const tpl = (id: string, stage: string, label: string, name: string) => ({
+  const tpl = (id: string, stage: string, label: string, name: string, extra: Record<string, unknown> = {}) => ({
     id, clubId: 5, eventId: null, stage, label, name, subject: `${name} · {{event_name}}`,
     design: {}, attachments: {}, audience: { who: "ALL", roles: [] }, trigger: { mode: "MANUAL" }, channels: ["email"], enabled: true, version: 1, sourceId: null,
     createdAt: "2026-10-01T00:00:00+00:00", updatedAt: "2026-10-26T12:00:00+00:00",
     usage: { events: 1, customised: 0, off: 0, sends: 0, recipients: 0, delivery_rate: null, open_rate: null, bounced: 0, last_sent_at: null },
+    ...extra,
   });
   const figures = { messages: 0, recipients: 0, sent: 0, failed: 0, delivered: 0, bounced: 0, read: 0, delivery_rate: null, open_rate: null };
+  const review = (id: string, stage: string, name: string) =>
+    tpl(id, stage, name, name, { key: stage.toLowerCase(), group: "Registration review", when: "a sentence the server may send" });
 
-  it("lists the four request emails with when each goes out, and renders a stage it doesn't know", async () => {
+  it("lists the six registration review emails as editable cards: when each goes out, sent by itself, no figures", async () => {
     library = {
       figures, previous: figures, delta: null,
       templates: [
         tpl("t1", "INVITE", "Invite", "Invite · your ticket"),
-        tpl("t9", "REQUEST_LAPSED", "Place released", "Your place was released"),
-        tpl("t6", "request_received", "Request received", "You're on the waiting list"),
-        tpl("t7", "REQUEST_APPROVED_PAY", "Confirmed", "Pay for your place"),
-        tpl("t8", "REQUEST_DECLINED", "Declined", "Sorry, no place this time"),
+        review("t11", "REQUEST_UNANSWERED", "Closed before review"),
+        review("t9", "REQUEST_LAPSED", "Expired · not paid in time"),
+        review("t6", "request_received", "Thanks for registering"),
+        review("t12", "REQUEST_APPROVED", "Confirmed · ticket"),
+        review("t7", "REQUEST_APPROVED_PAY", "Confirmed · pay for the ticket"),
+        tpl("t8", "REQUEST_DECLINED", "Not confirmed", "Sorry, not this time"),
         tpl("t10", "SOMETHING_NEWER", "Newer", "A newer kind of email"),
       ],
       queue: [], recent: [], attention: { disabled_stages: ["REQUEST_DECLINED"], bounced_30d: 0, failed_30d: 0 },
       all_time: { messages: 0, recipients: 0 }, generated_at: "2026-10-26T12:00:00+00:00",
+      // A server in between that still lists them as automatic too: one card each, the editable one.
+      automatic: [{ key: "request_received", name: "Request received", subject: "You're on the waiting list", when: "Old words.", group: "Registration requests", customisable: false }],
     };
     render(<EmailLibraryPage />);
-    const section = (await screen.findByRole("heading", { name: "Registration requests" })).closest("section")!;
-    const names = within(section).getAllByText(/^(You're on the waiting list|Pay for your place|Sorry, no place this time|Your place was released)$/).map((el) => el.textContent);
-    expect(names).toEqual(["You're on the waiting list", "Pay for your place", "Sorry, no place this time", "Your place was released"]);
-    expect(within(section).getByText("when someone fills the form of an event where you confirm each registration")).toBeInTheDocument();
-    expect(within(section).getByText("when you confirm someone with a paid ticket")).toBeInTheDocument();
-    // Not a timer and an audience: they go to the one person as their request moves.
-    expect(within(section).queryByText(/by hand/)).toBeNull();
+    const section = (await screen.findByRole("heading", { name: "Registration review" })).closest("section")!;
+    expect(within(section).getByText("For events that review registrations. Each goes to the one person, by itself, as their registration moves. Edit the words; they go in your club's colours and logo.")).toBeInTheDocument();
+    const names = within(section)
+      .getAllByText(/^(Thanks for registering|Confirmed · ticket|Confirmed · pay for the ticket|Sorry, not this time|Expired · not paid in time|Closed before review)$/, { selector: "p" })
+      .map((el) => el.textContent);
+    expect(names).toEqual(["Thanks for registering", "Confirmed · ticket", "Confirmed · pay for the ticket", "Sorry, not this time", "Expired · not paid in time", "Closed before review"]);
+    // A renamed one keeps its stage's name above its own.
+    expect(within(section).getByText("Not confirmed")).toBeInTheDocument();
+    expect(within(section).getByText("Goes out as soon as someone registers for an event that reviews registrations.")).toBeInTheDocument();
+    expect(within(section).getByText("Goes out when you confirm a free ticket. It is the ticket email for confirmed people, with the ticket attached.")).toBeInTheDocument();
+    expect(within(section).getByText("Goes out when you confirm a paid ticket: the pay link and the pay-by time.")).toBeInTheDocument();
+    expect(within(section).getByText('Goes out when you decline someone and leave "Email them" on, with your note if you wrote one.')).toBeInTheDocument();
+    expect(within(section).getByText("Goes out when a confirmed paid ticket isn't paid in time.")).toBeInTheDocument();
+    expect(within(section).getByText("Goes out when the event ends, or is deleted, while someone is still under review: once to each.")).toBeInTheDocument();
+    // Sent by itself, not a timer and an audience, and no figures.
+    expect(within(section).getAllByText(/^Sent by itself/)).toHaveLength(6);
+    expect(within(section).queryByText(/by hand|sent to|opened/)).toBeNull();
+    expect(within(section).queryByText("Automatic")).toBeNull();
+    expect(within(section).queryByText("Request received")).toBeNull();
+    // Preview and Edit on each.
+    expect(within(section).getAllByRole("link", { name: /Edit/ }).map((a) => a.getAttribute("href"))).toEqual([
+      "/emails/t6", "/emails/t12", "/emails/t7", "/emails/t8", "/emails/t9", "/emails/t11",
+    ]);
+    expect(within(section).getByRole("button", { name: "Preview Thanks for registering" })).toBeInTheDocument();
+    // Nothing in the section speaks of requests, waiting or places.
+    expect(section).not.toHaveTextContent(/request|waiting|place/i);
     // The journey keeps its own.
     expect(screen.getByRole("heading", { name: "The journey" }).closest("section")).toHaveTextContent("Invite · your ticket");
     // An email this build doesn't know is listed with the others rather than breaking the page.
     expect(screen.getByRole("link", { name: "A newer kind of email" })).toBeInTheDocument();
-    expect(screen.getByText(/Request declined is switched off in the library/)).toBeInTheDocument();
+    // They are always on: never "switched off in the library".
+    expect(screen.queryByText(/switched off in the library/)).toBeNull();
   });
 
-  it("lists the emails the server sends by itself under their heading, without an edit", async () => {
+  it("lists the emails an older server sends by itself under Registration review, by today's names, without an edit", async () => {
     library = {
       figures, previous: figures, delta: null,
       templates: [tpl("t1", "INVITE", "Invite", "Invite · your ticket")],
@@ -346,17 +387,25 @@ describe("the email library", () => {
         { key: "request_approved_pay", name: "Confirmed · pay to get your ticket", subject: "{{org_name}} confirmed your place", when: "When you confirm a paid ticket.", group: "Registration requests", customisable: false },
         { key: "request_declined", name: "Declined", subject: "Your request for {{event_name}}", when: "When you decline someone.", group: "Registration requests", customisable: false },
         { key: "request_lapsed", name: "Place released", subject: "Your place was released", when: "When a confirmed paid ticket isn't paid in time.", group: "Registration requests", customisable: false },
+        { key: "venue_changed", name: "Venue changed", subject: "New venue", when: "When you change the venue.", group: "Event changes", customisable: false },
       ],
     };
     render(<EmailLibraryPage />);
-    const section = (await screen.findByRole("heading", { name: "Registration requests" })).closest("section")!;
-    for (const name of ["Request received", "Confirmed · free ticket", "Confirmed · pay to get your ticket", "Declined", "Place released"]) {
+    const section = (await screen.findByRole("heading", { name: "Registration review" })).closest("section")!;
+    expect(screen.queryByRole("heading", { name: "Registration requests" })).toBeNull();
+    expect(within(section).getByText("For events that review registrations. Each goes to the one person, by itself, as their registration moves.")).toBeInTheDocument();
+    for (const name of ["Thanks for registering", "Confirmed · ticket", "Confirmed · pay for the ticket", "Not confirmed", "Expired · not paid in time"]) {
       expect(within(section).getByText(name)).toBeInTheDocument();
     }
-    expect(within(section).getByText("As soon as someone fills the form of an event that confirms each registration.")).toBeInTheDocument();
+    expect(within(section).getByText("Goes out as soon as someone registers for an event that reviews registrations.")).toBeInTheDocument();
+    // The subject is the one the server sends today.
     expect(within(section).getByText("You're on the waiting list for {{event_name}}")).toBeInTheDocument();
     expect(within(section).getAllByText("Automatic")).toHaveLength(5);
     expect(within(section).queryByRole("link", { name: /Edit/ })).toBeNull();
+    // Another group keeps its own heading and words.
+    const other = screen.getByRole("heading", { name: "Event changes" }).closest("section")!;
+    expect(within(other).getByText("Venue changed")).toBeInTheDocument();
+    expect(within(other).getByText("When you change the venue.")).toBeInTheDocument();
   });
 
   it("shows no such heading for an API without them", async () => {
@@ -367,6 +416,7 @@ describe("the email library", () => {
     };
     render(<EmailLibraryPage />);
     await screen.findByRole("heading", { name: "The journey" });
+    expect(screen.queryByRole("heading", { name: "Registration review" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Registration requests" })).toBeNull();
   });
 });

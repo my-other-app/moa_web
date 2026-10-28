@@ -50,8 +50,8 @@ export function useCreateEvent() {
           ticketTypesError = error;
         }
       }
-      // Asked to confirm each registration, and the server didn't say it is on: said, rather than
-      // the event quietly taking registrations the club meant to decide.
+      // Asked to review registrations, and the server didn't say it is on: said, rather than
+      // the event quietly sending tickets the club meant to review first.
       const approvalMissed = values.requires_approval === true && (made as { requires_approval?: unknown }).requires_approval !== true;
       return { ...made, agenda, ticketTypesError, approvalMissed };
     },
@@ -61,7 +61,7 @@ export function useCreateEvent() {
       if (made.ticketTypesError && !reportPlanError(made.ticketTypesError)) {
         toast.warning(`The event is saved, but its ticket types weren't: ${ticketingError(made.ticketTypesError)} Set them under the event's Settings.`);
       }
-      if (made.approvalMissed) toast.warning("The event is saved, but confirming each registration isn't on yet. Turn it on under the event's Settings.");
+      if (made.approvalMissed) toast.warning("The event is saved, but reviewing registrations isn't on yet. Turn it on under the event's Settings.");
       void queryClient.invalidateQueries({ queryKey: TICKETING_KEY });
       // The month's count of events moved.
       void queryClient.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
