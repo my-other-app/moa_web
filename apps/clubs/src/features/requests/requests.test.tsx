@@ -4,6 +4,7 @@ import { ApiError } from "@moa/api";
 import { toast } from "@moa/ui";
 
 import eventFixture from "../__fixtures__/event-detail.json";
+import summaryFixture from "../__fixtures__/event-summary.json";
 
 /**
  * The event's Requests page against a fake server that keeps the queue:
@@ -43,6 +44,10 @@ let gate: { at: number; wait: Promise<void> } | null = null;
 let approveCalls = 0;
 /** The server's reason for refusing a reopen, when it should. */
 let reopenRefusal: string | null = null;
+/** The server counts `total` (and has the export); false: one from before. */
+let withTotal = true;
+/** The summary's `requests` block (null: a summary without it). */
+let summaryRequests: Record<string, unknown> | null = null;
 
 const at = (minute: number) => new Date(Date.UTC(2026, 9, 26, 4, minute)).toISOString();
 
@@ -73,15 +78,17 @@ const byQueue = (a: Req, b: Req) => a.submitted_at.localeCompare(b.submitted_at)
 function counts() {
   const c: Record<string, number> = { pending: 0, approved: 0, declined: 0, withdrawn: 0, lapsed: 0, closed: 0 };
   for (const r of requests) c[r.status] = (c[r.status] ?? 0) + 1;
+  if (withTotal) c.total = requests.length;
   return c;
 }
 
 function page(query: Record<string, unknown>) {
   const q = String(query.q ?? "").toLowerCase();
   const all = requests
-    .filter((r) => r.status === query.status)
+    .filter((r) => query.status === "all" || r.status === query.status)
     .filter((r) => !q || [r.full_name, r.email, r.phone].some((v) => v?.toLowerCase().includes(q)))
-    .sort(byQueue);
+    // All is newest first, as the server reads it.
+    .sort(query.status === "all" ? (a, b) => byQueue(b, a) : byQueue);
   const start = query.after ? Number(query.after) : 0;
   const limit = Number(query.limit ?? 50);
   return { items: all.slice(start, start + limit), next: start + limit < all.length ? String(start + limit) : null, counts: counts(), places_left: places };
@@ -124,6 +131,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
           if (server === "old") throw new ApiError({ status: 404, message: "Not Found", routeMissing: true });
           return page(options?.query ?? {});
         }
+        if (path === "/api/v1/events/37/summary") return { ...summaryFixture, ...(summaryRequests ? { requests: summaryRequests } : {}) };
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(async (path: string, body: Record<string, unknown>) => {
@@ -183,6 +191,8 @@ beforeEach(() => {
   gate = null;
   approveCalls = 0;
   reopenRefusal = null;
+  withTotal = true;
+  summaryRequests = null;
   requests = [
     req(1, { full_name: "Asha Rao", email: "asha@example.com", phone: "+91 98470 00001", answers: { college: "CET", diet: "veg" } }),
     req(2, { full_name: "Bilal Khan", email: "bilal@example.com", ticket_type: { id: 4, name: "Early bird" } }),
@@ -203,7 +213,7 @@ describe("the list", () => {
     expect(screen.getByText("Early bird")).toBeInTheDocument();
     expect(screen.getAllByText(indiaTime(at(1)))[0]).toBeInTheDocument();
     expect(indiaTime(at(1))).toBe("26 Oct 2026, 9:31 am");
-    expect(screen.getByText("3 waiting · 0 confirmed · 1 declined")).toBeInTheDocument();
+    expect(screen.getByText("4 in total · 3 waiting for you · 0 confirmed · 1 declined")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Waiting/ })).toHaveTextContent("3");
     expect(screen.getByRole("button", { name: /^Declined/ })).toHaveTextContent("1");
     expect(screen.getByText("No limit on places")).toBeInTheDocument();
@@ -377,7 +387,7 @@ describe("deciding", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Declined/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Reopen Dev Menon's request" }));
     await waitFor(() =>
-      expect(error).toHaveBeenCalledWith("Dev Menon couldn't be put back on the waiting list, because they have asked again since, and that request is still open."),
+      expect(error).toHaveBeenCalledWith("Dev Menon couldn't be put back among the requests waiting for you, because they have asked again since, and that request is still open."),
     );
     expect(screen.getByText("Dev Menon")).toBeInTheDocument();
     error.mockRestore();
@@ -436,5 +446,103 @@ describe("who may decide, and an API without requests", () => {
     render(<RequestsPage eventId={37} />);
     expect(await screen.findByText("Requests aren't available yet")).toBeInTheDocument();
     expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+  });
+});
+
+describe("the numbers, All and Export", () => {
+  const paidFigures = {
+    enabled: true, total: 412, pending: 37, approved: 293, declined: 40, withdrawn: 8, lapsed: 17, closed: 0,
+    approved_paid: 281, approved_awaiting_payment: 12, awaiting_payment_amount: 2388, earliest_hold_expires_at: "2026-10-28T12:30:00Z",
+    checked_in: 0, oldest_pending_at: "2026-10-26T04:00:00Z", avg_decision_hours: 20.5, added_directly: 15,
+  };
+
+  it("says how many asked in total, and on a paid event how many confirmed have paid and are paying", async () => {
+    summaryRequests = paidFigures;
+    render(<RequestsPage eventId={37} />);
+    expect(await screen.findByText("4 in total · 3 waiting for you · 0 confirmed · 1 declined")).toBeInTheDocument();
+    const split = (await screen.findByText(/Of the confirmed:/)).closest("p")!;
+    expect(split).toHaveTextContent("Of the confirmed: 281 paid · 12 paying (₹2,388 to come, the first hold ends");
+    expect(split).toHaveTextContent("17 didn't pay");
+  });
+
+  it("shows no paid split on a free event, or from a summary without requests", async () => {
+    summaryRequests = { ...paidFigures, approved: 30, approved_paid: 0, approved_awaiting_payment: 0, awaiting_payment_amount: 0, lapsed: 0 };
+    render(<RequestsPage eventId={37} />);
+    await screen.findByText("4 in total · 3 waiting for you · 0 confirmed · 1 declined");
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/37/summary")).toBe(true));
+    expect(screen.queryByText(/Of the confirmed:/)).toBeNull();
+  });
+
+  it("has an All tab with every request, newest first, each with its status", async () => {
+    render(<RequestsPage eventId={37} />);
+    await screen.findByText("Asha Rao");
+    const all = screen.getByRole("button", { name: /^All/ });
+    expect(all).toHaveTextContent("4");
+    fireEvent.click(all);
+    expect(await screen.findByText("Dev Menon")).toBeInTheDocument();
+    expect(calls.some((c) => c.path.endsWith("/requests") && c.query?.status === "all")).toBe(true);
+    const table = screen.getByRole("table");
+    const names = within(table).getAllByText(/^(Asha Rao|Bilal Khan|Chitra Nair|Dev Menon)$/).map((el) => el.textContent);
+    expect(names).toEqual(["Dev Menon", "Chitra Nair", "Bilal Khan", "Asha Rao"]);
+    const dev = within(table).getByText("Dev Menon").closest("tr")!;
+    expect(within(dev).getByText("Declined")).toBeInTheDocument();
+    const asha = within(table).getByText("Asha Rao").closest("tr")!;
+    expect(within(asha).getByText("Waiting")).toBeInTheDocument();
+    expect(screen.getByText("Showing 4 of 4")).toBeInTheDocument();
+
+    // Confirmed from All, the row stays with its new status and the counts move.
+    fireEvent.click(within(asha).getByRole("button", { name: "Confirm Asha Rao" }));
+    await waitFor(() => expect(within(screen.getByText("Asha Rao").closest("tr")!).getAllByText("Confirmed").length).toBeGreaterThan(0));
+    expect(within(screen.getByText("Asha Rao").closest("tr")!).queryByText("Waiting")).toBeNull();
+    expect(screen.getByRole("button", { name: /^Waiting/ })).toHaveTextContent("2");
+  });
+
+  it("exports every request as a CSV through the gateway", async () => {
+    const fetchMock = vi.fn(async () => new Response("status,name\r\npending,Asha Rao", { status: 200, headers: { "content-type": "text/csv", "content-disposition": 'attachment; filename="requests-hack-night.csv"' } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const createUrl = vi.fn(() => "blob:requests");
+    const revokeUrl = vi.fn();
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: createUrl, revokeObjectURL: revokeUrl }));
+    const clicked: string[] = [];
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      clicked.push(this.download);
+    });
+    const success = vi.spyOn(toast, "success");
+    try {
+      render(<RequestsPage eventId={37} />);
+      fireEvent.click(await screen.findByRole("button", { name: "Export" }));
+      await waitFor(() => expect(success).toHaveBeenCalledWith("Requests exported"));
+      expect(fetchMock).toHaveBeenCalledWith("/api/gateway/api/v1/events/registration/37/requests/export", expect.objectContaining({ credentials: "include" }));
+      expect(clicked).toEqual(["requests-hack-night.csv"]);
+      expect(createUrl).toHaveBeenCalled();
+    } finally {
+      click.mockRestore();
+      success.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("drops Export, saying so, when the server has no export route", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ detail: "Not Found" }), { status: 404, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const warn = vi.spyOn(toast, "warning");
+    try {
+      render(<RequestsPage eventId={37} />);
+      fireEvent.click(await screen.findByRole("button", { name: "Export" }));
+      await waitFor(() => expect(warn).toHaveBeenCalledWith("Exporting requests arrives with the next update of MyOtherApp."));
+      await waitFor(() => expect(screen.queryByRole("button", { name: "Export" })).toBeNull());
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("shows no Export to an older server (no total), and All counts the statuses together", async () => {
+    withTotal = false;
+    render(<RequestsPage eventId={37} />);
+    await screen.findByText("Asha Rao");
+    expect(screen.getByText("4 in total · 3 waiting for you · 0 confirmed · 1 declined")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^All/ })).toHaveTextContent("4");
+    expect(screen.queryByRole("button", { name: "Export" })).toBeNull();
   });
 });

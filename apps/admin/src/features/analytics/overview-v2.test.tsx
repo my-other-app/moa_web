@@ -15,6 +15,8 @@ type Query = { days?: number; top_by?: string };
 const calls: Array<{ path: string; query?: Query }> = [];
 let failNext: string | null = null;
 let rerank: Promise<unknown> | null = null;
+/** The platform's request figures (confirm each registration); null: a server that doesn't send them. */
+let requestsBlock: Record<string, unknown> | null = null;
 
 const TRENDS: Record<number, unknown> = {
   30: {
@@ -88,6 +90,7 @@ function overview(days = 30, topBy: keyof typeof CLUBS = "followers") {
     top_clubs: CLUBS[topBy],
     trends: TRENDS[days],
     money: { captured: 100_000, refunded: 20_000, net: 80_000, failed: 3, retained_share: 80, previous_captured: 90_000 },
+    ...(requestsBlock ? { requests: requestsBlock } : {}),
   };
 }
 
@@ -150,6 +153,7 @@ beforeEach(() => {
   calls.length = 0;
   failNext = null;
   rerank = null;
+  requestsBlock = null;
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -463,5 +467,31 @@ describe("the two views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Copy summary" }));
     const text = (writeText.mock.calls[0] as unknown as [string])[0];
     expect(text.split("\n")[1]).toBe("• Users: 669");
+  });
+});
+
+describe("the platform's request figures", () => {
+  it("shows requests received, waiting for a club, and the time clubs take to decide", async () => {
+    requestsBlock = { received: 1840, waiting: 96, avg_decision_hours: 20.5 };
+    render(<AdminOverviewV2 />);
+    const requests = await screen.findByLabelText("Registration requests");
+    expect(requests).toHaveTextContent("received1,840");
+    expect(requests).toHaveTextContent("waiting for a club96");
+    expect(requests).toHaveTextContent("to decide, on average21 h");
+  });
+
+  it("reads the other names a server may use, and a long wait in days", async () => {
+    requestsBlock = { total: 12, pending: 3, avg_decision_hours: 72 };
+    render(<AdminOverviewV2 />);
+    const requests = await screen.findByLabelText("Registration requests");
+    expect(requests).toHaveTextContent("received12");
+    expect(requests).toHaveTextContent("waiting for a club3");
+    expect(requests).toHaveTextContent("to decide, on average3 d");
+  });
+
+  it("is not there when the server doesn't send them", async () => {
+    render(<AdminOverviewV2 />);
+    await screen.findByRole("heading", { name: "Is the platform healthy?" });
+    expect(screen.queryByLabelText("Registration requests")).toBeNull();
   });
 });

@@ -80,6 +80,87 @@ export const recentCheckInSchema = z.object({
   checked_in_at: z.string(),
 });
 
+/** A count from the server: a whole number, never below zero; absent or odd, 0. */
+const count = z.coerce
+  .number()
+  .catch(0)
+  .transform((v) => (Number.isFinite(v) ? Math.max(0, Math.trunc(v)) : 0));
+const optionalCount = z
+  .number()
+  .nullish()
+  .catch(null)
+  .transform((v) => (v === null || v === undefined || !Number.isFinite(v) ? null : Math.max(0, Math.trunc(v))));
+const optionalText = z
+  .string()
+  .nullish()
+  .catch(null)
+  .transform((v) => v || null);
+
+/**
+ * "Confirm each registration": the event's requests as figures (the
+ * summary's `requests`, the closeout's too). `total` is everyone who asked;
+ * `approved` splits into `approved_paid` and `approved_awaiting_payment` on a
+ * paid event; `lapsed` were confirmed and didn't pay in time; `closed` were
+ * closed unanswered (the event ended, was deleted or cancelled, or they
+ * registered another way). `added_directly` registered without asking (the
+ * desk, an import, before the switch), so asked-and-confirmed plus added
+ * directly is the registered count.
+ */
+export const requestFiguresSchema = z.object({
+  enabled: z.boolean().catch(false).default(false),
+  total: count,
+  pending: count,
+  approved: count,
+  declined: count,
+  withdrawn: count,
+  lapsed: count,
+  closed: count,
+  approved_paid: count,
+  approved_awaiting_payment: count,
+  awaiting_payment_amount: z.coerce
+    .number()
+    .catch(0)
+    .transform((v) => (Number.isFinite(v) ? Math.max(0, v) : 0)),
+  earliest_hold_expires_at: optionalText,
+  checked_in: count,
+  oldest_pending_at: optionalText,
+  avg_decision_hours: z
+    .number()
+    .nullish()
+    .catch(null)
+    .transform((v) => (v === null || v === undefined || !Number.isFinite(v) ? null : Math.max(0, v))),
+  added_directly: count,
+});
+export type RequestFigures = z.infer<typeof requestFiguresSchema>;
+
+/**
+ * The event's places, from the same calculation the ticket picker uses:
+ * held places (confirmed, not yet paid) count; waiting requests don't.
+ * `capacity` (and `left`) null: no cap.
+ */
+export const placesSchema = z.object({
+  capacity: optionalCount,
+  taken: count,
+  held: count,
+  left: optionalCount,
+});
+export type Places = z.infer<typeof placesSchema>;
+
+/** Optional on every response that carries it: absent, wrong or null, it reads as null (an older server). */
+export const requestFiguresField = requestFiguresSchema
+  .nullish()
+  .catch(null)
+  .transform((v) => v ?? null);
+const placesField = placesSchema
+  .nullish()
+  .catch(null)
+  .transform((v) => v ?? null);
+
+/** Whether an event has request figures worth showing: it confirms each registration, or anyone ever asked. */
+export function hasRequestFigures(r: RequestFigures | null | undefined): r is RequestFigures {
+  return Boolean(r && (r.enabled || r.total > 0));
+}
+
 export const eventSummarySchema = z.object({
   event_id: z.number(),
   status: z.enum(EVENT_STATUSES).catch("published"),
@@ -108,6 +189,10 @@ export const eventSummarySchema = z.object({
   generated_at: z.string(),
   /** Registration requests waiting for the club to confirm them (0 from an API without requests). */
   requests_pending: z.number().catch(0),
+  /** The requests as figures (null: an older server, or an event that never confirmed anyone). */
+  requests: requestFiguresField,
+  /** The event's places as the ticket picker counts them (null: an older server). */
+  places: placesField,
 });
 
 export type EventSummary = z.infer<typeof eventSummarySchema>;

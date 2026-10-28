@@ -56,7 +56,7 @@ export function EventRowMenu({
   onDeleted,
   onCancel,
 }: {
-  event: Pick<ClubEvent, "id" | "name" | "slug" | "registration_count">;
+  event: Pick<ClubEvent, "id" | "name" | "slug" | "registration_count"> & Partial<Pick<ClubEvent, "requests_pending">>;
   /** Called after a successful delete, for a page that cannot stay where it is. */
   onDeleted?: () => void;
   /** Offers "Cancel event…" (the event's page passes it when the role and the backend allow it). */
@@ -70,6 +70,7 @@ export function EventRowMenu({
   // A copy is a new event: at the month's cap it opens the upgrade dialog instead.
   const monthly = useLimitGate("events_per_month");
   const registered = event.registration_count ?? 0;
+  const waiting = event.requests_pending ?? 0;
 
   async function copyLink() {
     try {
@@ -156,6 +157,18 @@ export function EventRowMenu({
               ) : (
                 "This removes the event from the app. It cannot be undone from here."
               )}
+              {waiting > 0 ? (
+                <>
+                  {" "}
+                  <strong>
+                    {waiting.toLocaleString("en-IN")}{" "}
+                    {waiting === 1 ? "person is" : "people are"} waiting for you
+                    to confirm them.
+                  </strong>{" "}
+                  Their requests close, and they&apos;ll get a polite email
+                  saying you weren&apos;t able to confirm their place.
+                </>
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

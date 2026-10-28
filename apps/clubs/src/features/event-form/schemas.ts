@@ -158,6 +158,12 @@ export const eventFormSchema = z
      * never sent.
      */
     requires_approval: z.boolean().optional(),
+    /**
+     * The "High demand" tag on the public page (no numbers). Undefined when
+     * the event's detail doesn't say (an older server, or a new event): then
+     * never sent.
+     */
+    high_demand_label: z.boolean().optional(),
 
     // --- contact
     contact_name: z.string().trim().max(100).optional(),

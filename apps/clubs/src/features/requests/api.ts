@@ -1,4 +1,6 @@
 import { api } from "@moa/app-kit";
+import { toApiError } from "@moa/api";
+import { GATEWAY_PREFIX } from "@moa/auth";
 
 import {
   CHUNK_SIZE,
@@ -8,13 +10,14 @@ import {
   declineResultSchema,
   reopenResultSchema,
   requestPageSchema,
-  type RequestStatus,
+  type RequestTab,
 } from "./schemas";
 
 const base = (eventId: number) => `/api/v1/events/registration/${eventId}/requests`;
 
 export interface RequestQuery {
-  status: RequestStatus;
+  /** One status, or `all`. */
+  status: RequestTab;
   /** Name, email or phone. */
   q?: string;
   /** The `next` cursor of the page before. */
@@ -72,4 +75,20 @@ export async function declineAllPending(eventId: number, options: { limit?: numb
 export async function reopenRequests(eventId: number, ids: readonly string[]) {
   guard(ids);
   return reopenResultSchema.parse(await api.post<unknown>(`${base(eventId)}/reopen`, { ids }));
+}
+
+/** GET …/requests/export: every request as a CSV (status, contact, ticket type, answers, when asked and decided, by whom, the note, payment). */
+export const requestsExportUrl = (eventId: number) => `${GATEWAY_PREFIX}${base(eventId)}/export`;
+
+/**
+ * The export, read through the gateway (the same cookie as every call) so a
+ * server without the route answers with its bare 404 rather than a file of
+ * JSON saved to the club's disk: the caller wraps it in nullIfRouteMissing.
+ */
+export async function fetchRequestsExport(eventId: number): Promise<{ blob: Blob; filename: string }> {
+  const response = await fetch(requestsExportUrl(eventId), { credentials: "include", headers: { Accept: "text/csv" } });
+  if (!response.ok) throw await toApiError(response);
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const named = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition)?.[1];
+  return { blob: await response.blob(), filename: named ? decodeURIComponent(named) : `requests-${eventId}.csv` };
 }

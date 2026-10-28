@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, ChevronDownIcon, InboxIcon, Loader2Icon, RotateCcwIcon, XIcon } from "lucide-react";
-import { formatNumber } from "@moa/app-kit";
+import { CheckIcon, ChevronDownIcon, DownloadIcon, InboxIcon, Loader2Icon, RotateCcwIcon, XIcon } from "lucide-react";
+import { formatDateTime, formatNumber, hasRequestFigures } from "@moa/app-kit";
 import {
   Button,
   Checkbox,
@@ -22,21 +22,26 @@ import {
 } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
+// The query, not the feature's surface: the console's components reach this page's feature.
+import { useEventSummary } from "@/features/console/queries";
 import { useEventDetail } from "@/features/events";
 
 import { summarise, type OutcomeSummary } from "../bulk";
-import { useBulkDecision, useConfirmRequest, useReopenRequest, useRequestList, type BulkPlan } from "../queries";
+import { useBulkDecision, useConfirmRequest, useExportRequests, useReopenRequest, useRequestList, type BulkPlan } from "../queries";
 import {
   STATUS_LABEL,
   STATUS_TABS,
+  TAB_LABEL,
   answerRows,
   indiaTime,
   people,
   queueOrder,
   rupees,
+  totalOf,
   type QuestionField,
   type RegistrationRequest,
   type RequestStatus,
+  type RequestTab,
 } from "../schemas";
 import { ConfirmDialog, DeclineDialog } from "./decision-dialogs";
 
@@ -44,14 +49,16 @@ import { ConfirmDialog, DeclineDialog } from "./decision-dialogs";
  * The event's Requests: everyone who asked for a place while "Confirm each
  * registration" is on, to confirm or decline.
  *
- * A tab per status with its count; a search across name, email and phone;
+ * A tab per status with its count, and All; a search across name, email and phone;
  * the queue oldest first, fifty at a time with "Load more" (the server's
  * cursor), so a list of thousands never loads at once. Each row has the
  * person, their ticket type, when they asked (India time) and their form
  * answers on request. On Waiting, rows can be ticked (all on the page, or
  * every waiting request at once) and confirmed or declined together; the
  * outcome is said in plain words above the list. Door staff see the list
- * and decide nothing.
+ * and decide nothing. Above it, the total that ever asked and, on a paid
+ * event, how many confirmed have paid and how many are paying; Export takes
+ * every request as a CSV.
  */
 
 const CELL = "px-4 py-2.5 text-left align-top";
@@ -210,7 +217,9 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   const canDecide = Boolean(can.decide_requests);
   const event = useEventDetail(eventId);
   const fields = useQuestions(eventId);
-  const [status, setStatus] = React.useState<RequestStatus>("pending");
+  const [status, setStatus] = React.useState<RequestTab>("pending");
+  const summary = useEventSummary(eventId);
+  const exporter = useExportRequests(eventId);
   const [searchInput, setSearchInput] = React.useState("");
   const [q, setQ] = React.useState("");
   const list = useRequestList(eventId, status, q);
@@ -249,10 +258,19 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   const selectedCount = selection.all ? selection.total : selection.picked.size;
   const allShownSelected = !selection.all && pendingShown.length > 0 && pendingShown.every((r) => selection.picked.has(r.id));
   const requiresApproval = Boolean(event.data?.requires_approval);
-  const tabs = counts && counts.closed > 0 ? [...STATUS_TABS, "closed" as const] : STATUS_TABS;
+  // Everyone who ever asked: the server's own total, else the statuses together (the same people).
+  const total = first ? (first.total ?? totalOf(counts)) : null;
+  const tabs: RequestTab[] = [...STATUS_TABS, ...(counts && counts.closed > 0 ? (["closed"] as const) : []), "all"];
+  const tabCount = (t: RequestTab) => (t === "all" ? total : counts ? counts[t] : null);
+  // The paid/paying split: the event's summary has it (the list's counts don't).
+  const asked = summary.data?.requests;
+  const figures = hasRequestFigures(asked) ? asked : null;
+  const paidSplit = figures && (event.data?.has_fee || figures.approved_paid > 0 || figures.approved_awaiting_payment > 0 || figures.lapsed > 0) ? figures : null;
+  // A server that counts the total has the export too; one whose export route is missing loses the button.
+  const canExport = first?.total !== null && first?.total !== undefined && !exporter.missing;
   const busyRow = (id: string) => (confirmOne.isPending && confirmOne.variables?.id === id) || (reopenOne.isPending && reopenOne.variables?.id === id);
 
-  const changeStatus = (next: RequestStatus) => {
+  const changeStatus = (next: RequestTab) => {
     setStatus(next);
     setSelection(NONE);
     setOpenAnswers(new Set());
@@ -310,7 +328,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   };
 
   const header = counts
-    ? `${formatNumber(counts.pending)} waiting · ${formatNumber(counts.approved)} confirmed · ${formatNumber(counts.declined)} declined`
+    ? `${formatNumber(total ?? 0)} in total · ${formatNumber(counts.pending)} waiting for you · ${formatNumber(counts.approved)} confirmed · ${formatNumber(counts.declined)} declined`
     : "Everyone who asked for a place: confirm them to send their ticket, or decline.";
 
   return (
@@ -319,10 +337,27 @@ export function RequestsPage({ eventId }: { eventId: number }) {
         <div className="min-w-0">
           <h2 className="m-0 text-[17px] font-semibold tracking-[-0.02em]">Requests</h2>
           <p className="text-ink-3 mt-1 text-[12.5px]">{header}</p>
+          {paidSplit ? (
+            <p className="text-ink-2 mt-0.5 text-[12.5px]">
+              Of the confirmed: <span className="text-admit font-medium">{formatNumber(paidSplit.approved_paid)} paid</span> ·{" "}
+              <span className="text-caution font-medium">{formatNumber(paidSplit.approved_awaiting_payment)} paying</span>
+              {paidSplit.approved_awaiting_payment > 0
+                ? ` (${rupees(paidSplit.awaiting_payment_amount)} to come${paidSplit.earliest_hold_expires_at ? `, the first hold ends ${formatDateTime(paidSplit.earliest_hold_expires_at)}` : ""})`
+                : ""}
+              {paidSplit.lapsed > 0 ? ` · ${formatNumber(paidSplit.lapsed)} didn't pay` : ""}
+            </p>
+          ) : null}
         </div>
-        <p className="text-ink-2 text-[12.5px]" aria-live="polite">
-          {placesLeft === undefined ? null : placesLeft === null ? "No limit on places" : `${formatNumber(placesLeft)} ${placesLeft === 1 ? "place" : "places"} left`}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-ink-2 m-0 text-[12.5px]" aria-live="polite">
+            {placesLeft === undefined ? null : placesLeft === null ? "No limit on places" : `${formatNumber(placesLeft)} ${placesLeft === 1 ? "place" : "places"} left`}
+          </p>
+          {canExport ? (
+            <Button size="sm" variant="secondary" onClick={() => exporter.mutate()} disabled={exporter.isPending}>
+              {exporter.isPending ? <Loader2Icon className="animate-spin" /> : <DownloadIcon />} Export
+            </Button>
+          ) : null}
+        </div>
       </header>
 
       {!requiresApproval && waiting > 0 && event.data ? (
@@ -359,8 +394,8 @@ export function RequestsPage({ eventId }: { eventId: number }) {
           <div role="group" aria-label="Status" className="flex flex-wrap gap-1.5">
             {tabs.map((s) => (
               <Chip key={s} active={status === s} onClick={() => changeStatus(s)} tone={s === "pending" && waiting > 0 ? "caution" : "accent"}>
-                {STATUS_LABEL[s]}
-                {counts ? <span className="font-mono tabular-nums">{formatNumber(counts[s])}</span> : null}
+                {TAB_LABEL[s]}
+                {tabCount(s) !== null ? <span className="font-mono tabular-nums">{formatNumber(tabCount(s))}</span> : null}
               </Chip>
             ))}
           </div>
@@ -442,7 +477,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
             <EmptyState
               size="sm"
               icon={<InboxIcon />}
-              title={onWaiting ? "Nobody is waiting" : `Nothing ${STATUS_LABEL[status].toLowerCase()}`}
+              title={onWaiting ? "Nobody is waiting" : status === "all" ? "Nobody has asked yet" : `Nothing ${STATUS_LABEL[status].toLowerCase()}`}
               description={
                 onWaiting
                   ? requiresApproval
@@ -516,7 +551,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
           <div className="border-line-soft flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2.5">
             <span className="text-ink-3 text-[12px]">
               Showing {formatNumber(rows.length)}
-              {counts && !q ? ` of ${formatNumber(counts[status])}` : ""}
+              {counts && !q && tabCount(status) !== null ? ` of ${formatNumber(tabCount(status))}` : ""}
             </span>
             {list.hasNextPage ? (
               <Button variant="secondary" size="sm" onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>

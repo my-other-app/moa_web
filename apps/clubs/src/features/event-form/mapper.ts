@@ -37,6 +37,8 @@ const detailSchema = z
     swag_enabled: z.boolean().nullish(),
     // Confirm each registration; absent from an API without it: off.
     requires_approval: z.boolean().nullish(),
+    // The "High demand" tag on the public page; absent from an API without it.
+    high_demand_label: z.boolean().nullish(),
     max_participants: z.coerce.number().nullish(),
     contact_name: z.string().nullish(),
     contact_phone: z.string().nullish(),
@@ -131,6 +133,8 @@ export function eventDetailToFormValues(raw: unknown): EventFormValues {
     // Only what the event said: absent (an API without it), it stays unset and is never sent,
     // so a save can't switch off what it never read.
     requires_approval: d.requires_approval ?? undefined,
+    // The same: only what the event said, so a save never switches off a label it never read.
+    high_demand_label: d.high_demand_label ?? undefined,
     max_participants: d.max_participants ?? undefined,
 
     contact_name: d.contact_name ?? "",

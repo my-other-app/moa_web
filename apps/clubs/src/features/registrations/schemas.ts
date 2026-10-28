@@ -86,6 +86,29 @@ export const eventFieldSchema = z
   .passthrough();
 export type EventField = z.infer<typeof eventFieldSchema>;
 
+/** One day's requests: the day (YYYY-MM-DD, India) and how many asked. */
+export interface RequestDay {
+  date: string;
+  count: number;
+}
+
+function requestsByDay(raw: unknown): RequestDay[] {
+  const rows: unknown[] = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === "object"
+      ? Object.entries(raw as Record<string, unknown>).map(([date, count]) => ({ date, count }))
+      : [];
+  return rows
+    .flatMap((r) => {
+      if (!r || typeof r !== "object") return [];
+      const o = r as Record<string, unknown>;
+      const date = o.date ?? o.day ?? o.time;
+      const count = Number(o.count ?? o.value ?? o.requests ?? 0);
+      return typeof date === "string" && date && Number.isFinite(count) ? [{ date, count: Math.max(0, Math.trunc(count)) }] : [];
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export const eventAnalyticsSchema = z
   .object({
     total_registrations: z.number().default(0),
@@ -129,6 +152,14 @@ export const eventAnalyticsSchema = z
      * number -- an event with fifty colleges would read 5.
      */
     total_institutions: z.number().default(0),
+    /*
+     * Confirm each registration. Everyone who asked (null: an older server),
+     * requests per page view (a ratio), and the requests by the day people
+     * asked, read leniently: [{date, count}] (or day/value), or {date: count}.
+     */
+    requests_total: z.number().nullish().catch(null).transform((v) => (v === null || v === undefined ? null : Math.max(0, Math.trunc(v)))),
+    requests_per_view: z.number().nullish().catch(null).transform((v) => (v === null || v === undefined || !Number.isFinite(v) ? null : Math.max(0, v))),
+    requests_by_day: z.unknown().transform(requestsByDay),
   })
   .passthrough();
 

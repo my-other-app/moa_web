@@ -7,9 +7,9 @@ import { toast } from "@moa/ui";
 
 import { TICKETING_KEY } from "@/features/ticketing/queries";
 
-import { approveAllPending, approveRequests, declineAllPending, declineRequests, fetchRequests, reopenRequests } from "./api";
+import { approveAllPending, approveRequests, declineAllPending, declineRequests, fetchRequests, fetchRequestsExport, reopenRequests } from "./api";
 import { confirmAllWaiting, confirmIds, declineAllWaiting, declineIds, summarise, type BulkOutcome, type BulkProgress } from "./bulk";
-import { PAGE_SIZE, indiaTime, skipReasonText, type RegistrationRequest, type RequestPage, type RequestStatus } from "./schemas";
+import { PAGE_SIZE, indiaTime, skipReasonText, type RegistrationRequest, type RequestPage, type RequestStatus, type RequestTab } from "./schemas";
 
 /**
  * Every read here is `null` from a backend without registration requests
@@ -20,7 +20,7 @@ import { PAGE_SIZE, indiaTime, skipReasonText, type RegistrationRequest, type Re
 export const requestsKey = (eventId: number) => ["registration-requests", eventId] as const;
 const countsKey = (eventId: number) => [...requestsKey(eventId), "counts"] as const;
 const listsKey = (eventId: number) => [...requestsKey(eventId), "list"] as const;
-const listKey = (eventId: number, status: RequestStatus, q: string) => [...listsKey(eventId), status, q] as const;
+const listKey = (eventId: number, status: RequestTab, q: string) => [...listsKey(eventId), status, q] as const;
 
 type Pages = InfiniteData<RequestPage | null, string | null>;
 
@@ -47,8 +47,8 @@ export function useRequestsOnServer(eventId: number | undefined): boolean | unde
   return q.data !== null;
 }
 
-/** One status's requests, a page at a time by the server's cursor ("Load more"). */
-export function useRequestList(eventId: number, status: RequestStatus, q: string) {
+/** One status's requests (or all of them), a page at a time by the server's cursor ("Load more"). */
+export function useRequestList(eventId: number, status: RequestTab, q: string) {
   return useInfiniteQuery({
     queryKey: listKey(eventId, status, q),
     queryFn: ({ pageParam }) => nullIfRouteMissing(() => fetchRequests(eventId, { status, q, after: pageParam, limit: PAGE_SIZE })),
@@ -70,22 +70,23 @@ function refreshAround(queryClient: QueryClient, eventId: number) {
 
 /**
  * One row decided from the list: it leaves the list it was on and the counts
- * move, in place, so the club keeps its place in a long list. The other
- * lists are marked stale and read again when opened.
+ * move, in place, so the club keeps its place in a long list (on All it
+ * stays, with its new status). The other lists are marked stale and read
+ * again when opened.
  */
 function moveRows(queryClient: QueryClient, eventId: number, ids: ReadonlySet<string>, from: RequestStatus, to: RequestStatus, placesLeft?: number | null) {
   const n = ids.size;
   for (const [key, data] of queryClient.getQueriesData<Pages>({ queryKey: listsKey(eventId) })) {
     if (!data) continue;
     // listKey: [..., "list", status, q]
-    const status = key[3] as RequestStatus;
+    const status = key[3] as RequestTab;
     queryClient.setQueryData<Pages>(key, {
       ...data,
       pages: data.pages.map((p) =>
         p
           ? {
               ...p,
-              items: status === from ? p.items.filter((r) => !ids.has(r.id)) : p.items,
+              items: status === from ? p.items.filter((r) => !ids.has(r.id)) : status === "all" ? p.items.map((r) => (ids.has(r.id) ? { ...r, status: to } : r)) : p.items,
               counts: { ...p.counts, [from]: Math.max(0, p.counts[from] - n), [to]: p.counts[to] + n },
               places_left: placesLeft === undefined ? p.places_left : placesLeft,
             }
@@ -128,13 +129,13 @@ export function useReopenRequest(eventId: number) {
     onSuccess: (res, r) => {
       const refused = res.skipped.find((s) => s.id === r.id);
       if (refused) {
-        toast.error(`${r.full_name} couldn't be put back on the waiting list, because ${skipReasonText(refused.reason)}.`);
+        toast.error(`${r.full_name} couldn't be put back among the requests waiting for you, because ${skipReasonText(refused.reason)}.`);
         // Whatever it is now (decided again, or asked afresh), the lists say so.
         void queryClient.invalidateQueries({ queryKey: listsKey(eventId) });
         refreshAround(queryClient, eventId);
         return;
       }
-      toast.success(`${r.full_name} is back on the waiting list.`);
+      toast.success(`${r.full_name} is waiting for you to confirm again.`);
       moveRows(queryClient, eventId, new Set([r.id]), r.status, "pending");
     },
     onError: (e) => toast.error(e instanceof Error && e.message ? e.message : "That didn't go through. Try again."),
@@ -189,4 +190,39 @@ export function useBulkDecision(eventId: number) {
   );
 
   return { run, running, progress };
+}
+
+/** Saves a file the browser was handed, under its name. */
+function saveFile(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/**
+ * Export: every request as a CSV, through the gateway. A server without the
+ * route (its bare 404) answers null: said once, and the button goes
+ * (`missing`), rather than a file of JSON landing in Downloads.
+ */
+export function useExportRequests(eventId: number) {
+  const [missing, setMissing] = React.useState(false);
+  const mutation = useMutation({
+    mutationFn: () => nullIfRouteMissing(() => fetchRequestsExport(eventId)),
+    onSuccess: (file) => {
+      if (!file) {
+        setMissing(true);
+        toast.warning("Exporting requests arrives with the next update of MyOtherApp.");
+        return;
+      }
+      saveFile(file.blob, file.filename);
+      toast.success("Requests exported");
+    },
+    onError: (e) => toast.error(e instanceof Error && e.message ? e.message : "The export didn't go through. Try again."),
+  });
+  return { ...mutation, missing };
 }

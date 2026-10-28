@@ -38,6 +38,14 @@ export const clubEventSchema = z.object({
   door_open: z.boolean().catch(false),
   registration_open: z.boolean().catch(false),
   ends_at: z.string().nullish(),
+  /**
+   * Confirm each registration: the event asks people to wait for the club,
+   * how many wait now and how many ever asked. Absent from an older server:
+   * off, and the counts unknown (null), so nothing about requests shows.
+   */
+  requires_approval: z.boolean().catch(false),
+  requests_pending: z.number().nullish().catch(null).transform((v) => (v === null || v === undefined ? null : Math.max(0, Math.trunc(v)))),
+  requests_total: z.number().nullish().catch(null).transform((v) => (v === null || v === undefined ? null : Math.max(0, Math.trunc(v)))),
 });
 
 export const clubEventPageSchema = paginatedSchema(clubEventSchema);
@@ -127,6 +135,8 @@ export const eventDetailSchema = z
      * club confirms them (the Requests tab). Absent on an older server: off.
      */
     requires_approval: z.boolean().catch(false),
+    /** The "High demand" tag on the public page (no numbers); absent from an older server: null. */
+    high_demand_label: z.boolean().nullish().catch(null),
     /** What it is about, for the Overview: its interests, and the topics they fall under (null from a server before topics). */
     interests: z.array(linkedInterestSchema).catch([]).default([]),
     topics: topicRefsField,

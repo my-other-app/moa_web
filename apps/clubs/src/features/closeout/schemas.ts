@@ -1,3 +1,4 @@
+import { requestFiguresField } from "@moa/app-kit";
 import { z } from "zod";
 
 /** `cancelled` comes only from cancelling the event, and is never picked here (the panel leaves it out). */
@@ -38,6 +39,8 @@ export const figuresSchema = z
     cards_printed: z.number(),
     rating_avg: z.number(),
     rating_count: z.number(),
+    /** Confirm each registration: the requests as figures, as the report has them (null: an older server, or none). */
+    requests: requestFiguresField,
   })
   .passthrough();
 export type Figures = z.infer<typeof figuresSchema>;

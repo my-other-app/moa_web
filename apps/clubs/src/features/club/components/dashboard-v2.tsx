@@ -182,9 +182,11 @@ function NextEventCard({ event }: { event: OverviewEvent | null }) {
           </span>
         </div>
       </div>
-      <div className="relative grid grid-cols-3 gap-2 rounded-xl bg-black/20 p-3">
+      <div className={cn("relative grid gap-2 rounded-xl bg-black/20 p-3", event.requests_total !== null ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3")}>
         {[
           ["Page views", formatNumber(event.page_views)],
+          // Confirm each registration: who asked, beside who is registered.
+          ...(event.requests_total !== null ? [["Asked", formatNumber(event.requests_total)]] : []),
           ["Registrations", formatNumber(event.registrations)],
           [
             "View → sign-up",
@@ -493,6 +495,11 @@ function AudiencePanel({ o }: { o: ClubOverview }) {
 }
 
 function ReachPanel({ rows }: { rows: OverviewEvent[] }) {
+  // An "Asked" column once any event confirms each registration (the server counts its requests).
+  const asked = rows.some((e) => e.requests_total !== null);
+  const grid = asked
+    ? "grid-cols-[minmax(0,1.6fr)_70px_70px_70px_100px_80px]"
+    : "grid-cols-[minmax(0,1.6fr)_70px_70px_100px_80px]";
   return (
     <FigurePanel className="p-0">
       <div className="border-line-soft flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
@@ -507,10 +514,11 @@ function ReachPanel({ rows }: { rows: OverviewEvent[] }) {
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <div className="min-w-[520px]">
-            <div className="text-ink-3 grid grid-cols-[minmax(0,1.6fr)_70px_70px_100px_80px] gap-2 px-4 py-2 font-mono text-[10px] tracking-[0.06em] uppercase">
+          <div className={asked ? "min-w-[600px]" : "min-w-[520px]"}>
+            <div className={cn("text-ink-3 grid gap-2 px-4 py-2 font-mono text-[10px] tracking-[0.06em] uppercase", grid)}>
               <span>Event</span>
               <span className="text-right">Views</span>
+              {asked ? <span className="text-right">Asked</span> : null}
               <span className="text-right">Sign-ups</span>
               <span className="text-right">View → sign-up</span>
               <span className="text-right">Turnout</span>
@@ -519,12 +527,17 @@ function ReachPanel({ rows }: { rows: OverviewEvent[] }) {
               <Link
                 key={event.id}
                 href={`/events/${event.id}`}
-                className="border-line-soft hover:bg-sunken grid grid-cols-[minmax(0,1.6fr)_70px_70px_100px_80px] items-center gap-2 border-t px-4 py-2.5 text-[12.5px] transition-colors"
+                className={cn("border-line-soft hover:bg-sunken grid items-center gap-2 border-t px-4 py-2.5 text-[12.5px] transition-colors", grid)}
               >
                 <span className="truncate font-medium">{event.name}</span>
                 <span className="text-ink-2 text-right font-mono tabular-nums">
                   {formatNumber(event.page_views)}
                 </span>
+                {asked ? (
+                  <span className="text-ink-2 text-right font-mono tabular-nums">
+                    {event.requests_total === null ? "—" : formatNumber(event.requests_total)}
+                  </span>
+                ) : null}
                 <span className="text-right font-mono tabular-nums">
                   {formatNumber(event.registrations)}
                 </span>

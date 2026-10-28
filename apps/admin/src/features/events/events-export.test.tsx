@@ -100,8 +100,9 @@ describe("exporting the events", () => {
     ]);
     expect(downloads[0]!.filename).toMatch(/^events-\d{4}-\d{2}-\d{2}\.csv$/);
     const lines = downloads[0]!.csv.split("\r\n");
-    expect(lines[0]).toBe("ID,Name,Club,Category,When,Where,Online,Fee,Page views");
-    expect(lines[1]).toBe("45,Mutate,Yukthi,Competition,2026-03-07T10:00:00+05:30,faya,no,0,4");
+    expect(lines[0]).toBe("ID,Name,Club,Category,When,Where,Online,Fee,Page views,Confirms each registration,Requests waiting,Requests in total");
+    // An older server's rows: off, and the request counts left blank rather than a made-up 0.
+    expect(lines[1]).toBe("45,Mutate,Yukthi,Competition,2026-03-07T10:00:00+05:30,faya,no,0,4,no,,");
     expect(lines).toHaveLength(1 + eventsFixture.items.length);
   });
 

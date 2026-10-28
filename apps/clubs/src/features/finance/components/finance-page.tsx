@@ -458,6 +458,10 @@ function EventBrief({ s }: { s: FinanceSummary }) {
                   ? `${rupees(f.outstanding)} · ${f.outstanding_count}`
                   : "—",
             },
+            // Confirm each registration: confirmed people with a place held, not paid yet.
+            ...(f.expected_from_holds !== null
+              ? [{ k: "From holds", v: f.expected_from_holds > 0 ? `${rupees(f.expected_from_holds)} expected` : "—" }]
+              : []),
             {
               k: "A ticket",
               v: f.avg_ticket !== null ? rupees(f.avg_ticket) : "—",
@@ -643,6 +647,9 @@ function EventsTable({ s }: { s: FinanceSummary }) {
                       )}
                     >
                       {r.outstanding > 0 ? rupees(r.outstanding) : "—"}
+                      {r.expected_from_holds ? (
+                        <span className="text-ink-3 block text-[11px]">+{rupees(r.expected_from_holds)} held</span>
+                      ) : null}
                     </span>
                     <span className="text-right">
                       <Chip tone={st.tone}>{st.label}</Chip>
@@ -1084,11 +1091,11 @@ export function FinancePage({ scope }: { scope: FinanceScope }) {
             <StatTile
               label="Still owed"
               value={rupees(f.outstanding)}
-              note={
+              note={`${
                 f.outstanding_count
                   ? `${f.outstanding_count} unpaid${club ? ` at ${paidEvents} paid ${plural(paidEvents, "event")}` : ""}`
                   : "nobody owes anything"
-              }
+              }${f.expected_from_holds ? ` · ${rupees(f.expected_from_holds)} expected from held places` : ""}`}
               action={
                 f.outstanding_count && owedHref
                   ? { label: "See who", href: owedHref }

@@ -26,6 +26,8 @@ let library: unknown = null;
 let me: unknown = null;
 /** What the create answers for `requires_approval`. */
 let createdApproval: boolean | undefined = true;
+/** The event's detail's `high_demand_label`; undefined: an older server that doesn't send it. */
+let highDemand: boolean | undefined = undefined;
 const pathname = { current: "/events/37" };
 
 
@@ -50,7 +52,12 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
           if (me) return me;
           throw new ApiError({ status: 401, message: "Not signed in" });
         }
-        if (path === "/api/v1/events/info/37") return requiresApproval === undefined ? eventFixture : { ...eventFixture, requires_approval: requiresApproval };
+        if (path === "/api/v1/events/info/37")
+          return {
+            ...eventFixture,
+            ...(requiresApproval === undefined ? {} : { requires_approval: requiresApproval }),
+            ...(highDemand === undefined ? {} : { high_demand_label: highDemand }),
+          };
         if (/\/events\/\d+\/summary$/.test(path)) return summaryFixture;
         if (path === "/api/v1/events/registration/37/requests") {
           if (server === "old") throw new ApiError({ status: 404, message: "Not Found", routeMissing: true });
@@ -91,6 +98,7 @@ beforeEach(() => {
   library = null;
   me = null;
   createdApproval = true;
+  highDemand = undefined;
   pathname.current = "/events/37";
 });
 
@@ -145,7 +153,7 @@ describe("the switch in the event form", () => {
     render(<EditEventForm eventId={37} />);
     const toggle = await sw();
     expect(toggle).not.toBeChecked();
-    expect(screen.getByText("People who fill the form go on a waiting list until you confirm them. Their ticket goes out when you do.")).toBeInTheDocument();
+    expect(screen.getByText("People who fill the form wait for you to confirm them, under Requests. Their ticket goes out when you do.")).toBeInTheDocument();
     fireEvent.click(toggle);
     expect(toggle).toBeChecked();
     fireEvent.click((await screen.findAllByRole("button", { name: /Save changes/ }))[0]!);
@@ -154,12 +162,28 @@ describe("the switch in the event form", () => {
     expect(fd.get("requires_approval")).toBe("true");
   });
 
-  it("says what switching it off does to the people already waiting", async () => {
+  it("says how many are waiting when it is switched off: they stay waiting for the club", async () => {
     render(<EditEventForm eventId={37} />);
     const toggle = await sw();
     expect(toggle).toBeChecked();
+    // Before the switch moves, no warning.
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/registration/37/requests")).toBe(true));
+    expect(screen.queryByText(/people are waiting/)).toBeNull();
     fireEvent.click(toggle);
-    expect(screen.getByText(/Anyone already waiting stays on the list under Requests until you decide/)).toBeInTheDocument();
+    expect(await screen.findByText(/3 people are waiting — they stay waiting until you confirm or decline them\./)).toBeInTheDocument();
+    // Switched back on, the warning goes.
+    fireEvent.click(toggle);
+    expect(screen.queryByText(/people are waiting/)).toBeNull();
+  });
+
+  it("says nobody waits when it is switched off on an event with nobody waiting", async () => {
+    counts = { pending: 0, approved: 2, declined: 0, withdrawn: 0, lapsed: 0, closed: 0 };
+    render(<EditEventForm eventId={37} />);
+    const toggle = await sw();
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/registration/37/requests")).toBe(true));
+    fireEvent.click(toggle);
+    expect(await screen.findByText("Once saved, new people register directly. Nobody is waiting for you now.")).toBeInTheDocument();
+    expect(screen.queryByText(/people are waiting/)).toBeNull();
   });
 
   it("is not there, and nothing is sent, when the API has no requests", async () => {
@@ -174,6 +198,39 @@ describe("the switch in the event form", () => {
     fireEvent.click((await screen.findAllByRole("button", { name: /Save changes/ }))[0]!);
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     expect((calls.find((c) => c.method === "PUT")!.body as FormData).has("requires_approval")).toBe(false);
+  });
+});
+
+describe("the High demand label", () => {
+  const sw = () => screen.findByRole("switch", { name: "High demand label" });
+
+  it("reads the event's label, says what it does (a tag, no numbers), and a save sends it", async () => {
+    highDemand = false;
+    render(<EditEventForm eventId={37} />);
+    const toggle = await sw();
+    expect(toggle).not.toBeChecked();
+    expect(screen.getByText("Shows a “High demand” tag on the event's public page. No numbers are shown.")).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(toggle).toBeChecked();
+    fireEvent.click((await screen.findAllByRole("button", { name: /Save changes/ }))[0]!);
+    await waitFor(() => expect(calls.some((c) => c.method === "PUT" && c.path === "/api/v1/events/update/37")).toBe(true));
+    expect((calls.find((c) => c.method === "PUT")!.body as FormData).get("high_demand_label")).toBe("true");
+  });
+
+  it("isn't there for an older server, and a save sends nothing about it", async () => {
+    highDemand = undefined;
+    render(<EditEventForm eventId={37} />);
+    await screen.findByRole("switch", { name: "Confirm each registration yourself" });
+    expect(screen.queryByRole("switch", { name: "High demand label" })).toBeNull();
+    fireEvent.click(screen.getByRole("switch", { name: "Swag to hand out" }));
+    fireEvent.click((await screen.findAllByRole("button", { name: /Save changes/ }))[0]!);
+    await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
+    expect((calls.find((c) => c.method === "PUT")!.body as FormData).has("high_demand_label")).toBe(false);
+  });
+
+  it("isn't offered on a new event (it is switched on later, once the demand is there)", () => {
+    const values = eventFormSchema.parse({ ...emptyEventForm, ...required });
+    expect(values.high_demand_label).toBeUndefined();
   });
 });
 

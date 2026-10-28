@@ -35,6 +35,11 @@ export const overviewEventSchema = z.object({
   turnout: z.number().nullable(),
   /** Registration requests waiting for the club to confirm them (0 from an API without requests). */
   requests_pending: z.number().catch(0),
+  /**
+   * Everyone who asked for a place on an event that confirms each
+   * registration (null: an older server, or an event that never asked).
+   */
+  requests_total: z.number().nullish().catch(null).transform((v) => (v === null || v === undefined ? null : Math.max(0, Math.trunc(v)))),
 });
 
 export const seriesPointSchema = z.object({
