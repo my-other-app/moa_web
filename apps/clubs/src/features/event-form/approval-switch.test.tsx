@@ -78,7 +78,7 @@ describe("confirming each registration on a new event", () => {
     render(<Harness />);
     const toggle = await screen.findByRole("switch", { name: "Confirm each registration yourself" });
     expect(toggle).not.toBeChecked();
-    expect(screen.getByText("People who fill the form go on a waiting list until you confirm them. Their ticket goes out when you do.")).toBeInTheDocument();
+    expect(screen.getByText("People who fill the form wait for you to confirm them, under Requests. Their ticket goes out when you do.")).toBeInTheDocument();
     // Untouched: not sent, so the server's default stands.
     expect(wire().has("requires_approval")).toBe(false);
     fireEvent.click(toggle);

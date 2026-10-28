@@ -8,6 +8,7 @@ import { enter } from "@moa/ui/motion";
 import { EventOverviewTab, type OverviewAttention } from "@/features/console";
 import { useEventDetail } from "@/features/events";
 import { EventReviewsPanel } from "@/features/reviews";
+import { EventRequestsFunnel } from "@/features/requests";
 import { TicketSalesCard } from "@/features/ticketing";
 import { useEventAnalytics } from "../queries";
 import { EventInsightsPanel } from "./event-insights-panel";
@@ -67,6 +68,8 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
         figures={<EventStatCards eventId={eventId} event={event} />}
         signups={
           <>
+            {/* Confirm each registration: from asking to the door, with the places. */}
+            <EventRequestsFunnel eventId={eventId} event={event} />
             {/* Per ticket type, once the event sells more than one (or a code or a waiting list is in play). */}
             <TicketSalesCard eventId={eventId} />
             <EventInsightsPanel eventId={eventId} pageViews={event?.page_views} />

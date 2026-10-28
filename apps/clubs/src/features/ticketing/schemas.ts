@@ -69,6 +69,12 @@ export const typeSalesSchema = z.object({
   available: optionalNum,
   waiting: num.catch(0),
   offered: num.catch(0),
+  /**
+   * Places held for people the club confirmed on an event that confirms each
+   * registration, until they pay: not the waiting list's offers. Null from a
+   * server that doesn't count them apart.
+   */
+  held: optionalNum.catch(null),
 });
 export type TypeSales = z.infer<typeof typeSalesSchema>;
 
@@ -84,8 +90,11 @@ export type Sales = z.infer<typeof salesSchema>;
 
 /** Whether an event's overview should show its tickets: more than the one type, or a code used, or a waiting list. */
 export function salesWorthShowing(s: Sales): boolean {
-  return s.types.length > 1 || s.codes.length > 0 || s.waitlist_enabled || s.types.some((t) => t.waiting > 0 || t.offered > 0);
+  return s.types.length > 1 || s.codes.length > 0 || s.waitlist_enabled || s.types.some((t) => t.waiting > 0 || t.offered > 0 || (t.held ?? 0) > 0);
 }
+
+/** Whether the server counts held places apart (any type carries `held`). */
+export const salesShowHeld = (s: Sales): boolean => s.types.some((t) => t.held !== null);
 
 // ─── Discount codes ─────────────────────────────────────────────────────
 

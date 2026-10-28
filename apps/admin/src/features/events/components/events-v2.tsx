@@ -67,6 +67,9 @@ const EVENT_CSV = [
   { header: "Online", value: (e: AdminEvent) => (e.is_online ? "yes" : "no") },
   { header: "Fee", value: (e: AdminEvent) => (e.has_fee ? e.reg_fee ?? 0 : 0) },
   { header: "Page views", value: (e: AdminEvent) => e.page_views ?? 0 },
+  { header: "Confirms each registration", value: (e: AdminEvent) => (e.requires_approval ? "yes" : "no") },
+  { header: "Requests waiting", value: (e: AdminEvent) => e.requests_pending ?? "" },
+  { header: "Requests in total", value: (e: AdminEvent) => e.requests_total ?? "" },
 ] as const;
 
 const EVENT_VIEWS = [
@@ -374,7 +377,20 @@ export function EventsV2() {
                       </span>
 
                       <span className="flex min-w-0 flex-col">
-                        <span className="truncate">{event.name}</span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate">{event.name}</span>
+                          {/* Confirm each registration: the club confirms every place, and how many wait for it. */}
+                          {event.requires_approval ? (
+                            <span className="border-line text-ink-2 shrink-0 rounded-full border px-1.5 py-px text-[10.5px] whitespace-nowrap">
+                              Confirms each
+                            </span>
+                          ) : null}
+                          {(event.requests_pending ?? 0) > 0 ? (
+                            <span className="border-caution-line text-caution shrink-0 rounded-full border px-1.5 py-px text-[10.5px] whitespace-nowrap tabular-nums">
+                              {formatNumber(event.requests_pending)} waiting
+                            </span>
+                          ) : null}
+                        </span>
                         <span
                           className={cn(
                             "flex items-center gap-1.5 truncate text-[11.5px]",
@@ -421,6 +437,11 @@ export function EventsV2() {
 
                       <span className={cn(WIDE_ONLY, "text-right")}>
                         {formatNumber(event.registration_count)}
+                        {event.requests_total !== null && (event.requires_approval || event.requests_total > 0) ? (
+                          <span className="block text-[11px] text-ink-3">
+                            {formatNumber(event.requests_total)} asked
+                          </span>
+                        ) : null}
                       </span>
 
                       <span className={cn(WIDE_ONLY, "text-right", view.presentClass)}>

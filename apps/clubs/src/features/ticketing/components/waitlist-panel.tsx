@@ -18,6 +18,8 @@ import {
 } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
+// The query, not the feature's surface: events reaches this feature through the event form.
+import { useEventDetail } from "@/features/events/queries";
 import { openUpgrade, useEventPlan } from "@/features/plan";
 
 import { waitlistExportUrl } from "../api";
@@ -140,6 +142,8 @@ export function WaitlistPanel({ eventId }: { eventId: number }) {
   const plan = useEventPlan(eventId);
   const lock = plan.featureLock("waitlist");
   const canEdit = Boolean(can.edit_events);
+  // Confirm each registration: no waiting list, new people ask instead (the server refuses joining).
+  const confirmsEach = useEventDetail(eventId).data?.requires_approval === true;
 
   if (list.data === null) return null;
   const s = list.data?.settings;
@@ -184,6 +188,11 @@ export function WaitlistPanel({ eventId }: { eventId: number }) {
         ) : (
           <Skeleton className="h-10 w-full" />
         )}
+        {confirmsEach ? (
+          <Notice tone="neutral" tag="Requests">
+            This event confirms each registration, so it has no waiting list: new people send a request and wait for you to confirm them under Requests.
+          </Notice>
+        ) : null}
         {s && notAllowed && s.enabled ? <Notice tone="caution" tag="Plan">Your plan no longer includes waiting lists, so nobody new can join. The people already in line still get their offers.</Notice> : null}
         <div className="flex flex-wrap gap-2" role="group" aria-label="Show">
           {FILTERS.map((f) => (

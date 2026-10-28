@@ -4,15 +4,16 @@ import Link from "next/link";
 import { CardLabel, FigurePanel, ProgressBar, Skeleton } from "@moa/ui";
 
 import { useTicketSales } from "../queries";
-import { priceText, rupees, salesWorthShowing, soldText, type Sales, type TypeSales } from "../schemas";
+import { priceText, rupees, salesShowHeld, salesWorthShowing, soldText, type Sales, type TypeSales } from "../schemas";
 
 /**
  * What each ticket type sold: places taken against its cap, the money in,
- * the registrations still waiting for their payment, and who is in line.
- * Then the codes used at the event. Paid places only count once paid; a
- * free ticket, or one a code made free, counts at once.
+ * the registrations still waiting for their payment, the places held for
+ * people the club confirmed (until they pay), and who is on the waiting
+ * list. Then the codes used at the event. Paid places only count once paid;
+ * a free ticket, or one a code made free, counts at once.
  */
-function TypeRow({ t }: { t: TypeSales }) {
+function TypeRow({ t, showHeld }: { t: TypeSales; showHeld: boolean }) {
   return (
     <tr className="border-line-soft border-t align-top">
       <td className="py-2 pr-3">
@@ -24,6 +25,7 @@ function TypeRow({ t }: { t: TypeSales }) {
       <td className="py-2 pr-3 text-right font-mono text-[12.5px] tabular-nums">{soldText(t.sold, t.capacity)}</td>
       <td className="py-2 pr-3 text-right font-mono text-[12.5px] tabular-nums">{rupees(t.revenue)}</td>
       <td className="py-2 pr-3 text-right font-mono text-[12.5px] tabular-nums">{t.pending ? t.pending.toLocaleString("en-IN") : "—"}</td>
+      {showHeld ? <td className="py-2 pr-3 text-right font-mono text-[12.5px] tabular-nums">{t.held ? t.held.toLocaleString("en-IN") : "—"}</td> : null}
       <td className="py-2 pr-3 text-right font-mono text-[12.5px] tabular-nums">{t.available === null ? "No cap" : t.available.toLocaleString("en-IN")}</td>
       <td className="py-2 text-right font-mono text-[12.5px] tabular-nums">{t.waiting || t.offered ? `${t.waiting}${t.offered ? ` · ${t.offered} offered` : ""}` : "—"}</td>
     </tr>
@@ -32,6 +34,8 @@ function TypeRow({ t }: { t: TypeSales }) {
 
 export function TicketSalesTable({ sales }: { sales: Sales }) {
   const totals = sales.totals;
+  const showHeld = salesShowHeld(sales);
+  const held = totals.held ?? sales.types.reduce((n, t) => n + (t.held ?? 0), 0);
   return (
     <div className="grid gap-4">
       <div className="overflow-x-auto">
@@ -42,13 +46,14 @@ export function TicketSalesTable({ sales }: { sales: Sales }) {
               <th className="pb-1.5 text-right font-medium">Sold</th>
               <th className="pb-1.5 text-right font-medium">Revenue</th>
               <th className="pb-1.5 text-right font-medium">Awaiting payment</th>
+              {showHeld ? <th className="pb-1.5 text-right font-medium">Held</th> : null}
               <th className="pb-1.5 text-right font-medium">Left</th>
-              <th className="pb-1.5 text-right font-medium">Waiting</th>
+              <th className="pb-1.5 text-right font-medium">Waiting list</th>
             </tr>
           </thead>
           <tbody>
             {sales.types.map((t) => (
-              <TypeRow key={t.id} t={t} />
+              <TypeRow key={t.id} t={t} showHeld={showHeld} />
             ))}
           </tbody>
           <tfoot>
@@ -57,12 +62,16 @@ export function TicketSalesTable({ sales }: { sales: Sales }) {
               <td className="pt-2 text-right font-mono text-[12.5px] font-semibold tabular-nums">{soldText(totals.sold ?? 0, sales.event_capacity)}</td>
               <td className="pt-2 text-right font-mono text-[12.5px] font-semibold tabular-nums">{rupees(totals.revenue ?? 0)}</td>
               <td className="pt-2 text-right font-mono text-[12.5px] tabular-nums">{totals.pending ? totals.pending.toLocaleString("en-IN") : "—"}</td>
+              {showHeld ? <td className="pt-2 text-right font-mono text-[12.5px] tabular-nums">{held ? held.toLocaleString("en-IN") : "—"}</td> : null}
               <td className="pt-2 text-right font-mono text-[12.5px] tabular-nums">{sales.event_available === null ? "—" : sales.event_available.toLocaleString("en-IN")}</td>
               <td className="pt-2 text-right font-mono text-[12.5px] tabular-nums">{totals.waiting ? totals.waiting.toLocaleString("en-IN") : "—"}</td>
             </tr>
           </tfoot>
         </table>
       </div>
+      {showHeld && held > 0 ? (
+        <p className="text-ink-3 -mt-2 text-[11.5px]">Held: places kept for people you confirmed until they pay. They count against the places; if the hold runs out unpaid, the place goes back.</p>
+      ) : null}
       {sales.codes.length ? (
         <div>
           <p className="eyebrow mb-1.5">Discount codes used</p>

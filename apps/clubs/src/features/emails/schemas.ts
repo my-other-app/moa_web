@@ -24,7 +24,7 @@ export const STAGE_META: Record<EmailStage, { label: string; note: string; when?
   CUSTOM: { label: "Custom", note: "Any other email, sent by hand or on a timer." },
   REQUEST_RECEIVED: {
     label: "Request received",
-    note: "They're on the waiting list: you confirm each place and their ticket comes when you do. With a link to their request, and to withdraw.",
+    note: "They're waiting for you to confirm them: their ticket comes when you do. With a link to their request, and to withdraw.",
     when: "when someone fills the form of an event where you confirm each registration",
   },
   REQUEST_APPROVED_PAY: {

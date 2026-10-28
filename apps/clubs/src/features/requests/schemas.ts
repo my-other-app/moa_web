@@ -26,6 +26,10 @@ export const STATUS_LABEL: Record<RequestStatus, string> = {
 /** The page's tabs, in the order a request moves. Closed shows only once any request is (the event ended or was cancelled). */
 export const STATUS_TABS: readonly RequestStatus[] = ["pending", "approved", "declined", "withdrawn", "lapsed"];
 
+/** A tab: one status, or every request (`status=all`, newest first). */
+export type RequestTab = RequestStatus | "all";
+export const TAB_LABEL: Record<RequestTab, string> = { ...STATUS_LABEL, all: "All" };
+
 /** The most requests one call may name (or take, with all_pending): the server's 500. */
 export const MAX_IDS_PER_CALL = 500;
 /**
@@ -84,18 +88,26 @@ export type RegistrationRequest = z.infer<typeof requestSchema>;
 
 export type RequestCounts = Record<RequestStatus, number>;
 
-const countsSchema = z
-  .record(z.string(), z.number())
-  .catch({})
-  .transform((c) => Object.fromEntries(REQUEST_STATUSES.map((s) => [s, Math.max(0, Math.trunc(c[s] ?? 0))])) as RequestCounts);
+const rawCountsSchema = z.record(z.string(), z.number()).catch({});
+const statusCounts = (c: Record<string, number>) => Object.fromEntries(REQUEST_STATUSES.map((s) => [s, Math.max(0, Math.trunc(c[s] ?? 0))])) as RequestCounts;
 
-export const requestPageSchema = z.object({
-  items: z.array(requestSchema),
-  next: z.string().nullish().transform((v) => v || null),
-  counts: countsSchema,
-  /** Places the event has left for someone new; null: no cap. */
-  places_left: z.number().nullish().transform((v) => (v === null || v === undefined ? null : Math.max(0, v))),
-});
+export const requestPageSchema = z
+  .object({
+    items: z.array(requestSchema),
+    next: z.string().nullish().transform((v) => v || null),
+    counts: rawCountsSchema,
+    /** Places the event has left for someone new; null: no cap. */
+    places_left: z.number().nullish().transform((v) => (v === null || v === undefined ? null : Math.max(0, v))),
+  })
+  .transform(({ counts, ...page }) => ({
+    ...page,
+    counts: statusCounts(counts),
+    /**
+     * Everyone who ever asked, as the server counts it (`counts.total`); null
+     * from a server before it, which also has no export yet.
+     */
+    total: typeof counts.total === "number" && Number.isFinite(counts.total) ? Math.max(0, Math.trunc(counts.total)) : null,
+  }));
 export type RequestPage = z.infer<typeof requestPageSchema>;
 
 const skippedSchema = z.array(z.object({ id: z.coerce.string(), reason: z.string().catch("unknown") })).catch([]);

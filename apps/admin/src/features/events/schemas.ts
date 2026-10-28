@@ -1,6 +1,24 @@
 import { paginatedSchema } from "@moa/api";
 import { z } from "zod";
 
+/** A count an older server doesn't send: null, never a made-up 0. */
+const optionalCount = z
+  .number()
+  .nullish()
+  .catch(null)
+  .transform((v) => (v === null || v === undefined ? null : Math.max(0, Math.trunc(v))));
+
+/**
+ * Confirm each registration, on a row and on the detail: the event asks
+ * people to wait for the club, how many wait now, and how many ever asked.
+ * Absent (an older server): off, and the counts unknown.
+ */
+const approvalShape = {
+  requires_approval: z.boolean().catch(false),
+  requests_pending: optionalCount,
+  requests_total: optionalCount,
+};
+
 import { imageFieldSchema, namedRefSchema } from "@moa/app-kit";
 
 export const adminEventSchema = z.object({
@@ -27,6 +45,7 @@ export const adminEventSchema = z.object({
      attendance. */
   registration_count: z.number().default(0),
   attended_count: z.number().default(0),
+  ...approvalShape,
 });
 
 export const adminEventPageSchema = paginatedSchema(adminEventSchema);
@@ -61,6 +80,7 @@ export const adminEventDetailSchema = z
     event_guidelines: z.string().nullish(),
     category: namedRefSchema,
     club: namedRefSchema,
+    ...approvalShape,
   })
   .passthrough();
 

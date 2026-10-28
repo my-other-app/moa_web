@@ -45,6 +45,8 @@ export const financeSummarySchema = z.object({
     margin: z.number().nullish(),
     outstanding: money,
     outstanding_count: z.number(),
+    /** ₹ of confirmed requests not yet paid whose holds are still open (null: an older server). */
+    expected_from_holds: money.nullish().catch(null).transform((v) => v ?? null),
     avg_ticket: money.nullable(),
     cost_per_head: money.nullish(),
   }),
@@ -82,6 +84,7 @@ export const financeSummarySchema = z.object({
       margin: z.number().nullish(),
       outstanding: money.default(0),
       outstanding_count: z.number().default(0),
+      expected_from_holds: money.nullish().catch(null).transform((v) => v ?? null),
     })
   ),
   expenses: z.array(expenseSchema),

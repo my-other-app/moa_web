@@ -54,7 +54,7 @@ import {
 } from "@moa/ui";
 import { enter, hoverLift, pressable, stagger } from "@moa/ui/motion";
 
-import { ArrivalCurveCard, EventAnalyticsPanels } from "@moa/app-kit";
+import { ArrivalCurveCard, EventAnalyticsPanels, RequestFunnelCard, hasRequestFigures } from "@moa/app-kit";
 
 import { useCan } from "@/hooks/use-can";
 
@@ -291,6 +291,8 @@ export function EventDetail({ eventId }: { eventId: number }) {
   const router = useRouter();
   const { data: event, isPending, isError } = useEvent(eventId);
   const { data: analytics } = useEventAnalytics(eventId);
+  // The summary carries the requests (confirm each registration) as figures, and the places.
+  const { data: summary } = useEventSummary(eventId);
   const remove = useDeleteEvent();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   // Deleting needs destroy and editing manage_content, as on the server; a
@@ -315,6 +317,9 @@ export function EventDetail({ eventId }: { eventId: number }) {
 
   const poster = pickImage(event?.poster, ["medium", "large", "original", "thumbnail"]);
   const registrations = analytics?.total_registrations ?? 0;
+  const requestFigures = summary?.requests;
+  // People waiting for the club to confirm them: closed with a polite email if the event is deleted.
+  const waiting = event?.requests_pending ?? requestFigures?.pending ?? summary?.requests_pending ?? 0;
 
   const cards = [
     {
@@ -408,6 +413,9 @@ export function EventDetail({ eventId }: { eventId: number }) {
                       <Badge variant="secondary">{event.category.name}</Badge>
                     ) : null}
                     {event?.is_online ? <Badge variant="outline">Online</Badge> : null}
+                    {event?.requires_approval ? (
+                      <Badge variant="outline">Confirms each registration</Badge>
+                    ) : null}
                     {event?.has_fee ? (
                       <Badge variant="outline">
                         Fee {formatCurrency(event.reg_fee ?? 0)}
@@ -458,6 +466,21 @@ export function EventDetail({ eventId }: { eventId: number }) {
           </div>
         </section>
 
+        {hasRequestFigures(requestFigures) && summary ? (
+          <section className="space-y-3" aria-label="Requests">
+            <SectionTitle>Requests</SectionTitle>
+            <RequestFunnelCard
+              requests={requestFigures}
+              places={summary.places}
+              paidEvent={event?.has_fee ? true : undefined}
+              pageViews={event?.page_views}
+              readOnly
+              title="From asking to the door"
+              now={new Date(summary.generated_at)}
+            />
+          </section>
+        ) : null}
+
         <Tabs defaultValue="registrations">
           <TabsList>
             <TabsTrigger value="registrations">Registrations</TabsTrigger>
@@ -505,6 +528,18 @@ export function EventDetail({ eventId }: { eventId: number }) {
               ) : (
                 "This removes the event from the app. It cannot be undone from here."
               )}
+              {waiting > 0 ? (
+                <>
+                  {" "}
+                  <strong>
+                    {formatNumber(waiting)}{" "}
+                    {waiting === 1 ? "person is" : "people are"} waiting for
+                    the club to confirm them.
+                  </strong>{" "}
+                  Their requests close, and they&rsquo;ll get a polite email
+                  saying the club wasn&rsquo;t able to confirm their place.
+                </>
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

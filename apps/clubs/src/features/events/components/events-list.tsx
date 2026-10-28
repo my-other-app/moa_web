@@ -146,14 +146,16 @@ export function signalOf(
     (event.registration_count ?? 0) >= event.max_participants
   )
     return { text: "Full", tone: "admit" };
+  // On an event that confirms each registration, people ask rather than sign up.
+  const word = event.requires_approval ? "Requests" : "Sign-up";
   if (event.registration_open) {
     const closes = at(event.reg_enddate);
     if (closes !== null && closes - now < 2 * DAY)
       return {
-        text: `Sign-up closes ${relativeDay(event.reg_enddate, now)}`,
+        text: `${word} ${event.requires_approval ? "close" : "closes"} ${relativeDay(event.reg_enddate, now)}`,
         tone: "caution",
       };
-    return { text: "Sign-up open", tone: "muted" };
+    return { text: `${word} open`, tone: "muted" };
   }
   const opens = at(event.reg_startdate);
   if (opens !== null && opens > now)
@@ -233,10 +235,30 @@ function Figure({
   );
 }
 
+/**
+ * People waiting for the club to confirm them, as a badge beside the name
+ * that opens the event's Requests. Nothing when nobody waits, or from an
+ * older server that doesn't count them.
+ */
+function WaitingBadge({ event }: { event: ClubEvent }) {
+  const n = event.requests_pending ?? 0;
+  if (n <= 0) return null;
+  return (
+    <Link
+      href={`/events/${event.id}/requests`}
+      className="border-caution-line text-caution hover:bg-sunken inline-flex h-6 items-center rounded-full border px-2 text-[11.5px] font-medium tabular-nums transition-colors"
+    >
+      {formatNumber(n)} waiting
+    </Link>
+  );
+}
+
 export function EventRow({ event, now }: { event: ClubEvent; now: number }) {
   const start = at(event.event_datetime);
   const ended = (at(event.ends_at) ?? start ?? Infinity) < now;
   const regs = event.registration_count ?? 0;
+  // Confirm each registration: who asked leads, the confirmed are "of" the places.
+  const asks = event.requires_approval || (event.requests_total ?? 0) > 0 ? event.requests_total : null;
   const views = event.page_views ?? 0;
   const conversion = views > 0 ? Math.round((100 * regs) / views) : null;
   const signal = signalOf(event, now);
@@ -267,6 +289,7 @@ export function EventRow({ event, now }: { event: ClubEvent; now: number }) {
             {event.name}
           </Link>
           <EventStatusBadge status={event.status} />
+          <WaitingBadge event={event} />
         </div>
         <div className="text-ink-2 mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px]">
           <span>
@@ -312,14 +335,26 @@ export function EventRow({ event, now }: { event: ClubEvent; now: number }) {
       </div>
       <div className="flex flex-wrap items-center gap-5">
         <div className="w-[96px]">
-          <Figure
-            label={
-              event.max_participants
-                ? `of ${formatNumber(event.max_participants)}`
-                : "registered"
-            }
-            value={formatNumber(regs)}
-          />
+          {asks !== null ? (
+            <Figure
+              label="asked"
+              value={formatNumber(asks)}
+              sub={
+                event.max_participants
+                  ? `${formatNumber(regs)} of ${formatNumber(event.max_participants)} in`
+                  : `${formatNumber(regs)} confirmed`
+              }
+            />
+          ) : (
+            <Figure
+              label={
+                event.max_participants
+                  ? `of ${formatNumber(event.max_participants)}`
+                  : "registered"
+              }
+              value={formatNumber(regs)}
+            />
+          )}
           {event.max_participants ? (
             <ProgressBar
               value={regs}

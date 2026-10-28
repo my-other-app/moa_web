@@ -5,6 +5,7 @@ import { formatNumber, pct } from "@moa/app-kit";
 import { Button, CardLabel, EmptyState, FigurePanel, ProgressBar, Skeleton, cn } from "@moa/ui";
 
 import { useEventAnalytics } from "../queries";
+import type { RequestDay } from "../schemas";
 
 /**
  * The sign-ups: when in the day people registered and which colleges they
@@ -20,6 +21,59 @@ const SLOTS = [
   { key: "evening", label: "Evening", hint: "5–9 pm" },
   { key: "night", label: "Night", hint: "after 9 pm" },
 ] as const;
+
+const DAY_LABEL = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+
+/** "26 Oct" for a day the server named (YYYY-MM-DD, or an instant). */
+function dayLabel(date: string): string {
+  const d = new Date(date);
+  return Number.isNaN(d.getTime()) ? date : DAY_LABEL.format(d);
+}
+
+/**
+ * When people asked for a place, a bar a day (the last 30 days that had
+ * any), on an event that confirms each registration. Read from the
+ * analytics' `requests_by_day`; its sign-ups chart counts only the people
+ * already registered, which on such an event starts at nobody.
+ */
+function RequestsByDayPanel({ days, asked, perView }: { days: RequestDay[]; asked: number; perView: number | null }) {
+  const shown = days.slice(-30);
+  const busiest = Math.max(0, ...shown.map((d) => d.count));
+  const peak = busiest > 0 ? shown.find((d) => d.count === busiest) : undefined;
+  return (
+    <FigurePanel>
+      <CardLabel right={peak ? <span className="text-ink-3 font-mono text-[11px]">busiest: {dayLabel(peak.date)}</span> : null}>When people asked</CardLabel>
+      {shown.length && busiest > 0 ? (
+        <>
+          <ul aria-label="Requests by day" className="mt-3 flex h-[96px] list-none items-end gap-1 p-0">
+            {shown.map((d) => (
+              <li key={d.date} className="flex h-full min-w-0 flex-1 flex-col justify-end" title={`${dayLabel(d.date)}: ${formatNumber(d.count)}`}>
+                <span className="sr-only">
+                  {dayLabel(d.date)}: {formatNumber(d.count)} asked
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={cn("block w-full rounded-t-[3px]", d.count === busiest ? "bg-brand" : "bg-brand/45")}
+                  style={{ height: `${Math.max(d.count > 0 ? 6 : 2, (d.count / busiest) * 100)}%` }}
+                />
+              </li>
+            ))}
+          </ul>
+          <div className="text-ink-3 mt-1 flex justify-between font-mono text-[10px]">
+            <span>{dayLabel(shown[0]!.date)}</span>
+            {shown.length > 1 ? <span>{dayLabel(shown[shown.length - 1]!.date)}</span> : null}
+          </div>
+        </>
+      ) : (
+        <p className="text-ink-3 mt-3 text-[12.5px]">The days people ask on show here once a few have.</p>
+      )}
+      <p className="text-ink-3 mt-3 text-[11.5px] leading-[1.5]">
+        {formatNumber(asked)} {asked === 1 ? "person" : "people"} asked for a place
+        {perView !== null ? `; ${perView}% of the people who opened the event page asked.` : "."}
+      </p>
+    </FigurePanel>
+  );
+}
 
 export function EventInsightsPanel({ eventId, pageViews }: { eventId: number; pageViews?: number | null }) {
   const { data, isPending, isError, refetch } = useEventAnalytics(eventId);
@@ -52,6 +106,32 @@ export function EventInsightsPanel({ eventId, pageViews }: { eventId: number; pa
   }
 
   const total = data.total_registrations;
+  // Confirm each registration: who asked, and on which days.
+  const asked = data.requests_total ?? data.requests_by_day.reduce((n, d) => n + d.count, 0);
+  const perView =
+    pageViews && pageViews > 0 && data.requests_total !== null
+      ? Math.round((100 * data.requests_total) / pageViews)
+      : data.requests_per_view !== null
+        ? Math.round(data.requests_per_view * 100)
+        : null;
+  const requestsPanel = asked > 0 ? <RequestsByDayPanel days={data.requests_by_day} asked={asked} perView={perView} /> : null;
+  if (total === 0 && requestsPanel) {
+    // Nobody registered yet, but people asked: they wait for the club, which is not "nobody".
+    return (
+      <div className="grid gap-3">
+        {requestsPanel}
+        <FigurePanel>
+          <CardLabel className="mb-1">Sign-ups</CardLabel>
+          <p className="text-ink-2 mt-2 text-[12.5px] leading-[1.55]">
+            Nobody is registered yet: {formatNumber(asked)} {asked === 1 ? "person has" : "people have"} asked, and {asked === 1 ? "their ticket goes" : "their tickets go"} out as you confirm them under Requests. The hours and colleges show here once they are.
+          </p>
+          <Button asChild variant="secondary" size="sm" className="mt-3">
+            <Link href={`/events/${eventId}/requests`}>Open requests</Link>
+          </Button>
+        </FigurePanel>
+      </div>
+    );
+  }
   if (total === 0) {
     return (
       <FigurePanel>
@@ -79,6 +159,7 @@ export function EventInsightsPanel({ eventId, pageViews }: { eventId: number; pa
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
+      {requestsPanel ? <div className="lg:col-span-2">{requestsPanel}</div> : null}
       <FigurePanel>
         <CardLabel right={peak ? <span className="text-ink-3 font-mono text-[11px]">busiest: {peak.label.toLowerCase()}</span> : null}>When people signed up</CardLabel>
         {slots && busiest > 0 ? (

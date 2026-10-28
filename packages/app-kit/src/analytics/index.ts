@@ -6,6 +6,10 @@ export {
   viaFiguresSchema,
   eventFiguresSchema,
   eventSummarySchema,
+  requestFiguresSchema,
+  requestFiguresField,
+  placesSchema,
+  hasRequestFigures,
   recentCheckInSchema,
   attentionItemSchema,
   liveEventSchema,
@@ -17,6 +21,8 @@ export {
   EVENT_STATUSES,
   type EventFigures,
   type EventSummary,
+  type RequestFigures,
+  type Places,
   type RecentCheckIn,
   type EventLifecycle,
   type AttentionItem,
@@ -28,3 +34,4 @@ export {
 export { ArrivalCurve, ArrivalCurveCard } from "./arrival-curve";
 export { EventAnalyticsPanels } from "./analytics-panels";
 export { AttentionCard, DoorsOpenCard } from "./live-panels";
+export { RequestFunnelCard, requestRates, placesShortfall, type RequestRates } from "./request-funnel";

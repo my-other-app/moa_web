@@ -143,6 +143,33 @@ export const adminOverviewSchema = z.object({
     retained_share: z.number(),
     previous_captured: z.number(),
   }),
+
+  /**
+   * Confirm each registration, across the platform: requests received,
+   * waiting for a club now, and the average time a club takes to decide.
+   * Optional (null from a server that doesn't send it); read leniently, as
+   * the names were not fixed in the contract (received|total,
+   * waiting|pending).
+   */
+  requests: z
+    .object({
+      received: z.number().optional(),
+      total: z.number().optional(),
+      waiting: z.number().optional(),
+      pending: z.number().optional(),
+      avg_decision_hours: z.number().nullish(),
+    })
+    .nullish()
+    .catch(null)
+    .transform((v) =>
+      v
+        ? {
+            received: Math.max(0, v.received ?? v.total ?? 0),
+            waiting: Math.max(0, v.waiting ?? v.pending ?? 0),
+            avg_decision_hours: v.avg_decision_hours ?? null,
+          }
+        : null
+    ),
 });
 
 export type AdminOverview = z.infer<typeof adminOverviewSchema>;

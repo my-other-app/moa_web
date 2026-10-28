@@ -10,7 +10,7 @@ import { ItemChecklist, useClubStore } from "@/features/catalogue";
 import { PaymentsToNote } from "@/features/payments";
 import { LockBadge, openUpgrade, useEventPlan, type PlanLock } from "@/features/plan";
 // The component, not the feature's surface: the requests page imports events, which imports this form.
-import { ApprovalField } from "@/features/requests/approval-field";
+import { ApprovalField, HighDemandField } from "@/features/requests/approval-field";
 import { TicketTypesField } from "@/features/ticketing";
 
 import type { EventFormValues } from "../../schemas";
@@ -154,6 +154,8 @@ export function EntryStep({ eventId }: { eventId?: number } = {}) {
 
       {/* Confirm each registration, once the API has registration requests. */}
       <ApprovalField eventId={eventId} />
+      {/* The "High demand" tag on the public page, once the event's detail carries it. */}
+      <HighDemandField />
 
       <div className="grid gap-3 lg:grid-cols-2">
         {several ? null : (

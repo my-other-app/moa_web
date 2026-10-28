@@ -183,7 +183,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
           ) : null}
           {e ? (
             <EventRowMenu
-              event={{ id: e.id, name: e.name, slug: e.slug, registration_count: s?.registered ?? 0 }}
+              event={{ id: e.id, name: e.name, slug: e.slug, registration_count: s?.registered ?? 0, requests_pending: s?.requests?.pending ?? s?.requests_pending ?? 0 }}
               onDeleted={() => router.replace("/events")}
               onCancel={canCancel ? () => setCancelOpen(true) : undefined}
             />

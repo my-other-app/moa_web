@@ -10,7 +10,7 @@ import {
   LockIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { formatDateTime, formatNumber } from "@moa/app-kit";
+import { RequestFunnelCard, formatDateTime, formatNumber, hasRequestFigures } from "@moa/app-kit";
 import {
   CardLabel,
   EmptyState,
@@ -619,6 +619,17 @@ export function CloseoutPage({ eventId }: { eventId: number }) {
           <Checklist eventId={eventId} s={s} f={f} now={now} />
 
           {f ? <FiguresPanel f={f} /> : null}
+
+          {/* Confirm each registration: who asked and what came of it, as the report says. */}
+          {f && hasRequestFigures(f.requests) ? (
+            <RequestFunnelCard
+              requests={f.requests}
+              title="Requests"
+              paidEvent={event.data?.has_fee ? true : undefined}
+              pageViews={event.data?.page_views}
+              requestsHref={`${base}/requests`}
+            />
+          ) : null}
 
           <div className="grid items-start gap-3.5 lg:grid-cols-[1.4fr_1fr]">
             <StatusPanel eventId={eventId} s={s} />

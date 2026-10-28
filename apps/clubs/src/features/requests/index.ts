@@ -1,8 +1,9 @@
 export { RequestsPage } from "./components/requests-page";
+export { EventRequestsFunnel } from "./components/requests-funnel";
 export { ApprovalField } from "./approval-field";
 export { ConfirmDialog, DeclineDialog } from "./components/decision-dialogs";
-export { requestsKey, useRequestCounts, useRequestsOnServer, useRequestList } from "./queries";
-export { approveAllPending, approveRequests, declineAllPending, declineRequests, fetchRequests, reopenRequests } from "./api";
+export { requestsKey, useExportRequests, useRequestCounts, useRequestsOnServer, useRequestList } from "./queries";
+export { approveAllPending, approveRequests, declineAllPending, declineRequests, fetchRequests, fetchRequestsExport, reopenRequests, requestsExportUrl } from "./api";
 export { chunk, confirmAllWaiting, confirmIds, declineAllWaiting, declineIds, overCapacity, summarise, type BulkOutcome, type BulkProgress } from "./bulk";
 export {
   CHUNK_SIZE,
@@ -12,6 +13,7 @@ export {
   PAGE_SIZE,
   REQUEST_STATUSES,
   STATUS_LABEL,
+  TAB_LABEL,
   answerRows,
   indiaTime,
   queueOrder,
@@ -23,4 +25,5 @@ export {
   type RequestCounts,
   type RequestPage,
   type RequestStatus,
+  type RequestTab,
 } from "./schemas";
