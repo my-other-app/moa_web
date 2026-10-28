@@ -20,6 +20,8 @@ import {
 import { enter } from "@moa/ui/motion";
 
 import { useAccess } from "@/features/access";
+import { CohostingWith, HostedBy } from "@/features/cohosts";
+import { cohostsSupported } from "@/features/cohosts/schemas";
 import { CancelEventDialog, useCancelState } from "@/features/event-cancel";
 import { useResults } from "@/features/results";
 import { EventRowMenu, EventStatusBadge, useEventDetail } from "@/features/events";
@@ -116,13 +118,19 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
         ? STATUS_ACTION[status]
         : undefined;
   const c = cancelState.data;
-  const canCancel = Boolean(can.cancel_events && c && !c.cancelled && c.can_cancel);
+  // Co-hosted events: a co-host's team runs the event, but cancelling it (and refunding
+  // everyone) stays with the host (contract §7). A server without co-hosts sends neither field.
+  const cohostsOn = cohostsSupported(event.data);
+  const cohost = cohostsOn && e?.viewer_role === "cohost";
+  const canCancel = Boolean(can.cancel_events && c && !c.cancelled && c.can_cancel && !cohost);
   const onServer: Partial<Record<string, boolean>> = {
     results: results.data != null,
     // The payments of a paid event, and the aftermath of a cancelled one.
     payments: moneyTools && can.money && (Boolean(e?.has_fee) || status === "cancelled"),
     requests: requests.data != null && (Boolean(e?.requires_approval) || totalOf(requests.data.counts) > 0),
+    cohosts: cohostsOn,
   };
+  const cohosts = e?.cohosts ?? [];
   const notices = s ? clockNotices(s, now) : [];
 
   return (
@@ -140,6 +148,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
               <h1 className="page-title">{e.name}</h1>
               {status ? <EventStatusBadge status={status} /> : null}
+              {cohost && e.club ? <CohostingWith host={e.club} /> : null}
             </div>
           ) : event.isError ? (
             <h1 className="page-title">Event</h1>
@@ -148,7 +157,12 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
           )}
           {e ? (
             <p className="text-ink-2 mt-1 text-[13px]">
-              {e.club?.name ? <span className="text-ink font-medium">{e.club.name}</span> : null}
+              {/* With co-hosts, the organisers as the public page says them: "Hosted by A and B". */}
+              {e.club && cohosts.length ? (
+                <HostedBy host={e.club} cohosts={cohosts} className="align-middle" />
+              ) : e.club?.name ? (
+                <span className="text-ink font-medium">{e.club.name}</span>
+              ) : null}
               {e.club?.name ? " · " : ""}
               {formatWindow(s?.starts_at ?? e.event_datetime, s?.ends_at ?? null)}
               {where ? ` · ${where}` : ""}
@@ -182,7 +196,15 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
           ) : null}
           {e ? (
             <EventRowMenu
-              event={{ id: e.id, name: e.name, slug: e.slug, registration_count: s?.registered ?? 0, requests_pending: s?.requests?.pending ?? s?.requests_pending ?? 0 }}
+              event={{
+                id: e.id,
+                name: e.name,
+                slug: e.slug,
+                registration_count: s?.registered ?? 0,
+                requests_pending: s?.requests?.pending ?? s?.requests_pending ?? 0,
+                viewer_role: cohostsOn ? e.viewer_role : null,
+                club: e.club ?? null,
+              }}
               onDeleted={() => router.replace("/events")}
               onCancel={canCancel ? () => setCancelOpen(true) : undefined}
             />

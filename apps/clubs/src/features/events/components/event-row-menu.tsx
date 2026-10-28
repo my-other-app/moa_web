@@ -23,6 +23,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   buttonVariants,
@@ -31,6 +32,7 @@ import {
 } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
+import { hostOnlyReason } from "@/features/cohosts/schemas";
 import { useDeleteEvent } from "@/features/event-form";
 import { useLimitGate } from "@/features/plan";
 import { PUBLIC_SITE, eventPublicUrl } from "@/lib/public-site";
@@ -56,7 +58,11 @@ export function EventRowMenu({
   onDeleted,
   onCancel,
 }: {
-  event: Pick<ClubEvent, "id" | "name" | "slug" | "registration_count"> & Partial<Pick<ClubEvent, "requests_pending">>;
+  event: Pick<ClubEvent, "id" | "name" | "slug" | "registration_count"> &
+    Partial<Pick<ClubEvent, "requests_pending" | "viewer_role">> & {
+      /** The host club (co-hosted events name it in the reason). */
+      club?: { name: string } | null | undefined;
+    };
   /** Called after a successful delete, for a page that cannot stay where it is. */
   onDeleted?: () => void;
   /** Offers "Cancel event…" (the event's page passes it when the role and the backend allow it). */
@@ -65,6 +71,9 @@ export function EventRowMenu({
   const router = useRouter();
   const remove = useDeleteEvent();
   const { can } = useAccess();
+  // A co-hosted event: duplicating, cancelling and deleting stay with the host (contract §7),
+  // so the menu says whose they are instead of offering what the server would refuse.
+  const cohost = event.viewer_role === "cohost";
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [dupOpen, setDupOpen] = React.useState(false);
   // A copy is a new event: at the month's cap it opens the upgrade dialog instead.
@@ -99,9 +108,11 @@ export function EventRowMenu({
           >
             <PencilIcon className="size-4" /> Edit details
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={monthly.guard(() => setDupOpen(true))}>
-            <CopyPlusIcon className="size-4" /> Duplicate
-          </DropdownMenuItem>
+          {cohost ? null : (
+            <DropdownMenuItem onClick={monthly.guard(() => setDupOpen(true))}>
+              <CopyPlusIcon className="size-4" /> Duplicate
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() =>
@@ -113,7 +124,15 @@ export function EventRowMenu({
           <DropdownMenuItem onClick={copyLink}>
             <CopyIcon className="size-4" /> Copy public link
           </DropdownMenuItem>
-          {onCancel ? (
+          {cohost ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-ink-3 max-w-52 text-[11.5px] leading-[1.45] font-normal" data-testid="host-only-reason">
+                {hostOnlyReason("menu", event.club?.name)}
+              </DropdownMenuLabel>
+            </>
+          ) : null}
+          {onCancel && !cohost ? (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={onCancel}>
@@ -121,7 +140,7 @@ export function EventRowMenu({
               </DropdownMenuItem>
             </>
           ) : null}
-          {can.delete_events ? (
+          {can.delete_events && !cohost ? (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem

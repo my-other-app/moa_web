@@ -8,6 +8,7 @@ import {
   CalendarDaysIcon,
   ContactIcon,
   CreditCardIcon,
+  HandshakeIcon,
   LayoutDashboardIcon,
   LinkIcon,
   MailIcon,
@@ -46,7 +47,7 @@ export interface NavItem {
    * is known to have its routes (see SidebarNav). The dashboard can then go
    * out ahead of its backend, and the item appears when the backend does.
    */
-  server?: "whatsapp" | "mailbox" | "ticketing" | "contacts";
+  server?: "whatsapp" | "mailbox" | "ticketing" | "contacts" | "cohosts";
 }
 
 export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
@@ -70,6 +71,8 @@ export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
 export const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboardIcon, exact: true },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
+  // Other clubs asking this one to co-host their events, with how many wait -- once the API has co-hosts.
+  { href: "/invitations", label: "Invitations", icon: HandshakeIcon, server: "cohosts" },
   // The club's catalogue: items made once and offered on any event, which share their stock.
   { href: "/merchandise", label: "Merchandise", icon: ShoppingBagIcon, needs: "edit_events", feature: "merch" },
   { href: "/followers", label: "Followers", icon: UsersIcon, needs: "edit_events" },

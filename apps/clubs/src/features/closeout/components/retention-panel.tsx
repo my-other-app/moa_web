@@ -18,6 +18,7 @@ import {
   toast,
 } from "@moa/ui";
 
+import { useEventStance } from "@/features/cohosts/queries";
 import { toastError } from "@/features/plan/errors";
 
 import {
@@ -147,6 +148,8 @@ export function RetentionPanel({
     s.report_recipients.join(", "),
   );
   const [confirm, setConfirm] = React.useState(false);
+  // A co-hosted event: scrubbing the guests' data now is the host's call (contract §7).
+  const runReason = useEventStance(eventId).reason("retention");
   const r = retention.data;
   const deleted = r?.state === "deleted";
   const reached = (i: number) =>
@@ -328,20 +331,27 @@ export function RetentionPanel({
                 ? `${s.retention_mode === "delete" ? `Scheduled for ${formatDateTime(r.run_at)}` : "Not scheduled"}${r.attempts ? ` · ${r.attempts} ${r.attempts === 1 ? "attempt" : "attempts"}` : ""}`
                 : ""}
             </span>
-            <button
-              type="button"
-              className="btn btn-secondary btn-danger"
-              onClick={() => setConfirm(true)}
-              disabled={!r}
-            >
-              {s.retention_mode === "keep"
-                ? "Scrub the guest data now"
-                : "Run retention now"}
-            </button>
+            <span className="flex flex-wrap items-center justify-end gap-2">
+              {runReason ? (
+                <span className="text-ink-3 max-w-[40ch] text-right text-[12px]" data-testid="retention-host-only">
+                  {runReason}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                className="btn btn-secondary btn-danger"
+                onClick={() => setConfirm(true)}
+                disabled={!r || Boolean(runReason)}
+              >
+                {s.retention_mode === "keep"
+                  ? "Scrub the guest data now"
+                  : "Run retention now"}
+              </button>
+            </span>
           </div>
         </>
       ) : null}
-      {confirm && r ? (
+      {confirm && r && !runReason ? (
         <RetentionDialog
           eventId={eventId}
           slug={slug}

@@ -21,17 +21,21 @@ import {
   Pager,
   ProgressBar,
   SearchField,
+  Segmented,
   Skeleton,
   StatTile,
 } from "@moa/ui";
 
+import { CohostBadge, HostedBy } from "@/features/cohosts";
 import { LimitMeter, useLimitGate } from "@/features/plan";
 
 import { useClubEvents, useEventsFigures } from "../queries";
 import {
+  EVENT_ROLE_FILTERS,
   EVENT_SCOPES,
   EVENT_SORTS,
   type ClubEvent,
+  type EventRoleFilter,
   type EventScope,
   type EventSort,
   type EventsFigures,
@@ -65,6 +69,12 @@ const SORT_LABEL: Record<EventSort, string> = {
   registered: "Most registered",
   viewed: "Most viewed",
 };
+/** Co-hosted events: whose events the list holds (once the server has co-hosts). */
+const ROLE_OPTIONS: readonly { value: EventRoleFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "hosted", label: "Hosted" },
+  { value: "cohosted", label: "Co-hosted" },
+];
 const DAY = 86_400_000;
 
 function inr(value: number): string {
@@ -289,8 +299,15 @@ export function EventRow({ event, now }: { event: ClubEvent; now: number }) {
             {event.name}
           </Link>
           <EventStatusBadge status={event.status} />
+          {event.viewer_role === "cohost" ? <CohostBadge hostName={event.club?.name} /> : null}
           <WaitingBadge event={event} />
         </div>
+        {/* Co-hosted events: whose event it is, and who runs it with them. */}
+        {event.club && (event.viewer_role === "cohost" || (event.cohosts?.length ?? 0) > 0) ? (
+          <div className="text-ink-2 mt-1 text-[12.5px]">
+            <HostedBy host={event.club} cohosts={event.cohosts ?? []} link={false} />
+          </div>
+        ) : null}
         <div className="text-ink-2 mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px]">
           <span>
             {when}
@@ -420,12 +437,14 @@ function Season({ f, now }: { f: EventsFigures; now: number }) {
   const next = f.next_event
     ? `next ${relativeDay(f.next_event.starts_at, now)}`
     : "nothing scheduled";
+  // Co-hosted events count in `upcoming` too; the tile says how many are.
+  const cohosted = f.cohosted_upcoming ? ` · ${formatNumber(f.cohosted_upcoming)} co-hosted` : "";
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <StatTile
         label="Upcoming"
         value={formatNumber(f.upcoming)}
-        note={next}
+        note={`${next}${cohosted}`}
         action={
           f.next_event
             ? { label: f.next_event.name, href: `/events/${f.next_event.id}` }
@@ -576,6 +595,10 @@ export function ClubEventsList() {
   ).includes(sortParam ?? "")
     ? (sortParam as EventSort)
     : undefined;
+  const roleParam = search.get("role");
+  const role: EventRoleFilter = (EVENT_ROLE_FILTERS as readonly string[]).includes(roleParam ?? "")
+    ? (roleParam as EventRoleFilter)
+    : "all";
   const [now] = React.useState(() => Date.now());
 
   const figures = useEventsFigures();
@@ -586,6 +609,7 @@ export function ClubEventsList() {
     search: params.search || undefined,
     scope,
     sort,
+    role: role === "all" ? undefined : role,
     offset: (params.page - 1) * params.pageSize,
     limit: params.pageSize,
   });
@@ -594,6 +618,8 @@ export function ClubEventsList() {
     params.setParam(key, value || undefined);
   const total = events.data?.total ?? 0;
   const rows = events.data?.items ?? [];
+  // The Hosted / Co-hosted filter, once the server is known to have co-hosts.
+  const cohostsOn = figures.data?.cohosted_upcoming != null || rows.some((r) => r.viewer_role !== null) || role !== "all";
   const counts: Partial<Record<EventScope, number>> = figures.data
     ? {
         upcoming: figures.data.upcoming,
@@ -663,6 +689,14 @@ export function ClubEventsList() {
             </Chip>
           ))}
         </div>
+        {cohostsOn ? (
+          <Segmented
+            label="Hosted or co-hosted"
+            value={role}
+            options={ROLE_OPTIONS}
+            onChange={(v) => set("role", v === "all" ? "" : v)}
+          />
+        ) : null}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <SearchField
             value={params.searchInput}
@@ -714,27 +748,35 @@ export function ClubEventsList() {
             title={
               params.search
                 ? "Nothing matches that search"
-                : scope === "upcoming"
-                  ? "Nothing coming up"
-                  : scope === "now"
-                    ? "No doors open right now"
-                    : scope === "draft"
-                      ? "No drafts"
-                      : scope === "past"
-                        ? "Nothing has run yet"
-                        : "No events yet"
+                : role === "cohosted"
+                  ? "No co-hosted events here"
+                  : scope === "upcoming"
+                    ? "Nothing coming up"
+                    : scope === "now"
+                      ? "No doors open right now"
+                      : scope === "draft"
+                        ? "No drafts"
+                        : scope === "past"
+                          ? "Nothing has run yet"
+                          : "No events yet"
             }
             description={
               params.search
                 ? "Try another word, or widen the scope."
-                : scope === "upcoming" || scope === "all"
-                  ? "Create an event and it appears here with its sign-ups, money and a countdown."
-                  : scope === "now"
-                    ? "An event shows here from a day before it starts while its gate is open."
-                    : undefined
+                : role === "cohosted"
+                  ? "When another club invites yours to co-host one of its events and you accept, it shows here."
+                  : scope === "upcoming" || scope === "all"
+                    ? "Create an event and it appears here with its sign-ups, money and a countdown."
+                    : scope === "now"
+                      ? "An event shows here from a day before it starts while its gate is open."
+                      : undefined
             }
             action={
-              scope === "upcoming" || scope === "all" ? (
+              role === "cohosted" && !params.search ? (
+                <Link href="/invitations" className="btn btn-secondary">
+                  See invitations
+                </Link>
+              ) : scope === "upcoming" || scope === "all" ? (
                 <button
                   type="button"
                   className="btn btn-primary"
