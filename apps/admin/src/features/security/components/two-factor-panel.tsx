@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { CheckCircle2Icon, CopyIcon, Loader2Icon, ShieldCheckIcon } from "lucide-react";
+import { AuthenticatorSetup } from "@moa/app-kit";
 import {
   Button,
   Card,
@@ -141,25 +142,7 @@ export function TwoFactorPanel() {
           </>
         ) : setup ? (
           <>
-            <p className="text-sm">
-              Add this to your authenticator app, then enter the code it shows.
-            </p>
-            <div className="space-y-1">
-              <Label>Setup key</Label>
-              <code className="bg-muted block rounded px-2 py-1 text-sm break-all">
-                {setup.secret}
-              </code>
-              <p className="text-muted-foreground text-xs">
-                Or open{" "}
-                <a
-                  href={setup.provisioning_uri}
-                  className="underline underline-offset-2"
-                >
-                  this link
-                </a>{" "}
-                on the device with your authenticator.
-              </p>
-            </div>
+            <AuthenticatorSetup uri={setup.provisioning_uri} secret={setup.secret} />
             <div className="flex flex-col gap-1.5 sm:max-w-xs">
               <Label htmlFor="enable-code">Code from the app</Label>
               <Input

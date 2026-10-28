@@ -4,3 +4,4 @@ export { setLoginScope, type DashboardScope } from "./api";
 export { safeNext } from "./next";
 export { LoginForm, CLUB_UNDER_REVIEW, type GoogleSignInOptions } from "./components/login-form";
 export { UserMenu } from "./components/user-menu";
+export { AuthenticatorSetup, type AuthenticatorSetupProps } from "./components/authenticator-setup";

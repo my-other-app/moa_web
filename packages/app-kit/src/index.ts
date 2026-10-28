@@ -63,6 +63,8 @@ export {
   type GoogleSignInOptions,
   type DashboardScope,
   UserMenu,
+  AuthenticatorSetup,
+  type AuthenticatorSetupProps,
   setLoginScope,
   safeNext,
 } from "./auth";
