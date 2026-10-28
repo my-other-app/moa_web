@@ -162,11 +162,11 @@ export function EventRowMenu({
                   {" "}
                   <strong>
                     {waiting.toLocaleString("en-IN")}{" "}
-                    {waiting === 1 ? "person is" : "people are"} waiting for you
-                    to confirm them.
+                    {waiting === 1 ? "registration is" : "registrations are"} under
+                    review.
                   </strong>{" "}
-                  Their requests close, and they&apos;ll get a polite email
-                  saying you weren&apos;t able to confirm their place.
+                  They close, and each person gets a polite email saying you
+                  weren&apos;t able to confirm their registration.
                 </>
               ) : null}
             </AlertDialogDescription>

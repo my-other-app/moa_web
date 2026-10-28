@@ -11,12 +11,13 @@ import overviewFixture from "../__fixtures__/club-overview.json";
 import summaryFixture from "../__fixtures__/event-summary.json";
 
 /**
- * Confirm each registration in numbers, around the club's dashboard: the
- * funnel on the event's overview (paid and free) with its places, the
- * events list's waiting badge and "Requests open", the home's "Asked", the
- * insights when only requests exist, the sales table's held places, the
- * delete wording, and the closeout's and finance's figures. Against an
- * older server (the fields absent) each piece stays away.
+ * Review registrations in numbers, around the club's dashboard: the funnel
+ * on the event's overview (paid and free) with its places, the events
+ * list's "under review" badge and "Reviewing registrations", the home's
+ * "Received", the insights when only registrations under review exist, the
+ * sales table's held places, the delete wording, and the closeout's and
+ * finance's figures. Against an older server (the fields absent) each piece
+ * stays away.
  */
 
 const NOW = Date.now();
@@ -102,45 +103,47 @@ beforeEach(() => {
 const detail = (over: Record<string, unknown> = {}) => eventDetailSchema.parse({ ...eventFixture, ...over });
 
 describe("the funnel on the event's overview", () => {
-  it("walks a paid event from asking to the door: paid, paying with ₹ and the first hold's end, didn't pay", async () => {
+  it("walks a paid event from registering to the door: received, under review, paid and paying, declined · cancelled · expired", async () => {
     summary = { ...summaryFixture, requests: paidFigures, places: { capacity: 300, taken: 281, held: 12, left: 7 } };
     render(<EventRequestsFunnel eventId={37} event={detail({ has_fee: true, page_views: 2060 })} />);
-    const card = await screen.findByRole("region", { name: "Requests" });
-    const steps = within(card).getByRole("list", { name: "From asking to the door" });
-    expect(steps).toHaveTextContent("Asked412");
+    const card = await screen.findByRole("region", { name: "Registration review" });
+    const steps = within(card).getByRole("list", { name: "From registering to the door" });
+    expect(steps).toHaveTextContent("Received412");
     expect(steps).toHaveTextContent("15 more people added directly");
-    expect(steps).toHaveTextContent("Waiting for you37");
-    expect(steps).toHaveTextContent(/oldest asked/);
-    expect(steps).toHaveTextContent("Confirmed310");
+    expect(steps).toHaveTextContent("Under review37");
+    expect(steps).toHaveTextContent(/oldest registered/);
+    expect(steps).toHaveTextContent("Confirmed293");
     const split = within(card).getByRole("list", { name: "Confirmed, split" });
     expect(split).toHaveTextContent("Paid281");
     expect(split).toHaveTextContent("Paying12");
     expect(split).toHaveTextContent(/₹2,388 to come · first hold ends/);
-    expect(split).toHaveTextContent("Didn't pay17");
-    expect(steps).toHaveTextContent("40 declined · 8 withdrew");
+    expect(split).not.toHaveTextContent(/Didn't pay/);
+    expect(steps).toHaveTextContent("Declined · Cancelled · Expired65");
+    expect(steps).toHaveTextContent("40 declined · 8 cancelled · 17 expired (not paid in time)");
     expect(steps).toHaveTextContent("Checked in240");
 
     const rates = within(card).getByLabelText("Rates");
-    // 310 confirmed of 350 decided; 281 paid of 310; 240 in of 281 paid; 412 asked of 2,060 views.
-    expect(rates).toHaveTextContent("Confirmed89%");
+    // 310 confirmed of 350 reviewed; 281 paid of 310; 240 in of 281 paid; 412 registered of 2,060 views.
+    expect(rates).toHaveTextContent("Confirmed89%of everyone you reviewed");
     expect(rates).toHaveTextContent("Paid91%");
     expect(rates).toHaveTextContent("Turnout85%");
-    expect(rates).toHaveTextContent("Views → asked20%");
-    expect(within(card).getByText("You decide in about 21 h on average.")).toBeInTheDocument();
-    expect(within(card).getByText("Capacity 300 · 281 taken · 12 held · 7 left · 37 waiting")).toBeInTheDocument();
-    expect(within(card).getByRole("link", { name: "Open requests →" })).toHaveAttribute("href", "/events/37/requests");
+    expect(rates).toHaveTextContent("Views → registered20%");
+    expect(within(card).getByText("Average time to review: about 21 h.")).toBeInTheDocument();
+    expect(within(card).getByText("Capacity 300 · 281 taken · 12 held · 7 left · 37 under review")).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "Open Review →" })).toHaveAttribute("href", "/events/37/requests");
+    expect(card).not.toHaveTextContent(/waiting|asked|withdr|lapsed|request/i);
   });
 
-  it("warns when more are waiting than places are left, and not when they fit", async () => {
+  it("warns when more are under review than places are left, and not when they fit", async () => {
     summary = { ...summaryFixture, requests: paidFigures, places: { capacity: 300, taken: 281, held: 12, left: 7 } };
     const { unmount } = render(<EventRequestsFunnel eventId={37} event={detail({ has_fee: true })} />);
-    const card = await screen.findByRole("region", { name: "Requests" });
-    expect(within(card).getByRole("alert")).toHaveTextContent("37 people are waiting and only 7 places are left. Confirming stops when the places run out: decline the rest, or add places under Settings.");
+    const card = await screen.findByRole("region", { name: "Registration review" });
+    expect(within(card).getByRole("alert")).toHaveTextContent("37 registrations are under review and only 7 places are left. Confirming stops when the places run out: decline the rest, or add places under Settings.");
     unmount();
 
     summary = { ...summaryFixture, requests: paidFigures, places: { capacity: 400, taken: 281, held: 12, left: 107 } };
     render(<EventRequestsFunnel eventId={37} event={detail({ has_fee: true })} />);
-    const roomy = await screen.findByRole("region", { name: "Requests" });
+    const roomy = await screen.findByRole("region", { name: "Registration review" });
     expect(within(roomy).queryByRole("alert")).toBeNull();
     expect(placesShortfall({ capacity: 300, taken: 281, held: 12, left: 0 }, 5)).toBe(5);
     expect(placesShortfall({ capacity: null, taken: 281, held: 12, left: null }, 500)).toBe(0);
@@ -149,20 +152,20 @@ describe("the funnel on the event's overview", () => {
   it("skips the payment step on a free event, and reads an uncapped event as no cap", async () => {
     summary = { ...summaryFixture, requests: freeFigures, places: { capacity: null, taken: 310, held: 0, left: null } };
     render(<EventRequestsFunnel eventId={37} event={detail({ has_fee: false })} />);
-    const card = await screen.findByRole("region", { name: "Requests" });
+    const card = await screen.findByRole("region", { name: "Registration review" });
     expect(within(card).queryByRole("list", { name: "Confirmed, split" })).toBeNull();
     expect(within(card).queryByText("Paying")).toBeNull();
     const rates = within(card).getByLabelText("Rates");
     expect(rates).not.toHaveTextContent("Paid");
     // 200 in of the 310 confirmed.
     expect(rates).toHaveTextContent("Turnout65%");
-    expect(within(card).getByText("No cap · 310 taken · 0 held · 37 waiting")).toBeInTheDocument();
+    expect(within(card).getByText("No cap · 310 taken · 0 held · 37 under review")).toBeInTheDocument();
     expect(within(card).queryByRole("alert")).toBeNull();
   });
 
-  it("stays away for an older server, and for an event that never asked anyone to wait", async () => {
+  it("stays away for an older server, and for an event that never reviewed registrations", async () => {
     const { container, unmount } = render(<EventRequestsFunnel eventId={37} event={detail()} />);
-    await waitFor(() => expect(screen.queryByRole("region", { name: "Requests" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Registration review" })).toBeNull());
     expect(container).toBeEmptyDOMElement();
     unmount();
     summary = { ...summaryFixture, requests: { ...paidFigures, enabled: false, total: 0 } };
@@ -191,29 +194,30 @@ describe("the events list", () => {
       door_open: false, registration_open: true, ...over,
     });
 
-  it("shows how many wait as a badge to the Requests, says Requests open, and leads with who asked", () => {
+  it("shows how many are under review as a badge to the Review tab, says Reviewing registrations, and leads with the registrations received", () => {
     render(
       <ul>
         <EventRow event={row({ requires_approval: true, requests_pending: 37, requests_total: 412 })} now={NOW} />
       </ul>,
     );
-    expect(screen.getByRole("link", { name: "37 waiting" })).toHaveAttribute("href", "/events/68/requests");
-    expect(screen.getByText("Requests open")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "37 under review" })).toHaveAttribute("href", "/events/68/requests");
+    expect(screen.getByText("Reviewing registrations")).toBeInTheDocument();
     expect(screen.queryByText("Sign-up open")).toBeNull();
+    expect(screen.queryByText(/Requests/)).toBeNull();
     expect(screen.getByText("412")).toBeInTheDocument();
-    expect(screen.getByText("asked")).toBeInTheDocument();
+    expect(screen.getByText("received")).toBeInTheDocument();
     expect(screen.getByText("0 of 100 in")).toBeInTheDocument();
     // Not "0 of 100", as if nobody wanted to come.
     expect(screen.queryByText("of 100")).toBeNull();
   });
 
-  it("shows no badge when nobody waits, and the old figures from an older server", () => {
+  it("shows no badge when none are under review, and the old figures from an older server", () => {
     const { unmount } = render(
       <ul>
         <EventRow event={row({ requires_approval: true, requests_pending: 0, requests_total: 12, registration_count: 12 })} now={NOW} />
       </ul>,
     );
-    expect(screen.queryByRole("link", { name: /waiting/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /under review/ })).toBeNull();
     expect(screen.getByText("12 of 100 in")).toBeInTheDocument();
     unmount();
 
@@ -222,50 +226,51 @@ describe("the events list", () => {
         <EventRow event={row({ registration_count: 0 })} now={NOW} />
       </ul>,
     );
-    expect(screen.queryByRole("link", { name: /waiting/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /under review/ })).toBeNull();
     expect(screen.getByText("Sign-up open")).toBeInTheDocument();
     expect(screen.getByText("of 100")).toBeInTheDocument();
-    expect(screen.queryByText("asked")).toBeNull();
+    expect(screen.queryByText("received")).toBeNull();
   });
 
-  it("says, before deleting, that the people waiting get a polite email", async () => {
+  it("says, before deleting, that the people under review get a polite email", async () => {
     render(<EventRowMenu event={{ id: 68, name: "Hack Night 04", slug: null, registration_count: 0, requests_pending: 37 }} />);
     fireEvent.keyDown(await screen.findByRole("button", { name: "More for Hack Night 04" }), { key: "Enter" });
     fireEvent.click(await screen.findByRole("menuitem", { name: /Delete event/ }));
     const dialog = await screen.findByRole("alertdialog");
-    expect(dialog).toHaveTextContent("37 people are waiting for you to confirm them.");
-    expect(dialog).toHaveTextContent("Their requests close, and they'll get a polite email saying you weren't able to confirm their place.");
+    expect(dialog).toHaveTextContent("37 registrations are under review.");
+    expect(dialog).toHaveTextContent("They close, and each person gets a polite email saying you weren't able to confirm their registration.");
   });
 });
 
 describe("the dashboard's home", () => {
-  it("puts Asked beside Registrations on the next event and on past events", async () => {
+  it("puts Received beside Registrations on the next event and on past events", async () => {
     overview = {
       ...overviewFixture,
       next_event: { ...overviewFixture.next_event, requests_total: 412 },
       reach: overviewFixture.reach.map((e, i) => ({ ...e, requests_total: i === 0 ? 96 : null })),
     };
     render(<ClubDashboardV2 />);
-    const labels = await screen.findAllByText("Asked");
+    const labels = await screen.findAllByText("Received");
     const box = labels.map((l) => l.closest("div")!).find((d) => d.textContent?.includes("Page views"))!;
-    expect(box).toHaveTextContent("Asked412");
+    expect(box).toHaveTextContent("Received412");
     expect(box).toHaveTextContent("Registrations40");
     // The reach table gains its column; an event that never asked reads "—".
     const demo = (await screen.findAllByRole("link", { name: /Demo Day/ })).find((a) => a.getAttribute("href") === "/events/12" && a.textContent?.includes("96"));
     expect(demo).toBeTruthy();
-    expect(screen.getAllByText("Asked").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Received").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("Asked")).toBeNull();
   });
 
-  it("shows no Asked from an older server", async () => {
+  it("shows no Received from an older server", async () => {
     render(<ClubDashboardV2 />);
     await screen.findAllByText("Registrations");
     await screen.findByText("Hack Night");
-    expect(screen.queryByText("Asked")).toBeNull();
+    expect(screen.queryByText("Received")).toBeNull();
   });
 });
 
 describe("the insights", () => {
-  it("shows when people asked instead of 'nobody has signed up' while only requests exist", async () => {
+  it("shows when people registered instead of 'nobody has signed up' while only registrations under review exist", async () => {
     analytics = {
       ...analyticsFixture,
       total_registrations: 0,
@@ -276,31 +281,31 @@ describe("the insights", () => {
       ],
     };
     render(<EventInsightsPanel eventId={37} pageViews={50} />);
-    expect(await screen.findByText("When people asked")).toBeInTheDocument();
+    expect(await screen.findByText("When people registered")).toBeInTheDocument();
     expect(screen.queryByText("Nobody has signed up yet")).toBeNull();
-    const days = screen.getByRole("list", { name: "Requests by day" });
+    const days = screen.getByRole("list", { name: "Registrations by day" });
     expect(within(days).getAllByRole("listitem")).toHaveLength(2);
     // Oldest first, whatever order the server sent.
-    expect(within(days).getAllByRole("listitem")[0]).toHaveTextContent("1 Jun: 3 asked");
+    expect(within(days).getAllByRole("listitem")[0]).toHaveTextContent("1 Jun: 3 registered");
     expect(screen.getByText("busiest: 1 Jun")).toBeInTheDocument();
-    expect(screen.getByText(/5 people asked for a place; 10% of the people who opened the event page asked\./)).toBeInTheDocument();
-    expect(screen.getByText(/Nobody is registered yet: 5 people have asked/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open requests" })).toHaveAttribute("href", "/events/37/requests");
+    expect(screen.getByText(/5 registrations received; 10% of the people who opened the event page registered\./)).toBeInTheDocument();
+    expect(screen.getByText(/Nobody has a ticket yet: 5 registrations have come in/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open Review" })).toHaveAttribute("href", "/events/37/requests");
   });
 
   it("reads the days as a map too, and shows them beside the sign-ups once people are registered", async () => {
     analytics = { ...analyticsFixture, requests_total: 30, requests_by_day: { "2099-06-01": 10, "2099-06-03": 20 } };
     render(<EventInsightsPanel eventId={37} pageViews={234} />);
-    expect(await screen.findByText("When people asked")).toBeInTheDocument();
+    expect(await screen.findByText("When people registered")).toBeInTheDocument();
     expect(screen.getByText("When people signed up")).toBeInTheDocument();
-    expect(within(screen.getByRole("list", { name: "Requests by day" })).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(screen.getByRole("list", { name: "Registrations by day" })).getAllByRole("listitem")).toHaveLength(2);
   });
 
   it("still says nobody has signed up when nobody asked either (or the server is older)", async () => {
     analytics = { ...analyticsFixture, total_registrations: 0 };
     render(<EventInsightsPanel eventId={37} pageViews={0} />);
     expect(await screen.findByText("Nobody has signed up yet")).toBeInTheDocument();
-    expect(screen.queryByText("When people asked")).toBeNull();
+    expect(screen.queryByText("When people registered")).toBeNull();
   });
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { qk } from "@moa/api";
+import { ApiError, isRouteMissing, qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
 import { useRefreshDeliveries } from "@/features/deliveries";
@@ -20,6 +20,7 @@ import {
   fetchTemplate,
   fetchTemplates,
   previewEmail,
+  resetLibraryTemplate,
   resetTemplate,
   saveTemplate,
   saveToLibrary,
@@ -144,6 +145,29 @@ export function useResetTemplate(eventId: number) {
       toast.success("Back to the club's version");
     },
     onError: toastError,
+  });
+}
+
+/**
+ * "Reset to default…" on a library email (the registration review emails):
+ * back to MyOtherApp's words. A backend before the route answers its bare
+ * 404, said as "not available yet" rather than as an error.
+ */
+export function useResetLibraryTemplate() {
+  const queryClient = useQueryClient();
+  const scope: EmailScope = { kind: "library" };
+  return useMutation({
+    mutationFn: (templateId: string) => resetLibraryTemplate(templateId),
+    onSuccess: (data) => {
+      queryClient.setQueryData([...emailsKey(scope), "template", data.id], data);
+      void queryClient.invalidateQueries({ queryKey: [...emailsKey(scope), "overview"] });
+      void queryClient.invalidateQueries({ queryKey: [...emailsKey(scope), "list"] });
+      toast.success("Back to the default words", { description: `Version ${data.version}.` });
+    },
+    onError: (error) => {
+      if (isRouteMissing(error) || (error instanceof ApiError && error.status === 405)) toast.warning("Reset isn't available yet.");
+      else toastError(error);
+    },
   });
 }
 

@@ -142,7 +142,7 @@ export function WaitlistPanel({ eventId }: { eventId: number }) {
   const plan = useEventPlan(eventId);
   const lock = plan.featureLock("waitlist");
   const canEdit = Boolean(can.edit_events);
-  // Confirm each registration: no waiting list, new people ask instead (the server refuses joining).
+  // Review registrations: no waiting list, new people register for review instead (the server refuses joining).
   const confirmsEach = useEventDetail(eventId).data?.requires_approval === true;
 
   if (list.data === null) return null;
@@ -189,8 +189,8 @@ export function WaitlistPanel({ eventId }: { eventId: number }) {
           <Skeleton className="h-10 w-full" />
         )}
         {confirmsEach ? (
-          <Notice tone="neutral" tag="Requests">
-            This event confirms each registration, so it has no waiting list: new people send a request and wait for you to confirm them under Requests.
+          <Notice tone="neutral" tag="Review">
+            This event reviews registrations, so it has no waiting list: people register, and you confirm or decline each registration in the Review tab.
           </Notice>
         ) : null}
         {s && notAllowed && s.enabled ? <Notice tone="caution" tag="Plan">Your plan no longer includes waiting lists, so nobody new can join. The people already in line still get their offers.</Notice> : null}

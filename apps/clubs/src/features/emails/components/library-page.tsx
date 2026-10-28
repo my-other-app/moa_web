@@ -52,12 +52,14 @@ import {
 import {
   JOURNEY_STAGES,
   REQUEST_STAGES,
+  REVIEW_GROUP,
   STAGE_META,
   audienceSummary,
   blankTemplate,
   triggerSummary,
   type LibraryOverview,
   type AutomaticEmail,
+  type EmailStage,
   type LibraryTemplate,
   isRequestStage,
   stageLabel,
@@ -298,27 +300,96 @@ function StageCard({ t }: { t: LibraryTemplate }) {
   );
 }
 
-const REQUESTS_GROUP = "Registration requests";
+/** The heading an older server gave the registration review emails, read as today's. */
+const OLD_REVIEW_GROUPS = new Set(["registration requests"]);
+const groupName = (g: string | null | undefined) => {
+  const name = g?.trim() || "Sent by themselves";
+  return OLD_REVIEW_GROUPS.has(name.toLowerCase()) ? REVIEW_GROUP : name;
+};
 
-/** The emails that go by themselves, under their headings, in the server's order; the request emails' heading is there for their templates too. */
-function groupAutomatic(emails: readonly AutomaticEmail[], requestTemplates: boolean): [string, AutomaticEmail[]][] {
+/** A registration review email's stage from an automatic entry's key ("request_received"), or null. */
+const reviewStageOf = (key: string): EmailStage | null => {
+  const stage = key.trim().toUpperCase();
+  return isRequestStage(stage) ? (stage as EmailStage) : null;
+};
+
+/**
+ * The emails that go by themselves, under their headings, in the server's
+ * order; the registration review heading is there for their templates too.
+ * An entry the library also has as a template (its key is the template's
+ * stage, lowercased) is left out: one card per email.
+ */
+function groupAutomatic(emails: readonly AutomaticEmail[], requestTemplates: readonly LibraryTemplate[]): [string, AutomaticEmail[]][] {
   const groups = new Map<string, AutomaticEmail[]>();
-  if (requestTemplates) groups.set(REQUESTS_GROUP, []);
+  if (requestTemplates.length) groups.set(REVIEW_GROUP, []);
+  const templated = new Set(requestTemplates.map((t) => t.stage.toLowerCase()));
   for (const e of emails) {
-    const g = e.group?.trim() || "Sent by themselves";
+    if (templated.has(e.key.trim().toLowerCase())) continue;
+    const g = groupName(e.group);
     groups.set(g, [...(groups.get(g) ?? []), e]);
   }
-  return [...groups.entries()];
+  return [...groups.entries()].filter(([g, list]) => list.length > 0 || g === REVIEW_GROUP);
 }
 
-/** An email the server sends by itself: its name, its subject, and when it goes. Not edited here (yet). */
+/** "Goes out when …", ending in one full stop. */
+const goesOut = (when: string) => `Goes out ${when}${/[.!?]$/.test(when) ? "" : "."}`;
+
+/**
+ * A registration review email, as an editable library template: its name,
+ * subject and when it goes, with Preview and Edit. It goes to one person at
+ * a time as their registration moves, so no figures: "Sent by itself".
+ */
+function ReviewCard({ t }: { t: LibraryTemplate }) {
+  const [open, setOpen] = React.useState(false);
+  const meta = STAGE_META[t.stage];
+  const label = meta.label;
+  const when = meta.when ?? t.when ?? null;
+  return (
+    <FigurePanel className="flex flex-col p-4">
+      <div className="min-w-0">
+        {t.name.trim() !== label ? <span className="eyebrow">{label}</span> : null}
+        <p className="text-ink mt-0.5 truncate text-[15px] font-semibold">
+          {t.name}
+        </p>
+        <p className="text-ink-3 truncate text-[12px]">{t.subject}</p>
+      </div>
+      {when ? <p className="text-ink-2 mt-2 text-[12.5px]">{goesOut(when)}</p> : null}
+      <p className="text-ink-3 mt-0.5 text-[12px]">{meta.note}</p>
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
+        <span className="text-ink-3 text-[11.5px]">
+          Sent by itself · v{t.version} · edited {formatDate(t.updatedAt)}
+        </span>
+        <span className="flex gap-2">
+          <PreviewToggle
+            name={t.name}
+            open={open}
+            onToggle={() => setOpen(!open)}
+          />
+          <Link href={`/emails/${t.id}`} className="btn btn-secondary btn-sm">
+            <PencilIcon className="size-3.5" /> Edit
+          </Link>
+        </span>
+      </div>
+      <Preview t={t} open={open} />
+    </FigurePanel>
+  );
+}
+
+/**
+ * An email the server sends by itself and the club can't edit here: from a
+ * server before the registration review emails were templates. Its name,
+ * its subject, and when it goes; a review email by today's name.
+ */
 function AutomaticCard({ e }: { e: AutomaticEmail }) {
+  const stage = reviewStageOf(e.key);
+  const meta = stage ? STAGE_META[stage] : null;
+  const when = meta?.when ? goesOut(meta.when) : e.when;
   return (
     <FigurePanel className="flex flex-col p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-ink truncate text-[15px] font-semibold">
-            {e.name}
+            {meta?.label ?? e.name}
           </p>
           {e.subject ? (
             <p className="text-ink-3 truncate text-[12px]">{e.subject}</p>
@@ -330,8 +401,8 @@ function AutomaticCard({ e }: { e: AutomaticEmail }) {
           </span>
         ) : null}
       </div>
-      {e.when ? (
-        <p className="text-ink-2 mt-2 text-[12.5px]">{e.when}</p>
+      {when ? (
+        <p className="text-ink-2 mt-2 text-[12.5px]">{when}</p>
       ) : null}
       <p className="text-ink-3 mt-auto pt-2 text-[11.5px]">
         In your club&apos;s colours and logo, like the ticket email.
@@ -417,15 +488,16 @@ export function EmailLibraryPage() {
     .sort(
       (a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage),
     );
-  // Confirm each registration's emails, once the server lists them: as
-  // emails that go by themselves (`automatic`), or as templates of their own.
+  // The registration review emails, once the server lists them: as library
+  // templates of their own (editable), or, from an older server, as emails
+  // that go by themselves (`automatic`); never both for one email.
   const requestEmails = (o?.templates ?? [])
     .filter((t) => isRequestStage(t.stage))
     .sort(
       (a, b) =>
         REQUEST_ORDER.indexOf(a.stage) - REQUEST_ORDER.indexOf(b.stage),
     );
-  const automaticGroups = groupAutomatic(o?.automatic ?? [], requestEmails.length > 0);
+  const automaticGroups = groupAutomatic(o?.automatic ?? [], requestEmails);
   const custom = (o?.templates ?? []).filter((t) => t.stage === "CUSTOM");
   const f = o?.figures;
   const delta = (d: number | null | undefined) =>
@@ -434,7 +506,8 @@ export function EmailLibraryPage() {
       : undefined;
   const trend = (d: number | null | undefined): "up" | "down" | "none" =>
     d ? (d > 0 ? "up" : "down") : "none";
-  const off = o?.attention.disabled_stages ?? [];
+  // The review emails are always on: never "switched off".
+  const off = (o?.attention.disabled_stages ?? []).filter((s) => !isRequestStage(s));
 
   return (
     <div className="grid gap-5">
@@ -569,18 +642,20 @@ export function EmailLibraryPage() {
           </section>
 
           {automaticGroups.map(([group, emails]) => {
-            const requests = group === REQUESTS_GROUP;
+            const review = group === REVIEW_GROUP;
             return (
               <section key={group}>
                 <h2 className="eyebrow mb-1">{group}</h2>
                 <p className="text-ink-3 mb-2 text-[12.5px]">
-                  {requests
-                    ? "For events where you confirm each registration. Each goes to the one person, by itself, as their request moves."
+                  {review
+                    ? requestEmails.length
+                      ? "For events that review registrations. Each goes to the one person, by itself, as their registration moves. Edit the words; they go in your club's colours and logo."
+                      : "For events that review registrations. Each goes to the one person, by itself, as their registration moves."
                     : "These go out by themselves."}
                 </p>
                 <div className="grid gap-3 md:grid-cols-2">
-                  {requests
-                    ? requestEmails.map((t) => <StageCard key={t.id} t={t} />)
+                  {review
+                    ? requestEmails.map((t) => <ReviewCard key={t.id} t={t} />)
                     : null}
                   {emails.map((e) => (
                     <AutomaticCard key={e.key} e={e} />

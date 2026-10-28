@@ -441,18 +441,18 @@ export function AdminOverviewV2() {
           </Panel>
 
           {data.requests ? (
-            <Panel className="min-w-0 flex-[1_1_260px]" aria-label="Registration requests">
-              <PanelTitle aside="confirm each registration">Requests</PanelTitle>
+            <Panel className="min-w-0 flex-[1_1_260px]" aria-label="Registrations reviewed">
+              <PanelTitle aside="events that review registrations">Registrations reviewed</PanelTitle>
               {[
                 [formatNumber(data.requests.received), "received"],
-                [formatNumber(data.requests.waiting), "waiting for a club"],
+                [formatNumber(data.requests.waiting), "under review"],
                 [
                   data.requests.avg_decision_hours === null
                     ? "—"
                     : data.requests.avg_decision_hours < 48
                       ? `${Math.round(data.requests.avg_decision_hours)} h`
                       : `${Math.round(data.requests.avg_decision_hours / 24)} d`,
-                  "to decide, on average",
+                  "average time to review",
                 ],
               ].map(([value, label]) => (
                 <RuleRow key={label} className="flex items-baseline justify-between gap-2.5">

@@ -293,7 +293,7 @@ export function EventDetail({ eventId }: { eventId: number }) {
   const router = useRouter();
   const { data: event, isPending, isError } = useEvent(eventId);
   const { data: analytics } = useEventAnalytics(eventId);
-  // The summary carries the requests (confirm each registration) as figures, and the places.
+  // The summary carries the requests (review registrations) as figures, and the places.
   const { data: summary } = useEventSummary(eventId);
   const remove = useDeleteEvent();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -320,7 +320,7 @@ export function EventDetail({ eventId }: { eventId: number }) {
   const poster = pickImage(event?.poster, posterSizes(96));
   const registrations = analytics?.total_registrations ?? 0;
   const requestFigures = summary?.requests;
-  // People waiting for the club to confirm them: closed with a polite email if the event is deleted.
+  // Registrations under review: closed with a polite email if the event is deleted.
   const waiting = event?.requests_pending ?? requestFigures?.pending ?? summary?.requests_pending ?? 0;
 
   const cards = [
@@ -409,7 +409,7 @@ export function EventDetail({ eventId }: { eventId: number }) {
                     ) : null}
                     {event?.is_online ? <Badge variant="outline">Online</Badge> : null}
                     {event?.requires_approval ? (
-                      <Badge variant="outline">Confirms each registration</Badge>
+                      <Badge variant="outline">Reviews registrations</Badge>
                     ) : null}
                     {event?.has_fee ? (
                       <Badge variant="outline">
@@ -462,15 +462,15 @@ export function EventDetail({ eventId }: { eventId: number }) {
         </section>
 
         {hasRequestFigures(requestFigures) && summary ? (
-          <section className="space-y-3" aria-label="Requests">
-            <SectionTitle>Requests</SectionTitle>
+          <section className="space-y-3" aria-label="Registration review">
+            <SectionTitle>Registration review</SectionTitle>
             <RequestFunnelCard
               requests={requestFigures}
               places={summary.places}
               paidEvent={event?.has_fee ? true : undefined}
               pageViews={event?.page_views}
               readOnly
-              title="From asking to the door"
+              title="From registering to the door"
               now={new Date(summary.generated_at)}
             />
           </section>
@@ -530,11 +530,11 @@ export function EventDetail({ eventId }: { eventId: number }) {
                   {" "}
                   <strong>
                     {formatNumber(waiting)}{" "}
-                    {waiting === 1 ? "person is" : "people are"} waiting for
-                    the club to confirm them.
+                    {waiting === 1 ? "registration is" : "registrations are"} under
+                    review.
                   </strong>{" "}
-                  Their requests close, and they&rsquo;ll get a polite email
-                  saying the club wasn&rsquo;t able to confirm their place.
+                  They close, and each person gets a polite email saying the
+                  club wasn&rsquo;t able to confirm their registration.
                 </>
               ) : null}
             </AlertDialogDescription>

@@ -10,8 +10,8 @@ import { useAccess } from "@/features/access";
 import { useRequestCounts, useRequestsOnServer } from "./queries";
 
 /**
- * "Confirm each registration yourself", in the event form's places and
- * money. Saved with the event as `requires_approval`.
+ * "Review registrations before sending tickets", in the event form's places
+ * and money. Saved with the event as `requires_approval`.
  *
  * Editing, it shows once the event's requests route answers (a bare 404
  * hides it) and the event's detail said what the setting is. Making an
@@ -21,9 +21,17 @@ import { useRequestCounts, useRequestsOnServer } from "./queries";
  * a backend without it never sees the field and a save never switches off
  * what it never read.
  *
- * Switching it off on an event with people waiting says how many: they stay
- * waiting until the club confirms or declines them.
+ * Switching it on for an event says what happens to its waiting list (the
+ * server moves everyone in line into Review). Switching it off on an event
+ * with registrations under review says how many: they stay under review
+ * until the club confirms or declines them.
  */
+export const REVIEW_LABEL = "Review registrations before sending tickets";
+export const REVIEW_HELP =
+  "Everyone who registers gets a 'Thanks for registering' email. You confirm or decline each registration in the Review tab, and confirmed people get their ticket by email.";
+export const REVIEW_ON_NOTE =
+  "Anyone on this event's waiting list moves into Review as a registration under review, and gets the 'Thanks for registering' email once.";
+
 export function ApprovalField({ eventId }: { eventId?: number }) {
   const form = useFormContext<{ requires_approval?: boolean }>();
   const value = useWatch({ control: form.control, name: "requires_approval" });
@@ -33,7 +41,7 @@ export function ApprovalField({ eventId }: { eventId?: number }) {
   const shown = eventId ? onServer === true && value !== undefined : can.requests_known;
   if (!shown) return null;
   const wasOn = form.formState.defaultValues?.requires_approval === true;
-  const waiting = counts.data?.counts.pending ?? 0;
+  const underReview = counts.data?.counts.pending ?? 0;
   return (
     <FormField
       control={form.control}
@@ -46,21 +54,26 @@ export function ApprovalField({ eventId }: { eventId?: number }) {
                 <UserCheckIcon className="size-4" />
               </span>
               <div>
-                <FormLabel className="text-[13.5px]">Confirm each registration yourself</FormLabel>
-                <FormDescription className="mt-0.5">People who fill the form wait for you to confirm them, under Requests. Their ticket goes out when you do.</FormDescription>
+                <FormLabel className="text-[13.5px]">{REVIEW_LABEL}</FormLabel>
+                <FormDescription className="mt-0.5">{REVIEW_HELP}</FormDescription>
               </div>
             </div>
             <FormControl>
-              <Switch checked={Boolean(field.value)} onCheckedChange={(next) => field.onChange(next)} aria-label="Confirm each registration yourself" />
+              <Switch checked={Boolean(field.value)} onCheckedChange={(next) => field.onChange(next)} aria-label={REVIEW_LABEL} />
             </FormControl>
           </div>
+          {eventId && !wasOn && field.value ? (
+            <p className="text-ink-2 mt-2 text-[12px]">{REVIEW_ON_NOTE}</p>
+          ) : null}
           {wasOn && !field.value ? (
-            waiting > 0 ? (
-              <Notice tone="caution" tag="Waiting" className="mt-2">
-                {formatNumber(waiting)} {waiting === 1 ? "person is" : "people are"} waiting — they stay waiting until you confirm or decline them. Once saved, new people register directly.
+            underReview > 0 ? (
+              <Notice tone="caution" tag="Under review" className="mt-2">
+                {underReview === 1
+                  ? "1 registration is under review. It stays under review until you confirm or decline it; new people get their ticket straight away."
+                  : `${formatNumber(underReview)} registrations are under review. They stay under review until you confirm or decline them; new people get their ticket straight away.`}
               </Notice>
             ) : (
-              <p className="text-ink-2 mt-1 text-[12px]">Once saved, new people register directly. Nobody is waiting for you now.</p>
+              <p className="text-ink-2 mt-1 text-[12px]">Once saved, new people get their ticket straight away. No registrations are under review now.</p>
             )
           ) : null}
         </FormItem>

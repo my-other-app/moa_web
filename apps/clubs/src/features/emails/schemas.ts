@@ -8,11 +8,22 @@ import { z } from "zod";
 export const EMAIL_STAGES = ["INVITE", "PRE_EVENT", "REMINDER", "POST_EVENT", "CUSTOM"] as const;
 export const JOURNEY_STAGES = ["INVITE", "PRE_EVENT", "REMINDER", "POST_EVENT"] as const;
 /**
- * The emails of "Confirm each registration" (features/requests): sent by
- * the server as a request moves, never on a timer or by hand. A confirmed
- * free ticket gets the normal ticket email (the invite).
+ * The emails of "Review registrations before sending tickets"
+ * (features/requests): sent by the server as a registration under review
+ * moves, never on a timer or by hand. Library templates only (one per club
+ * and stage, no event copies), always on; the club edits their words
+ * (review-wording-contract.md, sections 2 and 5).
  */
-export const REQUEST_STAGES = ["REQUEST_RECEIVED", "REQUEST_APPROVED_PAY", "REQUEST_DECLINED", "REQUEST_LAPSED"] as const;
+export const REQUEST_STAGES = [
+  "REQUEST_RECEIVED",
+  "REQUEST_APPROVED",
+  "REQUEST_APPROVED_PAY",
+  "REQUEST_DECLINED",
+  "REQUEST_LAPSED",
+  "REQUEST_UNANSWERED",
+] as const;
+/** The library's heading for them, and the token menu's group for their tokens. */
+export const REVIEW_GROUP = "Registration review";
 export const KNOWN_STAGES = [...EMAIL_STAGES, ...REQUEST_STAGES] as const;
 export type EmailStage = (typeof KNOWN_STAGES)[number];
 
@@ -23,24 +34,34 @@ export const STAGE_META: Record<EmailStage, { label: string; note: string; when?
   POST_EVENT: { label: "Post-event", note: "After the close: thanks, the certificate, what is next." },
   CUSTOM: { label: "Custom", note: "Any other email, sent by hand or on a timer." },
   REQUEST_RECEIVED: {
-    label: "Request received",
-    note: "They're waiting for you to confirm them: their ticket comes when you do. With a link to their request, and to withdraw.",
-    when: "when someone fills the form of an event where you confirm each registration",
+    label: "Thanks for registering",
+    note: "Thanks them, says you review every registration, and links to their registration and to cancel it.",
+    when: "as soon as someone registers for an event that reviews registrations",
+  },
+  REQUEST_APPROVED: {
+    label: "Confirmed · ticket",
+    note: "Their ticket, with the QR code, and the ticket PDF attached.",
+    when: "when you confirm a free ticket. It is the ticket email for confirmed people, with the ticket attached.",
   },
   REQUEST_APPROVED_PAY: {
-    label: "Confirmed, pay for the ticket",
-    note: "You confirmed them and the ticket is paid: the amount, the link to pay, and how long the place is held.",
-    when: "when you confirm someone with a paid ticket",
+    label: "Confirmed · pay for the ticket",
+    note: "The amount, the link to pay and the pay-by time. The ticket is held for them until then.",
+    when: "when you confirm a paid ticket: the pay link and the pay-by time",
   },
   REQUEST_DECLINED: {
-    label: "Request declined",
-    note: "Sorry, no place this time, with the note you wrote.",
-    when: "when you decline someone and choose to email them",
+    label: "Not confirmed",
+    note: "Thanks them for their interest, with your note if you wrote one.",
+    when: 'when you decline someone and leave "Email them" on, with your note if you wrote one',
   },
   REQUEST_LAPSED: {
-    label: "Place released",
-    note: "Their place went back because the payment didn't arrive in time.",
-    when: "when a confirmed person doesn't pay before the place is released",
+    label: "Expired · not paid in time",
+    note: "Says their registration expired, with a link to register again.",
+    when: "when a confirmed paid ticket isn't paid in time",
+  },
+  REQUEST_UNANSWERED: {
+    label: "Closed before review",
+    note: "Says their registration is closed and nothing was charged.",
+    when: "when the event ends, or is deleted, while someone is still under review: once to each",
   },
 };
 
@@ -65,14 +86,78 @@ export function stageLabel(stage: string): string {
 
 export const DEFAULT_FOOTER = "{{org_name}}{% if organiser_email %} · {{organiser_email}}{% endif %}";
 
-/** The tokens an email knows beyond the ticket's. */
+/**
+ * The tokens of the registration review emails (the contract's section 5.3):
+ * each with the stages it may be used in. The server sends them in its
+ * context with `stages`; an older one without them gets these.
+ */
+export const REQUEST_TOKENS: readonly (EmailToken & { stages: readonly string[] })[] = [
+  {
+    key: "status_url",
+    group: REVIEW_GROUP,
+    label: "Link to their registration",
+    sample: "https://myotherapp.in/requests/…",
+    stages: ["REQUEST_RECEIVED", "REQUEST_APPROVED_PAY", "REQUEST_DECLINED", "REQUEST_LAPSED", "REQUEST_UNANSWERED"],
+  },
+  {
+    key: "cancel_url",
+    group: REVIEW_GROUP,
+    label: "Link to cancel their registration",
+    sample: "https://myotherapp.in/requests/…?withdraw=1",
+    stages: ["REQUEST_RECEIVED", "REQUEST_APPROVED_PAY"],
+  },
+  { key: "pay_url", group: REVIEW_GROUP, label: "Link to pay", sample: "https://myotherapp.in/claim/…", stages: ["REQUEST_APPROVED_PAY"] },
+  { key: "pay_amount", group: REVIEW_GROUP, label: "Amount to pay", sample: "₹499", stages: ["REQUEST_APPROVED_PAY"] },
+  { key: "pay_by", group: REVIEW_GROUP, label: "Pay by", sample: "3 Nov, 6:00 PM IST", stages: ["REQUEST_APPROVED_PAY"] },
+  { key: "decline_note", group: REVIEW_GROUP, label: "Your note", sample: "We had many more registrations than seats this time.", stages: ["REQUEST_DECLINED"] },
+  {
+    key: "event_url",
+    group: REVIEW_GROUP,
+    label: "Event page link",
+    sample: "https://myotherapp.in/events/…",
+    stages: ["REQUEST_RECEIVED", "REQUEST_APPROVED_PAY", "REQUEST_DECLINED", "REQUEST_LAPSED", "REQUEST_UNANSWERED"],
+  },
+];
+const REQUEST_TOKEN_STAGES = new Map(REQUEST_TOKENS.map((t) => [t.key, t.stages]));
+
+/** The tokens an email knows beyond the ticket's (the client's check; the server holds request tokens to their stages). */
 export const EMAIL_TOKEN_KEYS: ReadonlySet<string> = new Set([
   "ticket_url",
   "certificate_url",
   "organiser_email",
   "event_start",
   "doors_in",
+  ...REQUEST_TOKENS.map((t) => t.key),
 ]);
+
+/** A stage as the token's `stages` may name it: "REQUEST_RECEIVED", "request_received" or "RECEIVED". */
+const fullStage = (s: string) => {
+  const upper = s.trim().toUpperCase();
+  return upper.startsWith("REQUEST_") || (KNOWN_STAGES as readonly string[]).includes(upper) ? upper : `REQUEST_${upper}`;
+};
+
+/**
+ * The tokens a template of this stage may use, for its token menus: every
+ * token without `stages` (any stage), and the ones whose stages include it.
+ * The request tokens go under "Registration review" whatever group the
+ * server gave them; a request email whose server sent none of them (an
+ * older context) gets the contract's.
+ */
+export function tokensForStage(tokens: readonly EmailToken[], stage: string): EmailToken[] {
+  const here = stage.toUpperCase();
+  const out: EmailToken[] = [];
+  for (const t of tokens) {
+    const stages = t.stages ?? REQUEST_TOKEN_STAGES.get(t.key) ?? null;
+    if (stages && !stages.map(fullStage).includes(here)) continue;
+    out.push(REQUEST_TOKEN_STAGES.has(t.key) ? { ...t, group: REVIEW_GROUP } : t);
+  }
+  if (isRequestStage(here)) {
+    for (const t of REQUEST_TOKENS) {
+      if (t.stages.includes(here) && !out.some((o) => o.key === t.key)) out.push({ key: t.key, group: t.group, label: t.label, sample: t.sample });
+    }
+  }
+  return out;
+}
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Use a 6-digit hex colour, like #1db9a0.");
 
@@ -269,6 +354,8 @@ export const emailTokenSchema = z.object({
   label: z.string(),
   sample: z.string(),
   note: z.string().nullish(),
+  /** The stages it may be used in (the registration review emails' tokens); absent: any stage. */
+  stages: z.array(z.string()).nullish().catch(null),
 });
 export type EmailToken = z.infer<typeof emailTokenSchema>;
 
@@ -434,7 +521,14 @@ export const templateUsageSchema = z.object({
   last_sent_at: z.string().nullish(),
 });
 
-export const libraryTemplateSchema = emailTemplateSchema.extend({ label: z.string(), usage: templateUsageSchema });
+export const libraryTemplateSchema = emailTemplateSchema.extend({
+  label: z.string(),
+  usage: templateUsageSchema,
+  /** The registration review emails' (additive): "request_received", "Registration review", and when it goes out. */
+  key: z.string().nullish().catch(null),
+  group: z.string().nullish().catch(null),
+  when: z.string().nullish().catch(null),
+});
 
 /** One email the server sends by itself, as the library lists it: what it's called, its subject, and when it goes. */
 export const automaticEmailSchema = z.object({
@@ -442,7 +536,7 @@ export const automaticEmailSchema = z.object({
   name: z.string(),
   subject: z.string().nullish(),
   when: z.string().nullish(),
-  /** The heading it's listed under ("Registration requests"). */
+  /** The heading it's listed under ("Registration review"; "Registration requests" from an older server). */
   group: z.string().nullish(),
   /** Whether the club can change it here (not yet: false). */
   customisable: z.boolean().catch(false),
@@ -461,8 +555,9 @@ export const libraryOverviewSchema = z.object({
   all_time: z.object({ messages: z.number(), recipients: z.number() }),
   generated_at: z.string(),
   /**
-   * Emails that go out by themselves and aren't edited here (yet): the
-   * registration requests' ("Confirm each registration"). Absent from an
+   * Emails that go out by themselves and aren't edited here: the
+   * registration review emails from a server before they were templates
+   * (a newer one sends them as templates, and this empty). Absent from an
    * API without them.
    */
   automatic: z.array(automaticEmailSchema).catch([]).default([]),

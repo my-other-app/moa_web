@@ -9,7 +9,7 @@ import { overCapacity, type BulkProgress } from "../bulk";
 import { CHUNK_SIZE, NOTE_MAX, people } from "../schemas";
 
 /**
- * The two questions a decision asks before it is sent: confirming says how
+ * The two questions a review asks before it is sent: confirming says how
  * many places are left and warns before going past them; declining asks
  * whether to email them and takes a short note. While a large run goes, the
  * dialog stays open with its progress and can't be closed half-way.
@@ -57,7 +57,7 @@ export function ConfirmDialog({
         <DialogHeader>
           <DialogTitle>Confirm {who(count, name)}?</DialogTitle>
           <DialogDescription>
-            Oldest request first. A free ticket goes out by email as each is confirmed; for a paid ticket they&apos;re sent a link to pay, and the place is held for them until it runs out.
+            Oldest registration first. A free ticket goes out by email as each is confirmed; for a paid ticket they&apos;re sent a link to pay, and the ticket is held for them until the pay-by time.
           </DialogDescription>
         </DialogHeader>
         <p className="text-ink-2 text-[13px]">
@@ -115,21 +115,21 @@ export function DeclineDialog({
           <DialogHeader>
             <DialogTitle>Decline {who(count, name)}?</DialogTitle>
             <DialogDescription>
-              {count === 1 ? "They won't get a place, and can't ask again unless you reopen their request." : "They won't get a place, and can't ask again unless you reopen their requests."}
+              They won&apos;t get a ticket, and can&apos;t register again with the same email unless you put them back under review.
             </DialogDescription>
           </DialogHeader>
           <label className="flex items-start gap-3">
-            <Switch checked={notify} onCheckedChange={setNotify} disabled={running} aria-label="Email them to say so" className="mt-0.5" />
+            <Switch checked={notify} onCheckedChange={setNotify} disabled={running} aria-label="Email them" className="mt-0.5" />
             <span>
-              <span className="text-ink block text-[13.5px] font-medium">Email them to say so</span>
+              <span className="text-ink block text-[13.5px] font-medium">Email them</span>
               <span className="text-ink-3 block text-[12px]">
-                {notify ? "They're told you couldn't offer them a place this time, with your note if you add one." : "Nothing is sent. Their request's page still says it was declined."}
+                {notify ? "They get the “Not confirmed” email, with your note if you add one." : "Nothing is sent. Their registration's page still says it wasn't confirmed."}
               </span>
             </span>
           </label>
           <div>
             <label htmlFor="decline-note" className="eyebrow mb-1.5 block">
-              A note for them (optional)
+              Add a note (optional, shown in the email)
             </label>
             <textarea
               id="decline-note"
@@ -138,7 +138,7 @@ export function DeclineDialog({
               value={note}
               disabled={running}
               onChange={(e) => setNote(e.target.value.slice(0, NOTE_MAX))}
-              placeholder="e.g. We had far more requests than seats. We'd love to see you at the next one."
+              placeholder="e.g. We had far more registrations than seats. We'd love to see you at the next one."
             />
             <p className={left < 30 ? "text-caution mt-1 text-right font-mono text-[11px]" : "text-ink-3 mt-1 text-right font-mono text-[11px]"}>
               {note.length}/{NOTE_MAX}
@@ -147,7 +147,7 @@ export function DeclineDialog({
           <RunProgress progress={progress} verb="Declining" />
           <DialogFooter>
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={running}>
-              Keep {count === 1 ? "them" : "them all"} waiting
+              Keep {count === 1 ? "them" : "them all"} under review
             </button>
             <button type="submit" className="btn btn-primary btn-danger" disabled={running}>
               {running ? <Loader2Icon className="size-4 animate-spin" /> : <XIcon className="size-4" />}

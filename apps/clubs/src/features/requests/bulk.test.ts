@@ -59,7 +59,7 @@ describe("confirming ticked requests", () => {
     expect(summarise(out)).toMatchObject({ tone: "admit", title: "250 confirmed" });
   });
 
-  it("stops once no place is left, and says the rest are still waiting", async () => {
+  it("stops once no place is left, and says the rest are still under review", async () => {
     const { send, calls } = server(130);
     const out = await confirmIds(ids(400), send);
     // The second call fills the event; the last two are never sent.
@@ -72,7 +72,7 @@ describe("confirming ticked requests", () => {
     expect(s.tone).toBe("caution");
     expect(s.title).toBe("130 confirmed, 70 skipped");
     expect(s.lines).toContain("Skipped: 70 because the event is full.");
-    expect(s.lines).toContain("The event filled up, so the other 200 people weren't sent. They're still waiting.");
+    expect(s.lines).toContain("The event filled up, so the other 200 people weren't sent. They're still under review.");
   });
 
   it("stops at a failed call: what was decided stays decided", async () => {
@@ -85,7 +85,7 @@ describe("confirming ticked requests", () => {
     expect(out.unsent).toBe(200);
     const s = summarise(out);
     expect(s.tone).toBe("refuse");
-    expect(s.lines.at(-1)).toBe("Stopped: Network down. The other 200 people weren't sent and are still waiting. Try again.");
+    expect(s.lines.at(-1)).toBe("Stopped: Network down. The other 200 people weren't sent and are still under review. Try again.");
   });
 
   it("names each skip in plain words, the largest first, and the paid ones' hold", async () => {
@@ -110,9 +110,9 @@ describe("confirming ticked requests", () => {
     const s = summarise(out);
     expect(s.title).toBe("3 confirmed, 5 skipped");
     expect(s.lines[0]).toBe(
-      "Skipped: 2 because their ticket type is sold out; 1 because their discount code no longer applies, so they wait for you to decide (they're never charged full price without being asked); 1 because they were already decided or withdrawn, or someone else was deciding them at that moment; 1 because of “something new”.",
+      "Skipped: 2 because their ticket type is sold out; 1 because their discount code no longer applies, so their registration stays under review (they're never charged full price without being asked); 1 because they were already reviewed or cancelled, or someone else was reviewing them at that moment; 1 because of “something new”.",
     );
-    expect(s.lines[1]).toBe(`1 person got their ticket by email. 2 people have a paid ticket and were sent a link to pay; their places are held until ${indiaTime("2026-10-27T10:30:00+00:00")}. Unpaid by then, they go back.`);
+    expect(s.lines[1]).toBe(`1 person got their ticket by email. 2 people have a paid ticket and were sent a link to pay; their tickets are held until ${indiaTime("2026-10-27T10:30:00+00:00")}. If they aren't paid by then, those registrations expire.`);
   });
 });
 
@@ -236,7 +236,7 @@ describe("declining", () => {
     expect(q.send).toHaveBeenCalledTimes(2);
   });
 
-  it("stops at a failed round and says how many are still waiting", async () => {
+  it("stops at a failed round and says how many are still under review", async () => {
     let n = 0;
     const out = await declineAllWaiting(700, async (limit) => {
       if (++n === 2) throw new Error("Network down.");
@@ -244,17 +244,17 @@ describe("declining", () => {
     }, { notify: true });
     expect(out.done).toHaveLength(500);
     expect(out.unsent).toBe(200);
-    expect(summarise(out).lines.at(-1)).toBe("Stopped: Network down. The other 200 people weren't sent and are still waiting. Try again.");
+    expect(summarise(out).lines.at(-1)).toBe("Stopped: Network down. The other 200 people weren't sent and are still under review. Try again.");
   });
 });
 
 describe("reopening", () => {
-  it("reads the answer, and says why one couldn't be reopened", () => {
+  it("reads the answer, and says why one couldn't go back under review", () => {
     const res = reopenResultSchema.parse({ reopened: ["a"], skipped: [{ id: "b", reason: "already_open" }, { id: "c", reason: "not_reopenable" }] });
     expect(res.reopened).toEqual(["a"]);
     expect(res.skipped.map((s) => skipReasonText(s.reason))).toEqual([
-      "they have asked again since, and that request is still open",
-      "it isn't declined or lapsed any more",
+      "they have registered again since, and that registration is still open",
+      "their registration isn't declined or expired any more",
     ]);
     expect(reopenResultSchema.parse({})).toEqual({ reopened: [], skipped: [] });
   });
@@ -266,7 +266,7 @@ describe("the warning before confirming", () => {
     expect(overCapacity(30, 40)).toBeNull();
     expect(overCapacity(100, 40)).toEqual({
       full: false,
-      text: "Only 40 places are left. Only the first 40 in order (oldest request first) will be confirmed; the other 60 people stay waiting.",
+      text: "Only 40 places are left. Only the first 40 in order (oldest registration first) will be confirmed; the other 60 people stay under review.",
     });
     expect(overCapacity(1, 0)?.full).toBe(true);
   });
@@ -312,5 +312,20 @@ describe("reading the list", () => {
 
   it("groups skips by reason", () => {
     expect(skippedLines(["event_full", "event_full", "event_closed"]).map((l) => l.text)).toEqual(["2 because the event is full", "1 because the event has closed"]);
+  });
+});
+
+describe("one person's decision, by name", () => {
+  it("says “{name} is confirmed” or “{name} is declined”, and whether they were emailed", async () => {
+    const confirmed = await confirmIds(["r1"], async (part) => ({ approved: part.map((id) => ({ id, registration_id: "reg-1", pay_by: null })), skipped: [], places_left: null }));
+    expect(summarise(confirmed, "Meera Nair").title).toBe("Meera Nair is confirmed");
+    const declined = await declineIds(["r2"], async (part) => ({ declined: part, skipped: [] }), { notify: true });
+    expect(summarise(declined, "Arjun Das")).toMatchObject({ title: "Arjun Das is declined", lines: ["They were emailed to say so."] });
+    const quiet = await declineIds(["r3"], async (part) => ({ declined: part, skipped: [] }), { notify: false });
+    expect(summarise(quiet, "Arjun Das").lines).toEqual(["They weren't emailed."]);
+    // Skipped, or many: the counts as before.
+    const skipped = await declineIds(["r4"], async () => ({ declined: [], skipped: [{ id: "r4", reason: "not_pending" }] }), { notify: true });
+    expect(summarise(skipped, "Arjun Das").title).toBe("0 declined, 1 skipped");
+    expect(summarise(declined).title).toBe("1 declined and emailed");
   });
 });

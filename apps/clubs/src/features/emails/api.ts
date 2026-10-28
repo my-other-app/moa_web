@@ -80,6 +80,16 @@ export async function resetTemplate(eventId: number, templateId: string) {
 }
 
 /**
+ * Puts a library email back to MyOtherApp's default words (the starter):
+ * POST /clubs/me/emails/{id}/reset. The server bumps its version and answers
+ * the template; 422 for a custom email, which has no default.
+ */
+export async function resetLibraryTemplate(templateId: string) {
+  const raw = await api.post<unknown>(`${scopeBase({ kind: "library" })}/${templateId}/reset`);
+  return emailTemplateSchema.parse(raw);
+}
+
+/**
  * Sends a template to its audience now. `clientRef` is one per press of
  * Send, the same on a retry of that press: the API answers a ref it has
  * seen with that message and mails nobody again. (An API from before the

@@ -185,8 +185,8 @@ function NextEventCard({ event }: { event: OverviewEvent | null }) {
       <div className={cn("relative grid gap-2 rounded-xl bg-black/20 p-3", event.requests_total !== null ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3")}>
         {[
           ["Page views", formatNumber(event.page_views)],
-          // Confirm each registration: who asked, beside who is registered.
-          ...(event.requests_total !== null ? [["Asked", formatNumber(event.requests_total)]] : []),
+          // Review registrations: the registrations received, beside who is registered.
+          ...(event.requests_total !== null ? [["Received", formatNumber(event.requests_total)]] : []),
           ["Registrations", formatNumber(event.registrations)],
           [
             "View → sign-up",
@@ -495,7 +495,7 @@ function AudiencePanel({ o }: { o: ClubOverview }) {
 }
 
 function ReachPanel({ rows }: { rows: OverviewEvent[] }) {
-  // An "Asked" column once any event confirms each registration (the server counts its requests).
+  // A "Received" column once any event reviews registrations (the server counts its requests).
   const asked = rows.some((e) => e.requests_total !== null);
   const grid = asked
     ? "grid-cols-[minmax(0,1.6fr)_70px_70px_70px_100px_80px]"
@@ -518,7 +518,7 @@ function ReachPanel({ rows }: { rows: OverviewEvent[] }) {
             <div className={cn("text-ink-3 grid gap-2 px-4 py-2 font-mono text-[10px] tracking-[0.06em] uppercase", grid)}>
               <span>Event</span>
               <span className="text-right">Views</span>
-              {asked ? <span className="text-right">Asked</span> : null}
+              {asked ? <span className="text-right">Received</span> : null}
               <span className="text-right">Sign-ups</span>
               <span className="text-right">View → sign-up</span>
               <span className="text-right">Turnout</span>
@@ -610,7 +610,7 @@ export function ClubDashboardV2() {
   // One list of decisions: the pulse's, then the finished events nobody marked attendance for.
   const attention: AttentionItem[] = [
     ...(d?.attention ?? []),
-    // People waiting for the club to confirm their registration, per event.
+    // Registrations under review, per event.
     ...pendingRequestItems(o, d?.attention ?? []),
     ...o.needs_attention.map((e) => ({
       kind: "NO_ATTENDANCE",

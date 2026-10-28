@@ -98,10 +98,10 @@ interface PulseItem {
 }
 
 /**
- * "N people waiting for you to confirm", one per event that has requests
- * waiting, from the overview's events: unless the pulse already said it for
+ * "N registrations to review", one per event that has registrations under
+ * review, from the overview's events: unless the pulse already said it for
  * that event (a server that puts it among its attention items). The link is
- * the event's Requests (attentionPath, REQUESTS_PENDING).
+ * the event's Review tab (attentionPath, REQUESTS_PENDING).
  */
 export function pendingRequestItems(o: Pick<ClubOverview, "next_event" | "upcoming" | "needs_attention" | "reach">, pulse: readonly PulseItem[] = []): PulseItem[] {
   const said = new Set(pulse.filter((p) => p.kind === "REQUESTS_PENDING").map((p) => p.event_id));
@@ -114,8 +114,8 @@ export function pendingRequestItems(o: Pick<ClubOverview, "next_event" | "upcomi
     out.push({
       kind: "REQUESTS_PENDING",
       tone: "amber",
-      title: `${n.toLocaleString("en-IN")} ${n === 1 ? "person" : "people"} waiting for you to confirm`,
-      body: `For ${e.name}. They have no place until you confirm them; their ticket goes out when you do.`,
+      title: `${n.toLocaleString("en-IN")} ${n === 1 ? "registration" : "registrations"} to review`,
+      body: `For ${e.name}. Confirm or decline each one: confirmed people get their ticket by email.`,
       event_id: e.id,
     });
   }

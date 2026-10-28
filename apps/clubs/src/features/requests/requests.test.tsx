@@ -7,9 +7,9 @@ import eventFixture from "../__fixtures__/event-detail.json";
 import summaryFixture from "../__fixtures__/event-summary.json";
 
 /**
- * The event's Requests page against a fake server that keeps the queue:
+ * The event's Review tab against a fake server that keeps the queue:
  * the list oldest first with its counts, search and "Load more"; ticking
- * rows (the page, or every waiting request through all_pending); the
+ * rows (the page, or every registration under review through all_pending); the
  * warning before confirming past the places left; declining with or
  * without an email and a note; reopening; the outcome in plain words; the
  * door role deciding nothing; and nothing at all from an API without it.
@@ -202,7 +202,7 @@ beforeEach(() => {
 });
 
 describe("the list", () => {
-  it("shows who is waiting, oldest first: contact, ticket type, the time in India, and their answers on request", async () => {
+  it("shows who is under review, oldest first: contact, ticket type, the time in India, and their answers on request", async () => {
     render(<RequestsPage eventId={37} />);
     const table = await screen.findByRole("table");
     const names = within(table)
@@ -213,9 +213,11 @@ describe("the list", () => {
     expect(screen.getByText("Early bird")).toBeInTheDocument();
     expect(screen.getAllByText(indiaTime(at(1)))[0]).toBeInTheDocument();
     expect(indiaTime(at(1))).toBe("26 Oct 2026, 9:31 am");
-    expect(screen.getByText("4 in total · 3 waiting for you · 0 confirmed · 1 declined")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Waiting/ })).toHaveTextContent("3");
+    expect(screen.getByText("4 received · 3 under review · 0 confirmed · 1 declined")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Review" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Under review/ })).toHaveTextContent("3");
     expect(screen.getByRole("button", { name: /^Declined/ })).toHaveTextContent("1");
+    expect(screen.getByRole("columnheader", { name: "Registered (India time)" })).toBeInTheDocument();
     expect(screen.getByText("No limit on places")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Answers (2) of Asha Rao" }));
@@ -237,12 +239,48 @@ describe("the list", () => {
     expect(calls.some((c) => c.path.endsWith("/requests") && c.query?.after === "50")).toBe(true);
     expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
 
-    const search = screen.getByRole("searchbox", { name: "Search requests" });
+    const search = screen.getByRole("searchbox", { name: "Search registrations" });
     fireEvent.change(search, { target: { value: "p42@" } });
     fireEvent.keyDown(search, { key: "Enter" });
     await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2));
     expect(screen.getByText("Person 42")).toBeInTheDocument();
     expect(calls.some((c) => c.query?.q === "p42@")).toBe(true);
+  });
+
+  it("names the tabs in the club's words: Expired and Closed only once any are", async () => {
+    const { unmount } = render(<RequestsPage eventId={37} />);
+    await screen.findByText("Asha Rao");
+    const tabs = () => within(screen.getByRole("group", { name: "Status" })).getAllByRole("button").map((b) => b.textContent?.replace(/[\d,]+$/, ""));
+    expect(tabs()).toEqual(["Under review", "Confirmed", "Declined", "Cancelled", "All"]);
+    unmount();
+
+    requests = [
+      ...requests,
+      req(5, { full_name: "Esha Pillai", status: "withdrawn", decided_at: at(31) }),
+      req(6, { full_name: "Farah Ali", status: "lapsed", decided_at: at(32), amount: 199, pay_by: at(50) }),
+      req(7, { full_name: "Gopal Das", status: "closed" }),
+    ];
+    render(<RequestsPage eventId={37} />);
+    await screen.findByText("Asha Rao");
+    expect(tabs()).toEqual(["Under review", "Confirmed", "Declined", "Cancelled", "Expired", "Closed", "All"]);
+    fireEvent.click(screen.getByRole("button", { name: /^Cancelled/ }));
+    const esha = (await screen.findByText("Esha Pillai")).closest("tr")!;
+    expect(within(esha).getByText("Cancelled")).toBeInTheDocument();
+    expect(within(esha).getByText(`Cancelled by them ${indiaTime(at(31))}`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Expired/ }));
+    const farah = (await screen.findByText("Farah Ali")).closest("tr")!;
+    expect(within(farah).getByText("Expired")).toBeInTheDocument();
+    expect(within(farah).getByText(`Expired: ₹199 not paid in time (by ${indiaTime(at(50))})`)).toBeInTheDocument();
+    expect(within(farah).getByRole("button", { name: "Put Farah Ali back under review" })).toBeInTheDocument();
+    // Nothing on the page says "request", "waiting", "withdrawn" or "lapsed".
+    expect(document.body).not.toHaveTextContent(/request|waiting|withdr|lapsed|asked/i);
+  });
+
+  it("says there is nothing to review when nobody is under review", async () => {
+    requests = [req(4, { full_name: "Dev Menon", status: "declined", decided_at: at(30) })];
+    render(<RequestsPage eventId={37} />);
+    expect(await screen.findByText("No registrations to review.")).toBeInTheDocument();
+    expect(screen.getByText("Everyone who registers shows here until you confirm or decline them.")).toBeInTheDocument();
   });
 
   it("shows each tab's own requests, with what was decided", async () => {
@@ -257,12 +295,12 @@ describe("the list", () => {
 });
 
 describe("deciding", () => {
-  it("confirms one from its row: it leaves the waiting list and the counts move", async () => {
+  it("confirms one from its row: it leaves Under review and the counts move", async () => {
     render(<RequestsPage eventId={37} />);
     fireEvent.click(await screen.findByRole("button", { name: "Confirm Asha Rao" }));
     await waitFor(() => expect(screen.queryByText("Asha Rao")).toBeNull());
     expect(posts("/approve")[0]!.body).toEqual({ ids: ["rq-0001"] });
-    expect(screen.getByRole("button", { name: /^Waiting/ })).toHaveTextContent("2");
+    expect(screen.getByRole("button", { name: /^Under review/ })).toHaveTextContent("2");
     expect(screen.getByRole("button", { name: /^Confirmed/ })).toHaveTextContent("1");
   });
 
@@ -280,7 +318,7 @@ describe("deciding", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Confirm 3 people?")).toBeInTheDocument();
     expect(
-      within(dialog).getByText("Only 2 places are left. Only the first 2 in order (oldest request first) will be confirmed; the other person stays waiting."),
+      within(dialog).getByText("Only 2 places are left. Only the first 2 in order (oldest registration first) will be confirmed; the other person stays under review."),
     ).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Confirm 3" }));
 
@@ -302,7 +340,7 @@ describe("deciding", () => {
     expect(within(dialog).getByRole("button", { name: "Confirm" })).toBeDisabled();
   });
 
-  it("selects every waiting request at once and confirms them through all_pending, with progress", async () => {
+  it("selects every registration under review at once and confirms them through all_pending, with progress", async () => {
     requests = Array.from({ length: 250 }, (_, i) => req(i + 1));
     let release!: () => void;
     gate = { at: 2, wait: new Promise<void>((r) => (release = r)) };
@@ -311,9 +349,9 @@ describe("deciding", () => {
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Select all on this page" }));
     expect(screen.getByText("50 people selected")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Select all 250 waiting" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select all 250 under review" }));
     expect(screen.getByText("250 people selected")).toBeInTheDocument();
-    expect(screen.getByText(/Every waiting request, oldest first/)).toBeInTheDocument();
+    expect(screen.getByText(/Every registration under review, oldest first/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Confirm 250" }));
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Confirm 250" }));
@@ -336,28 +374,34 @@ describe("deciding", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Decline Bilal Khan" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Decline Bilal Khan?")).toBeInTheDocument();
-    const email = within(dialog).getByRole("switch", { name: "Email them to say so" });
+    expect(within(dialog).getByText(/can't register again with the same email unless you put them back under review/)).toBeInTheDocument();
+    const email = within(dialog).getByRole("switch", { name: "Email them" });
     expect(email).toBeChecked();
+    expect(within(dialog).getByText("They get the “Not confirmed” email, with your note if you add one.")).toBeInTheDocument();
     fireEvent.click(email);
-    const note = within(dialog).getByLabelText("A note for them (optional)");
+    const note = within(dialog).getByLabelText("Add a note (optional, shown in the email)");
     expect(note).toHaveAttribute("maxLength", "300");
-    fireEvent.change(note, { target: { value: "  We had far more requests than seats.  " } });
-    expect(within(dialog).getByText("40/300")).toBeInTheDocument();
+    fireEvent.change(note, { target: { value: "  We had far more registrations than seats.  " } });
+    expect(within(dialog).getByText("45/300")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Keep them under review" })).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent(/request|place|waiting/i);
     fireEvent.click(within(dialog).getByRole("button", { name: "Decline" }));
 
-    expect(await screen.findByText("1 declined, not emailed.")).toBeInTheDocument();
-    expect(posts("/decline")[0]!.body).toEqual({ ids: ["rq-0002"], notify: false, note: "We had far more requests than seats." });
+    // One person, by name.
+    expect(await screen.findByText("Bilal Khan is declined.")).toBeInTheDocument();
+    expect(screen.getByText("They weren't emailed.")).toBeInTheDocument();
+    expect(posts("/decline")[0]!.body).toEqual({ ids: ["rq-0002"], notify: false, note: "We had far more registrations than seats." });
   });
 
-  it("declines everyone waiting through all_pending without loading them, emailing them by default", async () => {
+  it("declines everyone under review through all_pending without loading them, emailing them by default", async () => {
     requests = Array.from({ length: 620 }, (_, i) => req(i + 1));
     render(<RequestsPage eventId={37} />);
     await screen.findByText("Showing 50 of 620");
     fireEvent.click(screen.getByRole("checkbox", { name: "Select all on this page" }));
-    fireEvent.click(screen.getByRole("button", { name: "Select all 620 waiting" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select all 620 under review" }));
     fireEvent.click(screen.getByRole("button", { name: "Decline 620" }));
     const dialog = await screen.findByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("A note for them (optional)"), { target: { value: "Full house" } });
+    fireEvent.change(within(dialog).getByLabelText("Add a note (optional, shown in the email)"), { target: { value: "Full house" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Decline 620" }));
 
     expect(await screen.findByText("620 declined and emailed.")).toBeInTheDocument();
@@ -369,25 +413,30 @@ describe("deciding", () => {
     expect(calls.filter((c) => c.method === "GET" && c.query?.after).length).toBe(0);
   });
 
-  it("reopens a declined request", async () => {
+  it("puts a declined registration back under review", async () => {
+    const success = vi.spyOn(toast, "success");
     render(<RequestsPage eventId={37} />);
     await screen.findByText("Asha Rao");
     fireEvent.click(screen.getByRole("button", { name: /^Declined/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Reopen Dev Menon's request" }));
+    const back = await screen.findByRole("button", { name: "Put Dev Menon back under review" });
+    expect(back).toHaveTextContent("Back to review");
+    fireEvent.click(back);
     await waitFor(() => expect(screen.queryByText("Dev Menon")).toBeNull());
     expect(posts("/reopen")[0]!.body).toEqual({ ids: ["rq-0004"] });
-    expect(screen.getByRole("button", { name: /^Waiting/ })).toHaveTextContent("4");
+    expect(success).toHaveBeenCalledWith("Dev Menon is back under review");
+    expect(screen.getByRole("button", { name: /^Under review/ })).toHaveTextContent("4");
+    success.mockRestore();
   });
 
-  it("says why a request couldn't be reopened, and leaves it where it is", async () => {
+  it("says why a registration couldn't go back under review, and leaves it where it is", async () => {
     reopenRefusal = "already_open";
     const error = vi.spyOn(toast, "error");
     render(<RequestsPage eventId={37} />);
     await screen.findByText("Asha Rao");
     fireEvent.click(screen.getByRole("button", { name: /^Declined/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Reopen Dev Menon's request" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Put Dev Menon back under review" }));
     await waitFor(() =>
-      expect(error).toHaveBeenCalledWith("Dev Menon couldn't be put back among the requests waiting for you, because they have asked again since, and that request is still open."),
+      expect(error).toHaveBeenCalledWith("Dev Menon couldn't be put back under review, because they have registered again since, and that registration is still open."),
     );
     expect(screen.getByText("Dev Menon")).toBeInTheDocument();
     error.mockRestore();
@@ -419,7 +468,7 @@ describe("who may decide, and an API without requests", () => {
       member: null,
     };
     render(<RequestsPage eventId={37} />);
-    expect(await screen.findByText(/Your role can see the requests but not decide them/)).toBeInTheDocument();
+    expect(await screen.findByText(/Your role can see the registrations but not review them/)).toBeInTheDocument();
     expect(screen.getByText("Asha Rao")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Confirm Asha Rao" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Decline Asha Rao" })).toBeNull();
@@ -437,14 +486,14 @@ describe("who may decide, and an API without requests", () => {
       member: null,
     };
     render(<RequestsPage eventId={37} />);
-    expect(await screen.findByText(/Your role can see the requests but not decide them/)).toBeInTheDocument();
+    expect(await screen.findByText(/Your role can see the registrations but not review them/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Confirm Asha Rao" })).toBeNull();
   });
 
   it("says it isn't available when the API has no such route, and sends nothing", async () => {
     server = "old";
     render(<RequestsPage eventId={37} />);
-    expect(await screen.findByText("Requests aren't available yet")).toBeInTheDocument();
+    expect(await screen.findByText("Review isn't available yet")).toBeInTheDocument();
     expect(calls.filter((c) => c.method === "POST")).toEqual([]);
   });
 });
@@ -456,24 +505,24 @@ describe("the numbers, All and Export", () => {
     checked_in: 0, oldest_pending_at: "2026-10-26T04:00:00Z", avg_decision_hours: 20.5, added_directly: 15,
   };
 
-  it("says how many asked in total, and on a paid event how many confirmed have paid and are paying", async () => {
+  it("says how many were received, and on a paid event how many confirmed have paid and are paying", async () => {
     summaryRequests = paidFigures;
     render(<RequestsPage eventId={37} />);
-    expect(await screen.findByText("4 in total · 3 waiting for you · 0 confirmed · 1 declined")).toBeInTheDocument();
+    expect(await screen.findByText("4 received · 3 under review · 0 confirmed · 1 declined")).toBeInTheDocument();
     const split = (await screen.findByText(/Of the confirmed:/)).closest("p")!;
     expect(split).toHaveTextContent("Of the confirmed: 281 paid · 12 paying (₹2,388 to come, the first hold ends");
-    expect(split).toHaveTextContent("17 didn't pay");
+    expect(split).toHaveTextContent("17 expired (not paid in time)");
   });
 
   it("shows no paid split on a free event, or from a summary without requests", async () => {
     summaryRequests = { ...paidFigures, approved: 30, approved_paid: 0, approved_awaiting_payment: 0, awaiting_payment_amount: 0, lapsed: 0 };
     render(<RequestsPage eventId={37} />);
-    await screen.findByText("4 in total · 3 waiting for you · 0 confirmed · 1 declined");
+    await screen.findByText("4 received · 3 under review · 0 confirmed · 1 declined");
     await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/37/summary")).toBe(true));
     expect(screen.queryByText(/Of the confirmed:/)).toBeNull();
   });
 
-  it("has an All tab with every request, newest first, each with its status", async () => {
+  it("has an All tab with every registration, newest first, each with its status", async () => {
     render(<RequestsPage eventId={37} />);
     await screen.findByText("Asha Rao");
     const all = screen.getByRole("button", { name: /^All/ });
@@ -487,17 +536,17 @@ describe("the numbers, All and Export", () => {
     const dev = within(table).getByText("Dev Menon").closest("tr")!;
     expect(within(dev).getByText("Declined")).toBeInTheDocument();
     const asha = within(table).getByText("Asha Rao").closest("tr")!;
-    expect(within(asha).getByText("Waiting")).toBeInTheDocument();
+    expect(within(asha).getByText("Under review")).toBeInTheDocument();
     expect(screen.getByText("Showing 4 of 4")).toBeInTheDocument();
 
     // Confirmed from All, the row stays with its new status and the counts move.
     fireEvent.click(within(asha).getByRole("button", { name: "Confirm Asha Rao" }));
     await waitFor(() => expect(within(screen.getByText("Asha Rao").closest("tr")!).getAllByText("Confirmed").length).toBeGreaterThan(0));
-    expect(within(screen.getByText("Asha Rao").closest("tr")!).queryByText("Waiting")).toBeNull();
-    expect(screen.getByRole("button", { name: /^Waiting/ })).toHaveTextContent("2");
+    expect(within(screen.getByText("Asha Rao").closest("tr")!).queryByText("Under review")).toBeNull();
+    expect(screen.getByRole("button", { name: /^Under review/ })).toHaveTextContent("2");
   });
 
-  it("exports every request as a CSV through the gateway", async () => {
+  it("exports every registration as a CSV through the gateway", async () => {
     const fetchMock = vi.fn(async () => new Response("status,name\r\npending,Asha Rao", { status: 200, headers: { "content-type": "text/csv", "content-disposition": 'attachment; filename="requests-hack-night.csv"' } }));
     vi.stubGlobal("fetch", fetchMock);
     const createUrl = vi.fn(() => "blob:requests");
@@ -511,7 +560,7 @@ describe("the numbers, All and Export", () => {
     try {
       render(<RequestsPage eventId={37} />);
       fireEvent.click(await screen.findByRole("button", { name: "Export" }));
-      await waitFor(() => expect(success).toHaveBeenCalledWith("Requests exported"));
+      await waitFor(() => expect(success).toHaveBeenCalledWith("Registrations under review exported"));
       expect(fetchMock).toHaveBeenCalledWith("/api/gateway/api/v1/events/registration/37/requests/export", expect.objectContaining({ credentials: "include" }));
       expect(clicked).toEqual(["requests-hack-night.csv"]);
       expect(createUrl).toHaveBeenCalled();
@@ -529,7 +578,7 @@ describe("the numbers, All and Export", () => {
     try {
       render(<RequestsPage eventId={37} />);
       fireEvent.click(await screen.findByRole("button", { name: "Export" }));
-      await waitFor(() => expect(warn).toHaveBeenCalledWith("Exporting requests arrives with the next update of MyOtherApp."));
+      await waitFor(() => expect(warn).toHaveBeenCalledWith("Exporting registrations arrives with the next update of MyOtherApp."));
       await waitFor(() => expect(screen.queryByRole("button", { name: "Export" })).toBeNull());
     } finally {
       warn.mockRestore();
@@ -541,7 +590,7 @@ describe("the numbers, All and Export", () => {
     withTotal = false;
     render(<RequestsPage eventId={37} />);
     await screen.findByText("Asha Rao");
-    expect(screen.getByText("4 in total · 3 waiting for you · 0 confirmed · 1 declined")).toBeInTheDocument();
+    expect(screen.getByText("4 received · 3 under review · 0 confirmed · 1 declined")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^All/ })).toHaveTextContent("4");
     expect(screen.queryByRole("button", { name: "Export" })).toBeNull();
   });

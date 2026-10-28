@@ -146,16 +146,16 @@ export function signalOf(
     (event.registration_count ?? 0) >= event.max_participants
   )
     return { text: "Full", tone: "admit" };
-  // On an event that confirms each registration, people ask rather than sign up.
-  const word = event.requires_approval ? "Requests" : "Sign-up";
+  // On an event that reviews registrations, the club reviews each one before the ticket goes out.
+  const word = event.requires_approval ? "Registration" : "Sign-up";
   if (event.registration_open) {
     const closes = at(event.reg_enddate);
     if (closes !== null && closes - now < 2 * DAY)
       return {
-        text: `${word} ${event.requires_approval ? "close" : "closes"} ${relativeDay(event.reg_enddate, now)}`,
+        text: `${word} closes ${relativeDay(event.reg_enddate, now)}`,
         tone: "caution",
       };
-    return { text: `${word} open`, tone: "muted" };
+    return { text: event.requires_approval ? "Reviewing registrations" : `${word} open`, tone: "muted" };
   }
   const opens = at(event.reg_startdate);
   if (opens !== null && opens > now)
@@ -236,9 +236,9 @@ function Figure({
 }
 
 /**
- * People waiting for the club to confirm them, as a badge beside the name
- * that opens the event's Requests. Nothing when nobody waits, or from an
- * older server that doesn't count them.
+ * Registrations under review, as a badge beside the name that opens the
+ * event's Review tab. Nothing when none are, or from an older server that
+ * doesn't count them.
  */
 function WaitingBadge({ event }: { event: ClubEvent }) {
   const n = event.requests_pending ?? 0;
@@ -248,7 +248,7 @@ function WaitingBadge({ event }: { event: ClubEvent }) {
       href={`/events/${event.id}/requests`}
       className="border-caution-line text-caution hover:bg-sunken inline-flex h-6 items-center rounded-full border px-2 text-[11.5px] font-medium tabular-nums transition-colors"
     >
-      {formatNumber(n)} waiting
+      {formatNumber(n)} under review
     </Link>
   );
 }
@@ -257,7 +257,7 @@ export function EventRow({ event, now }: { event: ClubEvent; now: number }) {
   const start = at(event.event_datetime);
   const ended = (at(event.ends_at) ?? start ?? Infinity) < now;
   const regs = event.registration_count ?? 0;
-  // Confirm each registration: who asked leads, the confirmed are "of" the places.
+  // Review registrations: the registrations received lead, the confirmed are "of" the places.
   const asks = event.requires_approval || (event.requests_total ?? 0) > 0 ? event.requests_total : null;
   const views = event.page_views ?? 0;
   const conversion = views > 0 ? Math.round((100 * regs) / views) : null;
@@ -337,7 +337,7 @@ export function EventRow({ event, now }: { event: ClubEvent; now: number }) {
         <div className="w-[96px]">
           {asks !== null ? (
             <Figure
-              label="asked"
+              label="received"
               value={formatNumber(asks)}
               sub={
                 event.max_participants
@@ -483,20 +483,20 @@ function Attention({ f, now }: { f: EventsFigures; now: number }) {
       href: `/gate/${e.id}`,
       action: "Open gate",
     });
-  // People who filled the form and have no place until the club confirms them.
+  // Registrations under review: nobody gets a ticket until the club confirms them.
   for (const e of f.attention.requests_pending)
     items.push({
       key: `r${e.id}`,
       tone: "caution",
-      tag: "Requests",
+      tag: "Review",
       text: (
         <>
-          {formatNumber(e.count)} {e.count === 1 ? "person" : "people"} waiting
-          for you to confirm at <strong>{e.name}</strong>.
+          {formatNumber(e.count)} {e.count === 1 ? "registration" : "registrations"} to
+          review at <strong>{e.name}</strong>.
         </>
       ),
       href: `/events/${e.id}/requests`,
-      action: "Open requests",
+      action: "Open Review",
     });
   for (const e of f.attention.closing_soon)
     items.push({

@@ -327,26 +327,20 @@ export function AudienceFields({
   );
 }
 
-/** Name, subject, who gets it, what rides along, and when. */
-export function SendingPanel({
+/** A name and a subject: the two lines every email has. */
+function NameAndSubject({
   fields,
   onChange,
-  scope,
-  stage,
   tokens,
   samples,
 }: {
   fields: EmailTemplateFields;
   onChange: (f: EmailTemplateFields) => void;
-  scope: EmailScope;
-  stage: EmailStage;
 } & TokenProps) {
   const patch = (p: Partial<EmailTemplateFields>) =>
     onChange({ ...fields, ...p });
-  // A registration request's email goes to that one person as the request moves: no audience, no timer.
-  const when = STAGE_META[stage].when;
   return (
-    <div className="space-y-3">
+    <>
       <div className="min-w-0">
         <label htmlFor="f-name" className={ui.label}>
           Name (only you see it)
@@ -368,15 +362,74 @@ export function SendingPanel({
         tokens={tokens}
         samples={samples}
       />
-      {when ? (
-        <div className="border-line-soft space-y-2 border-t pt-3">
-          <p className={ui.heading}>Who and when</p>
-          <p className={ui.note}>
-            Sent to the person whose request it is, {when}.
-          </p>
-        </div>
-      ) : (
-      <>
+    </>
+  );
+}
+
+/**
+ * A registration review email's: its name and subject, and when it goes. No
+ * audience, timer, attachments or switch: the server sends it to the one
+ * person whose registration it is, as it moves, and keeps it on.
+ */
+export function SubjectPanel({
+  fields,
+  onChange,
+  stage,
+  tokens,
+  samples,
+}: {
+  fields: EmailTemplateFields;
+  onChange: (f: EmailTemplateFields) => void;
+  stage: EmailStage;
+} & TokenProps) {
+  const when = STAGE_META[stage].when;
+  return (
+    <div className="space-y-3">
+      <NameAndSubject
+        fields={fields}
+        onChange={onChange}
+        tokens={tokens}
+        samples={samples}
+      />
+      <div className="border-line-soft space-y-2 border-t pt-3">
+        <p className={ui.heading}>Sent by itself</p>
+        <p className={ui.note}>
+          {when ? `Goes out ${when}${/[.!?]$/.test(when) ? "" : "."} ` : ""}
+          MyOtherApp sends it to the one person whose registration it is, and
+          keeps it on.
+          {stage === "REQUEST_APPROVED"
+            ? " Their ticket PDF is always attached."
+            : ""}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** Name, subject, who gets it, what rides along, and when. */
+export function SendingPanel({
+  fields,
+  onChange,
+  scope,
+  stage,
+  tokens,
+  samples,
+}: {
+  fields: EmailTemplateFields;
+  onChange: (f: EmailTemplateFields) => void;
+  scope: EmailScope;
+  stage: EmailStage;
+} & TokenProps) {
+  const patch = (p: Partial<EmailTemplateFields>) =>
+    onChange({ ...fields, ...p });
+  return (
+    <div className="space-y-3">
+      <NameAndSubject
+        fields={fields}
+        onChange={onChange}
+        tokens={tokens}
+        samples={samples}
+      />
       <div className="border-line-soft space-y-2 border-t pt-3">
         <AudienceFields
           audience={fields.audience}
@@ -421,8 +474,6 @@ export function SendingPanel({
           />
         )}
       </div>
-      </>
-      )}
       <div className="border-line-soft border-t pt-3">
         <Toggle
           id="f-enabled"
@@ -432,9 +483,7 @@ export function SendingPanel({
           note={
             stage === "INVITE"
               ? "On: tickets go out in this email. Off: the plain ticket email."
-              : when
-                ? "Off: this version of the email is not used."
-                : "Off: timers do not fire and it is not sent."
+              : "Off: timers do not fire and it is not sent."
           }
         />
       </div>

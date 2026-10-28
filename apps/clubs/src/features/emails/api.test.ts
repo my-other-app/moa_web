@@ -105,6 +105,13 @@ describe("the email endpoints", () => {
     expect(calls.at(-1)?.body).toEqual({ clientRef: "6f1c2d3e-4a5b-4c6d-8e7f-001122334455" });
   });
 
+  it("puts a library email back to MyOtherApp's default words", async () => {
+    const t = await api.resetLibraryTemplate("lib-7");
+    expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual(["POST /api/v1/clubs/me/emails/lib-7/reset"]);
+    expect(calls[0]?.body).toBeUndefined();
+    expect(t.id).toBe("t1");
+  });
+
   it("sends no body without a key, as an API from before the key expects", async () => {
     await api.sendTemplate(42, "t1");
     expect(calls.at(-1)?.body).toBeUndefined();

@@ -29,6 +29,7 @@ import { useEventDetail } from "@/features/events";
 import { summarise, type OutcomeSummary } from "../bulk";
 import { useBulkDecision, useConfirmRequest, useExportRequests, useReopenRequest, useRequestList, type BulkPlan } from "../queries";
 import {
+  OPTIONAL_TABS,
   STATUS_LABEL,
   STATUS_TABS,
   TAB_LABEL,
@@ -46,19 +47,20 @@ import {
 import { ConfirmDialog, DeclineDialog } from "./decision-dialogs";
 
 /**
- * The event's Requests: everyone who asked for a place while "Confirm each
- * registration" is on, to confirm or decline.
+ * The event's Review tab: everyone who registered while "Review
+ * registrations before sending tickets" is on, to confirm or decline (the
+ * API still calls them requests).
  *
- * A tab per status with its count, and All; a search across name, email and phone;
- * the queue oldest first, fifty at a time with "Load more" (the server's
- * cursor), so a list of thousands never loads at once. Each row has the
- * person, their ticket type, when they asked (India time) and their form
- * answers on request. On Waiting, rows can be ticked (all on the page, or
- * every waiting request at once) and confirmed or declined together; the
- * outcome is said in plain words above the list. Door staff see the list
- * and decide nothing. Above it, the total that ever asked and, on a paid
- * event, how many confirmed have paid and how many are paying; Export takes
- * every request as a CSV.
+ * A tab per status with its count (Expired and Closed once any are), and
+ * All; a search across name, email and phone; the queue oldest first, fifty
+ * at a time with "Load more" (the server's cursor), so a list of thousands
+ * never loads at once. Each row has the person, their ticket type, when they
+ * registered (India time) and their form answers on request. Under review,
+ * rows can be ticked (all on the page, or every registration under review
+ * at once) and confirmed or declined together; the outcome is said in plain
+ * words above the list. Door staff see the list and decide nothing. Above
+ * it, the total received and, on a paid event, how many confirmed have paid
+ * and how many are paying; Export takes every registration as a CSV.
  */
 
 const CELL = "px-4 py-2.5 text-left align-top";
@@ -88,7 +90,7 @@ function useQuestions(eventId: number): QuestionField[] {
   }, [event.data]);
 }
 
-/** What happened to a decided request, in a line. */
+/** What happened to a reviewed registration, in a line. */
 function decidedLine(r: RegistrationRequest): string | null {
   switch (r.status) {
     case "approved": {
@@ -100,9 +102,9 @@ function decidedLine(r: RegistrationRequest): string | null {
     case "declined":
       return `Declined${r.decided_at ? ` ${indiaTime(r.decided_at)}` : ""}`;
     case "withdrawn":
-      return `Withdrew${r.decided_at ? ` ${indiaTime(r.decided_at)}` : ""}`;
+      return `Cancelled by them${r.decided_at ? ` ${indiaTime(r.decided_at)}` : ""}`;
     case "lapsed":
-      return `Didn't pay${r.amount !== null ? ` ${rupees(r.amount)}` : ""} in time${r.pay_by ? ` (by ${indiaTime(r.pay_by)})` : ""}: the place was released`;
+      return `Expired: ${r.amount !== null ? `${rupees(r.amount)} ` : ""}not paid in time${r.pay_by ? ` (by ${indiaTime(r.pay_by)})` : ""}`;
     case "closed":
       return "Closed with the event";
     default:
@@ -191,8 +193,8 @@ function RequestRow({
                 </Button>
               </span>
             ) : r.status === "declined" || r.status === "lapsed" ? (
-              <Button size="xs" variant="secondary" onClick={onReopen} disabled={busy} aria-label={`Reopen ${r.full_name}'s request`}>
-                {busy ? <Loader2Icon className="animate-spin" /> : <RotateCcwIcon />} Reopen
+              <Button size="xs" variant="secondary" onClick={onReopen} disabled={busy} aria-label={`Put ${r.full_name} back under review`}>
+                {busy ? <Loader2Icon className="animate-spin" /> : <RotateCcwIcon />} Back to review
               </Button>
             ) : null}
           </td>
@@ -243,7 +245,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   if (first === null) {
     return (
       <FigurePanel>
-        <EmptyState size="sm" icon={<InboxIcon />} title="Requests aren't available yet" description="Confirming each registration arrives with the next update of MyOtherApp. Nothing here needs you." />
+        <EmptyState size="sm" icon={<InboxIcon />} title="Review isn't available yet" description="Reviewing registrations arrives with the next update of MyOtherApp. Nothing here needs you." />
       </FigurePanel>
     );
   }
@@ -258,9 +260,10 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   const selectedCount = selection.all ? selection.total : selection.picked.size;
   const allShownSelected = !selection.all && pendingShown.length > 0 && pendingShown.every((r) => selection.picked.has(r.id));
   const requiresApproval = Boolean(event.data?.requires_approval);
-  // Everyone who ever asked: the server's own total, else the statuses together (the same people).
+  // Every registration received: the server's own total, else the statuses together (the same people).
   const total = first ? (first.total ?? totalOf(counts)) : null;
-  const tabs: RequestTab[] = [...STATUS_TABS, ...(counts && counts.closed > 0 ? (["closed"] as const) : []), "all"];
+  // Expired and Closed once any registration is (or while one of them is open).
+  const tabs: RequestTab[] = [...STATUS_TABS, ...OPTIONAL_TABS.filter((t) => t === status || (counts ? counts[t] > 0 : false)), "all"];
   const tabCount = (t: RequestTab) => (t === "all" ? total : counts ? counts[t] : null);
   // The paid/paying split: the event's summary has it (the list's counts don't).
   const asked = summary.data?.requests;
@@ -283,7 +286,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   };
   const select = (r: RegistrationRequest, on: boolean) => {
     setSelection((cur) => {
-      // From "every waiting request", unticking one is a choice among the ones shown.
+      // From "every registration under review", unticking one is a choice among the ones shown.
       const picked = cur.all ? new Map(pendingShown.map((x) => [x.id, x])) : new Map(cur.picked);
       if (on) picked.set(r.id, r);
       else picked.delete(r.id);
@@ -302,8 +305,8 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   /** A decision; afterwards the ticks go (one row's decline takes only its own tick). */
   const run = async (plan: BulkPlan, row?: RegistrationRequest) => {
     try {
-      const out = await bulk.run(plan);
-      setOutcome(summarise(out));
+      const out = await bulk.run(plan, row?.full_name);
+      setOutcome(summarise(out, row?.full_name));
     } catch (e) {
       // The runs report a failed call in their summary; this is anything else, said as it is.
       toast.error(e instanceof Error && e.message ? e.message : "That didn't go through. Try again.");
@@ -328,14 +331,14 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   };
 
   const header = counts
-    ? `${formatNumber(total ?? 0)} in total · ${formatNumber(counts.pending)} waiting for you · ${formatNumber(counts.approved)} confirmed · ${formatNumber(counts.declined)} declined`
-    : "Everyone who asked for a place: confirm them to send their ticket, or decline.";
+    ? `${formatNumber(total ?? 0)} received · ${formatNumber(counts.pending)} under review · ${formatNumber(counts.approved)} confirmed · ${formatNumber(counts.declined)} declined`
+    : "Everyone who registered: confirm them to send their ticket, or decline.";
 
   return (
     <div className="grid gap-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="m-0 text-[17px] font-semibold tracking-[-0.02em]">Requests</h2>
+          <h2 className="m-0 text-[17px] font-semibold tracking-[-0.02em]">Review</h2>
           <p className="text-ink-3 mt-1 text-[12.5px]">{header}</p>
           {paidSplit ? (
             <p className="text-ink-2 mt-0.5 text-[12.5px]">
@@ -344,7 +347,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
               {paidSplit.approved_awaiting_payment > 0
                 ? ` (${rupees(paidSplit.awaiting_payment_amount)} to come${paidSplit.earliest_hold_expires_at ? `, the first hold ends ${formatDateTime(paidSplit.earliest_hold_expires_at)}` : ""})`
                 : ""}
-              {paidSplit.lapsed > 0 ? ` · ${formatNumber(paidSplit.lapsed)} didn't pay` : ""}
+              {paidSplit.lapsed > 0 ? ` · ${formatNumber(paidSplit.lapsed)} expired (not paid in time)` : ""}
             </p>
           ) : null}
         </div>
@@ -362,12 +365,12 @@ export function RequestsPage({ eventId }: { eventId: number }) {
 
       {!requiresApproval && waiting > 0 && event.data ? (
         <Notice tone="neutral" tag="Off">
-          Confirming each registration is off, so new people register directly. {waiting === 1 ? "This request was" : `These ${formatNumber(waiting)} requests were`} made before it was turned off and {waiting === 1 ? "waits" : "wait"} for you to decide.
+          Reviewing registrations is off, so new people get their ticket straight away. {waiting === 1 ? "This registration is" : `These ${formatNumber(waiting)} registrations are`} still under review: {waiting === 1 ? "it stays" : "they stay"} under review until you confirm or decline {waiting === 1 ? "it" : "them"}.
         </Notice>
       ) : null}
       {!canDecide ? (
         <Notice tone="neutral" tag="Role">
-          Your role can see the requests but not decide them. Ask an owner, admin or editor to confirm or decline.
+          Your role can see the registrations but not review them. Ask an owner, admin or editor to confirm or decline.
         </Notice>
       ) : null}
       {outcome ? (
@@ -402,16 +405,16 @@ export function RequestsPage({ eventId }: { eventId: number }) {
           <ToolbarEnd>
             {/* The queue is oldest first (the order confirming takes); what was decided, newest first. */}
             <span className="text-ink-3 hidden font-mono text-[11px] sm:inline">{onWaiting ? "Oldest first" : "Newest first"}</span>
-            <SearchField value={searchInput} onChange={setSearchInput} onCommit={commitSearch} placeholder="Name, email or phone" label="Search requests" className="w-full sm:w-64" />
+            <SearchField value={searchInput} onChange={setSearchInput} onCommit={commitSearch} placeholder="Name, email or phone" label="Search registrations" className="w-full sm:w-64" />
           </ToolbarEnd>
         </Toolbar>
 
         {selectable && selectedCount > 0 ? (
-          <div className="border-line-soft bg-brand-soft/30 flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5" role="region" aria-label="Selected requests">
+          <div className="border-line-soft bg-brand-soft/30 flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5" role="region" aria-label="Selected registrations">
             <span className="text-ink text-[13px] font-medium">{people(selectedCount)} selected</span>
             {selection.all ? (
               <span className="text-ink-2 text-[12.5px]">
-                Every waiting request, oldest first.{" "}
+                Every registration under review, oldest first.{" "}
                 <button type="button" className="text-brand hover:text-ink font-medium" onClick={() => setSelection(NONE)}>
                   Clear selection
                 </button>
@@ -420,7 +423,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
               <span className="text-ink-2 text-[12.5px]">
                 All {formatNumber(pendingShown.length)} on this page.{" "}
                 <button type="button" className="text-brand hover:text-ink font-medium" onClick={() => setSelection({ all: true, total: waiting })}>
-                  Select all {formatNumber(waiting)} waiting
+                  Select all {formatNumber(waiting)} under review
                 </button>
               </span>
             ) : null}
@@ -446,7 +449,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
         ) : list.isError ? (
           <EmptyState
             size="sm"
-            title="The requests could not load"
+            title="The registrations could not load"
             description="Nothing has changed. Try again in a moment."
             action={
               <Button variant="secondary" size="sm" onClick={() => void list.refetch()}>
@@ -477,13 +480,13 @@ export function RequestsPage({ eventId }: { eventId: number }) {
             <EmptyState
               size="sm"
               icon={<InboxIcon />}
-              title={onWaiting ? "Nobody is waiting" : status === "all" ? "Nobody has asked yet" : `Nothing ${STATUS_LABEL[status].toLowerCase()}`}
+              title={onWaiting ? "No registrations to review." : status === "all" ? "Nobody has registered yet" : `Nothing ${STATUS_LABEL[status].toLowerCase()}`}
               description={
                 onWaiting
                   ? requiresApproval
-                    ? "People who fill the registration form wait here until you confirm or decline them."
-                    : "Confirming each registration is off for this event, so people register directly. Turn it on under Settings."
-                  : "Requests show here once they are."
+                    ? "Everyone who registers shows here until you confirm or decline them."
+                    : "Reviewing registrations is off for this event, so people get their ticket straight away. Turn it on under Settings."
+                  : "Registrations show here once they are."
               }
             />
           )
@@ -509,7 +512,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
                     Ticket
                   </th>
                   <th scope="col" className={HEAD}>
-                    Asked (India time)
+                    Registered (India time)
                   </th>
                   {showDecided ? (
                     <th scope="col" className={HEAD}>

@@ -31,8 +31,8 @@ function dayLabel(date: string): string {
 }
 
 /**
- * When people asked for a place, a bar a day (the last 30 days that had
- * any), on an event that confirms each registration. Read from the
+ * When people registered, a bar a day (the last 30 days that had any), on
+ * an event that reviews registrations. Read from the
  * analytics' `requests_by_day`; its sign-ups chart counts only the people
  * already registered, which on such an event starts at nobody.
  */
@@ -42,14 +42,14 @@ function RequestsByDayPanel({ days, asked, perView }: { days: RequestDay[]; aske
   const peak = busiest > 0 ? shown.find((d) => d.count === busiest) : undefined;
   return (
     <FigurePanel>
-      <CardLabel right={peak ? <span className="text-ink-3 font-mono text-[11px]">busiest: {dayLabel(peak.date)}</span> : null}>When people asked</CardLabel>
+      <CardLabel right={peak ? <span className="text-ink-3 font-mono text-[11px]">busiest: {dayLabel(peak.date)}</span> : null}>When people registered</CardLabel>
       {shown.length && busiest > 0 ? (
         <>
-          <ul aria-label="Requests by day" className="mt-3 flex h-[96px] list-none items-end gap-1 p-0">
+          <ul aria-label="Registrations by day" className="mt-3 flex h-[96px] list-none items-end gap-1 p-0">
             {shown.map((d) => (
               <li key={d.date} className="flex h-full min-w-0 flex-1 flex-col justify-end" title={`${dayLabel(d.date)}: ${formatNumber(d.count)}`}>
                 <span className="sr-only">
-                  {dayLabel(d.date)}: {formatNumber(d.count)} asked
+                  {dayLabel(d.date)}: {formatNumber(d.count)} registered
                 </span>
                 <span
                   aria-hidden="true"
@@ -65,11 +65,11 @@ function RequestsByDayPanel({ days, asked, perView }: { days: RequestDay[]; aske
           </div>
         </>
       ) : (
-        <p className="text-ink-3 mt-3 text-[12.5px]">The days people ask on show here once a few have.</p>
+        <p className="text-ink-3 mt-3 text-[12.5px]">The days people register on show here once a few have.</p>
       )}
       <p className="text-ink-3 mt-3 text-[11.5px] leading-[1.5]">
-        {formatNumber(asked)} {asked === 1 ? "person" : "people"} asked for a place
-        {perView !== null ? `; ${perView}% of the people who opened the event page asked.` : "."}
+        {formatNumber(asked)} {asked === 1 ? "registration" : "registrations"} received
+        {perView !== null ? `; ${perView}% of the people who opened the event page registered.` : "."}
       </p>
     </FigurePanel>
   );
@@ -106,7 +106,7 @@ export function EventInsightsPanel({ eventId, pageViews }: { eventId: number; pa
   }
 
   const total = data.total_registrations;
-  // Confirm each registration: who asked, and on which days.
+  // Review registrations: the registrations received, and on which days.
   const asked = data.requests_total ?? data.requests_by_day.reduce((n, d) => n + d.count, 0);
   const perView =
     pageViews && pageViews > 0 && data.requests_total !== null
@@ -116,17 +116,17 @@ export function EventInsightsPanel({ eventId, pageViews }: { eventId: number; pa
         : null;
   const requestsPanel = asked > 0 ? <RequestsByDayPanel days={data.requests_by_day} asked={asked} perView={perView} /> : null;
   if (total === 0 && requestsPanel) {
-    // Nobody registered yet, but people asked: they wait for the club, which is not "nobody".
+    // No tickets out yet, but registrations are under review: that is not "nobody".
     return (
       <div className="grid gap-3">
         {requestsPanel}
         <FigurePanel>
           <CardLabel className="mb-1">Sign-ups</CardLabel>
           <p className="text-ink-2 mt-2 text-[12.5px] leading-[1.55]">
-            Nobody is registered yet: {formatNumber(asked)} {asked === 1 ? "person has" : "people have"} asked, and {asked === 1 ? "their ticket goes" : "their tickets go"} out as you confirm them under Requests. The hours and colleges show here once they are.
+            Nobody has a ticket yet: {formatNumber(asked)} {asked === 1 ? "registration has" : "registrations have"} come in, and {asked === 1 ? "the ticket goes" : "tickets go"} out as you confirm them in the Review tab. The hours and colleges show here once they are.
           </p>
           <Button asChild variant="secondary" size="sm" className="mt-3">
-            <Link href={`/events/${eventId}/requests`}>Open requests</Link>
+            <Link href={`/events/${eventId}/requests`}>Open Review</Link>
           </Button>
         </FigurePanel>
       </div>

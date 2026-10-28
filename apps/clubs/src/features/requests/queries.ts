@@ -14,7 +14,7 @@ import { PAGE_SIZE, indiaTime, skipReasonText, type RegistrationRequest, type Re
 /**
  * Every read here is `null` from a backend without registration requests
  * (the route answers FastAPI's bare 404): the dashboard goes out ahead of
- * its backend, and the Requests tab and the event form's switch stay away
+ * its backend, and the Review tab and the event form's switch stay away
  * until the API has them.
  */
 export const requestsKey = (eventId: number) => ["registration-requests", eventId] as const;
@@ -25,9 +25,9 @@ const listKey = (eventId: number, status: RequestTab, q: string) => [...listsKey
 type Pages = InfiniteData<RequestPage | null, string | null>;
 
 /**
- * The event's counts and places left (one row of its waiting requests), or
- * null when the API has no requests yet. What decides whether the event
- * shows a Requests tab, and its badge.
+ * The event's counts and places left (one row of its registrations under
+ * review), or null when the API has no requests yet. What decides whether
+ * the event shows a Review tab, and its badge.
  */
 export function useRequestCounts(eventId: number, enabled = true) {
   return useQuery({
@@ -121,7 +121,7 @@ export function useConfirmRequest(eventId: number) {
   });
 }
 
-/** Back to waiting: a declined or lapsed request. */
+/** Back to review: a declined or expired registration. */
 export function useReopenRequest(eventId: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -129,13 +129,13 @@ export function useReopenRequest(eventId: number) {
     onSuccess: (res, r) => {
       const refused = res.skipped.find((s) => s.id === r.id);
       if (refused) {
-        toast.error(`${r.full_name} couldn't be put back among the requests waiting for you, because ${skipReasonText(refused.reason)}.`);
+        toast.error(`${r.full_name} couldn't be put back under review, because ${skipReasonText(refused.reason)}.`);
         // Whatever it is now (decided again, or asked afresh), the lists say so.
         void queryClient.invalidateQueries({ queryKey: listsKey(eventId) });
         refreshAround(queryClient, eventId);
         return;
       }
-      toast.success(`${r.full_name} is waiting for you to confirm again.`);
+      toast.success(`${r.full_name} is back under review`);
       moveRows(queryClient, eventId, new Set([r.id]), r.status, "pending");
     },
     onError: (e) => toast.error(e instanceof Error && e.message ? e.message : "That didn't go through. Try again."),
@@ -160,7 +160,7 @@ export function useBulkDecision(eventId: number) {
   const [running, setRunning] = React.useState(false);
 
   const run = React.useCallback(
-    async (plan: BulkPlan): Promise<BulkOutcome> => {
+    async (plan: BulkPlan, name?: string | null): Promise<BulkOutcome> => {
       setRunning(true);
       setProgress(null);
       try {
@@ -174,7 +174,7 @@ export function useBulkDecision(eventId: number) {
         } else {
           out = await declineAllWaiting(plan.total, (limit) => declineAllPending(eventId, { limit, notify: plan.notify, note: plan.note }), { notify: plan.notify, note: plan.note }, setProgress);
         }
-        const s = summarise(out);
+        const s = summarise(out, name);
         if (s.tone === "admit") toast.success(s.title);
         else if (s.tone === "caution") toast.warning(s.title);
         else toast.error(s.title);
@@ -205,7 +205,7 @@ function saveFile(blob: Blob, filename: string) {
 }
 
 /**
- * Export: every request as a CSV, through the gateway. A server without the
+ * Export: every registration the event reviewed, as a CSV, through the gateway. A server without the
  * route (its bare 404) answers null: said once, and the button goes
  * (`missing`), rather than a file of JSON landing in Downloads.
  */
@@ -216,11 +216,11 @@ export function useExportRequests(eventId: number) {
     onSuccess: (file) => {
       if (!file) {
         setMissing(true);
-        toast.warning("Exporting requests arrives with the next update of MyOtherApp.");
+        toast.warning("Exporting registrations arrives with the next update of MyOtherApp.");
         return;
       }
       saveFile(file.blob, file.filename);
-      toast.success("Requests exported");
+      toast.success("Registrations under review exported");
     },
     onError: (e) => toast.error(e instanceof Error && e.message ? e.message : "The export didn't go through. Try again."),
   });

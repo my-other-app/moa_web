@@ -72,17 +72,23 @@ beforeEach(() => {
   me = null;
 });
 
-describe("confirming each registration on a new event", () => {
+describe("reviewing registrations on a new event", () => {
   it("shows once the server is known to have requests, off until switched on, and the create sends it", async () => {
     me = caps({ decide_requests: true });
     render(<Harness />);
-    const toggle = await screen.findByRole("switch", { name: "Confirm each registration yourself" });
+    const toggle = await screen.findByRole("switch", { name: "Review registrations before sending tickets" });
     expect(toggle).not.toBeChecked();
-    expect(screen.getByText("People who fill the form wait for you to confirm them, under Requests. Their ticket goes out when you do.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Everyone who registers gets a 'Thanks for registering' email. You confirm or decline each registration in the Review tab, and confirmed people get their ticket by email.",
+      ),
+    ).toBeInTheDocument();
     // Untouched: not sent, so the server's default stands.
     expect(wire().has("requires_approval")).toBe(false);
     fireEvent.click(toggle);
     expect(toggle).toBeChecked();
+    // A new event has no waiting list to move: no note about one.
+    expect(screen.queryByText(/moves into Review/)).toBeNull();
     expect(wire().get("requires_approval")).toBe("true");
     fireEvent.click(toggle);
     expect(wire().get("requires_approval")).toBe("false");
@@ -93,7 +99,7 @@ describe("confirming each registration on a new event", () => {
     render(<Harness />);
     await screen.findByRole("switch", { name: "Swag to hand out" });
     await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/clubs/access/me")).toBe(true));
-    expect(screen.queryByRole("switch", { name: "Confirm each registration yourself" })).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Review registrations before sending tickets" })).toBeNull();
     expect(wire().has("requires_approval")).toBe(false);
   });
 
@@ -101,6 +107,6 @@ describe("confirming each registration on a new event", () => {
     render(<Harness />);
     await screen.findByRole("switch", { name: "Swag to hand out" });
     await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/clubs/access/me")).toBe(true));
-    expect(screen.queryByRole("switch", { name: "Confirm each registration yourself" })).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Review registrations before sending tickets" })).toBeNull();
   });
 });

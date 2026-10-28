@@ -15,8 +15,8 @@ export {
 export const EVENT_TABS = [
   { key: "overview", label: "Overview", path: "" },
   { key: "attendees", label: "Attendees", path: "/attendees" },
-  // Confirm each registration: once the API has requests, and the event asks for them or has any.
-  { key: "requests", label: "Requests", path: "/requests" },
+  // Review registrations: once the API has requests, and the event reviews registrations or has any.
+  { key: "requests", label: "Review", path: "/requests" },
   // Shown once the API has ticket types (event-console asks).
   { key: "tickets", label: "Tickets", path: "/tickets" },
   { key: "links", label: "Links", path: "/links" },
@@ -139,7 +139,7 @@ const n = (count: number, one: string, many: string) => `${count.toLocaleString(
 /**
  * What on this event needs somebody now, from the summary alone: sends the
  * provider refused, guests without a ticket (or holding an old design),
- * people waiting for the club to confirm their registration, addresses that
+ * registrations under review, addresses that
  * bounced, ID cards that failed to print. Red before amber.
  * Once the list has been scrubbed there is nobody left to act on, so it is
  * empty; a draft sends no tickets by design, so a missing one is not news.
@@ -179,8 +179,8 @@ export function overviewAttention(s: Pick<EventSummary, "status" | "from_report"
     out.push({
       kind: "REQUESTS_PENDING",
       tone: "amber",
-      title: `${n(s.requests_pending, "person", "people")} waiting for you to confirm`,
-      body: "They filled the form and have no place yet. Their ticket goes out when you confirm them.",
+      title: `${n(s.requests_pending, "registration", "registrations")} to review`,
+      body: "Confirm or decline each one in the Review tab. Confirmed people get their ticket by email.",
       path: "/requests",
     });
   }

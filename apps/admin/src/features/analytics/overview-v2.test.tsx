@@ -471,27 +471,29 @@ describe("the two views", () => {
 });
 
 describe("the platform's request figures", () => {
-  it("shows requests received, waiting for a club, and the time clubs take to decide", async () => {
+  it("shows registrations reviewed: received, under review, and the average time to review", async () => {
     requestsBlock = { received: 1840, waiting: 96, avg_decision_hours: 20.5 };
     render(<AdminOverviewV2 />);
-    const requests = await screen.findByLabelText("Registration requests");
+    const requests = await screen.findByLabelText("Registrations reviewed");
+    expect(requests).toHaveTextContent("Registrations reviewed");
     expect(requests).toHaveTextContent("received1,840");
-    expect(requests).toHaveTextContent("waiting for a club96");
-    expect(requests).toHaveTextContent("to decide, on average21 h");
+    expect(requests).toHaveTextContent("under review96");
+    expect(requests).toHaveTextContent("average time to review21 h");
+    expect(requests).not.toHaveTextContent(/waiting|request/i);
   });
 
   it("reads the other names a server may use, and a long wait in days", async () => {
     requestsBlock = { total: 12, pending: 3, avg_decision_hours: 72 };
     render(<AdminOverviewV2 />);
-    const requests = await screen.findByLabelText("Registration requests");
+    const requests = await screen.findByLabelText("Registrations reviewed");
     expect(requests).toHaveTextContent("received12");
-    expect(requests).toHaveTextContent("waiting for a club3");
-    expect(requests).toHaveTextContent("to decide, on average3 d");
+    expect(requests).toHaveTextContent("under review3");
+    expect(requests).toHaveTextContent("average time to review3 d");
   });
 
   it("is not there when the server doesn't send them", async () => {
     render(<AdminOverviewV2 />);
     await screen.findByRole("heading", { name: "Is the platform healthy?" });
-    expect(screen.queryByLabelText("Registration requests")).toBeNull();
+    expect(screen.queryByLabelText("Registrations reviewed")).toBeNull();
   });
 });
