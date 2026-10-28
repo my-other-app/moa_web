@@ -52,6 +52,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (/\/events\/\d+\/summary$/.test(path)) return summary;
         if (path.includes("/registration/") && path.includes("/list")) return registrationsFixture;
         if (path.includes("/events/info/")) return detail;
+        // Who is under review (under-review.test.tsx reads it in full).
+        if (/\/registration\/\d+\/requests$/.test(path)) return { items: [], next: null, counts: { pending: 37, total: 412 } };
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(),
@@ -87,11 +89,22 @@ describe("the events list", () => {
     const [first, ...rest] = eventsFixture.items;
     listRows = [{ ...first, requires_approval: true, requests_pending: 37, requests_total: 412 }, ...rest];
     render(<EventsV2 />);
-    const row = (await screen.findByText("Mutate")).closest("a")!;
+    const row = (await screen.findByText("Mutate")).closest<HTMLElement>("[data-event-row]")!;
     expect(within(row).getByText("Reviews registrations")).toBeInTheDocument();
-    expect(within(row).getByText("37 under review")).toBeInTheDocument();
     expect(within(row).getByText("412 received")).toBeInTheDocument();
     expect(row).not.toHaveTextContent(/waiting|asked|request/i);
+    // The row opens the event; "37 under review" opens it at who they are.
+    expect(within(row).getByRole("link", { name: "Mutate" })).toHaveAttribute("href", "/events/45");
+    expect(within(row).getByRole("link", { name: "37 under review" })).toHaveAttribute("href", "/events/45#under-review");
+  });
+
+  it("links nothing extra when nobody is under review", async () => {
+    const [first, ...rest] = eventsFixture.items;
+    listRows = [{ ...first, requires_approval: true, requests_pending: 0, requests_total: 12 }, ...rest];
+    render(<EventsV2 />);
+    const row = (await screen.findByText("Mutate")).closest<HTMLElement>("[data-event-row]")!;
+    expect(within(row).getAllByRole("link")).toHaveLength(1);
+    expect(within(row).queryByText(/under review$/)).toBeNull();
   });
 
   it("marks nothing from an older server, nor an event that doesn't review registrations", async () => {

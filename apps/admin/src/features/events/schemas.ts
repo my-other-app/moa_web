@@ -152,3 +152,97 @@ export const eventCategoryListSchema = z.array(
     .object({ id: z.coerce.number(), name: z.string() })
     .passthrough()
 );
+
+// ─── Registrations under review (read-only) ─────────────────────────────
+
+/**
+ * An event that reviews registrations, as an admin reads it: GET
+ * /events/registration/{id}/requests, a page at a time by the server's
+ * cursor (`next`), with every status's count. The API still calls them
+ * "requests"; the screen uses the club's words (feature-register
+ * review-wording-contract.md, section 0). Confirming and declining are the
+ * club's: nothing here acts.
+ */
+export const REVIEW_STATUSES = ["pending", "approved", "declined", "withdrawn", "lapsed", "closed"] as const;
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
+/** One status, or every registration (`status=all`, newest first). */
+export type ReviewTab = ReviewStatus | "all";
+
+export const REVIEW_LABEL: Record<ReviewTab, string> = {
+  pending: "Under review",
+  approved: "Confirmed",
+  declined: "Declined",
+  withdrawn: "Cancelled",
+  lapsed: "Expired",
+  closed: "Closed",
+  all: "All",
+};
+
+/** Why a registration is closed, in a few words. */
+export const CLOSED_REASON: Record<string, string> = {
+  registered_directly: "Registered another way",
+  event_ended: "Event ended",
+  event_deleted: "Event deleted",
+  event_cancelled: "Event cancelled",
+};
+
+const optionalText = z
+  .string()
+  .nullish()
+  .catch(null)
+  .transform((v) => (v === null || v === undefined || v === "" ? null : v));
+
+export const reviewRowSchema = z.object({
+  id: z.coerce.string(),
+  // An unknown status reads as closed: shown, never mistaken for one under review.
+  status: z
+    .string()
+    .transform((s): ReviewStatus => ((REVIEW_STATUSES as readonly string[]).includes(s) ? (s as ReviewStatus) : "closed")),
+  full_name: z
+    .string()
+    .nullish()
+    .transform((v) => v?.trim() || "Unnamed"),
+  email: optionalText,
+  phone: optionalText,
+  ticket_type: z
+    .object({ id: z.coerce.number(), name: z.string() })
+    .nullish()
+    .catch(null)
+    .transform((v) => v ?? null),
+  /** When they registered. */
+  submitted_at: z.string(),
+  /** Set once a confirmed registration has its ticket. */
+  registration_id: optionalText,
+  /** Confirmed, paid, not paid yet: the pay-by time. */
+  pay_by: optionalText,
+  closed_reason: optionalText,
+});
+export type ReviewRow = z.infer<typeof reviewRowSchema>;
+
+export type ReviewCounts = Record<ReviewStatus, number>;
+
+export const reviewPageSchema = z
+  .object({
+    items: z.array(reviewRowSchema),
+    next: z
+      .string()
+      .nullish()
+      .transform((v) => v || null),
+    counts: z.record(z.string(), z.number()).catch({}),
+  })
+  .transform(({ counts, ...page }) => {
+    const byStatus = Object.fromEntries(
+      REVIEW_STATUSES.map((s) => [s, Math.max(0, Math.trunc(counts[s] ?? 0))])
+    ) as ReviewCounts;
+    const sum = REVIEW_STATUSES.reduce((n, s) => n + byStatus[s], 0);
+    return {
+      ...page,
+      counts: byStatus,
+      /** Everyone who registered for review, whatever their status. */
+      total:
+        typeof counts.total === "number" && Number.isFinite(counts.total)
+          ? Math.max(0, Math.trunc(counts.total))
+          : sum,
+    };
+  });
+export type ReviewPage = z.infer<typeof reviewPageSchema>;

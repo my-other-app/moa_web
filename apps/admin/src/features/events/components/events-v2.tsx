@@ -12,6 +12,7 @@ import { useClubs } from "@/features/clubs";
 import { fetchEvents, type EventListQuery } from "../api";
 import { useEventCategories, useEvents } from "../queries";
 import type { AdminEvent } from "../schemas";
+import { UNDER_REVIEW_ANCHOR } from "./under-review-section";
 
 /**
  * The v2 Events screen.
@@ -360,13 +361,17 @@ export function EventsV2() {
                 rows.map((event) => {
                   const view = rowView(event, now);
                   return (
-                    <Link
+                    // The whole row opens the event (its name's link covers
+                    // it), and "N under review" is a link of its own to who
+                    // they are. A row that was itself an <a> couldn't hold
+                    // a second link.
+                    <div
                       key={event.id}
-                      href={`/events/${event.id}`}
+                      data-event-row
                       className={cn(
                         GRID,
-                        "rule-fade items-center px-1.5 py-2.5 text-[13.5px]",
-                        "hover:bg-sunken"
+                        "rule-fade relative items-center px-1.5 py-2.5 text-[13.5px]",
+                        "hover:bg-sunken focus-within:bg-sunken"
                       )}
                     >
                       <span className="flex flex-col leading-[1.1]">
@@ -378,7 +383,12 @@ export function EventsV2() {
 
                       <span className="flex min-w-0 flex-col">
                         <span className="flex min-w-0 items-center gap-1.5">
-                          <span className="truncate">{event.name}</span>
+                          <Link
+                            href={`/events/${event.id}`}
+                            className="truncate outline-none after:absolute after:inset-0 after:rounded-md after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-brand/60"
+                          >
+                            {event.name}
+                          </Link>
                           {/* Review registrations: the club reviews every registration, and how many are under review. */}
                           {event.requires_approval ? (
                             <span className="border-line text-ink-2 shrink-0 rounded-full border px-1.5 py-px text-[10.5px] whitespace-nowrap">
@@ -386,9 +396,13 @@ export function EventsV2() {
                             </span>
                           ) : null}
                           {(event.requests_pending ?? 0) > 0 ? (
-                            <span className="border-caution-line text-caution shrink-0 rounded-full border px-1.5 py-px text-[10.5px] whitespace-nowrap tabular-nums">
+                            <Link
+                              href={`/events/${event.id}#${UNDER_REVIEW_ANCHOR}`}
+                              title="See who is under review"
+                              className="border-caution-line text-caution relative z-10 shrink-0 rounded-full border px-1.5 py-px text-[10.5px] whitespace-nowrap tabular-nums underline-offset-2 hover:underline"
+                            >
                               {formatNumber(event.requests_pending)} under review
-                            </span>
+                            </Link>
                           ) : null}
                         </span>
                         <span
@@ -451,7 +465,7 @@ export function EventsV2() {
                       <span className="text-right text-ink-2">
                         {view.fee}
                       </span>
-                    </Link>
+                    </div>
                   );
                 })
               )}
