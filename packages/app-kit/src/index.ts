@@ -40,6 +40,44 @@ export {
   type PictureSize,
   type PersonAvatarProps,
 } from "./components/person-avatar";
+export {
+  PICTURE_SPECS,
+  POSTER_SHAPE_NOTE,
+  SQUARE_ENOUGH,
+  bannerSizes,
+  hasShape,
+  isSquareEnough,
+  logoSizes,
+  posterSizes,
+  shapeOff,
+  type PictureKind,
+  type PictureSpec,
+} from "./picture-specs";
+export {
+  PosterFrame,
+  LogoTile,
+  BannerFrame,
+  type PosterFrameProps,
+  type LogoTileProps,
+  type BannerFrameProps,
+} from "./components/picture-frames";
+export { CropHost, cropToShape, useShapedFile, type CropDeps, type LoadedPicture } from "./components/crop-dialog";
+export {
+  MAX_ZOOM,
+  WHOLE_PADDING,
+  centred,
+  clampPlacement,
+  croppedName,
+  drawCrop,
+  moveBy,
+  outputType,
+  planCrop,
+  planWhole,
+  scaleOf,
+  zoomTo,
+  type CropPlan,
+  type Placement,
+} from "./crop";
 export * from "./topics";
 export { useListParams, type ListParams } from "./hooks/use-list-params";
 export { useLocalPage } from "./hooks/use-local-page";

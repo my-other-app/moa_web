@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
@@ -9,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckIcon, CircleIcon, Loader2Icon, MapPinIcon, SaveIcon } from "lucide-react";
 import { ApiError } from "@moa/api";
 import { useObjectUrl } from "@moa/ui/hooks";
+import { PosterFrame } from "@moa/app-kit";
 import { Form, InlineAlert, Notice, ProgressBar, cn, toast } from "@moa/ui";
 
 import { AiFilledProvider, AiFilledTag } from "@/features/ai";
@@ -131,14 +131,14 @@ function Preview({ values, posterUrl, clubName }: { values: EventFormValues; pos
   const line = (values.about ?? "").trim().split("\n")[0] ?? "";
   return (
     <div className="bg-surface border-line-soft shadow-card overflow-hidden rounded-[var(--radius-card)] border">
-      <div className="bg-sunken relative aspect-[16/9]">
-        {preview ? <Image src={preview} alt="" fill sizes="320px" className="object-cover" unoptimized /> : null}
+      {/* The card's poster: 4:5 and whole, as the app and the site draw it. */}
+      <PosterFrame src={preview} width={300} className="w-full">
         {values.event_tag?.trim() ? <span className="bg-surface text-ink absolute top-2 left-2 rounded-md px-2 py-0.5 font-mono text-[10px] tracking-[0.06em] uppercase">{values.event_tag.trim()}</span> : null}
         <span className="bg-surface absolute right-2 bottom-2 grid min-w-[44px] place-items-center rounded-lg px-1.5 py-1 text-center leading-none">
           <span className="text-ink font-mono text-[16px] font-semibold tabular-nums">{valid ? d.toLocaleDateString("en-IN", { day: "2-digit" }) : "—"}</span>
           <span className="text-ink-3 font-mono text-[9px] tracking-[0.08em] uppercase">{valid ? d.toLocaleDateString("en-IN", { month: "short" }) : "tbd"}</span>
         </span>
-      </div>
+      </PosterFrame>
       <div className="p-3">
         <p className="text-ink truncate text-[14px] font-semibold">{values.name?.trim() || "Event name"}</p>
         <p className="text-ink-3 text-[11.5px]">{clubName}</p>

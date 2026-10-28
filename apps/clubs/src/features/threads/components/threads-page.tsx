@@ -4,7 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { BarChart3Icon, EyeIcon, HeartIcon, ImagePlusIcon, Loader2Icon, MessageCircleIcon, PinIcon, PinOffIcon, SendIcon, Trash2Icon, XIcon } from "lucide-react";
-import { PersonAvatar, formatDateTime, formatNumber, pickImage, relativeTime, useListParams } from "@moa/app-kit";
+import { LogoTile, PersonAvatar, formatDateTime, formatNumber, logoSizes, pickImage, relativeTime, useListParams } from "@moa/app-kit";
 import { CardLabel, Chip, EmptyState, FigurePanel, InitialsAvatar, Notice, Pager, ProgressBar, Skeleton, StatTile, cn, toast } from "@moa/ui";
 import { useObjectUrl } from "@moa/ui/hooks";
 
@@ -25,7 +25,7 @@ import { MAX_BODY, MAX_POLL_OPTIONS, SCOPE_LABEL, SORT_LABEL, THREAD_SCOPES, THR
  */
 const PAGE = 10;
 
-function Composer({ clubName, followers }: { clubName: string; followers: number }) {
+function Composer({ clubName, clubLogo, followers }: { clubName: string; clubLogo: string | null; followers: number }) {
   const create = useCreateThread();
   const [body, setBody] = React.useState("");
   const [notify, setNotify] = React.useState(true);
@@ -64,7 +64,7 @@ function Composer({ clubName, followers }: { clubName: string; followers: number
     <FigurePanel className="p-4">
       <form onSubmit={submit} noValidate>
         <div className="flex gap-3">
-          <InitialsAvatar name={clubName} size={40} className="shrink-0 rounded-xl" />
+          <LogoTile src={clubLogo} className="size-10 rounded-xl" fallback={<InitialsAvatar name={clubName} size={40} className="rounded-xl" />} fallbackClassName="bg-transparent" />
           <div className="min-w-0 flex-1">
             <textarea aria-label="Share an update" className="input min-h-[88px] w-full resize-y py-2" placeholder={`Share an update with your ${followers.toLocaleString("en-IN")} ${followers === 1 ? "follower" : "followers"}…`} value={body} maxLength={MAX_BODY} onChange={(e) => setBody(e.target.value)} disabled={create.isPending} />
             {preview && (
@@ -178,7 +178,7 @@ function Comments({ thread }: { thread: Thread }) {
   );
 }
 
-function ThreadCard({ t, clubName, now, openByDefault }: { t: Thread; clubName: string; now: Date; openByDefault?: boolean }) {
+function ThreadCard({ t, clubName, clubLogo, now, openByDefault }: { t: Thread; clubName: string; clubLogo: string | null; now: Date; openByDefault?: boolean }) {
   const pin = useSetPinned();
   const remove = useDeleteThread();
   const [open, setOpen] = React.useState(Boolean(openByDefault));
@@ -189,7 +189,8 @@ function ThreadCard({ t, clubName, now, openByDefault }: { t: Thread; clubName: 
   return (
     <FigurePanel className={cn("p-4", t.pinned && "border-brand-line", t.awaiting_reply && "border-caution-line")}>
       <div className="flex items-start gap-3">
-        <InitialsAvatar name={clubName} size={36} className="shrink-0 rounded-xl" />
+        {/* The club's logo, as its posts show in the app: square, a wordmark whole on white. */}
+        <LogoTile src={clubLogo} className="size-9 rounded-xl" fallback={<InitialsAvatar name={clubName} size={36} className="rounded-xl" />} fallbackClassName="bg-transparent" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-ink text-[13.5px] font-medium">{clubName}</span>
@@ -329,6 +330,7 @@ export function ThreadsPage() {
   const insights = useThreadInsights();
   const page = useThreadsPage({ scope, sort, offset: (params.page - 1) * PAGE, limit: PAGE });
   const clubName = club?.name ?? "Your club";
+  const clubLogo = pickImage(club?.logo, logoSizes(40));
   const followers = club?.followers_count ?? 0;
   const items = page.data?.items ?? [];
   const total = page.data?.total ?? 0;
@@ -365,7 +367,7 @@ export function ThreadsPage() {
         </Notice>
       ) : null}
 
-      <Composer clubName={clubName} followers={followers} />
+      <Composer clubName={clubName} clubLogo={clubLogo} followers={followers} />
 
       {i ? (
         <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
@@ -401,7 +403,7 @@ export function ThreadsPage() {
       ) : (
         <>
           {items.map((t) => (
-            <ThreadCard key={t.id} t={t} clubName={clubName} now={now} openByDefault={scope === "awaiting"} />
+            <ThreadCard key={t.id} t={t} clubName={clubName} clubLogo={clubLogo} now={now} openByDefault={scope === "awaiting"} />
           ))}
           {total > PAGE && <Pager page={params.page} pageCount={Math.max(1, Math.ceil(total / PAGE))} total={total} pageSize={PAGE} noun={["post", "posts"]} onPage={params.setPage} busy={page.isFetching} />}
         </>

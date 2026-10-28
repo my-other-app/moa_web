@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { CameraIcon, GlobeIcon, InstagramIcon, LinkedinIcon, Loader2Icon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
-import { pickImage } from "@moa/app-kit";
+import { PICTURE_SPECS, pickImage } from "@moa/app-kit";
 import { CardLabel, FigurePanel, IconButton, InitialsAvatar, cn, toast } from "@moa/ui";
 
 import { useCreateTeamMember, useDeleteTeamMember, useUpdateTeamMember, useUpdateTeamMemberPhoto } from "../queries";
@@ -50,7 +50,7 @@ function MemberRow({ member }: { member: ClubTeamMember }) {
   const remove = useDeleteTeamMember();
   const photoUpload = useUpdateTeamMemberPhoto();
   // Handing back the upload's promise lets a refused photo come down again (usePick).
-  const { open: pickPhoto, preview, input } = usePick((f) => photoUpload.mutateAsync({ id: member.id, file: f }), "photo");
+  const { open: pickPhoto, preview, input } = usePick((f) => photoUpload.mutateAsync({ id: member.id, file: f }), "photo", "photo");
   const photo = preview ?? pickImage(member.photo, ["thumbnail", "medium", "original", "large"]);
   const [draft, setDraft] = React.useState(() => draftOf(member));
   const [confirm, setConfirm] = React.useState(false);
@@ -105,7 +105,7 @@ export function TeamPanel({ club }: { club: ClubSelf }) {
   const [draft, setDraft] = React.useState<TeamMemberForm>(() => draftOf());
   const [file, setFile] = React.useState<File | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const { open: pickPhoto, preview, input, preparing, clear } = usePick((f) => setFile(f), "photo");
+  const { open: pickPhoto, preview, input, preparing, clear } = usePick((f) => setFile(f), "photo", "photo");
   const set = (k: keyof TeamMemberForm) => (e: React.ChangeEvent<HTMLInputElement>) => setDraft((d) => ({ ...d, [k]: e.target.value }));
 
   const reset = () => {
@@ -140,7 +140,7 @@ export function TeamPanel({ club }: { club: ClubSelf }) {
       >
         The team
       </CardLabel>
-      <p className="text-ink-3 mt-1 text-[12.5px]">The people who run the club, shown on your club page: a photo, a name, a role, and where to find them.</p>
+      <p className="text-ink-3 mt-1 text-[12.5px]">The people who run the club, shown on your club page: a photo, a name, a role, and where to find them. Photos: {PICTURE_SPECS.photo.label}.</p>
       {club.team.length === 0 && !adding ? (
         <p className="text-ink-3 mt-4 text-[13px]">Nobody on the team yet.</p>
       ) : (

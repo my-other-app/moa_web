@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeftIcon,
@@ -23,7 +22,11 @@ import {
   formatDateTime,
   formatNumber,
   initials,
+  LogoTile,
+  logoSizes,
   pickImage,
+  PosterFrame,
+  posterSizes,
 } from "@moa/app-kit";
 import { pageCount } from "@moa/api";
 import { fetchAllPages } from "@moa/app-kit";
@@ -82,7 +85,7 @@ function usePage() {
 }
 
 function ClubRow({ club, index }: { club: UserClub; index: number }) {
-  const logo = pickImage(club.logo, ["thumbnail", "medium", "original"]);
+  const logo = pickImage(club.logo, logoSizes(40));
 
   return (
     <div
@@ -93,14 +96,7 @@ function ClubRow({ club, index }: { club: UserClub; index: number }) {
       )}
     >
       {logo ? (
-        <Image
-          src={logo}
-          alt=""
-          width={40}
-          height={40}
-          className="size-10 shrink-0 rounded-md object-cover"
-          unoptimized
-        />
+        <LogoTile src={logo} className="size-10 rounded-md" />
       ) : (
         <Avatar className="size-10 rounded-md">
           <AvatarFallback className="rounded-md text-xs">
@@ -122,7 +118,7 @@ function ClubRow({ club, index }: { club: UserClub; index: number }) {
 }
 
 function EventRow({ row, index }: { row: UserEvent; index: number }) {
-  const poster = pickImage(row.event.poster, ["thumbnail", "medium", "original"]);
+  const poster = pickImage(row.event.poster, posterSizes(40));
 
   return (
     <div
@@ -132,11 +128,7 @@ function EventRow({ row, index }: { row: UserEvent; index: number }) {
         hoverLift
       )}
     >
-      <div className="bg-muted relative size-10 shrink-0 overflow-hidden rounded-md">
-        {poster ? (
-          <Image src={poster} alt="" fill sizes="40px" className="object-cover" unoptimized />
-        ) : null}
-      </div>
+      <PosterFrame src={poster} width={40} className="bg-muted w-10 rounded-md" />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{row.event.name}</p>
         <p className="text-muted-foreground truncate text-xs">

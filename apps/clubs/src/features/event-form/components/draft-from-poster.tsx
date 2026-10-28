@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
+import { PosterFrame } from "@moa/app-kit";
 import Link from "next/link";
 import { useFormContext, useFormState } from "react-hook-form";
 import { FileTextIcon, ImagePlusIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
@@ -202,9 +202,7 @@ function DraftDialog({
           {file ? (
             <div className="border-line-soft bg-sunken flex items-center gap-3 rounded-xl border p-2.5">
               {isImage && preview ? (
-                <span className="bg-surface relative block h-28 w-24 shrink-0 overflow-hidden rounded-lg">
-                  <Image src={preview} alt="The poster you chose" fill sizes="96px" className="object-contain" unoptimized />
-                </span>
+                <PosterFrame src={preview} alt="The poster you chose" width={96} className="bg-surface w-24 rounded-lg" />
               ) : (
                 <span className="bg-surface text-ink-2 grid size-14 shrink-0 place-items-center rounded-lg" aria-hidden="true">
                   <FileTextIcon className="size-6" />

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -27,7 +26,11 @@ import {
   formatDateTime,
   formatNumber,
   initials,
+  LogoTile,
+  logoSizes,
   pickImage,
+  PosterFrame,
+  posterSizes,
 } from "@moa/app-kit";
 import { pageCount } from "@moa/api";
 import {
@@ -215,7 +218,7 @@ function EventsTab({ clubId }: { clubId: number }) {
     <div className="space-y-4">
       <div className="space-y-2">
         {rows.map((event: ClubEvent, i) => {
-          const poster = pickImage(event.poster, ["thumbnail", "medium", "original"]);
+          const poster = pickImage(event.poster, posterSizes(40));
           return (
             <div
               key={event.id}
@@ -225,11 +228,7 @@ function EventsTab({ clubId }: { clubId: number }) {
                 hoverLift
               )}
             >
-              <div className="bg-muted relative size-10 shrink-0 overflow-hidden rounded-md">
-                {poster ? (
-                  <Image src={poster} alt="" fill sizes="40px" className="object-cover" unoptimized />
-                ) : null}
-              </div>
+              <PosterFrame src={poster} width={40} className="bg-muted w-10 rounded-md" />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{event.name}</p>
                 <p className="text-muted-foreground truncate text-xs">
@@ -320,7 +319,7 @@ export function ClubDetail({ clubId }: { clubId: number }) {
     );
   }
 
-  const logo = pickImage(club?.logo, ["medium", "thumbnail", "original"]);
+  const logo = pickImage(club?.logo, logoSizes(64));
   const stats = club?.admin_stats;
 
   const cards = [
@@ -416,14 +415,7 @@ export function ClubDetail({ clubId }: { clubId: number }) {
         <Card>
           <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
             {logo ? (
-              <Image
-                src={logo}
-                alt=""
-                width={64}
-                height={64}
-                className="size-16 shrink-0 rounded-xl object-cover"
-                unoptimized
-              />
+              <LogoTile src={logo} className="size-16 rounded-xl" />
             ) : (
               <Avatar className="size-16 rounded-xl">
                 <AvatarFallback className="rounded-xl text-lg">

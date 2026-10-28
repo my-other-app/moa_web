@@ -3,11 +3,21 @@
 import { useFieldArray, useFormContext } from "react-hook-form";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, InitialsAvatar, Textarea, cn } from "@moa/ui";
+import { useObjectUrl } from "@moa/ui/hooks";
+import { PICTURE_SPECS, cropToShape } from "@moa/app-kit";
 
 import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
 import { IMAGE_ACCEPT } from "@/lib/images";
 
 import { SPEAKER_BIO_MAX, type EventFormValues } from "../../schemas";
+
+/** A speaker's photo: the one just picked, else the one saved, else their initials. */
+function SpeakerPhoto({ file, url, name }: { file?: File | null; url?: string | null; name: string }) {
+  const picked = useObjectUrl(file ?? null);
+  const src = picked ?? url;
+  // eslint-disable-next-line @next/next/no-img-element -- a local preview or the API's own small photo
+  return src ? <img src={src} alt="" className="size-10 rounded-full object-cover" /> : <InitialsAvatar name={name} size={40} />;
+}
 
 /**
  * People: who is speaking, and who to ask. The contact is prefilled from
@@ -18,6 +28,14 @@ export function PeopleStep() {
   const form = useFormContext<EventFormValues>();
   const speakers = useFieldArray({ control: form.control, name: "speakers" });
   const ai = useAiFilled();
+  // A speaker's photo is square, as the event page shows it: placed in one first when it is not.
+  const pickPhoto = async (index: number, input: HTMLInputElement) => {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    const shaped = await cropToShape(file, "photo", "photo");
+    if (shaped) form.setValue(`speakers.${index}.photoFile`, shaped, { shouldDirty: true });
+  };
   return (
     <div className="grid gap-6">
       <div className={aiFilledClass(ai.has("speakers"))}>
@@ -27,7 +45,7 @@ export function PeopleStep() {
               Speakers and mentors
               <AiFilledTag on={ai.has("speakers")} />
             </p>
-            <p className="text-ink-3 text-[12px]">Shown on the event page with their photo. Skip it for a members-only night.</p>
+            <p className="text-ink-3 text-[12px]">Shown on the event page with their photo ({PICTURE_SPECS.photo.label}). Skip it for a members-only night.</p>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => speakers.append({ name: "", designation: "", bio: "", link: "" })}>
             <PlusIcon /> Add a speaker
@@ -38,17 +56,13 @@ export function PeopleStep() {
             {speakers.fields.map((item, index) => {
               const name = form.watch(`speakers.${index}.name`) || "?";
               const photoUrl = form.watch(`speakers.${index}.photo_url`);
+              const photoFile = form.watch(`speakers.${index}.photoFile`);
               const bio = form.watch(`speakers.${index}.bio`) ?? "";
               return (
                 <li key={item.id} className="border-line-soft bg-sunken grid items-end gap-3 rounded-xl border p-3 sm:grid-cols-[auto_1fr_1fr_auto]">
-                  <label className="grid place-items-center" title="Photo">
-                    {photoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={photoUrl} alt="" className="size-10 rounded-full object-cover" />
-                    ) : (
-                      <InitialsAvatar name={name} size={40} />
-                    )}
-                    <input type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={(e) => form.setValue(`speakers.${index}.photoFile`, e.target.files?.[0], { shouldDirty: true })} aria-label={`Photo for speaker ${index + 1}`} />
+                  <label className="grid place-items-center" title={`Photo · ${PICTURE_SPECS.photo.label}`}>
+                    <SpeakerPhoto file={photoFile} url={photoUrl} name={name} />
+                    <input type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={(e) => void pickPhoto(index, e.currentTarget)} aria-label={`Photo for speaker ${index + 1}`} />
                   </label>
                   <FormField
                     control={form.control}

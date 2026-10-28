@@ -24,7 +24,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ApiError } from "@moa/api";
-import { formatDateTime, formatWindow, pickImage, timeUntil } from "@moa/app-kit";
+import { PosterFrame, formatDateTime, formatWindow, pickImage, posterSizes, timeUntil } from "@moa/app-kit";
 import { FigurePanel, Notice, Skeleton, StatusBadge, cn, type StatusTone } from "@moa/ui";
 
 import { PRODUCT } from "@/components/auth-frame";
@@ -333,18 +333,18 @@ function Fact({ icon: Icon, children }: { icon: LucideIcon; children: React.Reac
 function EventCard({ event: e }: { event: EventTarget }) {
   // The poster, when the event's own page has one; the card reads the same without it.
   const detail = useEventDetail(e.id);
-  const poster = pickImage(detail.data?.poster ?? null, ["medium", "large", "thumbnail", "original"]);
+  const poster = pickImage(detail.data?.poster ?? null, posterSizes(112));
   const dash = localPath(e.dashboard_url);
   return (
     <FigurePanel className="overflow-hidden p-0" role="region" aria-label="The event">
       <div className="flex gap-4 p-4 sm:p-5">
-        <div className="bg-sunken relative aspect-[4/5] w-[84px] shrink-0 self-start overflow-hidden rounded-xl sm:w-[112px]">
-          {poster ? (
-            <Image src={poster} alt={`Poster for ${e.name}`} fill sizes="112px" className="object-cover" unoptimized />
-          ) : (
-            <CalendarDaysIcon className="text-ink-3 absolute inset-0 m-auto size-6" aria-hidden="true" />
-          )}
-        </div>
+        <PosterFrame
+          src={poster}
+          alt={`Poster for ${e.name}`}
+          width={84}
+          className="w-[84px] self-start rounded-xl sm:w-[112px]"
+          fallback={<CalendarDaysIcon className="text-ink-3 absolute inset-0 m-auto size-6" aria-hidden="true" />}
+        />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="eyebrow">Event</span>

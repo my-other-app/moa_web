@@ -6,7 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ThemeProvider, useTheme } from "next-themes";
 import { Toaster, TooltipProvider } from "@moa/ui";
 
-import { getQueryClient, setLoginScope } from "@moa/app-kit";
+import { CropHost, getQueryClient, setLoginScope } from "@moa/app-kit";
 
 // Sign-ins from this app are for a club, so a team member's own password works here.
 setLoginScope("club");
@@ -34,6 +34,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <TooltipProvider>
           {children}
           <ThemedToaster />
+          {/* Where a logo, banner or photo of another shape is placed in its own before it uploads. */}
+          <CropHost />
         </TooltipProvider>
       </ThemeProvider>
       {process.env.NODE_ENV === "development" ? (

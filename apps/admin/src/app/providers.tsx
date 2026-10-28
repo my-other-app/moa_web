@@ -6,7 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ThemeProvider, useTheme } from "next-themes";
 import { Toaster, TooltipProvider } from "@moa/ui";
 
-import { getQueryClient } from "@moa/app-kit";
+import { CropHost, getQueryClient } from "@moa/app-kit";
 
 import { TwoFactorWatch } from "@/features/ops";
 
@@ -35,6 +35,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <TooltipProvider>
           {children}
           <ThemedToaster />
+          {/* Where a logo, banner or photo of another shape is placed in its own before it uploads. */}
+          <CropHost />
         </TooltipProvider>
       </ThemeProvider>
       {process.env.NODE_ENV === "development" ? (

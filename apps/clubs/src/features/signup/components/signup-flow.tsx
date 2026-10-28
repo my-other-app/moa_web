@@ -8,7 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { CheckCircle2Icon, CheckIcon, CircleIcon, ImagePlusIcon, Loader2Icon, XIcon } from "lucide-react";
 import { Button, ChoiceCard, Combobox, Notice, Segmented, cn } from "@moa/ui";
 import { useObjectUrl } from "@moa/ui/hooks";
-import { TopicChips, resolveTopics } from "@moa/app-kit";
+import { LogoTile, PICTURE_SPECS, TopicChips, cropToShape, resolveTopics } from "@moa/app-kit";
 
 import { isFree, priceLine, usePlans, type Catalog, type Cycle } from "@/features/billing";
 import { useOrganizations } from "@/features/club";
@@ -127,8 +127,10 @@ export function SignupFlow({ initialPlan, initialCycle }: { initialPlan: string;
         className="flex flex-col gap-4"
       >
         {step === 0 ? <ClubStep form={form} logo={logo} logoError={logoError} onLogo={(file, error) => {
-              setLogo(file);
               setLogoError(error);
+              if (!file) return setLogo(null);
+              // Square, as the app and the site show it: placed in one first when it is not (cancelled: the logo stays as it was).
+              void cropToShape(file, "logo", "logo").then((shaped) => shaped && setLogo(shaped));
             }} disabled={busy} /> : null}
         {step === 1 ? <ContactStep form={form} disabled={busy} /> : null}
         {step === 2 ? <MoreStep form={form} disabled={busy} /> : null}
@@ -227,10 +229,7 @@ function ClubStep({ form, logo, logoError, onLogo, disabled }: { form: Form; log
       <div>
         <span className={label}>Logo</span>
         <div className="flex items-center gap-3">
-          <span className="border-line bg-sunken grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl border">
-            {/* eslint-disable-next-line @next/next/no-img-element -- a local blob preview, not a served image */}
-            {preview ? <img src={preview} alt="Logo preview" className="size-full object-cover" /> : <ImagePlusIcon className="text-ink-3 size-5" />}
-          </span>
+          <LogoTile src={preview} alt="Logo preview" className="border-line size-14 rounded-xl border" outline={false} fallback={<ImagePlusIcon className="text-ink-3 size-5" />} />
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={disabled}>
               {logo ? "Choose another" : "Add a logo"}
@@ -240,7 +239,7 @@ function ClubStep({ form, logo, logoError, onLogo, disabled }: { form: Form; log
                 <XIcon className="size-3.5" /> Remove
               </button>
             ) : (
-              <span className="text-ink-3 text-[12px]">Optional. Square works best.</span>
+              <span className="text-ink-3 text-[12px]">Optional.</span>
             )}
           </div>
           <input
@@ -256,6 +255,7 @@ function ClubStep({ form, logo, logoError, onLogo, disabled }: { form: Form; log
             }}
           />
         </div>
+        <p className="text-ink-3 mt-1.5 text-[12px]">{PICTURE_SPECS.logo.label}</p>
         <Err id="su-logo-error" message={logoError} />
       </div>
 
