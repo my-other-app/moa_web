@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { CalendarDaysIcon, ChevronDownIcon, LockIcon, PaletteIcon, ScanLineIcon } from "lucide-react";
-import { formatWindow, pickImage } from "@moa/app-kit";
+import { PosterFrame, formatWindow, pickImage, posterSizes } from "@moa/app-kit";
 import {
   Button,
   DropdownMenu,
@@ -102,7 +101,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   const tab = tabFor(rest);
   const e = event.data;
   const s = summary.data;
-  const poster = pickImage(e?.poster, ["thumbnail", "medium", "original"]);
+  const poster = pickImage(e?.poster, posterSizes(56));
   const doorOpen = s?.door_open ?? false;
   const status = s?.status ?? e?.status;
   const where = e ? (e.is_online ? "Online" : e.location_name) : null;
@@ -129,13 +128,13 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   return (
     <div className={cn(enter)}>
       <header className="flex flex-wrap items-start gap-x-4 gap-y-3">
-        <div className="bg-sunken border-line-soft relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl border">
-          {poster ? (
-            <Image src={poster} alt="" fill sizes="56px" className="object-cover" unoptimized />
-          ) : (
-            <CalendarDaysIcon aria-hidden="true" className="text-ink-3 size-5" />
-          )}
-        </div>
+        {/* The poster, small and whole: 4:5, as everywhere. */}
+        <PosterFrame
+          src={poster}
+          width={56}
+          className="border-line-soft grid w-14 place-items-center rounded-xl border"
+          fallback={<CalendarDaysIcon aria-hidden="true" className="text-ink-3 size-5" />}
+        />
         <div className="min-w-[220px] flex-1">
           {e ? (
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">

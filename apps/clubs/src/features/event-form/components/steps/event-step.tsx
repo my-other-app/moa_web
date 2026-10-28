@@ -1,10 +1,11 @@
 "use client";
 
-import Image from "next/image";
+import * as React from "react";
 import { useFormContext } from "react-hook-form";
 import { ImagePlusIcon, XIcon } from "lucide-react";
 import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Skeleton, Textarea, cn } from "@moa/ui";
 import { useObjectUrl } from "@moa/ui/hooks";
+import { PICTURE_SPECS, POSTER_SHAPE_NOTE, PosterFrame, hasShape } from "@moa/app-kit";
 
 import { AiFilledTag, WriteWithAi, aiFilledClass, useAiFilled } from "@/features/ai";
 import { IMAGE_ACCEPT } from "@/lib/images";
@@ -31,6 +32,15 @@ export function EventStep({ posterUrl, eventId }: { posterUrl?: string | null; e
   const ai = useAiFilled();
   const posterFile = form.watch("posterFile");
   const preview = useObjectUrl(posterFile) ?? posterUrl ?? null;
+  // The poster's own shape, once it has loaded: one that is not 4:5 still goes, with a word.
+  const [shape, setShape] = React.useState<{ src: string; width: number; height: number } | null>(null);
+  const onSize = React.useCallback(
+    (width: number, height: number) => {
+      if (preview) setShape({ src: preview, width, height });
+    },
+    [preview],
+  );
+  const offShape = shape && shape.src === preview && !hasShape(shape.width, shape.height, PICTURE_SPECS.poster.ratio);
   const about = form.watch("about") ?? "";
   const categoryId = form.watch("category_id");
   const kind = categories.data?.find((c) => c.id === Number(categoryId))?.name;
@@ -50,12 +60,13 @@ export function EventStep({ posterUrl, eventId }: { posterUrl?: string | null; e
               <div className="grid gap-2">
                 <label className={cn("border-line hover:border-brand hover:bg-sunken relative grid aspect-[4/5] w-full cursor-pointer place-items-center overflow-hidden rounded-xl border border-dashed transition-colors")}>
                   {preview ? (
-                    <Image src={preview} alt="Poster preview" fill sizes="168px" className="object-cover" unoptimized />
+                    // Never cropped: a poster of another shape shows whole, on a blurred copy of itself.
+                    <PosterFrame src={preview} alt="Poster preview" width={168} onSize={onSize} className="absolute inset-0 w-full rounded-[inherit]" />
                   ) : (
                     <span className="text-ink-3 flex flex-col items-center gap-1.5 px-3 text-center text-[12px]">
                       <ImagePlusIcon className="size-5" />
                       Add a poster
-                      <span className="text-[10.5px]">Portrait, 4:5</span>
+                      <span className="text-[10.5px]">Portrait 4:5 · 1080×1350</span>
                     </span>
                   )}
                   <input type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={(e) => field.onChange(e.target.files?.[0])} />
@@ -67,7 +78,14 @@ export function EventStep({ posterUrl, eventId }: { posterUrl?: string | null; e
                 ) : null}
               </div>
             </FormControl>
-            <FormDescription>The card in the app and the top of the page.</FormDescription>
+            <FormDescription>
+              {PICTURE_SPECS.poster.label}. The card in the app and the top of the page.
+            </FormDescription>
+            {offShape ? (
+              <p role="status" className="text-ink-2 bg-sunken rounded-lg px-2.5 py-2 text-[12px] leading-snug">
+                {POSTER_SHAPE_NOTE}
+              </p>
+            ) : null}
             <FormMessage />
           </FormItem>
         )}

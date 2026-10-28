@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -23,6 +22,8 @@ import {
   formatDateTime,
   formatNumber,
   pickImage,
+  PosterFrame,
+  posterSizes,
   useListParams,
 } from "@moa/app-kit";
 import { pageCount } from "@moa/api";
@@ -315,7 +316,7 @@ export function EventDetail({ eventId }: { eventId: number }) {
     );
   }
 
-  const poster = pickImage(event?.poster, ["medium", "large", "original", "thumbnail"]);
+  const poster = pickImage(event?.poster, posterSizes(96));
   const registrations = analytics?.total_registrations ?? 0;
   const requestFigures = summary?.requests;
   // People waiting for the club to confirm them: closed with a polite email if the event is deleted.
@@ -385,20 +386,13 @@ export function EventDetail({ eventId }: { eventId: number }) {
       <div className="space-y-6">
         <Card>
           <CardContent className="flex flex-col gap-4 sm:flex-row">
-            <div className="bg-muted relative size-24 shrink-0 overflow-hidden rounded-xl">
-              {isPending ? (
-                <Skeleton className="size-full" />
-              ) : poster ? (
-                <Image
-                  src={poster}
-                  alt=""
-                  fill
-                  sizes="96px"
-                  className="object-cover"
-                  unoptimized
-                />
-              ) : null}
-            </div>
+            {/* 4:5 and whole, as the app and the site show it. */}
+            <PosterFrame
+              src={isPending ? null : poster}
+              width={96}
+              className="bg-muted w-24 rounded-xl"
+              fallback={isPending ? <Skeleton className="size-full" /> : null}
+            />
 
             <div className="min-w-0 flex-1 space-y-1">
               {isPending ? (

@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Controller, useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Image from "next/image";
 import { ApiError } from "@moa/api";
 import {
   CheckIcon,
@@ -17,7 +16,7 @@ import {
   XIcon,
   YoutubeIcon,
   type LucideIcon, ImagePlusIcon } from "lucide-react";
-import { initials, pickImage } from "@moa/app-kit";
+import { BANNER_SIZES, BannerFrame, LogoTile, PICTURE_SPECS, initials, logoSizes, pickImage } from "@moa/app-kit";
 import {
   CardLabel,
   EmptyState,
@@ -81,33 +80,24 @@ function Err({ message }: { message?: string }) {
 function LogoControl({ club }: { club: ClubSelf }) {
   const upload = useUpdateClubLogo();
   // Handing back the upload's promise lets a refused logo come down again (usePick).
-  const { open, preview, input } = usePick((f) => upload.mutateAsync(f), "logo");
-  const shown =
-    preview ??
-    pickImage(club.logo, ["medium", "large", "thumbnail", "original"]);
+  const { open, preview, input } = usePick((f) => upload.mutateAsync(f), "logo", "logo");
+  const shown = preview ?? pickImage(club.logo, logoSizes(72));
   return (
     <div className="flex items-center gap-4">
-      <div className="bg-brand-soft border-brand-line relative grid size-[72px] shrink-0 place-items-center overflow-hidden rounded-2xl border">
-        {shown ? (
-          <Image
-            src={shown}
-            alt=""
-            fill
-            sizes="72px"
-            className="object-cover"
-            unoptimized
-          />
-        ) : (
-          <span className="text-brand text-xl font-semibold">
-            {initials(club.name)}
-          </span>
-        )}
+      {/* Square, as everywhere: a logo of another shape shows whole on white (LogoTile). */}
+      <LogoTile
+        src={shown}
+        className="border-brand-line size-[72px] rounded-2xl border"
+        outline={false}
+        fallback={<span className="text-brand text-xl font-semibold">{initials(club.name)}</span>}
+        fallbackClassName="bg-brand-soft"
+      >
         {upload.isPending && (
           <span className="absolute inset-0 grid place-items-center bg-black/40 text-white">
             <Loader2Icon className="size-5 animate-spin" />
           </span>
         )}
-      </div>
+      </LogoTile>
       <div>
         <button
           type="button"
@@ -118,9 +108,7 @@ function LogoControl({ club }: { club: ClubSelf }) {
           <UploadIcon className="size-4" />{" "}
           {shown ? "Replace logo" : "Add logo"}
         </button>
-        <p className="micro text-ink-3 mt-1.5">
-          Square PNG or JPG, at least 400 px
-        </p>
+        <p className="micro text-ink-3 mt-1.5">{PICTURE_SPECS.logo.label}</p>
         {input}
       </div>
     </div>
@@ -131,41 +119,34 @@ function LogoControl({ club }: { club: ClubSelf }) {
 
 function CoverControl({ club, colour }: { club: ClubSelf; colour: string }) {
   const upload = useUpdateClubCover();
-  const { open, preview, input } = usePick((f) => upload.mutateAsync(f), "cover");
-  const shown =
-    preview ??
-    pickImage(club.cover, ["large", "medium", "original", "thumbnail"]);
+  const { open, preview, input } = usePick((f) => upload.mutateAsync(f), "cover", "banner");
+  const shown = preview ?? pickImage(club.cover, BANNER_SIZES);
   return (
-    <div
-      className="relative h-[120px] overflow-hidden rounded-xl"
-      style={{
-        background: `linear-gradient(135deg, ${colour} 0%, color-mix(in srgb, ${colour} 55%, #0b1413) 100%)`,
-      }}
-    >
-      {shown && (
-        <Image
-          src={shown}
-          alt=""
-          fill
-          sizes="(max-width: 1024px) 100vw, 760px"
-          className="object-cover"
-          unoptimized
-        />
-      )}
-      <button
-        type="button"
-        onClick={open}
-        disabled={upload.isPending}
-        className="btn btn-secondary btn-sm absolute right-3 bottom-3 bg-white/90 text-[#111] hover:bg-white"
+    <div>
+      {/* 3:1, as on the club page and in the app: what shows here is what they show. */}
+      <BannerFrame
+        src={shown}
+        className="max-w-[640px] rounded-xl"
+        style={{
+          background: `linear-gradient(135deg, ${colour} 0%, color-mix(in srgb, ${colour} 55%, #0b1413) 100%)`,
+        }}
       >
-        {upload.isPending ? (
-          <Loader2Icon className="size-3.5 animate-spin" />
-        ) : (
-          <ImageIcon className="size-3.5" />
-        )}{" "}
-        {shown ? "Replace cover" : "Cover banner"}
-      </button>
-      {input}
+        <button
+          type="button"
+          onClick={open}
+          disabled={upload.isPending}
+          className="btn btn-secondary btn-sm absolute right-3 bottom-3 bg-white/90 text-[#111] hover:bg-white"
+        >
+          {upload.isPending ? (
+            <Loader2Icon className="size-3.5 animate-spin" />
+          ) : (
+            <ImageIcon className="size-3.5" />
+          )}{" "}
+          {shown ? "Replace cover" : "Cover banner"}
+        </button>
+        {input}
+      </BannerFrame>
+      <p className="micro text-ink-3 mt-1.5">{PICTURE_SPECS.banner.label}</p>
     </div>
   );
 }
@@ -250,10 +231,9 @@ function PartnerRow({ partner }: { partner: ClubPartner }) {
   } = usePick(
     (f) => logoUpload.mutateAsync({ id: partner.id, file: f }),
     "partner logo",
+    "icon",
   );
-  const logo =
-    preview ??
-    pickImage(partner.logo, ["thumbnail", "medium", "original", "large"]);
+  const logo = preview ?? pickImage(partner.logo, logoSizes(40));
   const [draft, setDraft] = React.useState(() => draftOf(partner));
   const [confirm, setConfirm] = React.useState(false);
   const set =
@@ -279,28 +259,18 @@ function PartnerRow({ partner }: { partner: ClubPartner }) {
       <button
         type="button"
         aria-label={`${logo ? "Replace" : "Add"} ${partner.name} logo`}
-        title={logo ? "Replace logo" : "Add a logo"}
+        title={logo ? `Replace logo · ${PICTURE_SPECS.icon.label}` : `Add a logo · ${PICTURE_SPECS.icon.label}`}
         onClick={pickLogo}
         disabled={logoUpload.isPending}
         className="border-line relative size-10 shrink-0 overflow-hidden rounded-xl border bg-transparent p-0"
       >
-        {logo ? (
-          <Image
-            src={logo}
-            alt=""
-            fill
-            sizes="40px"
-            className="object-cover"
-            unoptimized
-          />
-        ) : (
-          <InitialsAvatar
-            name={partner.name}
-            size={38}
-            tone="muted"
-            className="rounded-xl"
-          />
-        )}
+        <LogoTile
+          src={logo}
+          className="size-full rounded-[inherit]"
+          outline={false}
+          fallback={<InitialsAvatar name={partner.name} size={38} tone="muted" className="rounded-xl" />}
+          fallbackClassName="bg-transparent"
+        />
         {logoUpload.isPending && (
           <span className="absolute inset-0 grid place-items-center bg-black/40 text-white">
             <Loader2Icon className="size-4 animate-spin" />
@@ -369,7 +339,7 @@ function PartnersPanel({ club }: { club: ClubSelf }) {
 
   const logoUpload = useUpdatePartnerLogo();
   const [newLogo, setNewLogo] = React.useState<File | null>(null);
-  const { open: pickNewLogo, preview: newLogoPreview, input: newLogoInput, preparing: logoPreparing, clear: clearNewLogo } = usePick((f) => setNewLogo(f), "partner logo");
+  const { open: pickNewLogo, preview: newLogoPreview, input: newLogoInput, preparing: logoPreparing, clear: clearNewLogo } = usePick((f) => setNewLogo(f), "partner logo", "icon");
 
   const add = async () => {
     const parsed = partnerFormSchema.safeParse(draft);
@@ -407,7 +377,7 @@ function PartnersPanel({ club }: { club: ClubSelf }) {
       </CardLabel>
       <p className="text-ink-3 mt-1 text-[12.5px]">
         Year-round partners, shown on your profile and website. Event sponsors
-        are added per event.
+        are added per event. Logos: {PICTURE_SPECS.icon.label}.
       </p>
       {club.partners.length === 0 && !adding ? (
         <p className="text-ink-3 mt-4 text-[13px]">No partners yet.</p>
@@ -420,8 +390,8 @@ function PartnersPanel({ club }: { club: ClubSelf }) {
       )}
       {adding && (
         <div className="border-line-soft mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
-          <button type="button" aria-label="Add the new partner's logo" title="Add a logo" onClick={pickNewLogo} className="border-line relative size-10 shrink-0 overflow-hidden rounded-xl border bg-transparent p-0">
-            {newLogoPreview ? <Image src={newLogoPreview} alt="" fill sizes="40px" className="object-cover" unoptimized /> : <span className="bg-sunken grid size-full place-items-center"><ImagePlusIcon className="text-ink-3 size-4" /></span>}
+          <button type="button" aria-label="Add the new partner's logo" title={`Add a logo · ${PICTURE_SPECS.icon.label}`} onClick={pickNewLogo} className="border-line relative size-10 shrink-0 overflow-hidden rounded-xl border bg-transparent p-0">
+            <LogoTile src={newLogoPreview} className="size-full rounded-[inherit]" outline={false} fallback={<ImagePlusIcon className="text-ink-3 size-4" />} />
           </button>
           {newLogoInput}
           <input

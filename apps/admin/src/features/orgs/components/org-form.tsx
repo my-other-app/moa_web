@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { PICTURE_SPECS, useShapedFile } from "@moa/app-kit";
 import { Loader2Icon } from "lucide-react";
 import {
   Button,
@@ -72,7 +73,8 @@ export function OrgFormDialog({
   const isOpen = open ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
 
-  const [logo, setLogo] = React.useState<File | null>(null);
+  // Square, as the app shows it: a logo of another shape is placed in one first (the crop step).
+  const [logo, setLogo] = useShapedFile("icon", "logo");
   const [logoError, setLogoError] = React.useState<string | null>(null);
   const [preparingLogo, setPreparingLogo] = React.useState(false);
   const create = useCreateOrg();
@@ -220,6 +222,7 @@ export function OrgFormDialog({
               aria-invalid={logoError ? true : undefined}
               onChange={(e) => void pickLogo(e.target.files?.[0] ?? null)}
             />
+            <p className="text-muted-foreground text-xs">{PICTURE_SPECS.icon.label}</p>
           </Field>
 
           <DialogFooter>

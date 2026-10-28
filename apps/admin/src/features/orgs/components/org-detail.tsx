@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -20,6 +19,8 @@ import {
   formatDateTime,
   formatNumber,
   initials,
+  LogoTile,
+  logoSizes,
   pickImage,
 } from "@moa/app-kit";
 import { pageCount } from "@moa/api";
@@ -105,7 +106,7 @@ export function OrgDetail({ orgId }: { orgId: number }) {
     );
   }
 
-  const logo = pickImage(org?.logo, ["medium", "thumbnail", "original"]);
+  const logo = pickImage(org?.logo, logoSizes(64));
 
   const cards = [
     {
@@ -186,14 +187,7 @@ export function OrgDetail({ orgId }: { orgId: number }) {
         <Card>
           <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
             {logo ? (
-              <Image
-                src={logo}
-                alt=""
-                width={64}
-                height={64}
-                className="size-16 shrink-0 rounded-xl object-cover"
-                unoptimized
-              />
+              <LogoTile src={logo} className="size-16 rounded-xl" />
             ) : (
               <Avatar className="size-16 rounded-xl">
                 <AvatarFallback className="rounded-xl text-lg">

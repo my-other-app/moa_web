@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrivalCurveCard,
@@ -13,6 +12,8 @@ import {
   formatWindow,
   pct,
   pickImage,
+  posterSizes,
+  PosterFrame,
   relativeTime,
   TopicChips,
   timeUntil,
@@ -308,7 +309,7 @@ function EventInterests({ names, topics }: { names: string[]; topics: TopicRef[]
 
 /** The event's own facts: the poster and the words that front it, where and when, what entry costs, what happens to the guest list. */
 function AboutPanel({ s, event, base }: { s: EventSummary; event: EventDetail | undefined; base: string }) {
-  const poster = pickImage(event?.poster, ["medium", "large", "original", "thumbnail"]);
+  const poster = pickImage(event?.poster, posterSizes(72));
   const topics = useResolvedTopics(event);
   const at = new Date(s.generated_at);
   const closes = event?.reg_enddate ? new Date(event.reg_enddate) : null;
@@ -334,13 +335,13 @@ function AboutPanel({ s, event, base }: { s: EventSummary; event: EventDetail | 
       </CardLabel>
       <div className="mb-3 flex items-start gap-3">
         {/* The poster, small: it fronts the public page, the ticket and the app. */}
-        <div className="bg-sunken border-line-soft relative grid size-[72px] shrink-0 place-items-center overflow-hidden rounded-xl border">
-          {poster ? (
-            <Image src={poster} alt={`Poster for ${event?.name ?? "this event"}`} fill sizes="72px" className="object-cover" unoptimized />
-          ) : (
-            <span className="text-ink-3 px-1 text-center text-[10.5px] leading-tight">No poster</span>
-          )}
-        </div>
+        <PosterFrame
+          src={poster}
+          alt={`Poster for ${event?.name ?? "this event"}`}
+          width={72}
+          className="border-line-soft grid w-[72px] place-items-center rounded-xl border"
+          fallback={<span className="text-ink-3 px-1 text-center text-[10.5px] leading-tight">No poster</span>}
+        />
         <p className="text-ink-2 line-clamp-4 min-w-0 flex-1 text-[12.5px] leading-[1.55]">
           {event?.about || "No description yet. The poster and the description front the public page and the app; add them under Settings."}
         </p>
