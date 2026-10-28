@@ -128,6 +128,8 @@ export function useUpdatePartner() {
   return useMutation({
     mutationFn: ({ id, form }: { id: number; form: PartnerForm }) => updatePartner(id, form),
     onSuccess: async () => {
+      // A row saves on blur, with no button to change: the toast is how the organiser knows it took.
+      toast.success("Partner saved");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
     onError: toastError,
@@ -151,6 +153,8 @@ export function useUpdateTeamMember() {
   return useMutation({
     mutationFn: ({ id, form }: { id: number; form: TeamMemberForm }) => updateTeamMember(id, form),
     onSuccess: async () => {
+      // Saved on blur, like a partner's row.
+      toast.success("Team member saved");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
     onError: toastError,
@@ -174,6 +178,7 @@ export function useUpdateTeamMemberPhoto() {
   return useMutation({
     mutationFn: ({ id, file }: { id: number; file: File }) => updateTeamMemberPhoto(id, file),
     onSuccess: async () => {
+      toast.success("Photo updated");
       await queryClient.invalidateQueries({ queryKey: qk.clubs.all });
     },
     onError: toastError,

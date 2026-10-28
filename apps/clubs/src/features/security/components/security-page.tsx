@@ -417,7 +417,7 @@ function ClubSecurity() {
         </div>
         <button
           type="button"
-          className={cn("btn btn-secondary", confirmAll ? "btn-primary" : "btn-secondary")}
+          className={cn("btn", confirmAll ? "btn-primary" : "btn-secondary")}
           disabled={!s || otherCount === 0 || others.isPending}
           onClick={() => {
             if (confirmAll) {

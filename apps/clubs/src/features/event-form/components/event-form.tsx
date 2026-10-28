@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckIcon, CircleIcon, Loader2Icon, MapPinIcon, SaveIcon } from "lucide-react";
 import { ApiError } from "@moa/api";
 import { useObjectUrl } from "@moa/ui/hooks";
-import { Form, InlineAlert, Notice, ProgressBar, cn } from "@moa/ui";
+import { Form, InlineAlert, Notice, ProgressBar, cn, toast } from "@moa/ui";
 
 import { AiFilledProvider, AiFilledTag } from "@/features/ai";
 import { useMyClub } from "@/features/club";
@@ -210,7 +210,8 @@ function Actions({ mode, isSaving, intent, canDraft, publishable, isDirty, isDra
         </>
       ) : (
         <>
-          <button type="button" className={cn("btn btn-secondary", isDirty ? "btn-primary" : "btn-secondary")} disabled={isSaving || !isDirty} onClick={() => submitAs("published")}>
+          {/* One tone at a time: with both, the primary's text sat on the secondary's fill and the label vanished. */}
+          <button type="button" className={cn("btn", isDirty ? "btn-primary" : "btn-secondary")} disabled={isSaving || !isDirty} onClick={() => submitAs("published")}>
             {isSaving ? <Loader2Icon className="size-4 animate-spin" /> : <CheckIcon className="size-4" />} {isSaving ? "Saving…" : isDirty ? "Save changes" : "All changes saved"}
           </button>
           {isDraft ? (
@@ -287,9 +288,11 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
     }
   }
 
-  const onInvalid = () => {
-    const first = STEPS.find((s) => s.fields.some((f) => f in form.formState.errors));
+  const onInvalid = (invalid: Record<string, unknown>) => {
+    const first = STEPS.find((s) => s.fields.some((f) => f in invalid));
     if (first) document.getElementById(`section-${first.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Said as well as shown: Save is at the top and the foot, and the field may be anywhere between.
+    toast.error("Not saved", { description: first ? `Fix what's marked in ${first.title}, then save again.` : "Fix what's marked above, then save again." });
   };
 
   const submitAs = (as: "draft" | "published") => {
