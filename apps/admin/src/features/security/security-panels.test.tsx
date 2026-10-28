@@ -14,6 +14,9 @@ import { toast } from "@moa/ui";
 type Session = { id: string; user_agent: string | null; ip_address: string | null; last_seen_at: string; current: boolean };
 
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
+const URI = "otpauth://totp/MyOtherApp:me?secret=JBSWY3DPEHPK3PXP&issuer=MyOtherApp";
+/** How the key reads on screen: in blocks of four. */
+const KEY = "JBSW Y3DP EHPK 3PXP";
 let totp = { enabled: false, recovery_codes_remaining: 0 };
 let sessions: Session[] = [];
 /** Refuse writes to paths containing this with the given error. */
@@ -45,7 +48,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         calls.push({ method: "POST", path, body });
         refused(path);
         if (path.endsWith("/2fa/setup")) {
-          return { secret: "JBSWY3DPEHPK3PXP", provisioning_uri: "otpauth://totp/MyOtherApp:me?secret=JBSWY3DPEHPK3PXP" };
+          return { secret: "JBSWY3DPEHPK3PXP", provisioning_uri: URI };
         }
         if (path.endsWith("/2fa/enable")) {
           totp = { enabled: true, recovery_codes_remaining: 2 };
@@ -95,7 +98,7 @@ describe("two-factor", () => {
   async function startSetup() {
     render(<TwoFactorPanel />);
     fireEvent.click(await screen.findByRole("button", { name: "Set up two-factor" }));
-    return screen.findByText("JBSWY3DPEHPK3PXP");
+    return screen.findByText(KEY);
   }
 
   it("is off until set up, and setting up shows the key and the authenticator link", async () => {
@@ -103,14 +106,61 @@ describe("two-factor", () => {
     expect(await screen.findByText("Off")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Set up two-factor" }));
 
-    expect(await screen.findByText("JBSWY3DPEHPK3PXP")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "this link" })).toHaveAttribute(
-      "href",
-      "otpauth://totp/MyOtherApp:me?secret=JBSWY3DPEHPK3PXP"
-    );
+    const cantScan = await screen.findByRole("group", { name: "Can't scan?" });
+    expect(within(cantScan).getByText(KEY)).toBeInTheDocument();
+    expect(within(cantScan).getByRole("link", { name: "Open in authenticator app" })).toHaveAttribute("href", URI);
     expect(writes()).toEqual([{ method: "POST", path: "/api/v1/auth/2fa/setup", body: undefined }]);
     // Not on yet: it only turns on once a code from the app is read back.
     expect(screen.getByText("Off")).toBeInTheDocument();
+  });
+
+  it("draws the setup link as a QR code to scan, with the steps under it, fetching nothing", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const logs = (["log", "info", "warn", "error", "debug"] as const).map((level) => vi.spyOn(console, level));
+    await startSetup();
+
+    const qr = screen.getByRole("img", { name: "QR code for your authenticator app" });
+    // A real code: 21 + 4n modules a side plus the four-module quiet zone,
+    // with the three finder squares in their corners.
+    const size = Number(qr.getAttribute("viewBox")!.split(" ")[2]);
+    expect((size - 8 - 21) % 4).toBe(0);
+    const dark = new Set<string>();
+    for (const m of qr.querySelector("path")!.getAttribute("d")!.matchAll(/M(\d+) (\d+)h(\d+)/g)) {
+      for (let i = 0; i < Number(m[3]); i++) dark.add(`${m[2]},${Number(m[1]) + i}`);
+    }
+    const corners: Array<[number, number]> = [[4, 4], [4, size - 11], [size - 11, 4]];
+    for (const [top, left] of corners) {
+      expect(dark.has(`${top},${left}`)).toBe(true); // the finder's outer ring
+      expect(dark.has(`${top + 1},${left + 1}`)).toBe(false); // its white ring
+      expect(dark.has(`${top + 3},${left + 3}`)).toBe(true); // its centre
+    }
+    expect([...dark].some((at) => at.split(",").some((n) => Number(n) < 4 || Number(n) >= size - 4))).toBe(false);
+    expect(qr).toHaveAttribute("width", "200");
+
+    expect(
+      screen.getByText(
+        "Scan this with Google Authenticator, Microsoft Authenticator, 1Password or any authenticator app, then enter the 6-digit code it shows."
+      )
+    ).toBeInTheDocument();
+    // Drawn here: the secret in the link never goes to a QR service, or to the console.
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(document.querySelector("img")).toBeNull();
+    expect(writes()).toEqual([{ method: "POST", path: "/api/v1/auth/2fa/setup", body: undefined }]);
+    const printed = logs.flatMap((spy) => spy.mock.calls.flat().map(String));
+    expect(printed.filter((line) => line.includes("JBSWY3DPEHPK3PXP") || line.includes("otpauth"))).toEqual([]);
+  });
+
+  it("copies the setup key without the spaces", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    await startSetup();
+    fireEvent.click(screen.getByRole("button", { name: "Copy key" }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("JBSWY3DPEHPK3PXP"));
+    expect(await screen.findByRole("button", { name: "Copied" })).toBeInTheDocument();
+    // Copying is not confirming: still off, and the code field is still there.
+    expect(screen.getByText("Off")).toBeInTheDocument();
+    expect(screen.getByLabelText("Code from the app")).toBeInTheDocument();
   });
 
   it("will not confirm without a six-digit code", async () => {
@@ -130,6 +180,7 @@ describe("two-factor", () => {
 
     expect(await screen.findByText("Save these recovery codes now")).toBeInTheDocument();
     expect(writes().at(-1)).toEqual({ method: "POST", path: "/api/v1/auth/2fa/enable", body: { code: "123456" } });
+    expect(screen.queryByRole("img", { name: "QR code for your authenticator app" })).toBeNull();
     expect(screen.getByText("aaaa-bbbb")).toBeInTheDocument();
     expect(screen.getByText("cccc-dddd")).toBeInTheDocument();
     expect(screen.getByText("They are not shown again")).toBeInTheDocument();
@@ -161,7 +212,8 @@ describe("two-factor", () => {
 
     await waitFor(() => expect(failure).toHaveBeenCalledWith("That code is not valid"));
     expect(screen.queryByText("Save these recovery codes now")).toBeNull();
-    expect(screen.getByText("JBSWY3DPEHPK3PXP")).toBeInTheDocument();
+    expect(screen.getByText(KEY)).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "QR code for your authenticator app" })).toBeInTheDocument();
     expect(screen.getByLabelText("Code from the app")).toHaveValue("000000");
     expect(screen.getByText("Off")).toBeInTheDocument();
   });
@@ -207,7 +259,8 @@ describe("two-factor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
 
     expect(await screen.findByRole("button", { name: "Set up two-factor" })).toBeInTheDocument();
-    expect(screen.queryByText("JBSWY3DPEHPK3PXP")).toBeNull();
+    expect(screen.queryByText(KEY)).toBeNull();
+    expect(screen.queryByRole("img", { name: "QR code for your authenticator app" })).toBeNull();
   });
 });
 

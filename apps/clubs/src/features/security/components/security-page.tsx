@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CopyIcon, DownloadIcon, KeyRoundIcon, Loader2Icon, LogOutIcon, MonitorIcon, SmartphoneIcon, TabletIcon, type LucideIcon } from "lucide-react";
-import { formatDateTime, relativeTime } from "@moa/app-kit";
+import { AuthenticatorSetup, formatDateTime, relativeTime } from "@moa/app-kit";
 import { CardLabel, Chip, EmptyState, FigurePanel, ProgressBar, Skeleton, StatTile, cn, toast } from "@moa/ui";
 
 import { MemberAccount, useMyAccess } from "@/features/access";
@@ -231,17 +231,8 @@ function TwoFactorCard({ s }: { s: SecurityOverview }) {
           </div>
         </div>
       ) : setup ? (
-        <div className="mt-3 flex flex-col gap-2">
-          <p className="text-ink-2 text-[12.5px]">Add this key to the authenticator app, then enter the code it shows.</p>
-          <div className="bg-sunken flex items-center gap-2 rounded-xl px-3 py-2">
-            <code className="text-ink flex-1 break-all text-[12.5px]">{setup.secret}</code>
-            <button type="button" className="btn btn-ghost btn-xs" aria-label="Copy the key" onClick={() => copy(setup.secret)}>
-              <CopyIcon className="size-3.5" />
-            </button>
-          </div>
-          <a href={setup.provisioning_uri} className="text-brand text-[12.5px] underline-offset-2 hover:underline">
-            Open in an authenticator app on this device
-          </a>
+        <div className="mt-3 flex flex-col gap-3">
+          <AuthenticatorSetup uri={setup.provisioning_uri} secret={setup.secret} />
           <div className="flex gap-2">
             <input aria-label="Authenticator code" className={cn(field, "w-[140px] font-mono tracking-[0.2em]")} inputMode="numeric" maxLength={8} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} />
             <button type="button" className="btn btn-primary btn-lg" onClick={finish} disabled={enable.isPending || code.trim().length < 6}>
