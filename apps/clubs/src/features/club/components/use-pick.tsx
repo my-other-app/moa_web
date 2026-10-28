@@ -4,13 +4,14 @@ import * as React from "react";
 import { toast } from "@moa/ui";
 import { useObjectUrl } from "@moa/ui/hooks";
 
-import { fitImage } from "@/lib/images";
+import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@/lib/images";
 
 /**
  * A hidden file input and a way to open it. The picked image is handed
- * to the caller and previewed while it uploads. An image only; one too big
- * for the gateway (4.5 MB, a Vercel limit) is redrawn smaller first
- * (lib/images), and one that cannot be is refused with a word, sending nothing.
+ * to the caller and previewed while it uploads. A picture only, in any
+ * common format: one the API does not keep (an SVG, a HEIC, an AVIF...) is
+ * converted first, and one over its budget redrawn smaller (lib/images); one
+ * that cannot be sent is refused with a word, sending nothing.
  *
  * When `onFile` returns a promise (an upload), a rejection takes the preview
  * down again: a picture the server refused must not stay up as if saved.
@@ -26,7 +27,7 @@ export function usePick(onFile: (f: File) => void | Promise<unknown>, what: stri
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) return void toast.error(`Choose an image file for the ${what}`);
+    if (!isPicture(file)) return void toast.error(`Choose a picture for the ${what}: ${IMAGE_FORMATS_LABEL}`);
     let ready: File;
     setPreparing(true);
     try {
@@ -40,6 +41,6 @@ export function usePick(onFile: (f: File) => void | Promise<unknown>, what: stri
     // The refusal itself is said by the caller (its mutation toasts it); here only the preview goes.
     void Promise.resolve(onFile(ready)).catch(() => setPicked((current) => (current === ready ? null : current)));
   };
-  const input = <input ref={ref} type="file" accept="image/*" onChange={(e) => void onChange(e)} className="sr-only" tabIndex={-1} aria-hidden="true" />;
+  const input = <input ref={ref} type="file" accept={IMAGE_ACCEPT} onChange={(e) => void onChange(e)} className="sr-only" tabIndex={-1} aria-hidden="true" />;
   return { open: () => ref.current?.click(), preview, input, preparing, clear: () => setPicked(null) };
 }

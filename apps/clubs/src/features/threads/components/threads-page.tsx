@@ -9,7 +9,7 @@ import { CardLabel, Chip, EmptyState, FigurePanel, InitialsAvatar, Notice, Pager
 import { useObjectUrl } from "@moa/ui/hooks";
 
 import { useMyClub } from "@/features/club";
-import { fitImage } from "@/lib/images";
+import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@/lib/images";
 
 import { useComments, useCreateThread, useDeleteComment, useDeleteThread, useReplyAsClub, useSetPinned, useThreadInsights, useThreadsPage } from "../queries";
 import { MAX_BODY, MAX_POLL_OPTIONS, SCOPE_LABEL, SORT_LABEL, THREAD_SCOPES, THREAD_SORTS, composeSchema, type Thread, type ThreadInsights, type ThreadScope, type ThreadSort } from "../schemas";
@@ -39,8 +39,8 @@ function Composer({ clubName, followers }: { clubName: string; followers: number
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f) return;
-    if (!f.type.startsWith("image/")) return void toast.error("Choose an image file");
-    // Over the gateway's 4.5 MB (a Vercel limit) it is redrawn smaller first (lib/images).
+    if (!isPicture(f)) return void toast.error(`Choose a picture: ${IMAGE_FORMATS_LABEL}`);
+    // Converted when the API does not keep its format, and redrawn smaller when over budget (lib/images).
     try {
       setPhoto(await fitImage(f, "photo"));
     } catch (error) {
@@ -102,7 +102,7 @@ function Composer({ clubName, followers }: { clubName: string; followers: number
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()} disabled={create.isPending}>
               <ImagePlusIcon className="size-4" /> Photo
             </button>
-            <input ref={fileRef} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(e) => void pick(e)} />
+            <input ref={fileRef} type="file" accept={IMAGE_ACCEPT} className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(e) => void pick(e)} />
             <button type="button" className={cn("btn btn-ghost btn-sm", poll && "text-brand")} onClick={() => setPoll(poll ? null : ["", ""])} disabled={create.isPending}>
               <BarChart3Icon className="size-4" /> Poll
             </button>

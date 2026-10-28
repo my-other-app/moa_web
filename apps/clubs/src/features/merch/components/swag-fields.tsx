@@ -4,6 +4,8 @@ import * as React from "react";
 import { ImageIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { Button, IconButton, NativeSelect, toast } from "@moa/ui";
 
+import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@/lib/images";
+
 import { uploadMerchPhoto } from "../api";
 import type { MerchField, MerchItem, MerchItemInput } from "../schemas";
 
@@ -78,9 +80,11 @@ export function PhotoField({
   const [busy, setBusy] = React.useState(false);
   const pick = async (file: File | undefined) => {
     if (!file) return;
+    if (!isPicture(file)) return void toast.error(`Choose a picture: ${IMAGE_FORMATS_LABEL}`);
     setBusy(true);
     try {
-      const up = await uploadMerchPhoto(eventId, file);
+      // Converted when the API does not keep its format, and redrawn smaller when over budget (lib/images).
+      const up = await uploadMerchPhoto(eventId, await fitImage(file, "photo"));
       onChange({ key: up.key, url: up.url });
     } catch (err) {
       toast.error(
@@ -116,7 +120,7 @@ export function PhotoField({
             {busy ? "Uploading…" : value.key ? "Replace photo" : "Add a photo"}
             <input
               type="file"
-              accept="image/png,image/jpeg,image/webp"
+              accept={IMAGE_ACCEPT}
               className="sr-only"
               disabled={busy}
               onChange={(e) => void pick(e.target.files?.[0])}

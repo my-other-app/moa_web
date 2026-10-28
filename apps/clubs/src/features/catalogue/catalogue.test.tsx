@@ -124,13 +124,13 @@ describe("the club's merchandise", () => {
     const dialog = await sheet();
 
     // A file it cannot take is refused before any upload.
-    fireEvent.change(within(dialog).getByLabelText("Item photo"), { target: { files: [new File(["x"], "a.gif", { type: "image/gif" })] } });
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Use a PNG, JPEG or WebP image");
+    fireEvent.change(within(dialog).getByLabelText("Item photo"), { target: { files: [new File(["x"], "sizes.txt", { type: "text/plain" })] } });
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Choose a picture: JPG, PNG, WebP, GIF, HEIC, AVIF, SVG, BMP or TIFF");
     const big = new File(["x"], "big.png", { type: "image/png" });
     Object.defineProperty(big, "size", { value: 6 * 1024 * 1024 });
     fireEvent.change(within(dialog).getByLabelText("Item photo"), { target: { files: [big] } });
     // Too big to send and, here, no canvas to redraw it smaller with: refused with words.
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("more than the 4.0 MB that can be sent");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("more than the 5.0 MB that can be sent");
     expect(calls.some((c) => c.path.endsWith("/photo"))).toBe(false);
 
     fireEvent.change(within(dialog).getByLabelText("Item photo"), { target: { files: [new File(["png"], "hoodie.png", { type: "image/png" })] } });

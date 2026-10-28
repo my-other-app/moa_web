@@ -5,6 +5,7 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, InitialsAvatar, Textarea, cn } from "@moa/ui";
 
 import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
+import { IMAGE_ACCEPT } from "@/lib/images";
 
 import { SPEAKER_BIO_MAX, type EventFormValues } from "../../schemas";
 
@@ -47,7 +48,7 @@ export function PeopleStep() {
                     ) : (
                       <InitialsAvatar name={name} size={40} />
                     )}
-                    <input type="file" accept="image/*" className="sr-only" onChange={(e) => form.setValue(`speakers.${index}.photoFile`, e.target.files?.[0], { shouldDirty: true })} aria-label={`Photo for speaker ${index + 1}`} />
+                    <input type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={(e) => form.setValue(`speakers.${index}.photoFile`, e.target.files?.[0], { shouldDirty: true })} aria-label={`Photo for speaker ${index + 1}`} />
                   </label>
                   <FormField
                     control={form.control}

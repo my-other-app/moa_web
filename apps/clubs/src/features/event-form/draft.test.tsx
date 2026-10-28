@@ -342,8 +342,8 @@ describe("Create from poster or message", () => {
   it("refuses a file it cannot read before sending it", async () => {
     render(<EventForm mode="create" />);
     const dialog = await openDraft();
-    choose(dialog, new File(["gif"], "poster.gif", { type: "image/gif" }));
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Use a PNG, JPEG or WebP image, or a PDF.");
+    choose(dialog, new File(["doc"], "poster.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Use a picture (JPG, PNG, WebP, GIF, HEIC, AVIF, SVG, BMP or TIFF) or a PDF.");
     const big = new File(["x"], "huge.pdf", { type: "application/pdf" });
     Object.defineProperty(big, "size", { value: 11 * 1024 * 1024 });
     choose(dialog, big);

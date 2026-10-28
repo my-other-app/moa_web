@@ -18,7 +18,6 @@ export const NAME_MAX = 20;
 export const PASSWORD_MIN = 6;
 export const PASSWORD_MAX = 100;
 export const ABOUT_MAX = 2000;
-export const LOGO_MAX_BYTES = 5 * 1024 * 1024;
 
 /** "+91 98470-12345" as the server keeps it: no spaces, no dashes. */
 export const compactPhone = (value: string) => value.replace(/[\s-]/g, "");

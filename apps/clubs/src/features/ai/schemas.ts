@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { ApiError } from "@moa/api";
 
+import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, isPicture } from "@/lib/images";
+
 /**
  * AI assist: a draft event from a poster or a message, words for the
  * editors, a summary of what guests said, and the club's own AI key.
@@ -75,11 +77,16 @@ export function quotaText(s: AiStatus | null | undefined): string {
 
 export const DRAFT_TEXT_MAX = 6000;
 export const DRAFT_FILE_MAX = 10 * 1024 * 1024;
-export const DRAFT_FILE_TYPES = ["image/png", "image/jpeg", "image/webp", "application/pdf"] as const;
+/** What the poster input offers: any picture (one the API does not keep is converted, lib/images) or a PDF. */
+export const DRAFT_FILE_ACCEPT = `${IMAGE_ACCEPT},application/pdf,.pdf`;
+
+export function isPdf(file: File): boolean {
+  return file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+}
 
 /** Why a file cannot be sent, or null when it can. */
 export function draftFileProblem(file: File): string | null {
-  if (!(DRAFT_FILE_TYPES as readonly string[]).includes(file.type)) return "Use a PNG, JPEG or WebP image, or a PDF.";
+  if (!isPicture(file) && !isPdf(file)) return `Use a picture (${IMAGE_FORMATS_LABEL}) or a PDF.`;
   if (file.size > DRAFT_FILE_MAX) return "That file is over 10 MB. Try a smaller image, or a screenshot of the poster.";
   return null;
 }

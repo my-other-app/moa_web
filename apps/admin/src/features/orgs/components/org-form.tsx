@@ -21,6 +21,7 @@ import {
   SelectValue,
   cn,
 } from "@moa/ui";
+import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, fitImage, isPicture } from "@moa/ui/images";
 import { pressable } from "@moa/ui/motion";
 
 import { useCreateOrg, useUpdateOrg } from "../queries";
@@ -72,6 +73,8 @@ export function OrgFormDialog({
   const setOpen = onOpenChange ?? setInternalOpen;
 
   const [logo, setLogo] = React.useState<File | null>(null);
+  const [logoError, setLogoError] = React.useState<string | null>(null);
+  const [preparingLogo, setPreparingLogo] = React.useState(false);
   const create = useCreateOrg();
   const update = useUpdateOrg(org?.id ?? -1);
   const mutation = org ? update : create;
@@ -97,6 +100,27 @@ export function OrgFormDialog({
 
   const { errors } = form.formState;
   const isSaving = mutation.isPending || form.formState.isSubmitting;
+
+  /**
+   * The logo, ready to send: any picture, converted when the API does not
+   * keep its format (an SVG, a HEIC, an AVIF...) and redrawn smaller when
+   * it is over budget (@moa/ui/images). One that cannot be sent is refused
+   * here, with words.
+   */
+  async function pickLogo(file: File | null) {
+    setLogoError(null);
+    setLogo(null);
+    if (!file) return;
+    if (!isPicture(file)) return setLogoError(`Choose a picture: ${IMAGE_FORMATS_LABEL}.`);
+    setPreparingLogo(true);
+    try {
+      setLogo(await fitImage(file, "logo"));
+    } catch (error) {
+      setLogoError(error instanceof Error ? error.message : "That picture is too big to send.");
+    } finally {
+      setPreparingLogo(false);
+    }
+  }
 
   async function onSubmit(values: OrgFormInput) {
     await mutation.mutateAsync({ input: values, logo });
@@ -187,13 +211,14 @@ export function OrgFormDialog({
             <Input id="org-website" disabled={isSaving} {...form.register("website")} />
           </Field>
 
-          <Field id="org-logo" label="Logo">
+          <Field id="org-logo" label="Logo" error={logoError ?? undefined}>
             <Input
               id="org-logo"
               type="file"
-              accept="image/*"
+              accept={IMAGE_ACCEPT}
               disabled={isSaving}
-              onChange={(e) => setLogo(e.target.files?.[0] ?? null)}
+              aria-invalid={logoError ? true : undefined}
+              onChange={(e) => void pickLogo(e.target.files?.[0] ?? null)}
             />
           </Field>
 
@@ -206,7 +231,7 @@ export function OrgFormDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSaving} className={cn(pressable)}>
+            <Button type="submit" disabled={isSaving || preparingLogo} className={cn(pressable)}>
               {isSaving ? <Loader2Icon className="animate-spin" /> : null}
               {org ? "Save changes" : "Create organisation"}
             </Button>

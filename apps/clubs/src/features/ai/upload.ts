@@ -1,16 +1,17 @@
-import { GATEWAY_BODY_MAX, shrinkImage } from "@/lib/images";
+import { GATEWAY_BODY_MAX, isPicture, normaliseImage, shrinkImage } from "@/lib/images";
 
 /**
- * A poster photo from a phone is often 5 to 12 MB. The gateway runs as a
- * Vercel function, which refuses a request body over 4.5 MB before it
- * reaches the API, so a large image is redrawn smaller here (its longest
- * side at most 2,400 px, then less until it fits; lib/images) — plenty for
- * reading the words on it. A PDF is sent as it is. Anything that cannot be
- * redrawn (no canvas, an image the browser cannot decode) is sent unchanged
- * and the server says.
+ * A poster photo from a phone is often 5 to 12 MB, and may be a HEIC, an
+ * AVIF or an SVG. A picture is converted when the API does not keep its
+ * format, then redrawn smaller when it is over budget (its longest side at
+ * most 2,400 px, then less until it fits; lib/images) — plenty for reading
+ * the words on it. A PDF is sent as it is. Anything that cannot be redrawn (no
+ * canvas, a HEIC the browser cannot open) is sent unchanged: the API converts
+ * what it can and says what it cannot.
  */
 export const SEND_MAX_BYTES = GATEWAY_BODY_MAX;
 
-export function shrinkForUpload(file: File): Promise<File> {
-  return shrinkImage(file, { maxBytes: SEND_MAX_BYTES, longestSide: 2400 });
+export async function shrinkForUpload(file: File): Promise<File> {
+  if (!isPicture(file)) return file;
+  return shrinkImage(await normaliseImage(file), { maxBytes: SEND_MAX_BYTES, longestSide: 2400 });
 }

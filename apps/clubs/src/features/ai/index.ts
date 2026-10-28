@@ -9,8 +9,8 @@ export { shrinkForUpload, SEND_MAX_BYTES } from "./upload";
 export {
   AI_FEATURE,
   AI_KEY_PATH,
+  DRAFT_FILE_ACCEPT,
   DRAFT_FILE_MAX,
-  DRAFT_FILE_TYPES,
   DRAFT_TEXT_MAX,
   FEEDBACK_MIN_RESPONSES,
   QUESTION_TYPES,

@@ -10,6 +10,7 @@
     ".": "./src/ui/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./cn": "./src/lib/cn.ts",
+    "./images": "./src/lib/images.ts",
     "./preset.css": "./src/styles/preset.css",
     "./motion": "./src/lib/motion.ts",
     "./meridian.css": "./src/styles/meridian.css"

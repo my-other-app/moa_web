@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { stubPictureBrowser } from "@/test/pictures";
+
 import { POSTER_IMAGE, SPEAKER_IMAGE, fitEventImages } from "./api";
 import { eventFormSchema } from "./schemas";
 
 /**
- * The event's pictures, made small enough for the gateway (a Vercel
- * function that refuses a request over 4.5 MB) before the save: a phone
- * photo as the poster failed on save with an error that said nothing.
+ * The event's pictures, ready before the save: converted when the API does
+ * not keep their format, and made small enough to send. A phone photo as the
+ * poster failed on save with an error that said nothing.
  */
 const MB = 1024 * 1024;
 
@@ -60,9 +62,24 @@ describe("the event's pictures before a save", () => {
   });
 
   it("refuses with words a poster that cannot be made small enough, before sending", async () => {
-    // jsdom has no canvas: a 9 MB poster cannot be redrawn here.
+    // A browser that cannot open a HEIC (Chrome) cannot redraw a 9 MB one either.
+    stubPictureBrowser({ opens: ["image/jpeg", "image/png"] });
     await expect(fitEventImages(values({ posterFile: bigFile("poster.heic", "image/heic", 9 * MB) }))).rejects.toThrow(
-      /^The poster is 9\.0 MB, more than the 3\.0 MB that can be sent/,
+      /^The poster is 9\.0 MB, more than the 5\.0 MB that can be sent/,
     );
+  });
+
+  it("sends a smaller HEIC the browser cannot open as it is, for the API to convert", async () => {
+    stubPictureBrowser({ opens: ["image/jpeg", "image/png"] });
+    const poster = bigFile("IMG_0042.HEIC", "", 3.5 * MB);
+    const out = await fitEventImages(values({ posterFile: poster }));
+    expect(out.posterFile).toMatchObject({ name: "IMG_0042.HEIC", type: "image/heic" });
+  });
+
+  it("draws an SVG poster as a PNG before the save", async () => {
+    stubPictureBrowser({ opens: ["image/jpeg", "image/png"] });
+    const svg = new File(['<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"/>'], "poster.svg", { type: "image/svg+xml" });
+    const out = await fitEventImages(values({ posterFile: svg }));
+    expect(out.posterFile).toMatchObject({ name: "poster.png", type: "image/png" });
   });
 });
