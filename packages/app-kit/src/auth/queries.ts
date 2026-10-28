@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 import type { SessionUser } from "@moa/auth";
 
-import { fetchSession, login, logout } from "./api";
+import { fetchSession, googleLogin, login, logout, type GoogleLoginInput } from "./api";
 import type { LoginInput } from "./schemas";
 
 export function useSession(initialData?: SessionUser) {
@@ -25,6 +25,17 @@ export function useLogin() {
       // The cookie is now set; pull the profile so the shell can render the
       // right identity immediately rather than after a navigation.
       await queryClient.invalidateQueries({ queryKey: qk.session });
+    },
+  });
+}
+
+/** Sign in with Google's credential; `null` from the API means it has no such route yet. */
+export function useGoogleLogin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: GoogleLoginInput) => googleLogin(input),
+    onSuccess: async (tokens) => {
+      if (tokens) await queryClient.invalidateQueries({ queryKey: qk.session });
     },
   });
 }

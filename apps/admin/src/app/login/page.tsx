@@ -5,9 +5,19 @@ import { ShieldCheckIcon } from "lucide-react";
 import { getSessionQuietly } from "@moa/auth/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Notice, Skeleton } from "@moa/ui";
 
-import { LoginForm, safeNext } from "@moa/app-kit";
+import { LoginForm, safeNext, type GoogleSignInOptions } from "@moa/app-kit";
 
 export const metadata: Metadata = { title: "Sign in" };
+
+/**
+ * "Continue with Google" (when the build has a Google client id) signs in
+ * the admin account with that Google address, two-factor and all. It never
+ * makes an account, and an app user's Google account never opens the portal.
+ */
+const GOOGLE: GoogleSignInOptions = {
+  scope: "admin",
+  noAccountMessage: "No admin account uses this Google account.",
+};
 
 type Query = { next?: string | string[]; error?: string | string[] };
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
@@ -55,7 +65,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: Promi
           ) : null}
           {/* useSearchParams in LoginForm requires a Suspense boundary. */}
           <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-            <LoginForm usernamePlaceholder="platform_admin" />
+            <LoginForm usernamePlaceholder="platform_admin" google={GOOGLE} />
           </Suspense>
         </CardContent>
       </Card>

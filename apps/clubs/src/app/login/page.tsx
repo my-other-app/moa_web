@@ -3,12 +3,23 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getSessionQuietly } from "@moa/auth/server";
-import { LoginForm, safeNext } from "@moa/app-kit";
+import { LoginForm, safeNext, type GoogleSignInOptions } from "@moa/app-kit";
 import { Notice, Skeleton } from "@moa/ui";
 
 import { AuthFrame } from "@/components/auth-frame";
 
 export const metadata: Metadata = { title: "Sign in" };
+
+/**
+ * "Continue with Google" (when the build has a Google client id) opens the
+ * dashboard of a club whose login, or one of whose team members, uses that
+ * Google address. It never makes an account.
+ */
+const GOOGLE: GoogleSignInOptions = {
+  scope: "club",
+  noAccountMessage:
+    "No club dashboard uses this Google account. Sign in with your email and password, or ask your club's owner to invite this address.",
+};
 
 /**
  * The front door. A club not on MyOtherApp yet finds its way in from here too.
@@ -43,7 +54,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: Promi
       <div className="mt-7">
         {/* useSearchParams in LoginForm requires a Suspense boundary. */}
         <Suspense fallback={<Skeleton className="h-[236px] w-full rounded-2xl" />}>
-          <LoginForm usernamePlaceholder="your_club" forgotPasswordHref="/forgot-password" />
+          <LoginForm usernamePlaceholder="your_club" forgotPasswordHref="/forgot-password" google={GOOGLE} />
         </Suspense>
       </div>
 
