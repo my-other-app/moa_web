@@ -1,11 +1,21 @@
 import { paginatedSchema } from "@moa/api";
-import { EVENT_STATUSES, imageFieldSchema, linkedInterestSchema, namedRefSchema, topicRefsField, type EventLifecycle } from "@moa/app-kit";
+import { EVENT_STATUSES, cohostLogoSchema, cohostsField, imageFieldSchema, linkedInterestSchema, namedRefSchema, topicRefsField, type EventLifecycle } from "@moa/app-kit";
 import { z } from "zod";
 
 export { EVENT_STATUSES, type EventLifecycle };
 
 /** The status clock, tolerant of a payload cached from before it existed. */
 const lifecycleSchema = z.enum(EVENT_STATUSES).catch("published");
+
+/**
+ * Co-hosted events (features/cohosts): whether the signed-in club hosts the
+ * event or co-hosts it. Null from a server before co-hosts, where every
+ * event is the club's own.
+ */
+const viewerRoleField = z.enum(["host", "cohost"]).nullish().catch(null).transform((v) => v ?? null);
+
+/** The event's own club, the host: what the co-host screens name and link. */
+const hostClubSchema = z.object({ id: z.coerce.number(), name: z.string(), slug: z.string().nullish(), logo: cohostLogoSchema });
 
 /** GET /clubs/events/list — the signed-in club's own events. */
 export const clubEventSchema = z.object({
@@ -46,6 +56,14 @@ export const clubEventSchema = z.object({
   requires_approval: z.boolean().catch(false),
   requests_pending: z.number().nullish().catch(null).transform((v) => (v === null || v === undefined ? null : Math.max(0, Math.trunc(v)))),
   requests_total: z.number().nullish().catch(null).transform((v) => (v === null || v === undefined ? null : Math.max(0, Math.trunc(v)))),
+  /**
+   * Co-hosted events: the host club, its accepted co-hosts, and whether this
+   * club hosts the row or co-hosts it. Absent from an older server (null):
+   * every row is the club's own.
+   */
+  club: hostClubSchema.nullish().catch(null),
+  cohosts: cohostsField,
+  viewer_role: viewerRoleField,
 });
 
 export const clubEventPageSchema = paginatedSchema(clubEventSchema);
@@ -54,6 +72,9 @@ export const EVENT_SCOPES = ["upcoming", "now", "draft", "past", "all"] as const
 export type EventScope = (typeof EVENT_SCOPES)[number];
 export const EVENT_SORTS = ["soonest", "latest", "registered", "viewed"] as const;
 export type EventSort = (typeof EVENT_SORTS)[number];
+/** GET /clubs/events/list?role=: the club's own events, the ones it co-hosts, or both (the default). */
+export const EVENT_ROLE_FILTERS = ["all", "hosted", "cohosted"] as const;
+export type EventRoleFilter = (typeof EVENT_ROLE_FILTERS)[number];
 
 const attentionRef = z.object({ id: z.number(), name: z.string(), at: z.string().nullish() });
 
@@ -75,6 +96,8 @@ export const eventsFiguresSchema = z.object({
   }),
   past: z.number(),
   drafts: z.number(),
+  /** Upcoming events this club co-hosts (counted in `upcoming` too); null from a server before co-hosts. */
+  cohosted_upcoming: z.number().nullish().catch(null).transform((v) => v ?? null),
   generated_at: z.string(),
 });
 export type EventsFigures = z.infer<typeof eventsFiguresSchema>;
@@ -107,8 +130,15 @@ export const eventDetailSchema = z
     // undeclared key cannot be read without casting.
     rating: z.number().nullish(),
     total_rating: z.coerce.number().nullish(),
-    // The console header names the club and reads the status clock.
-    club: z.object({ id: z.coerce.number(), name: z.string() }).nullish(),
+    // The console header names the club (the host) and reads the status clock.
+    club: hostClubSchema.nullish(),
+    /**
+     * Co-hosted events: the accepted co-hosts, and whether the signed-in
+     * club hosts or co-hosts the event. Both null from a server before
+     * co-hosts, where every co-host screen stays hidden.
+     */
+    cohosts: cohostsField,
+    viewer_role: viewerRoleField,
     status: lifecycleSchema,
     status_clock: z.boolean().catch(true),
     retention_mode: z.string().catch("keep"),

@@ -6,6 +6,7 @@ import { formatCurrency, formatDateTime, formatNumber } from "@moa/app-kit";
 import { EmptyState, FigurePanel, Notice, Skeleton, StatTile, StatusBadge, type StatusTone } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
+import { useEventStance } from "@/features/cohosts/queries";
 import { CancellationPanel } from "@/features/event-cancel";
 
 import { useEventPayments, useRetryRefund } from "../queries";
@@ -25,7 +26,7 @@ const TONE: Record<PaymentStatus, StatusTone> = {
 
 const REFUND_LABEL = { pending: "on the way", succeeded: "refunded", failed: "failed" } as const;
 
-function Refunds({ eventId, p }: { eventId: number; p: PaymentItem }) {
+function Refunds({ eventId, p, canRetry }: { eventId: number; p: PaymentItem; canRetry: boolean }) {
   const retry = useRetryRefund(eventId);
   if (!p.refunds.length) return null;
   return (
@@ -39,7 +40,7 @@ function Refunds({ eventId, p }: { eventId: number; p: PaymentItem }) {
           {r.by ? <span>· {r.by}</span> : null}
           {r.created_at ? <span>· {formatDateTime(r.created_at)}</span> : null}
           {r.status === "failed" && r.error ? <span className="text-refuse">· {r.error}</span> : null}
-          {r.status === "failed" ? (
+          {r.status === "failed" && canRetry ? (
             <button type="button" className="btn btn-ghost btn-xs" disabled={retry.isPending} onClick={() => retry.mutate(r.id)}>
               {retry.isPending ? <Loader2Icon className="size-3 animate-spin" /> : <RotateCwIcon className="size-3" />} Try again
             </button>
@@ -61,6 +62,9 @@ export function EventPaymentsPage({ eventId }: { eventId: number }) {
   const { can } = useAccess();
   const q = useEventPayments(eventId, can.money);
   const [refunding, setRefunding] = React.useState<PaymentItem | null>(null);
+  // A co-hosted event: its money went to the host, and refunds are the host's (contract §7).
+  const stance = useEventStance(eventId);
+  const refundReason = stance.reason("refund");
 
   if (!can.money) return <Notice tone="neutral">Payments are for the club&apos;s owner and admins.</Notice>;
   if (q.isPending) return <Skeleton className="h-[280px]" />;
@@ -70,7 +74,12 @@ export function EventPaymentsPage({ eventId }: { eventId: number }) {
   const { items, totals } = q.data;
   return (
     <div className="grid gap-4">
-      <CancellationPanel eventId={eventId} />
+      {refundReason ? (
+        <Notice tone="neutral" tag="Co-host">
+          {refundReason} Paid tickets for this event go through {stance.hostName ?? "the host"}&apos;s payments; you can see each one here.
+        </Notice>
+      ) : null}
+      <CancellationPanel eventId={eventId} canRetry={!refundReason} />
       <div className="grid gap-3 sm:grid-cols-3">
         <StatTile label="Payments" value={formatNumber(totals.payments)} />
         <StatTile label="Taken" value={formatCurrency(totals.captured)} />
@@ -100,7 +109,7 @@ export function EventPaymentsPage({ eventId }: { eventId: number }) {
                     <td className="px-4 py-2.5">
                       <div className="text-ink font-medium">{p.guest_name || "Guest"}</div>
                       <div className="text-ink-3 text-[11.5px]">{p.guest_email ?? p.ticket_id ?? ""}</div>
-                      <Refunds eventId={eventId} p={p} />
+                      <Refunds eventId={eventId} p={p} canRetry={!refundReason} />
                     </td>
                     <td className="px-3 py-2.5 font-mono tabular-nums">
                       {formatCurrency(p.amount)}
@@ -108,14 +117,16 @@ export function EventPaymentsPage({ eventId }: { eventId: number }) {
                     </td>
                     <td className="text-ink-2 px-3 py-2.5">
                       {p.method ?? "—"}
-                      <div className="text-ink-3 text-[11.5px]">{p.gateway === "club" ? "Your Razorpay" : "MyOtherApp"}</div>
+                      <div className="text-ink-3 text-[11.5px]">
+                        {p.gateway === "club" ? (stance.cohost ? `${stance.hostName ?? "The host"}'s Razorpay` : "Your Razorpay") : "MyOtherApp"}
+                      </div>
                     </td>
                     <td className="text-ink-2 px-3 py-2.5">{p.paid_at ? formatDateTime(p.paid_at) : "—"}</td>
                     <td className="px-3 py-2.5">
                       <StatusBadge tone={TONE[p.status]} label={STATUS_LABEL[p.status]} />
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {p.refundable > 0 && (p.status === "captured" || p.status === "partially_refunded") ? (
+                      {!refundReason && p.refundable > 0 && (p.status === "captured" || p.status === "partially_refunded") ? (
                         <button type="button" className="btn btn-secondary btn-sm" aria-label={`Refund ${p.guest_name || "this guest"}`} onClick={() => setRefunding(p)}>
                           <Undo2Icon className="size-3.5" /> Refund
                         </button>

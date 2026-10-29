@@ -71,6 +71,7 @@ import type { EventRegistration } from "../schemas";
 import { PlacingControl } from "./placing-control";
 import { EventEditForm } from "./event-edit-form";
 import { EventPartnersCard } from "./event-partners-card";
+import { EventCohostsCard } from "./event-cohosts-card";
 import { UnderReviewSection } from "./under-review-section";
 
 /**
@@ -482,6 +483,8 @@ export function EventDetail({ eventId }: { eventId: number }) {
         ) : null}
 
         {reviews ? <UnderReviewSection eventId={eventId} /> : null}
+        {/* The clubs running it together, every invite in every status; hidden on a server without co-hosts. */}
+        <EventCohostsCard eventId={eventId} />
 
         {event ? <EventPartnersCard sponsors={event.sponsors} partners={event.partners} /> : null}
 

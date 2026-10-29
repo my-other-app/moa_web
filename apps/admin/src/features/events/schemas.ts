@@ -19,7 +19,7 @@ const approvalShape = {
   requests_total: optionalCount,
 };
 
-import { imageFieldSchema, namedRefSchema } from "@moa/app-kit";
+import { cohostsField, imageFieldSchema, namedRefSchema } from "@moa/app-kit";
 
 export const adminEventSchema = z.object({
   id: z.coerce.number(),
@@ -46,6 +46,8 @@ export const adminEventSchema = z.object({
   registration_count: z.number().default(0),
   attended_count: z.number().default(0),
   ...approvalShape,
+  /** Co-hosted events: the accepted co-hosts (`club` stays the host). Null from a server before co-hosts. */
+  cohosts: cohostsField,
 });
 
 export const adminEventPageSchema = paginatedSchema(adminEventSchema);
@@ -101,6 +103,8 @@ export const adminEventDetailSchema = z
     ...approvalShape,
     sponsors: partnerList,
     partners: partnerList,
+    /** Co-hosted events: the accepted co-hosts. Null from a server before co-hosts. */
+    cohosts: cohostsField,
   })
   .passthrough();
 

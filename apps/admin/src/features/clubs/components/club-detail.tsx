@@ -80,7 +80,7 @@ import { ConfirmAction } from "@/features/ops";
 import { useOpsFeature } from "@/features/ops/queries";
 import { useCan } from "@/hooks/use-can";
 
-import { requestedPlanText, type ClubEvent, type ClubFollower } from "../schemas";
+import { cohostedBy, requestedPlanText, type ClubEvent, type ClubFollower } from "../schemas";
 import { ClubEditForm } from "./club-edit-form";
 
 /**
@@ -219,6 +219,8 @@ function EventsTab({ clubId }: { clubId: number }) {
       <div className="space-y-2">
         {rows.map((event: ClubEvent, i) => {
           const poster = pickImage(event.poster, posterSizes(40));
+          // Another club's event this one co-hosts (the row's `club` is the host).
+          const host = cohostedBy(event, clubId);
           return (
             <div
               key={event.id}
@@ -230,8 +232,16 @@ function EventsTab({ clubId }: { clubId: number }) {
             >
               <PosterFrame src={poster} width={40} className="bg-muted w-10 rounded-md" />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{event.name}</p>
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <p className="truncate font-medium">{event.name}</p>
+                  {host ? (
+                    <Badge variant="outline" title={`${host} hosts this event; this club co-hosts it`}>
+                      Co-host
+                    </Badge>
+                  ) : null}
+                </div>
                 <p className="text-muted-foreground truncate text-xs">
+                  {host ? `Hosted by ${host} · ` : ""}
                   {formatDateTime(event.event_datetime)}
                   {event.location_name ? ` · ${event.location_name}` : ""}
                 </p>

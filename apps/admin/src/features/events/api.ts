@@ -1,4 +1,4 @@
-import { api, eventSummarySchema } from "@moa/app-kit";
+import { api, cohostListingSchema, eventSummarySchema } from "@moa/app-kit";
 import { toApiError } from "@moa/api";
 import { GATEWAY_PREFIX } from "@moa/auth";
 
@@ -58,6 +58,15 @@ export async function fetchEvent(eventId: number) {
 export async function fetchEventSummary(eventId: number) {
   const raw = await api.get<unknown>(`/api/v1/events/${eventId}/summary`);
   return eventSummarySchema.parse(raw);
+}
+
+/**
+ * The event's host and every club ever invited to co-host it, in every
+ * status (backend docs/COHOSTS.md). A platform admin reads it as `admin`.
+ */
+export async function fetchEventCohosts(eventId: number) {
+  const raw = await api.get<unknown>(`/api/v1/events/${eventId}/cohosts`);
+  return cohostListingSchema.parse(raw);
 }
 
 export async function fetchEventAnalytics(eventId: number) {

@@ -38,6 +38,8 @@ export const EVENT_TABS = [
   { key: "idcards", label: "ID cards", path: "/idcards" },
   { key: "certificates", label: "Certificates", path: "/certificates" },
   { key: "closeout", label: "Closeout", path: "/closeout" },
+  // The clubs running the event together (once the backend has co-hosts; event-console asks).
+  { key: "cohosts", label: "Co-hosts", path: "/cohosts" },
   { key: "settings", label: "Settings", path: "/edit" },
 ] as const;
 

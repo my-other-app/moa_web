@@ -28,6 +28,7 @@ import {
   cn,
 } from "@moa/ui";
 
+import { InvitationsCard } from "@/features/cohosts";
 import { MessageUsageCard } from "@/features/message-usage";
 import { WhatsAppOverviewCard } from "@/features/whatsapp";
 
@@ -676,6 +677,9 @@ export function ClubDashboardV2() {
           </a>
         </div>
       </header>
+
+      {/* Another club asked to co-host with this one: only while an invitation waits. */}
+      <InvitationsCard />
 
       <section className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile

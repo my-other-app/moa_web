@@ -6,6 +6,7 @@ import { LockIcon } from "lucide-react";
 import { cn } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
+import { useInvitationsOnServer } from "@/features/cohosts/queries";
 import { useContactsOnServer } from "@/features/contacts";
 import { useMailSummary, useMailboxOnServer } from "@/features/mailbox/queries";
 import { usePlan } from "@/features/plan";
@@ -38,7 +39,9 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
   const ticketing = useTicketingOnServer(Boolean(can.edit_events));
   // The contact book, asked only of those who may open it.
   const contacts = useContactsOnServer(Boolean(can.contacts));
-  const onServer = { whatsapp, mailbox, ticketing, contacts };
+  // Co-host invitations: every role reads them; the item counts the ones waiting for an answer.
+  const invitations = useInvitationsOnServer();
+  const onServer = { whatsapp, mailbox, ticketing, contacts, cohosts: invitations.on };
   // What waits unread in the inbox, for those who may read it: on the item and in the tab's title.
   const summary = useSummary(Boolean(can.whatsapp_inbox) && whatsapp === true);
   const unread = summary.data?.unread_total ?? 0;
@@ -64,11 +67,13 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
             {section.items.map((item) => {
               const on = isActive(pathname, item);
               const lock = item.feature ? plan.featureLock(item.feature) : null;
-              const count = item.server === "whatsapp" ? unread : item.server === "mailbox" ? mailUnread : 0;
+              const count = item.server === "whatsapp" ? unread : item.server === "mailbox" ? mailUnread : item.server === "cohosts" ? invitations.pending : 0;
+              // What the count is of: unread messages, or invitations waiting for an answer.
+              const what = item.server === "cohosts" ? "waiting" : "unread";
               const hint = lock
                 ? `${item.label} · part of ${lock.requiredPlanName ?? "a bigger plan"} and up`
                 : count
-                  ? `${item.label} · ${count} unread`
+                  ? `${item.label} · ${count} ${what}`
                   : item.label;
               return (
                 <li key={item.href} className="relative">
@@ -101,7 +106,7 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
                         )}
                       >
                         {count > 99 ? "99+" : count}
-                        <span className="sr-only"> unread</span>
+                        <span className="sr-only"> {what}</span>
                       </span>
                     ) : null}
                     {lock ? (

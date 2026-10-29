@@ -1,6 +1,6 @@
 import { api } from "@moa/app-kit";
 
-import { clubEventPageSchema, eventsFiguresSchema, type EventScope, type EventSort } from "./schemas";
+import { clubEventPageSchema, eventsFiguresSchema, type EventRoleFilter, type EventScope, type EventSort } from "./schemas";
 
 export interface ClubEventQuery {
   search?: string | undefined;
@@ -8,6 +8,8 @@ export interface ClubEventQuery {
   isEnded?: boolean | undefined;
   scope?: EventScope | undefined;
   sort?: EventSort | undefined;
+  /** Co-hosted events: the club's own, the ones it co-hosts, or both (the server's default, sent as nothing). */
+  role?: Exclude<EventRoleFilter, "all"> | undefined;
   offset: number;
   limit: number;
 }
@@ -19,6 +21,7 @@ export async function fetchClubEvents(query: ClubEventQuery) {
       is_ended: query.isEnded,
       scope: query.scope,
       sort: query.sort,
+      role: query.role,
       offset: query.offset,
       limit: query.limit,
     },

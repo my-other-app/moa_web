@@ -79,6 +79,7 @@ export {
   type Placement,
 } from "./crop";
 export * from "./topics";
+export * from "./cohosts";
 export { useListParams, type ListParams } from "./hooks/use-list-params";
 export { useLocalPage } from "./hooks/use-local-page";
 export { ResourceList, type ResourceListProps } from "./components/resource-list";

@@ -6,7 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ApiError, qk } from "@moa/api";
+import { ApiError, nullIfRouteMissing, qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
 import {
@@ -14,6 +14,7 @@ import {
   downloadUnderReviewCsv,
   fetchEvent,
   fetchEventCategories,
+  fetchEventCohosts,
   fetchEventAnalytics,
   fetchEventSummary,
   fetchEventRegistrations,
@@ -95,6 +96,19 @@ export function useEventSummary(eventId: number) {
     queryKey: [...qk.events.detail(eventId), "summary"],
     queryFn: () => fetchEventSummary(eventId),
     staleTime: 15_000,
+  });
+}
+
+/**
+ * The event's host and co-hosts, every status. `null`: a server from before
+ * co-hosts (a bare 404), and the section stays hidden.
+ */
+export function useEventCohosts(eventId: number) {
+  return useQuery({
+    queryKey: [...qk.events.detail(eventId), "cohosts"],
+    queryFn: () => nullIfRouteMissing(() => fetchEventCohosts(eventId)),
+    staleTime: 30_000,
+    retry: false,
   });
 }
 

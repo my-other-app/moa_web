@@ -1,7 +1,7 @@
 import { paginatedSchema } from "@moa/api";
 import { z } from "zod";
 
-import { imageFieldSchema, profilePicturesSchema, topicRefsField } from "@moa/app-kit";
+import { cohostsField, imageFieldSchema, profilePicturesSchema, topicRefsField } from "@moa/app-kit";
 
 export const adminClubSchema = z.object({
   id: z.coerce.number(),
@@ -121,7 +121,19 @@ export const clubEventSchema = z.object({
   location_name: z.string().nullish(),
   registration_count: z.number().nullish(),
   attended_count: z.number().nullish(),
+  /**
+   * Co-hosted events: the club's events include the ones it co-hosts, each
+   * with `club` the host and the accepted `cohosts`. Absent from an older
+   * server, where every row is the club's own.
+   */
+  club: z.object({ id: z.coerce.number(), name: z.string() }).passthrough().nullish().catch(null),
+  cohosts: cohostsField,
 });
+
+/** A row of the club's events that another club hosts: this club co-hosts it. */
+export function cohostedBy(event: Pick<z.infer<typeof clubEventSchema>, "club">, clubId: number): string | null {
+  return event.club && event.club.id !== clubId ? event.club.name : null;
+}
 
 export const clubFollowerPageSchema = paginatedSchema(clubFollowerSchema);
 export const clubEventPageSchema = paginatedSchema(clubEventSchema);
