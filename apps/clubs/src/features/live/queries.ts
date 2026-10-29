@@ -67,7 +67,7 @@ export function useQuizMutations(eventId: number) {
   const host = useMutation({
     mutationFn: ({ action, ...opts }: { action: HostAction } & HostOptions) => hostAction(eventId, action, opts),
     onSuccess: (s, { action, notify }) => {
-      if (action === "start") announce(`The quiz is open — players join with ${s.join_code}`, notify ? s.notified : null);
+      if (action === "start") announce(`The quiz is open — players join with ${s.join_code}`, notify ? s.notified : null, eventId);
       if (action === "end") toast.success("Quiz finished");
       refresh();
     },
@@ -98,7 +98,7 @@ export function useQAMutations(eventId: number) {
     mutationFn: ({ approveFirst: v, notify }: { approveFirst: boolean; notify?: boolean }) => setApproveFirst(eventId, v, notify),
     onSuccess: (b, { notify }) => {
       if (b.approve_first) toast.success("New questions wait for you");
-      else announce("New questions go straight to the board", notify ? b.notified : null);
+      else announce("New questions go straight to the board", notify ? b.notified : null, eventId);
       refresh();
     },
   });
@@ -106,7 +106,7 @@ export function useQAMutations(eventId: number) {
     mutationFn: ({ id, action, notify }: { id: string; action: ModerateAction; notify?: boolean }) => moderateQuestion(eventId, id, action, notify),
     onSuccess: (q, { notify }) => {
       // The first question up opens Q&A: the room is told once; later ones say nothing.
-      if (notify && worthSaying(q.notified)) announce("Q&A is open", q.notified);
+      if (notify && worthSaying(q.notified)) announce("Q&A is open", q.notified, eventId);
       refresh();
     },
   });
@@ -130,7 +130,7 @@ export function usePollMutations(eventId: number) {
   const create = useMutation({ mutationFn: (body: { kind: Poll["kind"]; prompt: string; options: string[] }) => createPoll(eventId, body), onSuccess: () => (toast.success("Poll saved as a draft"), refresh()) });
   const status = useMutation({
     mutationFn: ({ id, status, notify }: { id: string; status: "live" | "closed"; notify?: boolean }) => setPollStatus(eventId, id, status, notify),
-    onSuccess: (p, { notify }) => (p.status === "live" ? announce("The poll is up on every phone", notify ? p.notified : null) : toast.success("Poll closed"), refresh()),
+    onSuccess: (p, { notify }) => (p.status === "live" ? announce("The poll is up on every phone", notify ? p.notified : null, eventId) : toast.success("Poll closed"), refresh()),
   });
   const remove = useMutation({ mutationFn: (id: string) => deletePoll(eventId, id), onSuccess: () => (toast.success("Poll removed"), refresh()) });
   return { create, status, remove };

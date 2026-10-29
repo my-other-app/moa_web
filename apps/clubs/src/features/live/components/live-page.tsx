@@ -15,12 +15,15 @@ import { LockedNotice, useEventPlan } from "@/features/plan";
 
 import {
   useFeedback,
+  useHostState,
   usePolls,
   useQuestions,
   useQuiz,
   useUpdates,
 } from "../queries";
+import { ConsoleBar, liveNow } from "./console-bar";
 import { FeedbackPanel } from "./feedback-panel";
+import { LockedRoom } from "./locked-room";
 import { PollsPanel } from "./polls-panel";
 import { QAPanel } from "./qa-panel";
 import { QuizPanel } from "./quiz-panel";
@@ -42,6 +45,27 @@ const readView = (): View => {
   const v = new URLSearchParams(window.location.search).get("view");
   return (VIEWS as readonly string[]).includes(v ?? "") ? (v as View) : "quiz";
 };
+
+/**
+ * The room to open: the one `?view=` names, until the host picks another.
+ *
+ * The URL cannot be read while the state is initialised. The server has no
+ * query string, so the two renders disagreed — and React 19 keeps what the
+ * server rendered rather than patching the difference, which left
+ * `?view=polls` showing the polls room under a lit Quiz pill. So the URL is
+ * an external store with its own server snapshot, which hydrates to "quiz"
+ * and settles on the real one in the same commit.
+ */
+const subscribeToUrl = (onChange: () => void) => {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+};
+
+function useViewFromUrl() {
+  const fromUrl = React.useSyncExternalStore(subscribeToUrl, readView, () => "quiz" as View);
+  const [picked, setPicked] = React.useState<View | null>(null);
+  return [picked ?? fromUrl, setPicked] as const;
+}
 
 function Pill({
   active,
@@ -94,7 +118,7 @@ function Pill({
 }
 
 export function LivePage({ eventId }: { eventId: number }) {
-  const [view, setView] = React.useState<View>(readView);
+  const [view, setView] = useViewFromUrl();
   const quiz = useQuiz(eventId);
   const questions = useQuestions(eventId);
   const polls = usePolls(eventId);
@@ -103,6 +127,25 @@ export function LivePage({ eventId }: { eventId: number }) {
   // A grandfathered event keeps its live tools whatever the plan.
   const plan = useEventPlan(eventId);
   const locked = (v: View) => Boolean(VIEW_FEATURE[v]) && !plan.can(VIEW_FEATURE[v]!);
+  /**
+   * Whether a room has nothing in it yet. Only then does a lock take the
+   * whole room: anything already written stays on screen, under a notice.
+   * Unknown (still loading) counts as not empty, so nothing flashes a lock
+   * over work that is about to appear.
+   */
+  const empty = (v: View) =>
+    v === "quiz"
+      ? quiz.data?.questions.length === 0
+      : v === "polls"
+        ? polls.data?.length === 0
+        : v === "qa"
+          ? Boolean(
+              questions.data &&
+                questions.data.to_review.length === 0 &&
+                questions.data.board.length === 0 &&
+                questions.data.answered.length === 0,
+            )
+          : false;
   const go = (v: View) => {
     setView(v);
     const url = new URL(window.location.href);
@@ -116,8 +159,34 @@ export function LivePage({ eventId }: { eventId: number }) {
   const sent = updates.data?.items.length ?? 0;
   // Who a quiz or poll would notify: already in hand from the updates and feedback rooms.
   const checkedIn = updates.data?.audience.checked_in ?? feedback.data?.checked_in;
+  /*
+   * The quiz's run, for the band at the top. The same query the quiz panel
+   * drives, so the two share one cache entry and one poll; it only runs while
+   * the quiz is on, and the band falls back to the quiz's own figures otherwise.
+   */
+  const running = quiz.data?.status === "live";
+  const host = useHostState(eventId, running);
+  const livePoll = polls.data?.find((p) => p.status === "live") ?? null;
+  const onAir = liveNow({
+    quizRunning: running,
+    quizIndex: host.data?.current_index ?? quiz.data?.current_index ?? -1,
+    quizTotal: host.data?.total ?? nQ,
+    quizAnswered: host.data?.question?.answered ?? null,
+    quizPlayers: host.data?.players ?? quiz.data?.players ?? 0,
+    pollPrompt: livePoll?.prompt ?? null,
+    pollResponses: livePoll?.results.responses ?? 0,
+    // The floor is open once something is on the board, or once questions go up unapproved.
+    qaOpen: Boolean(questions.data && (questions.data.board.length > 0 || !questions.data.approve_first)),
+    qaOnBoard: questions.data?.board.length ?? 0,
+  });
   return (
     <div className="grid gap-5">
+      <ConsoleBar
+        eventId={eventId}
+        onAir={onAir}
+        checkedIn={checkedIn}
+        registered={updates.data?.audience.registered}
+      />
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Live">
         <Pill
           active={view === "quiz"}
@@ -163,17 +232,29 @@ export function LivePage({ eventId }: { eventId: number }) {
           badge={sent ? `${sent} sent` : null}
         />
       </div>
-      {VIEW_FEATURE[view] ? <LockedNotice feature={VIEW_FEATURE[view]!} eventId={eventId} /> : null}
-      {view === "quiz" ? (
-        <QuizPanel eventId={eventId} checkedIn={checkedIn} />
-      ) : view === "qa" ? (
-        <QAPanel eventId={eventId} checkedIn={checkedIn} />
-      ) : view === "polls" ? (
-        <PollsPanel eventId={eventId} checkedIn={checkedIn} />
-      ) : view === "feedback" ? (
-        <FeedbackPanel eventId={eventId} />
+      {/*
+       * A room the plan does not include: with nothing in it yet, the whole
+       * room is the designed locked state rather than a notice over an empty
+       * editor. With work already in it, the notice stands above and the work
+       * stays readable.
+       */}
+      {VIEW_FEATURE[view] && locked(view) && empty(view) ? (
+        <LockedRoom feature={VIEW_FEATURE[view]!} eventId={eventId} />
       ) : (
-        <UpdatesPanel eventId={eventId} />
+        <>
+          {VIEW_FEATURE[view] ? <LockedNotice feature={VIEW_FEATURE[view]!} eventId={eventId} /> : null}
+          {view === "quiz" ? (
+            <QuizPanel eventId={eventId} checkedIn={checkedIn} />
+          ) : view === "qa" ? (
+            <QAPanel eventId={eventId} checkedIn={checkedIn} />
+          ) : view === "polls" ? (
+            <PollsPanel eventId={eventId} checkedIn={checkedIn} />
+          ) : view === "feedback" ? (
+            <FeedbackPanel eventId={eventId} />
+          ) : (
+            <UpdatesPanel eventId={eventId} />
+          )}
+        </>
       )}
     </div>
   );
