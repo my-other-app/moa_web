@@ -133,9 +133,10 @@ export function ScreenPage({ eventId }: { eventId: number }) {
           <div className="bg-surface shadow-card rounded-[var(--radius-sheet)] p-8">
             <p className="eyebrow">Leaderboard</p>
             <ol className="mt-4 grid gap-2.5">
+              {/* Ties share a rank (the backend's board.py): the key needs the name too. */}
               {quiz.leaderboard.slice(0, 8).map((p) => (
                 <li
-                  key={p.rank}
+                  key={`${p.rank}-${p.name}`}
                   className="flex items-center gap-4 text-[22px]"
                 >
                   <span className="text-ink-3 w-8 font-mono text-[16px] tabular-nums">

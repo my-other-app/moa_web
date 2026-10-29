@@ -226,10 +226,14 @@ describe("hosting it live", () => {
     await waitFor(() => expect(sentTo("POST", "/live/quiz/host/next")).toHaveLength(1));
   });
 
-  it("cancels from the lobby by ending the quiz", async () => {
+  it("cancels from the lobby by ending the quiz, once the host confirms", async () => {
     const said = vi.spyOn(toast, "success");
     render(<QuizPanel eventId={37} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel the quiz" }));
+    // Every phone in the room changes, so it is asked first.
+    expect(await screen.findByText("End the quiz now?")).toBeInTheDocument();
+    expect(sentTo("POST", "/live/quiz/host/end")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "End the quiz" }));
     await waitFor(() => expect(sentTo("POST", "/live/quiz/host/end")).toHaveLength(1));
     await waitFor(() => expect(said).toHaveBeenCalledWith("Quiz finished"));
   });
@@ -240,7 +244,9 @@ describe("hosting it live", () => {
     expect(await screen.findByText("Question 1 of 2")).toBeInTheDocument();
     expect(screen.getByText(QUESTIONS[0]!.prompt)).toBeInTheDocument();
     expect(screen.getByText("14s")).toBeInTheDocument();
-    expect(screen.getByText("9 of 12 answered")).toBeInTheDocument();
+    // The count is emphasised, so it is its own node inside the line.
+    expect(screen.getByText((_, el) => el?.tagName === "P" && el.textContent === "9 of 12 answered")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "9 of 12 answered" })).toBeInTheDocument();
     expect(screen.getByText("512 KB")).toBeInTheDocument();
     expect(screen.getByText("6")).toBeInTheDocument();
 
@@ -261,22 +267,25 @@ describe("hosting it live", () => {
     await waitFor(() => expect(sentTo("POST", "/live/quiz/host/next")).toHaveLength(1));
   });
 
-  it("ends early on request", async () => {
+  it("ends early once the host confirms, not on the first press", async () => {
     state.host = asking(0);
     render(<QuizPanel eventId={37} />);
     fireEvent.click(await screen.findByRole("button", { name: "End early" }));
+    expect(await screen.findByText("End the quiz now?")).toBeInTheDocument();
+    expect(sentTo("POST", "/live/quiz/host/end")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "End the quiz" }));
     await waitFor(() => expect(sentTo("POST", "/live/quiz/host/end")).toHaveLength(1));
   });
 
-  it("ranks the players on the leaderboard and opens the big screen in a new tab", async () => {
+  it("ranks the players on the leaderboard and opens the present view in a new tab", async () => {
     state.host = asking(0);
     render(<QuizPanel eventId={37} />);
     const board = (await screen.findByText("Leaderboard")).closest("div")!.parentElement!;
     const rows = within(board).getAllByRole("listitem").map((li) => li.textContent);
     expect(rows).toEqual(["1Ananya940", "2Rohan610"]);
     expect(screen.getByText("12 playing")).toBeInTheDocument();
-    const big = screen.getByRole("link", { name: /Open the big screen/ });
-    expect(big).toHaveAttribute("href", "/screen/37");
+    const big = screen.getByRole("link", { name: /Put the code on the projector/ });
+    expect(big).toHaveAttribute("href", "/present/37");
     expect(big).toHaveAttribute("target", "_blank");
   });
 
@@ -290,7 +299,11 @@ describe("hosting it live", () => {
     // The room is told by default when the quiz opens.
     expect(sentTo("POST", "/live/quiz/host/start")[0]!.body).toEqual({ notify: true });
 
+    // Going back to editing clears every score, so it is asked first.
     fireEvent.click(screen.getByRole("button", { name: "Back to editing" }));
+    expect(await screen.findByText("Back to editing?")).toBeInTheDocument();
+    expect(sentTo("POST", "/live/quiz/host/reset")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Clear and edit" }));
     await waitFor(() => expect(sentTo("POST", "/live/quiz/host/reset")).toHaveLength(1));
   });
 

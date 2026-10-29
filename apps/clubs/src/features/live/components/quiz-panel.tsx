@@ -30,11 +30,14 @@ import {
   cn,
 } from "@moa/ui";
 
+import { useEventDetail } from "@/features/events/queries";
 import { useFeatureGate } from "@/features/plan";
 
 import { useNotifyChoice } from "../notify";
 import { isQuizRunning, useHostState, useQuiz, useQuizMutations } from "../queries";
+import { roomAddress, roomUrl } from "../room";
 import { OPTION_KEYS, SECONDS, type QuizQuestion } from "../schemas";
+import { JoinQr } from "./join-qr";
 import { NotifySwitch } from "./notify-switch";
 
 /**
@@ -303,6 +306,43 @@ function NewQuestion({
 }
 
 /**
+ * An action the whole room feels, behind one confirm. Ending a quiz or
+ * sending it back to editing cannot be undone in front of an audience —
+ * every phone changes at once, and going back to editing clears every
+ * score — so neither is a single press in a dark hall.
+ */
+function useConfirmed(
+  { title, body, confirm }: { title: string; body: string; confirm: string },
+  run: () => void,
+) {
+  const [asking, setAsking] = React.useState(false);
+  const dialog = (
+    <AlertDialog open={asking} onOpenChange={setAsking}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{body}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel variant="secondary">Keep going</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={(e) => {
+              e.preventDefault();
+              run();
+              setAsking(false);
+            }}
+          >
+            {confirm}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+  return { ask: () => setAsking(true), dialog };
+}
+
+/**
  * Starting the quiz. The server refuses a start on a quiz that is running
  * (409 QUIZ_RUNNING: another console started it, or this one is behind),
  * because starting again clears every player's score: the host is asked
@@ -346,7 +386,29 @@ function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: numb
   const state = useHostState(eventId, true);
   const [notify, setNotify] = useNotifyChoice(eventId, "quiz");
   const again = useStart(eventId, notify);
+  // The way in for a phone without the app; the slug comes from the event the console already holds.
+  const detail = useEventDetail(eventId);
+  const event = { id: eventId, slug: detail.data?.slug };
+  const url = roomUrl(event);
+  const address = roomAddress(event);
   const s = state.data;
+  // Both clear what the room is looking at, so both ask first.
+  const ending = useConfirmed(
+    {
+      title: "End the quiz now?",
+      body: "Every phone leaves the question and goes to the final board. The questions left are not asked.",
+      confirm: "End the quiz",
+    },
+    () => host.mutate({ action: "end" }),
+  );
+  const resetting = useConfirmed(
+    {
+      title: "Back to editing?",
+      body: "The run ends and every player's score is cleared. The questions are kept.",
+      confirm: "Clear and edit",
+    },
+    () => host.mutate({ action: "reset" }),
+  );
   if (!s) return <Skeleton className="h-64" />;
   const q = s.question;
   const last = s.current_index + 1 >= s.total;
@@ -364,7 +426,7 @@ function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: numb
                 <Button onClick={gate.guard(again.start)} disabled={host.isPending || again.pending}>
                   Run it again
                 </Button>
-                <Button variant="outline" onClick={() => host.mutate({ action: "reset" })}>
+                <Button variant="outline" className="btn-danger" onClick={resetting.ask}>
                   Back to editing
                 </Button>
               </div>
@@ -425,37 +487,65 @@ function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: numb
                 </div>
               ))}
             </div>
-            <p className="text-ink-3 mt-3 text-[12px]">
-              {q.answered} of {s.players} answered
+            <p className="text-ink-2 mt-3 text-[12.5px]" aria-live="polite">
+              <strong className="text-ink font-mono font-semibold tabular-nums">
+                {q.answered}
+              </strong>{" "}
+              of {s.players} answered
             </p>
-            <div className="mt-4 flex gap-2">
+            <ProgressBar
+              value={q.answered}
+              max={Math.max(1, s.players)}
+              tone="accent"
+              height={4}
+              className="mt-1.5"
+              label={`${q.answered} of ${s.players} answered`}
+            />
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               <Button
                 onClick={() => host.mutate({ action: "next", expectedIndex: s.current_index })}
                 disabled={host.isPending}
               >
                 {last ? "Finish and show the board" : "Next question"}
               </Button>
-              <Button variant="ghost" onClick={() => host.mutate({ action: "end" })}>
+              <Button variant="ghost" className="btn-danger" onClick={ending.ask}>
                 End early
               </Button>
+              <span className="text-ink-3 basis-full text-[11.5px]">
+                Every phone in the room changes the moment you press it.
+              </span>
             </div>
           </>
         ) : (
           <>
             <CardLabel>Lobby</CardLabel>
-            <p className="text-ink-2 mt-2 text-[13px]">
-              Players open the event page, choose Join the quiz, and type this
-              code:
-            </p>
-            <p
-              className="text-brand mt-3 font-mono text-[44px] font-semibold tracking-[0.18em]"
-              aria-label={`Join code ${s.join_code ?? ""}`}
-            >
-              {s.join_code}
-            </p>
-            <p className="text-ink-3 text-[12.5px]" aria-live="polite">
-              {s.players} {s.players === 1 ? "player" : "players"} in
-            </p>
+            {/* A grid, not a wrapping flex row: the code and the way in stay side by side. */}
+            <div className="mt-2 grid items-start gap-5 sm:grid-cols-[1fr_auto]">
+              <div className="min-w-0">
+                <p className="text-ink-2 text-[13px]">
+                  Players scan the code on the projector, or open the event page and
+                  type this:
+                </p>
+                <p
+                  className="text-brand mt-3 font-mono text-[44px] font-semibold tracking-[0.18em]"
+                  aria-label={`Join code ${s.join_code ?? ""}`}
+                >
+                  {s.join_code}
+                </p>
+                <p className="text-ink-3 text-[12.5px]" aria-live="polite">
+                  {s.players} {s.players === 1 ? "player" : "players"} in
+                </p>
+              </div>
+              <JoinQr
+                url={url}
+                address={address}
+                size={116}
+                label="The room"
+                printable
+                filename={`join-${eventId}`}
+                className="shrink-0"
+              />
+            </div>
             <div className="mt-4 flex gap-2">
               <Button
                 onClick={() => host.mutate({ action: "next", expectedIndex: s.current_index })}
@@ -463,13 +553,15 @@ function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: numb
               >
                 <PlayIcon className="size-4" /> Ask the first question
               </Button>
-              <Button variant="ghost" onClick={() => host.mutate({ action: "end" })}>
-                Cancel
+              <Button variant="ghost" className="btn-danger" onClick={ending.ask}>
+                Cancel the quiz
               </Button>
             </div>
           </>
         )}
         {again.dialog}
+        {ending.dialog}
+        {resetting.dialog}
       </FigurePanel>
       <FigurePanel className="p-5">
         <CardLabel
@@ -487,8 +579,9 @@ function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: numb
           </p>
         ) : (
           <ol className="mt-3 grid gap-1.5">
+            {/* Ties share a rank (the backend's board.py), so the key is rank and name together. */}
             {s.leaderboard.map((p) => (
-              <li key={p.rank} className="flex items-center gap-3 text-[13px]">
+              <li key={`${p.rank}-${p.name}`} className="flex items-center gap-3 text-[13px]">
                 <span className="text-ink-3 w-5 font-mono text-[11px] tabular-nums">
                   {p.rank}
                 </span>
@@ -501,11 +594,11 @@ function HostConsole({ eventId, checkedIn }: { eventId: number; checkedIn?: numb
           </ol>
         )}
         <Link
-          href={`/screen/${eventId}`}
+          href={`/present/${eventId}`}
           target="_blank"
           className="btn btn-secondary btn-sm mt-4"
         >
-          <ExternalLinkIcon className="size-3.5" /> Open the big screen
+          <ExternalLinkIcon className="size-3.5" /> Put the code on the projector
         </Link>
       </FigurePanel>
     </div>

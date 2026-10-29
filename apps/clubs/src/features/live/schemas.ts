@@ -11,8 +11,19 @@ export const notifiedSchema = z.object({
   skipped_reason: z.enum(["rate_limited", "nobody_checked_in", "all_muted", "disabled", "already_sent"]).nullish(),
   /** Whole seconds until the room can be notified again; sent with `rate_limited`. */
   retry_after: z.number().nullish(),
+  /** When the room was last notified; sent with `rate_limited`, for "sent 2 min ago, wait 1 min". */
+  last_sent_at: z.string().nullish(),
 });
 export type Notified = z.infer<typeof notifiedSchema>;
+
+/**
+ * The server's rate limit on telling the room, said in the console so a host
+ * is never left wondering why a push was skipped (app/api/live/notify.py:
+ * LIVE_NOTIFY_GAP_SECONDS and LIVE_NOTIFY_PER_DAY).
+ */
+export const NOTIFY_GAP_SECONDS = 180;
+export const NOTIFY_PER_DAY = 10;
+export const NOTIFY_RULE = "One push to the room every 3 minutes, 10 a day for this event.";
 
 /*
  * Optional: a server from before notifying the room sends none. And the quiz
