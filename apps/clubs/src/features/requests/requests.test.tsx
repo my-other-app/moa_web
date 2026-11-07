@@ -473,6 +473,8 @@ describe("who may decide, and an API without requests", () => {
     expect(screen.queryByRole("button", { name: "Confirm Asha Rao" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Decline Asha Rao" })).toBeNull();
     expect(screen.queryByRole("checkbox")).toBeNull();
+    // Contacts and answers as a file are not door staff's to take away.
+    expect(screen.queryByRole("button", { name: "Export" })).toBeNull();
   });
 
   it("follows the server's word on deciding over editing events", async () => {

@@ -82,6 +82,13 @@ export const capsSchema = z
     cancel_events: c.cancel_events ?? c.money,
     /** The server sent `cancel_events`: it has cancelling and club refunds (the same release). */
     refunds_known: c.cancel_events !== undefined,
+    /*
+     * Taking a list of people away: every export (guest list, waiting list,
+     * requests, check-ins, handovers, followers). Door staff see names at the
+     * gate, not a list to take away, and the server refuses them exports too:
+     * whoever has the contact book (owner, admin, editor; never door staff).
+     */
+    exports: c.contacts ?? c.edit_events,
     // A server from before registration requests: deciding follows editing events, as it does there.
     decide_requests: c.decide_requests ?? c.edit_events,
     /** The server sent `decide_requests`: it has registration requests (the same release). */
@@ -156,6 +163,7 @@ export const OWNER_CAN: Caps = {
   contacts: true,
   cancel_events: true,
   decide_requests: true,
+  exports: true,
   // Until the server says who is signed in, nothing is known about what it has.
   refunds_known: false,
   requests_known: false,

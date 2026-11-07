@@ -270,7 +270,8 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   const figures = hasRequestFigures(asked) ? asked : null;
   const paidSplit = figures && (event.data?.has_fee || figures.approved_paid > 0 || figures.approved_awaiting_payment > 0 || figures.lapsed > 0) ? figures : null;
   // A server that counts the total has the export too; one whose export route is missing loses the button.
-  const canExport = first?.total !== null && first?.total !== undefined && !exporter.missing;
+  // Door staff read the requests; the CSV of contacts and answers is not theirs to take away.
+  const canExport = Boolean(can.exports) && first?.total !== null && first?.total !== undefined && !exporter.missing;
   const busyRow = (id: string) => (confirmOne.isPending && confirmOne.variables?.id === id) || (reopenOne.isPending && reopenOne.variables?.id === id);
 
   const changeStatus = (next: RequestTab) => {

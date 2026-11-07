@@ -45,6 +45,7 @@ import {
 } from "@moa/ui";
 import { useDebouncedValue } from "@moa/ui/hooks";
 
+import { useAccess } from "@/features/access";
 import { useEventSummary } from "@/features/console";
 
 import { fetchCheckInLog } from "../api";
@@ -654,6 +655,8 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(50);
   const [exporting, setExporting] = React.useState(false);
+  // The log with emails, as a file: not for door staff.
+  const { can } = useAccess();
   const query = { eventId, q: settled || undefined, doorId, via, by, order };
   const log = useCheckInLog({ ...query, page, pageSize });
   const s = summary.data;
@@ -735,13 +738,15 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
         }
         actions={
           <>
-            <Button
-              variant="secondary"
-              onClick={() => void exportLog()}
-              disabled={exporting || !f?.total}
-            >
-              <DownloadIcon /> {exporting ? "Exporting…" : "Export"}
-            </Button>
+            {can.exports ? (
+              <Button
+                variant="secondary"
+                onClick={() => void exportLog()}
+                disabled={exporting || !f?.total}
+              >
+                <DownloadIcon /> {exporting ? "Exporting…" : "Export"}
+              </Button>
+            ) : null}
             <Link
               href={`/gate/${eventId}`}
               target="_blank"
