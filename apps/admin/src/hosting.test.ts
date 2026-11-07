@@ -84,3 +84,40 @@ describe("the self-hosted image (Oracle box)", () => {
     expect(images).toContain("IMAGE: ghcr.io/my-other-app/moa-${{ matrix.app }}");
   });
 });
+
+describe("the main portal's security headers", () => {
+  type Rule = { source: string; headers: { key: string; value: string }[] };
+  const rules = async (env: Record<string, string> = { NEXT_PUBLIC_SENTRY_DSN: "" }) => {
+    const config = await loadNextConfig(env);
+    return { config, rules: ((await config.headers?.()) ?? []) as Rule[] };
+  };
+  const header = (rule: Rule | undefined, key: string) => rule?.headers.find((h) => h.key === key)?.value;
+
+  it("sends them on every page: no framing, nosniff, a trimmed referrer, device features off, no X-Powered-By", async () => {
+    const { config, rules: all } = await rules();
+    expect(config.poweredByHeader).toBe(false);
+    const every = all.find((r) => r.source === "/:path*");
+    expect(header(every, "Content-Security-Policy")).toContain("frame-ancestors 'none'");
+    expect(header(every, "X-Frame-Options")).toBe("DENY");
+    expect(header(every, "X-Content-Type-Options")).toBe("nosniff");
+    expect(header(every, "Referrer-Policy")).toBe("strict-origin-when-cross-origin");
+    expect(header(every, "Permissions-Policy")).toContain("camera=()");
+    expect(header(every, "Permissions-Policy")).toContain("microphone=()");
+  });
+
+  it("sends no referrer at all from a page with a credential in its address, after the general rule", async () => {
+    const { rules: all } = await rules();
+    const general = all.findIndex((r) => r.source === "/:path*");
+    for (const source of ["/accept-invite/:path*"]) {
+      const at = all.findIndex((r) => r.source === source);
+      expect(at).toBeGreaterThan(general);
+      expect(header(all[at], "Referrer-Policy")).toBe("no-referrer");
+    }
+  });
+
+  it("keeps them when Sentry wraps the config", async () => {
+    const { config, rules: all } = await rules({ NEXT_PUBLIC_SENTRY_DSN: "https://k@o1.ingest.sentry.io/1" });
+    expect(config.poweredByHeader).toBe(false);
+    expect(header(all.find((r) => r.source === "/:path*"), "X-Frame-Options")).toBe("DENY");
+  });
+});

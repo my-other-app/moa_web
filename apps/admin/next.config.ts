@@ -15,9 +15,49 @@ const standalone: Partial<NextConfig> =
     ? { output: "standalone", outputFileTracingRoot: path.join(process.cwd(), "..", "..") }
     : {};
 
+/*
+ * Security headers on every response, pages and the gateway alike.
+ *
+ * - No framing by anyone (frame-ancestors, and X-Frame-Options for older
+ *   browsers): a dashboard inside another site's frame is a clickjacking
+ *   target. The dashboards' own frames (mail previews, the print frame) are
+ *   srcdoc/blob documents and are unaffected.
+ * - nosniff, so an upload or an export is never run as a script or a page.
+ * - The referrer carries the origin only, when leaving the site, and
+ *   nothing at all from a page with a credential in its address.
+ * - Device features off except what is used: nothing here uses the camera.
+ *
+ * The CSP is the part that cannot break anything (framing, <base>, plugins).
+ * A script/connect allow-list needs Next's inline scripts nonced or hashed
+ * and every third party (Google sign-in, Razorpay, Sentry, the media CDN)
+ * listed -- tracked separately rather than guessed here.
+ */
+// Pages whose address carries a credential: an invited admin's link.
+// Their address is sent nowhere, not even its origin.
+const CREDENTIAL_PAGES = ["/accept-invite/:path*"];
+
+const SECURITY_HEADERS = [
+  { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), usb=(), browsing-topics=()" },
+];
+
+async function headers() {
+  return [
+    { source: "/:path*", headers: SECURITY_HEADERS },
+    // Later entries win for the same header.
+    ...CREDENTIAL_PAGES.map((source) => ({ source, headers: [{ key: "Referrer-Policy", value: "no-referrer" }] })),
+  ];
+}
+
 const nextConfig: NextConfig = {
   ...standalone,
   reactStrictMode: true,
+  // No `X-Powered-By: Next.js`.
+  poweredByHeader: false,
+  headers,
   // Workspace packages ship TypeScript source rather than a build artefact, so
   // Next compiles them with the app. This keeps the shared UI editable without
   // a watch/rebuild step between packages and apps.
