@@ -16,6 +16,8 @@ import {
   cn,
 } from "@moa/ui";
 
+import { conditionText } from "@moa/questions";
+
 import { useImportRegistrations } from "../queries";
 import type { EventField, ImportLog } from "../schemas";
 
@@ -62,6 +64,11 @@ export function ImportDialog({
   const [drag, setDrag] = React.useState(false);
   const [refused, setRefused] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  // The columns of conditional questions, and when each applies.
+  const conditional = fields.flatMap((f) => {
+    const when = conditionText(fields, f);
+    return when ? [{ key: f.key, label: f.label ?? f.key, when }] : [];
+  });
 
   const send = (file: File) => {
     if (!/\.(csv|xlsx|xls)$/i.test(file.name)) {
@@ -133,6 +140,18 @@ export function ImportDialog({
             {fields.length ? ` · ${fields.map((f) => f.label ?? f.key).join(" · ")}` : ""}
           </p>
           <p className="text-ink-3 mt-1.5 text-[11.5px]">The template has these columns, this event&apos;s own questions among them, and an example row.</p>
+          {conditional.length ? (
+            <div className="border-line-soft mt-2 border-t pt-2">
+              <p className="text-ink-3 text-[11.5px]">Some questions are asked only on certain answers. Fill those columns only for the rows they apply to; for any other row the answer is left out, as the form would.</p>
+              <ul className="text-ink-2 mt-1 grid gap-0.5 text-[11.5px]">
+                {conditional.map((c) => (
+                  <li key={c.key}>
+                    <span className="font-mono">{c.label}</span> — {c.when.replace(/^Shown/, "asked")}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
 
         <DialogFooter className="gap-2 sm:justify-between">

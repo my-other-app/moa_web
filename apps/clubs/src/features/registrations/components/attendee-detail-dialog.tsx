@@ -19,6 +19,8 @@ import {
 } from "@moa/ui";
 
 import { type DeliveryBrief, verdictOf, viaText } from "@/features/deliveries";
+import { visibility } from "@moa/questions";
+
 import { answerText } from "@/lib/answers";
 
 import { useRegistration } from "../queries";
@@ -108,6 +110,12 @@ export function AttendeeDetailDialog({
   const detail = useRegistration(eventId, open ? registrationId : null);
   const a = detail.data;
   const answers = (a?.additional_details ?? {}) as Record<string, unknown>;
+  // Only what this person was asked: a conditional question their answers
+  // hid has no answer and is left out, never shown as missing. One they
+  // answered is shown whatever the form says now -- a form changed after
+  // they registered does not rewrite what they said.
+  const shownFor = visibility(fields, answers);
+  const asked = fields.filter((f) => answerText(answers[f.key]) || shownFor.get(f.key) === true);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -162,11 +170,11 @@ export function AttendeeDetailDialog({
               />
             </Section>
 
-            {fields.length || Object.keys(answers).length ? (
+            {asked.length || Object.keys(answers).length ? (
               <Section title="Answers">
                 <DefinitionRows
                   rows={[
-                    ...fields.map((f) => ({
+                    ...asked.map((f) => ({
                       k: f.label ?? f.key,
                       v: answerText(answers[f.key]) ? answerText(answers[f.key]) : none("not answered"),
                     })),

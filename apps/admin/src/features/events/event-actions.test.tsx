@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { SHARED_FORM } from "@moa/questions";
 import { toast } from "@moa/ui";
 
 import analyticsFixture from "../__fixtures__/event-analytics-admin.json";
@@ -223,6 +224,32 @@ describe("edit an event", () => {
     expect(body.event_tag).toBe("Flagship");
     // A changed time keeps the API's offset, so the event doesn't move by hours.
     expect(body.event_datetime).toBe("2026-06-09T10:00:00+05:30");
+  });
+
+  it("keeps every condition and the club's required through a save (conditional questions §5, §6)", async () => {
+    // The shared test form as read endpoints send it: conditional questions as required: false, required_when_shown: true.
+    const wire = SHARED_FORM.map((q) => (q.show_if ? { ...q, required: false, required_when_shown: true } : { ...q }));
+    detail = { ...detailFixture, additional_details: wire };
+    const panel = await openEdit();
+    // Shown as the club built them: nested, the condition in words.
+    const questions = within(panel).getByRole("region", { name: "Sign-up questions" });
+    expect(within(questions).getAllByText("Shown when Status is Student")).toHaveLength(3);
+    expect(within(questions).getByText("Shown when Degree type is PG")).toBeInTheDocument();
+    expect(within(questions).getAllByText(/required when shown/)).toHaveLength(6);
+    fireEvent.change(within(panel).getByLabelText("Name"), { target: { value: "Renamed by an admin" } });
+    fireEvent.click(within(panel).getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    const saved = JSON.parse(String(sent().additional_details));
+    expect(saved).toEqual(
+      SHARED_FORM.map((q) => ({
+        key: q.key,
+        label: q.label,
+        field_type: q.field_type,
+        required: true,
+        ...(q.options ? { options: q.options } : {}),
+        ...(q.show_if ? { show_if: q.show_if, required_when_shown: true } : {}),
+      })),
+    );
   });
 
   it("will not save without a category or a length", async () => {

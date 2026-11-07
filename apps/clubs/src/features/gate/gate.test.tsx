@@ -260,6 +260,32 @@ describe("the walk-up form's own questions", () => {
   });
 });
 
+describe("conditional questions at the door", () => {
+  it("asks only what the answers reveal, clears a branch that stops applying, and sends only what is shown", async () => {
+    // As the gate context carries them: the event's stored questions, with show_if.
+    api.context.mockResolvedValue({
+      ...ctx,
+      guest_fields: [
+        { key: "status", label: "Status", field_type: "radio", options: ["Student", "Working"], required: true },
+        { key: "college", label: "College name", field_type: "text", required: true, show_if: { key: "status", any_of: ["Student"] } },
+        { key: "company", label: "Company", field_type: "text", required: true, show_if: { key: "status", any_of: ["Working"] } },
+      ],
+    });
+    api.walkup.mockResolvedValue({ outcome: "REGISTERED", attendee: { ...attendee, name: "Devika Menon", role: "attendee" }, duplicate_of: null, duplicate_by: null, checked_in: true, ticket_sent: false });
+    render(<GateConsole eventId={37} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Walk-up" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Devika Menon" } });
+    expect(screen.queryByLabelText(/^College name/)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/^Status/), { target: { value: "Student" } });
+    fireEvent.change(await screen.findByLabelText(/^College name/), { target: { value: "IIT Madras" } });
+    fireEvent.change(screen.getByLabelText(/^Status/), { target: { value: "Working" } });
+    expect(screen.queryByLabelText(/^College name/)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/^Company/), { target: { value: "Acme" } });
+    fireEvent.click(screen.getByRole("button", { name: /Register and check in/ }));
+    await waitFor(() => expect(api.walkup).toHaveBeenCalledWith(null, 37, expect.objectContaining({ custom_fields: { status: "Working", company: "Acme" } })));
+  });
+});
+
 describe("the shelf at the desk", () => {
   it("counts up within stock and shows what to take", () => {
     const catalog = { enabled: true, items: [{ id: "kit", name: "Kit", price: 890, left: 1, variants: [] }] };

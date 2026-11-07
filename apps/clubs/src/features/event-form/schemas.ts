@@ -1,3 +1,4 @@
+import { checkDefinition } from "@moa/questions";
 import { z } from "zod";
 
 import { ticketTypeDraftSchema } from "@/features/ticketing/schemas";
@@ -49,7 +50,17 @@ export const questionSchema = z
     label: z.string().trim().min(1, "Give the question a label"),
     field_type: z.enum(FIELD_TYPES),
     required: z.boolean().default(true),
-    options: z.array(z.string().trim().min(1)).optional(),
+    // One a row in the builder; a row left empty is not a choice.
+    options: z
+      .array(z.string())
+      .optional()
+      .transform((list) => list?.map((o) => o.trim()).filter(Boolean)),
+    /**
+     * "Only show this if…": the earlier choice question it depends on, and
+     * the answers of it that show this one. Absent or null: always shown.
+     * `required` stays the club's intent -- required when shown.
+     */
+    show_if: z.object({ key: z.string().min(1), any_of: z.array(z.string()) }).nullish(),
   })
   .superRefine((value, ctx) => {
     // radio, checkbox and select are meaningless without choices, and the
@@ -171,7 +182,19 @@ export const eventFormSchema = z
     contact_email: z.string().trim().email("Enter a valid email").or(z.literal("")).optional(),
 
     event_guidelines: z.string().trim().max(5000).optional(),
-    additional_details: z.array(questionSchema).default([]),
+    // R1–R6 of the conditional-questions contract, refused here in the
+    // server's words before it would refuse them -- on the list itself, so
+    // they are said even while another section still has something to fix.
+    // A duplicate key (R5) would silently overwrite answers in the stored
+    // JSON; it is said under the label, since the key is derived from it.
+    additional_details: z
+      .array(questionSchema)
+      .default([])
+      .superRefine((questions, ctx) => {
+        for (const p of checkDefinition(questions)) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: p.index < 0 ? [] : [p.index, p.rule === "R5" ? "label" : "show_if"], message: p.message });
+        }
+      }),
     speakers: z.array(speakerSchema).default([]),
     /** New events only; not part of the event's own form data. */
     agenda: z.array(agendaDraftItemSchema).default([]),
@@ -226,16 +249,6 @@ export const eventFormSchema = z
     }
     if (value.several_types && !value.ticket_types?.length) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ticket_types"], message: "Add at least one ticket type" });
-    }
-    // Duplicate keys would silently overwrite each other in the stored JSON.
-    const keys = value.additional_details.map((q) => q.key);
-    const dupe = keys.find((k, i) => keys.indexOf(k) !== i);
-    if (dupe) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["additional_details"],
-        message: `Duplicate question key “${dupe}”`,
-      });
     }
   });
 

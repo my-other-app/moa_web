@@ -1,4 +1,5 @@
 import { api } from "@moa/app-kit";
+import { questionToWire } from "@moa/questions";
 import { z } from "zod";
 
 // The api module, not the feature's surface: the agenda page imports events, which imports this form.
@@ -18,7 +19,11 @@ import type { AgendaDraftItem, EventFormParsed } from "./schemas";
  *   interest_ids       comma-separated integers. The source comment says
  *                      "JSON string", but the code does .split(","), so a
  *                      JSON array 400s with "expected comma seperated integers".
- *   additional_details JSON array string.
+ *   additional_details JSON array string. A conditional question carries
+ *                      show_if and required_when_shown (the club's
+ *                      "required", which read endpoints send as
+ *                      required: false for old apps); one without is sent
+ *                      exactly as before (questionToWire, @moa/questions).
  *   speakers           JSON array string. A newly uploaded photo is referenced
  *                      by `photo_index`, an index into the speaker_photos files
  *                      appended in the same order. `bio` and `link` are null
@@ -106,15 +111,7 @@ export function toEventFormData(values: EventFormParsed, status?: "draft" | "pub
 
   fd.append(
     "additional_details",
-    JSON.stringify(
-      values.additional_details.map((q) => ({
-        key: q.key,
-        label: q.label,
-        field_type: q.field_type,
-        required: q.required,
-        ...(q.options?.length ? { options: q.options } : {}),
-      }))
-    )
+    JSON.stringify(values.additional_details.map(questionToWire))
   );
 
   const speakerPhotos: File[] = [];

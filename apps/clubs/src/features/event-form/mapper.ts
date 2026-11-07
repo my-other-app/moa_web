@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Topic } from "@moa/app-kit";
+import { questionFromWire } from "@moa/questions";
 
 import type { EventDraft } from "@/features/ai";
 import { pinDetailShape, pinFromDetail } from "@/features/venue";
@@ -55,6 +56,10 @@ const detailSchema = z
             field_type: z.string(),
             required: z.boolean().nullish(),
             options: z.array(z.string()).nullish(),
+            // A conditional question (§5): its condition, and what the club
+            // set -- read endpoints send such a question as required: false.
+            show_if: z.unknown().optional(),
+            required_when_shown: z.boolean().nullish(),
           })
           .passthrough()
       )
@@ -142,17 +147,24 @@ export function eventDetailToFormValues(raw: unknown): EventFormValues {
     contact_email: d.contact_email ?? "",
     event_guidelines: d.event_guidelines ?? "",
 
-    additional_details: (d.additional_details ?? []).map((q) => ({
-      key: q.key,
-      label: q.label,
-      // Guard the enum: a field_type the UI does not know would otherwise
-      // crash the select. Falling back to text keeps the question editable.
-      field_type: (FIELD_TYPES as readonly string[]).includes(q.field_type)
-        ? (q.field_type as FieldType)
-        : "text",
-      required: q.required ?? true,
-      ...(q.options?.length ? { options: q.options } : {}),
-    })),
+    additional_details: (d.additional_details ?? []).map((raw) => {
+      // required_when_shown folded into required, and show_if kept: a round
+      // trip through the form never loses a condition or turns the club's
+      // "required" into the flat required: false old apps are sent.
+      const q = questionFromWire(raw);
+      return {
+        key: q.key,
+        label: q.label ?? "",
+        // Guard the enum: a field_type the UI does not know would otherwise
+        // crash the select. Falling back to text keeps the question editable.
+        field_type: (FIELD_TYPES as readonly string[]).includes(raw.field_type)
+          ? (raw.field_type as FieldType)
+          : "text",
+        required: q.required ?? true,
+        ...(q.options?.length ? { options: q.options } : {}),
+        ...(q.show_if ? { show_if: q.show_if } : {}),
+      };
+    }),
 
     speakers: (d.speakers ?? []).map((s) => ({
       // Carrying the id through is what makes the backend update the existing
