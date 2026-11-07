@@ -3,11 +3,11 @@
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2Icon } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
+import { requiredWhenShown, visibility, visibilityChange } from "@moa/questions";
 import {
   Button,
-  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -23,16 +23,8 @@ import {
   NativeSelect,
 } from "@moa/ui";
 
-import {
-  answerForForm,
-  answersPayload,
-  inputTypeOf,
-  invalidAnswers,
-  isBlank,
-  isMultiChoice,
-  isSingleChoice,
-  type AnswerValue,
-} from "@/lib/answers";
+import { QUESTION_FIELD as FIELD, QUESTION_LABEL as LABEL, QuestionControl, RevealNotice, useRevealNotice } from "@/components/question-control";
+import { answerForForm, answersPayload, invalidAnswers, isBlank, isMultiChoice, type AnswerValue } from "@/lib/answers";
 
 import { useAddAttendee, useUpdateRegistration } from "../queries";
 import {
@@ -58,14 +50,16 @@ const valuesSchema = z.object({
 });
 type Values = z.infer<typeof valuesSchema>;
 
-/** The field's label and the field, in the dialog vocabulary the rebuilt screens share. */
-const LABEL = "eyebrow mb-1.5 block";
-const FIELD = "input h-9 w-full";
-
 /**
  * Add by hand (a spot registration) or correct an existing guest. The
  * event's own questions are asked too, so a guest added here is as complete
  * as one who used the form. Nothing is emailed from here.
+ *
+ * Conditional questions behave as on the attendee's form (contract §8):
+ * only the questions their answers reveal are asked, in the form's order; a
+ * question that stops applying is hidden and its answer cleared at once;
+ * "required" is the club's required-when-shown; and only the questions
+ * shown are sent (the server drops the rest anyway).
  */
 export function AttendeeFormDialog({
   eventId,
@@ -113,16 +107,36 @@ export function AttendeeFormDialog({
   });
   const busy = add.isPending || update.isPending;
 
+  const watched = useWatch({ control: form.control, name: "answers" });
+  const shown = React.useMemo(() => visibility(fields, watched ?? {}), [fields, watched]);
+  const asked = fields.filter((f) => shown.get(f.key) === true);
+  const notice = useRevealNotice(fields, shown);
+  // A question that stops applying loses its answer the moment it is hidden,
+  // so what is on screen is what is sent. Only one that was showing: a
+  // stored answer to a question already hidden when the dialog opened (the
+  // form changed after they registered) is left alone until a save.
+  const lastShown = React.useRef(shown);
+  React.useEffect(() => {
+    const { hidden } = visibilityChange(fields, lastShown.current, shown);
+    lastShown.current = shown;
+    for (const f of hidden) {
+      if (!isBlank(form.getValues(`answers.${f.key}`))) form.setValue(`answers.${f.key}`, isMultiChoice(f) ? [] : "");
+      form.clearErrors(`answers.${f.key}`);
+    }
+  }, [fields, shown, form]);
+
   const submit = form.handleSubmit((v) => {
+    const askedNow = fields.filter((f) => visibility(fields, v.answers).get(f.key) === true);
     // A required question left blank is refused here, the way the server refuses it.
-    for (const f of fields) {
-      if (f.required !== false && isBlank(v.answers[f.key])) {
+    for (const f of askedNow) {
+      if (requiredWhenShown(f) && isBlank(v.answers[f.key])) {
         form.setError(`answers.${f.key}`, { message: "This is required." });
         return;
       }
     }
-    // A blank answer is left out; several ticks go as a list, one as itself.
-    const answers = answersPayload(fields, v.answers);
+    // A blank answer is left out; several ticks go as a list, one as itself;
+    // a question the answers hide is not sent at all.
+    const answers = answersPayload(askedNow, v.answers);
     const done = () => {
       onOpenChange(false);
       form.reset();
@@ -250,59 +264,22 @@ export function AttendeeFormDialog({
             {fields.length ? (
               <div className="bg-sunken grid gap-3 rounded-xl p-3.5">
                 <p className="text-ink-3 -mb-1 text-[12px]">This event&apos;s own questions</p>
-                {fields.map((f) => (
+                {asked.map((f) => (
                   <FormField
                     key={f.key}
                     control={form.control}
                     name={`answers.${f.key}` as const}
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="motion-safe:animate-in motion-safe:fade-in-0">
                         <FormLabel className={LABEL}>
                           {f.label ?? f.key}
-                          {f.required === false ? " · optional" : ""}
+                          {requiredWhenShown(f) ? "" : " · optional"}
                         </FormLabel>
                         {isMultiChoice(f) ? (
-                          <div role="group" aria-label={f.label ?? f.key} className="flex flex-wrap gap-x-4 gap-y-2 pt-0.5">
-                            {(f.options ?? []).map((o) => {
-                              const ticked = Array.isArray(field.value) ? field.value : [];
-                              const id = `answer-${f.key}-${o}`;
-                              return (
-                                <span key={o} className="flex items-center gap-2">
-                                  <Checkbox
-                                    id={id}
-                                    checked={ticked.includes(o)}
-                                    onCheckedChange={(on) =>
-                                      field.onChange(on === true ? [...ticked.filter((t) => t !== o), o] : ticked.filter((t) => t !== o))
-                                    }
-                                  />
-                                  <label htmlFor={id} className="text-ink cursor-pointer text-[13px]">
-                                    {o}
-                                  </label>
-                                </span>
-                              );
-                            })}
-                          </div>
-                        ) : isSingleChoice(f) ? (
-                          <FormControl>
-                            <NativeSelect className="w-full" {...field} value={typeof field.value === "string" ? field.value : ""}>
-                              <option value="" disabled>
-                                Choose
-                              </option>
-                              {(f.options ?? []).map((o) => (
-                                <option key={o} value={o}>
-                                  {o}
-                                </option>
-                              ))}
-                            </NativeSelect>
-                          </FormControl>
+                          <QuestionControl field={f} value={field.value} onChange={field.onChange} />
                         ) : (
                           <FormControl>
-                            <input
-                              className={FIELD}
-                              type={inputTypeOf(f)}
-                              {...field}
-                              value={typeof field.value === "string" ? field.value : ""}
-                            />
+                            <QuestionControl field={f} value={field.value} onChange={field.onChange} name={field.name} onBlur={field.onBlur} ref={field.ref} />
                           </FormControl>
                         )}
                         <FormMessage />
@@ -310,6 +287,7 @@ export function AttendeeFormDialog({
                     )}
                   />
                 ))}
+                <RevealNotice notice={notice} />
                 {form.formState.errors.root?.answers ? (
                   <p className="text-refuse text-[12px]">{form.formState.errors.root.answers.message}</p>
                 ) : null}

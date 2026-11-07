@@ -74,7 +74,12 @@ export const importLogSchema = z.object({
 });
 export type ImportLog = z.infer<typeof importLogSchema>;
 
-/** A question on the event's registration form, as the event carries it. */
+/**
+ * A question on the event's registration form, as the event carries it. A
+ * conditional one comes with its `show_if` and, since old apps are sent
+ * `required: false` for it, the club's setting in `required_when_shown`
+ * (conditional-questions contract §5; read with requiredWhenShown).
+ */
 export const eventFieldSchema = z
   .object({
     key: z.string(),
@@ -82,6 +87,8 @@ export const eventFieldSchema = z
     field_type: z.string().nullish(),
     options: z.array(z.string()).nullish(),
     required: z.boolean().nullish(),
+    show_if: z.object({ key: z.string(), any_of: z.array(z.string()) }).nullish().catch(null),
+    required_when_shown: z.boolean().nullish(),
   })
   .passthrough();
 export type EventField = z.infer<typeof eventFieldSchema>;

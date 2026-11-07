@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Loader2Icon, SaveIcon } from "lucide-react";
+import { CornerDownRightIcon, Loader2Icon, SaveIcon } from "lucide-react";
+import { ANSWER_TYPE_WORDS, conditionText, depthOf, questionToWire, questionsFromWire, requiredWhenShown, type Question } from "@moa/questions";
 import { Button, Input, Label, Textarea, cn } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
@@ -22,6 +23,15 @@ import type { AdminEventDetail } from "../schemas";
  * length, which the endpoint requires (it answered 422 without them), the
  * fee, the prize, the questions, the interests and the speakers, which it
  * would otherwise reset.
+ *
+ * The sign-up questions are sent back through the conditional-questions
+ * contract's own reader and writer (@moa/questions, §5–§6): a conditional
+ * question keeps its `show_if`, and its "required" is read from
+ * `required_when_shown` and written back with it -- read endpoints send it
+ * as `required: false` for old apps, and rebuilding it from `required`
+ * would have saved the club's required question as optional and dropped
+ * every condition. The form shows them, conditions and all, but they are
+ * edited in the club dashboard.
  */
 function Field({
   id,
@@ -81,15 +91,7 @@ export function unshownFields(event: AdminEventDetail): Raw {
     event_guidelines: event.event_guidelines ?? undefined,
     event_tag: text(raw.event_tag),
     interest_ids: interests.length ? interests.join(",") : undefined,
-    additional_details: JSON.stringify(
-      list(raw.additional_details).map((q) => ({
-        key: q.key,
-        label: q.label,
-        field_type: q.field_type,
-        required: q.required ?? true,
-        ...(Array.isArray(q.options) && q.options.length ? { options: q.options } : {}),
-      }))
-    ),
+    additional_details: JSON.stringify(questionsFromWire(raw.additional_details).map(questionToWire)),
     // Each kept by its id (and its photo with it); a list without them would delete them.
     speakers: JSON.stringify(
       list(raw.speakers).map((sp) => ({
@@ -101,6 +103,53 @@ export function unshownFields(event: AdminEventDetail): Raw {
       }))
     ),
   };
+}
+
+/**
+ * The event's sign-up questions as the club built them: in the form's order,
+ * a conditional one indented under its parent with its condition in words,
+ * as the club dashboard's builder shows them. Read-only here.
+ */
+export function QuestionsSummary({ questions }: { questions: Question[] }) {
+  if (!questions.length) return null;
+  return (
+    <section aria-labelledby="event-questions" className="grid gap-2 border-t pt-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 id="event-questions" className="eyebrow m-0">
+          Sign-up questions
+        </h3>
+        <p className="text-ink-3 m-0 text-[11.5px]">Edited by the club. Saving here keeps them, and every condition, as they are.</p>
+      </div>
+      <ol className="grid gap-1.5">
+        {questions.map((q, i) => {
+          const depth = depthOf(questions, q.key);
+          const when = conditionText(questions, q);
+          return (
+            <li
+              key={`${q.key}-${i}`}
+              className={cn("grid gap-1 rounded-lg border px-3 py-2", depth ? "border-brand-line bg-surface border-l-[3px]" : "border-line-soft bg-sunken")}
+              style={depth ? { marginInlineStart: `${Math.min(depth, 5) * 20}px` } : undefined}
+            >
+              <span className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
+                <span className="text-ink font-medium">{q.label || q.key}</span>
+                <span className="text-ink-3 text-[11.5px]">
+                  {ANSWER_TYPE_WORDS[q.field_type ?? "text"] ?? q.field_type}
+                  {q.options?.length ? ` · ${q.options.join(", ")}` : ""}
+                  {requiredWhenShown(q) ? (q.show_if ? " · required when shown" : " · required") : " · optional"}
+                </span>
+              </span>
+              {when ? (
+                <span className="bg-brand-soft text-brand inline-flex w-fit items-center gap-1 rounded-[var(--radius-chip)] px-2 py-0.5 text-[11.5px] font-medium">
+                  <CornerDownRightIcon aria-hidden="true" className="size-3" />
+                  {when}
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
 }
 
 export function EventEditForm({ event }: { event: AdminEventDetail }) {
@@ -265,6 +314,8 @@ export function EventEditForm({ event }: { event: AdminEventDetail }) {
           />
         </Field>
       </div>
+
+      <QuestionsSummary questions={questionsFromWire((event as unknown as Raw).additional_details)} />
 
       <div className="flex items-center justify-end gap-3 border-t pt-4">
         <p className="text-muted-foreground mr-auto text-xs">
