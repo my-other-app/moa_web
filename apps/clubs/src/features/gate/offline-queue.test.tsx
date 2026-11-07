@@ -149,23 +149,25 @@ describe("the queue on the phone", () => {
 });
 
 describe("scanning without signal", () => {
-  it("saves the scan on the phone and says so, never as a server admission", async () => {
+  it("saves a ticket code on the phone as unverified, for the volunteer to check, never as an admission", async () => {
     await openConsole();
     goOffline();
     expect(await screen.findByText("No signal")).toBeInTheDocument();
 
-    await scanCode("MOA-1");
+    await scanCode("MOA-7K3QF-X9PWM");
     // The outcome card, not the "No signal" banner, which is a status too.
-    const card = (await screen.findByText("Queued")).closest<HTMLElement>('[role="status"]')!;
-    // In the info tone, never the admit tone of a welcome the server gave.
-    expect(card).toHaveAttribute("data-tone", "info");
-    expect(within(card).getByText("SAVED ON THIS PHONE · WILL SYNC")).toBeInTheDocument();
+    const card = (await screen.findByText("Unverified")).closest<HTMLElement>('[role="status"]')!;
+    // In the caution tone, never the admit tone of a welcome the server gave.
+    expect(card).toHaveAttribute("data-tone", "caution");
+    expect(within(card).getByText("NOT CHECKED · SAVED ON THIS PHONE · WILL SYNC")).toBeInTheDocument();
+    expect(within(card).getByText(/Check their name or ID before letting them in/)).toBeInTheDocument();
     expect(within(card).queryByText("Welcome in")).toBeNull();
+    expect(within(card).queryByText(/welcome in|let them in\./i)).toBeNull();
 
     // Saved in IndexedDB with everything the replay needs, for this event.
     const [saved, ...rest] = await scanQueue.all(EVENT);
     expect(rest).toHaveLength(0);
-    expect(saved).toMatchObject({ code: "MOA-1", door: "Gate A", eventId: EVENT });
+    expect(saved).toMatchObject({ code: "MOA-7K3QF-X9PWM", door: "Gate A", eventId: EVENT });
     expect(saved!.client_ref).toMatch(/^\w{8,}$/);
     expect(await screen.findByText("1 waiting")).toBeInTheDocument();
   });
@@ -173,19 +175,66 @@ describe("scanning without signal", () => {
   it("counts every scan waiting, each with its own reference", async () => {
     await openConsole();
     goOffline();
-    await scanCode("MOA-1");
+    await scanCode("MOA-7K3QF-X9PWM");
     await screen.findByText("1 waiting");
-    await scanCode("MOA-2");
+    await scanCode("MOA-3F2A9C-K7QXD");
     expect(await screen.findByText("2 waiting")).toBeInTheDocument();
     const refs = (await scanQueue.all(EVENT)).map((s) => s.client_ref);
     expect(new Set(refs).size).toBe(2);
+  });
+
+  it("refuses what cannot be a ticket, and saves nothing", async () => {
+    await openConsole();
+    goOffline();
+    await screen.findByText("No signal");
+    for (const junk of ["hello", "https://evil.example/MOA-7K3QF-X9PWM", "MOA-7K3QF-X9PW0", "MOA-7K3QF"]) {
+      await scanCode(junk);
+      const card = (await screen.findByText("Not recognised")).closest<HTMLElement>('[role="status"]')!;
+      expect(card).toHaveAttribute("data-tone", "refuse");
+      expect(within(card).getByText("That isn't a ticket code.")).toBeInTheDocument();
+      fireEvent.click(within(card).getByRole("button", { name: "Dismiss" }));
+    }
+    expect(await scanQueue.count(EVENT)).toBe(0);
+    expect(screen.getByText("0 waiting")).toBeInTheDocument();
+  });
+
+  it("refuses an admission number: it never lets anyone in, and whose it is needs the signal", async () => {
+    await openConsole();
+    goOffline();
+    await screen.findByText("No signal");
+    await scanCode("MOA-0042-E123");
+    const card = (await screen.findByText("Admission number")).closest<HTMLElement>('[role="status"]')!;
+    expect(card).toHaveAttribute("data-tone", "refuse");
+    expect(await scanQueue.count(EVENT)).toBe(0);
+  });
+
+  it("refuses a ticket already waiting on this phone, in any case, and does not save it again", async () => {
+    await openConsole();
+    goOffline();
+    await scanCode("MOA-7K3QF-X9PWM");
+    await screen.findByText("1 waiting");
+    await scanCode("moa-7k3qf-x9pwm");
+    const card = (await screen.findByText("Already scanned")).closest<HTMLElement>('[role="status"]')!;
+    expect(card).toHaveAttribute("data-tone", "refuse");
+    expect(within(card).getByText(/^Already scanned on this phone at \d\d:\d\d\.$/)).toBeInTheDocument();
+    expect(within(card).getByText(/don't let them in on it/)).toBeInTheDocument();
+    expect(await scanQueue.count(EVENT)).toBe(1);
+    expect(screen.getByText("1 waiting")).toBeInTheDocument();
+  });
+
+  it("still saves a registration id, which the server accepts as a ticket", async () => {
+    await openConsole();
+    goOffline();
+    await scanCode("0b9f6f3e-2c1a-4f7e-9d52-6a1b2c3d4e5f");
+    expect(await screen.findByText("Unverified")).toBeInTheDocument();
+    expect(await scanQueue.count(EVENT)).toBe(1);
   });
 
   it("never saves a scan the server answered: a refusal is said, not queued", async () => {
     const said = vi.spyOn(toast, "error");
     net.scan = () => json(403, { message: "This door key was revoked" });
     await openConsole();
-    await scanCode("MOA-1");
+    await scanCode("MOA-7K3QF-X9PWM");
     await waitFor(() => expect(said).toHaveBeenCalledWith("This door key was revoked"));
     expect(await scanQueue.count(EVENT)).toBe(0);
     expect(screen.queryByText("No signal")).toBeNull();
@@ -196,7 +245,7 @@ describe("back online", () => {
   it("sends what waited through the batch route, with the door key, and empties the queue", async () => {
     await openConsole();
     goOffline();
-    await scanCode("MOA-1");
+    await scanCode("MOA-7K3QF-X9PWM");
     await screen.findByText("1 waiting");
     const [saved] = await scanQueue.all(EVENT);
 
@@ -205,7 +254,7 @@ describe("back online", () => {
     const [batch] = batches();
     expect(batch!.key).toBe(KEY);
     // Exactly the scan as taken: its code, door, time and reference; not the phone's bookkeeping.
-    expect(batch!.body).toEqual({ scans: [{ code: "MOA-1", door: "Gate A", scanned_at: saved!.scanned_at, client_ref: saved!.client_ref }] });
+    expect(batch!.body).toEqual({ scans: [{ code: "MOA-7K3QF-X9PWM", door: "Gate A", scanned_at: saved!.scanned_at, client_ref: saved!.client_ref }] });
 
     await waitFor(async () => expect(await scanQueue.count(EVENT)).toBe(0));
     await waitFor(() => expect(screen.queryByText("No signal")).toBeNull());
@@ -345,7 +394,7 @@ describe("what the server said about the saved scans", () => {
     net.batch = (body) => json(200, { results: body.scans.map((s) => ({ client_ref: s.client_ref, response: answers.b })) });
     await openConsole();
     goOffline();
-    await scanCode("MOA-2");
+    await scanCode("MOA-3F2A9C-K7QXD");
     await screen.findByText("1 waiting");
     goOnline();
     const region = await report();

@@ -7,9 +7,9 @@ import { CameraIcon, CameraOffIcon, DoorClosedIcon, HandIcon, PrinterIcon, ScanL
 import { PrintFrame, cardPdfUrl } from "@/features/idcards";
 
 import { gateHeaders } from "../api";
-import { needsHandCheckIn, outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
+import { OFFLINE_ADMISSION_NUMBER_CARD, OFFLINE_NOT_A_TICKET_CARD, UNVERIFIED_CARD, needsHandCheckIn, offlineRepeatCard, outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { cameraProblem, startScanner, type Scanner } from "../lib/scanner";
-import { useCheckInByHand, useScanMutation } from "../queries";
+import { useCheckInByHand, useScanMutation, type Enqueued } from "../queries";
 import { newRef, type GateContext, type ScanBody, type ScanResult } from "../schemas";
 import { CaptureSheet } from "./capture-sheet";
 import { CameraWell, DOOR_FIELD, DOOR_LABEL, DoorBanner, DoorSpinner } from "./door-kit";
@@ -20,10 +20,8 @@ interface Props {
   ctx: GateContext;
   door: string;
   online: boolean;
-  enqueue: (s: ScanBody) => Promise<void>;
+  enqueue: (s: ScanBody) => Promise<Enqueued>;
 }
-
-const QUEUED: ScanResult = { outcome: "CHECKED_IN", attendee: null, checked_in_at: null, checked_in_by: null, other_event: null, revoked_at: null, capture: { ask: false, required: false, reason: "DISABLED" }, replayed: false, badge: { auto: false, may_print: false, printed_at: null, policy: "anyone" } };
 
 /**
  * Camera, typed code, and the outcome card — which must never obstruct the
@@ -67,9 +65,13 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
       try {
         const res = await scan.mutateAsync(body);
         clearTimeout(dismissTimer.current);
+        // No signal: these cards ask the volunteer to decide, so they stay until the next scan or a dismiss.
         if (res.kind === "queued") {
-          setCard({ model: outcomeCard(QUEUED, door, true), response: null, captureAsk: false });
-          dismissTimer.current = setTimeout(() => setCard(null), 6000);
+          setCard({ model: UNVERIFIED_CARD, response: null, captureAsk: false });
+        } else if (res.kind === "offline-refused") {
+          setCard({ model: res.reason === "admission-number" ? OFFLINE_ADMISSION_NUMBER_CARD : OFFLINE_NOT_A_TICKET_CARD, response: null, captureAsk: false });
+        } else if (res.kind === "offline-repeat") {
+          setCard({ model: offlineRepeatCard(res.earlier.queuedAt), response: null, captureAsk: false });
         } else {
           show(res.response);
         }
@@ -211,7 +213,7 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
         </form>
         {!online ? (
           <p className="text-caution flex items-center justify-center gap-2 text-[13px] font-medium">
-            <WifiOffIcon aria-hidden="true" className="size-4" /> Offline — scans are saved on this phone
+            <WifiOffIcon aria-hidden="true" className="size-4" /> Offline — tickets can’t be checked; scans are saved on this phone
           </p>
         ) : null}
       </div>

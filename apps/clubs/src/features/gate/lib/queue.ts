@@ -1,4 +1,5 @@
 import type { ScanBody } from "../schemas";
+import { normalCode } from "./ticket-code";
 
 /**
  * Offline scan queue in IndexedDB. Each scan carries a client reference, so
@@ -44,6 +45,11 @@ export const scanQueue = {
   async all(eventId: number): Promise<QueuedScan[]> {
     const rows = await tx<QueuedScan[]>("readonly", (s) => s.index("eventId").getAll(eventId));
     return rows.sort((a, b) => a.queuedAt.localeCompare(b.queuedAt));
+  },
+  /** The scan of this code already waiting on this phone for this event, if any (the first saved). */
+  async find(eventId: number, code: string): Promise<QueuedScan | null> {
+    const want = normalCode(code);
+    return (await scanQueue.all(eventId)).find((s) => normalCode(s.code) === want) ?? null;
   },
   async count(eventId: number) {
     return tx<number>("readonly", (s) => s.index("eventId").count(eventId));

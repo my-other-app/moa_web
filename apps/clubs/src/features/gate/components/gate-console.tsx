@@ -196,7 +196,7 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
           <DoorProgress checkedIn={ctx.counters.checked_in} registered={ctx.counters.registered} />
           {!online ? (
             <DoorBanner tone="caution" icon={<WifiOffIcon />} title="No signal" className="border-x-0 border-b-0" action={<span className="bg-surface text-caution rounded-full px-2.5 py-1 font-mono text-[12px] font-semibold tabular-nums">{queued} waiting</span>}>
-              Scans are being saved on this phone and will sync when you’re back.
+              Tickets can’t be checked: scans are saved on this phone and sync when you’re back. Check each guest’s name or ID.
             </DoorBanner>
           ) : queued > 0 ? (
             <DoorBanner tone="info" icon={<RefreshCwIcon className="animate-spin motion-reduce:animate-none" />} title="Back online" className="border-x-0 border-b-0">

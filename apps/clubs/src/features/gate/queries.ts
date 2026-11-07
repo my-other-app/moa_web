@@ -6,6 +6,7 @@ import { ApiError } from "@moa/api";
 
 import { captureContact, checkInByHand, fetchGateContext, registerWalkup, scanBatch, scanTicket, searchGuests, undoCheckIn, fetchGateStoreOrders, gateHandOver, fetchGateCatalog } from "./api";
 import { scanQueue, supportsQueue, type QueuedScan } from "./lib/queue";
+import { looksLikeAdmissionNumber, looksLikeTicketCode } from "./lib/ticket-code";
 import type { ReplayedScan } from "./lib/replay";
 import type { GateContext, ScanBody, ScanResult, WalkupBody } from "./schemas";
 
@@ -26,15 +27,27 @@ export function useGateContext(key: string | null, eventId: number) {
   });
 }
 
-export type ScanOutcomeResult = { kind: "server"; response: ScanResult } | { kind: "queued"; scan: ScanBody };
+/** What saving a scan on the phone came to: saved, or this ticket was already waiting here. */
+export type Enqueued = { saved: true } | { saved: false; earlier: QueuedScan };
+
+export type ScanOutcomeResult =
+  | { kind: "server"; response: ScanResult }
+  /** No signal: saved on the phone, checked by nobody yet. */
+  | { kind: "queued"; scan: ScanBody }
+  /** No signal, and what was read cannot be a ticket: refused here, as the server would, and not saved. */
+  | { kind: "offline-refused"; reason: "not-a-ticket" | "admission-number" }
+  /** No signal, and this ticket is already waiting on this phone: refused, not saved again. */
+  | { kind: "offline-repeat"; earlier: QueuedScan };
 
 /**
  * The counter bumps optimistically because the volunteer needs instant
  * feedback. The outcome card never does — "welcome in" must not appear
- * before the server has committed. On a network failure the scan is queued
- * and shown as QUEUED, honestly.
+ * before the server has committed. On a network failure nothing has checked
+ * the ticket, so nobody is waved in on it: a code that cannot be a ticket,
+ * or one already waiting on this phone, is refused; a ticket code is saved
+ * and shown as unverified, for the volunteer to check the person.
  */
-export function useScanMutation(key: string | null, eventId: number, enqueue: (s: ScanBody) => Promise<void>) {
+export function useScanMutation(key: string | null, eventId: number, enqueue: (s: ScanBody) => Promise<Enqueued>) {
   const qc = useQueryClient();
   const ctxKey = [...gateKey(eventId), "context", key ?? "session"];
   return useMutation<ScanOutcomeResult, unknown, ScanBody, { prev?: GateContext }>({
@@ -51,7 +64,9 @@ export function useScanMutation(key: string | null, eventId: number, enqueue: (s
         return { kind: "server", response: await scanTicket(key, eventId, body) };
       } catch (err) {
         if (err instanceof ApiError) throw err; // the server answered: not a connectivity problem
-        await enqueue(body);
+        if (!looksLikeTicketCode(body.code)) return { kind: "offline-refused", reason: looksLikeAdmissionNumber(body.code) ? "admission-number" : "not-a-ticket" };
+        const saved = await enqueue(body);
+        if (!saved.saved) return { kind: "offline-repeat", earlier: saved.earlier };
         return { kind: "queued", scan: body };
       }
     },
@@ -66,6 +81,8 @@ export function useScanMutation(key: string | null, eventId: number, enqueue: (s
     },
     onSuccess: (res, _v, ctx) => {
       if (res.kind === "server" && (res.response.outcome !== "CHECKED_IN" || res.response.replayed) && ctx?.prev) qc.setQueryData(ctxKey, ctx.prev);
+      // Refused on the phone: nobody came in on it.
+      if ((res.kind === "offline-refused" || res.kind === "offline-repeat") && ctx?.prev) qc.setQueryData(ctxKey, ctx.prev);
       if (res.kind === "server") void qc.invalidateQueries({ queryKey: gateKey(eventId) });
     },
   });
@@ -75,7 +92,7 @@ export function useScanMutation(key: string | null, eventId: number, enqueue: (s
  * Online-first with an honest offline path: queued scans drain through the
  * batch route on reconnect. `onDrained` hears the server's answer to each
  * batch, every scan with what was saved for it, so the console can say which
- * of the guests let in offline the server did not admit.
+ * of the guests scanned offline the server did not admit.
  */
 export function useOfflineQueue(key: string | null, eventId: number, onDrained?: (results: ReplayedScan[]) => void) {
   const qc = useQueryClient();
@@ -139,9 +156,13 @@ export function useOfflineQueue(key: string | null, eventId: number, onDrained?:
   }, [drain, refreshCount]);
 
   const enqueue = React.useCallback(
-    async (scan: ScanBody) => {
+    async (scan: ScanBody): Promise<Enqueued> => {
+      // One ticket lets one person in: a second scan of it while it waits is not saved again.
+      const earlier = await scanQueue.find(eventId, scan.code);
+      if (earlier) return { saved: false, earlier };
       await scanQueue.add({ ...scan, eventId, queuedAt: new Date().toISOString() });
       await refreshCount();
+      return { saved: true };
     },
     [eventId, refreshCount]
   );

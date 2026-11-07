@@ -24,16 +24,57 @@ const ago = (iso: string) => {
 export const needsHandCheckIn = (res: ScanResult | null | undefined): res is ScanResult & { attendee: NonNullable<ScanResult["attendee"]> } =>
   !!res && res.outcome === "INVALID" && res.hint === ADMISSION_NUMBER_HINT && !!res.attendee;
 
+const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+/*
+ * No signal. Nothing has checked the ticket, so no card says "welcome in":
+ * the volunteer looks at the person. (The app's door scanner says the same.)
+ */
+
+/** A ticket code saved on the phone, unchecked: the server decides when the signal is back. */
+export const UNVERIFIED_CARD: OutcomeCardModel = {
+  tone: "caution",
+  tag: "Unverified",
+  title: "No signal — this ticket can't be checked right now.",
+  sub: "NOT CHECKED · SAVED ON THIS PHONE · WILL SYNC",
+  note: "Check their name or ID before letting them in. The scan is sent when the signal is back; anything the server refuses is listed here by name.",
+};
+
+/** What was scanned or typed is not a ticket code: refused on the phone, as the server would, and not saved. */
+export const OFFLINE_NOT_A_TICKET_CARD: OutcomeCardModel = {
+  tone: "refuse",
+  tag: "Not recognised",
+  title: "That isn't a ticket code.",
+  sub: "NOT A TICKET CODE · NOT SAVED",
+  note: "Type the ticket code printed under the QR (MOA-XXXXX-XXXXX), or try the scan again.",
+};
+
+/** An admission number never lets anyone in by itself, and finding whose it is needs the server. */
+export const OFFLINE_ADMISSION_NUMBER_CARD: OutcomeCardModel = {
+  tone: "refuse",
+  tag: "Admission number",
+  title: "That's an admission number, not a ticket code.",
+  sub: "NOT A TICKET CODE · NOT SAVED",
+  note: "An admission number does not let anyone in by itself, and finding whose it is needs the signal. Ask for the ticket code under the QR (MOA-XXXXX-XXXXX).",
+};
+
+/** This ticket is already waiting on this phone, saved at `at`: refused, and not saved again. */
+export const offlineRepeatCard = (at: string): OutcomeCardModel => ({
+  tone: "refuse",
+  tag: "Already scanned",
+  title: `Already scanned on this phone at ${clock(at)}.`,
+  sub: "NO SIGNAL · NOT SAVED AGAIN",
+  note: `A ticket lets one person in. Unless this is the person who came through at ${clock(at)}, don't let them in on it.`,
+});
+
 /** Every outcome card in one place: plain, direct, and it says what to do next. */
-export const outcomeCard = (res: ScanResult, door: string, queued = false): OutcomeCardModel => {
+export const outcomeCard = (res: ScanResult, door: string): OutcomeCardModel => {
   const a = res.attendee;
   const who = a ? a.name : "This guest";
   const sub = a ? [a.ticket_id, (ROLE_LABEL[a.role] ?? a.role).toUpperCase(), door.toUpperCase()].join(" · ") : undefined;
   switch (res.outcome) {
     case "CHECKED_IN":
-      return queued
-        ? { tone: "accent", tag: "Queued", title: `${who} — welcome in.`, sub: "SAVED ON THIS PHONE · WILL SYNC", note: "Held locally until signal returns. The server still catches duplicates when it syncs, so a second scan elsewhere cannot double them in." }
-        : { tone: "admit", tag: res.replayed ? "Already recorded" : "Welcome in", title: `${who} — welcome in.`, sub };
+      return { tone: "admit", tag: res.replayed ? "Already recorded" : "Welcome in", title: `${who} — welcome in.`, sub };
     case "ALREADY_CHECKED_IN":
       return {
         tone: "caution",
