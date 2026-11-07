@@ -126,7 +126,7 @@ describe("the exchange through the gateway", () => {
     const res = await POST(
       new Request("http://localhost/api/gateway/api/v1/auth/impersonate/exchange", {
         method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
+        headers: { "content-type": "application/x-www-form-urlencoded", origin: "http://localhost" },
         body: "token=abc",
       }),
       { params: Promise.resolve({ path: ["api", "v1", "auth", "impersonate", "exchange"] }) },
