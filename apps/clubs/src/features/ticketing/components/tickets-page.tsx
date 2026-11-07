@@ -49,7 +49,8 @@ export function TicketsPage({ eventId }: { eventId: number }) {
       </div>
       <TicketSalesPanel eventId={eventId} />
       <WaitlistPanel eventId={eventId} />
-      <DiscountCodesPanel eventId={eventId} title="This event's discount codes" />
+      {/* A code can make a ticket free: door staff don't see them (the server refuses them too). */}
+      {can.edit_events ? <DiscountCodesPanel eventId={eventId} title="This event's discount codes" /> : null}
     </div>
   );
 }

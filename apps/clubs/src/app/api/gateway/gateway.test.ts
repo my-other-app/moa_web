@@ -46,7 +46,7 @@ const ctx = (path: string) => ({ params: Promise.resolve({ path: path.split("/")
 describe("the gateway", () => {
   it("passes the API's 401 on a POST through, with its body", async () => {
     const res = await handlers().POST(
-      new Request("http://localhost/api/gateway/api/v1/clubs/ai/write", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "email", prompt: "Hi" }) }),
+      new Request("http://localhost/api/gateway/api/v1/clubs/ai/write", { method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" }, body: JSON.stringify({ kind: "email", prompt: "Hi" }) }),
       ctx("api/v1/clubs/ai/write"),
     );
     expect(res.status).toBe(401);
@@ -61,7 +61,7 @@ describe("the gateway", () => {
     const body = [`--${boundary}`, 'Content-Disposition: form-data; name="text"', "", "Hack night", `--${boundary}`, 'Content-Disposition: form-data; name="file"; filename="poster.png"', "Content-Type: image/png", "", png, `--${boundary}--`, ""].join("\r\n");
     const bytes = Uint8Array.from(body, (c) => c.charCodeAt(0));
     const type = `multipart/form-data; boundary=${boundary}`;
-    const res = await handlers().POST(new Request("http://localhost/api/gateway/api/v1/clubs/ai/event-draft", { method: "POST", headers: { "content-type": type }, body: bytes }), ctx("api/v1/clubs/ai/event-draft"));
+    const res = await handlers().POST(new Request("http://localhost/api/gateway/api/v1/clubs/ai/event-draft", { method: "POST", headers: { origin: "http://localhost", "content-type": type }, body: bytes }), ctx("api/v1/clubs/ai/event-draft"));
     expect(res.status).toBe(200);
     expect(seen.at(-1)).toMatchObject({ method: "POST", type, length: bytes.byteLength, body });
   });
@@ -81,7 +81,7 @@ describe("the gateway", () => {
       },
     });
     const req = new Request("http://localhost/api/gateway/api/v1/clubs/whatsapp/conversations/7/media", {
-      method: "POST", headers: { "content-type": type, "content-length": String(bytes.byteLength) }, body: stream, duplex: "half",
+      method: "POST", headers: { origin: "http://localhost", "content-type": type, "content-length": String(bytes.byteLength) }, body: stream, duplex: "half",
     } as RequestInit);
     const res = await handlers().POST(req, ctx("api/v1/clubs/whatsapp/conversations/7/media"));
     expect(res.status).toBe(200);
@@ -102,7 +102,7 @@ describe("the gateway", () => {
       },
     });
     const req = new Request("http://localhost/api/gateway/api/v1/clubs/mailbox/messages", {
-      method: "POST", headers: { "content-type": type, "content-length": String(bytes.byteLength) }, body: stream, duplex: "half",
+      method: "POST", headers: { origin: "http://localhost", "content-type": type, "content-length": String(bytes.byteLength) }, body: stream, duplex: "half",
     } as RequestInit);
     const res = await handlers().POST(req, ctx("api/v1/clubs/mailbox/messages"));
     expect(res.status).toBe(200);
@@ -111,7 +111,7 @@ describe("the gateway", () => {
 
   it("answers a streamed upload the API refused with a 401 plainly, not as a bare 500", async () => {
     const req = new Request("http://localhost/api/gateway/api/v1/clubs/whatsapp/conversations/8/media", {
-      method: "POST", headers: { "content-type": "multipart/form-data; boundary=x" }, body: new ReadableStream<Uint8Array>({ start: (c) => (c.enqueue(new TextEncoder().encode("--x--\r\n")), c.close()) }), duplex: "half",
+      method: "POST", headers: { origin: "http://localhost", "content-type": "multipart/form-data; boundary=x" }, body: new ReadableStream<Uint8Array>({ start: (c) => (c.enqueue(new TextEncoder().encode("--x--\r\n")), c.close()) }), duplex: "half",
     } as RequestInit);
     const res = await handlers().POST(req, ctx("api/v1/clubs/whatsapp/conversations/8/media"));
     // Node's fetch either passes the 401 on, or (its credentials step) fails: then UPLOAD_INTERRUPTED.
@@ -121,7 +121,7 @@ describe("the gateway", () => {
   });
 
   it("sends no body where there was none", async () => {
-    const res = await handlers().DELETE(new Request("http://localhost/api/gateway/api/v1/clubs/ai/key", { method: "DELETE" }), ctx("api/v1/clubs/ai/key"));
+    const res = await handlers().DELETE(new Request("http://localhost/api/gateway/api/v1/clubs/ai/key", { method: "DELETE", headers: { origin: "http://localhost" } }), ctx("api/v1/clubs/ai/key"));
     expect(res.status).toBe(200);
     expect(seen.at(-1)).toMatchObject({ method: "DELETE", length: 0 });
   });
@@ -140,7 +140,7 @@ describe("the gateway", () => {
       const statuses: number[] = [];
       const gateway = createGatewayHandlers({ apiUrl, onUpstreamResponse: (r) => statuses.push(r.status) });
       await gateway.POST(
-        new Request("http://localhost/api/gateway/api/v1/clubs/ai/write", { method: "POST", body: "{}" }),
+        new Request("http://localhost/api/gateway/api/v1/clubs/ai/write", { method: "POST", headers: { origin: "http://localhost" }, body: "{}" }),
         ctx("api/v1/clubs/ai/write"),
       );
       expect(statuses).toEqual([401]);

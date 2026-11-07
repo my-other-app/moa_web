@@ -38,6 +38,7 @@ import {
   ToolbarEnd,
 } from "@moa/ui";
 
+import { useAccess } from "@/features/access";
 import { useEventSummary } from "@/features/console";
 import { DeliveryBar, TicketCell } from "@/features/deliveries";
 import { useEventDetail } from "@/features/events";
@@ -231,6 +232,8 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
   const summary = useEventSummary(eventId);
   const analytics = useEventAnalytics(eventId);
   const imports = useImports(eventId);
+  // Door staff check people in; the list itself is not theirs to take away.
+  const { can } = useAccess();
   const listRef = React.useRef<HTMLDivElement>(null);
   const [dialog, setDialog] = React.useState<DialogState>(null);
   const [openImport, setOpenImport] = React.useState<string | null>(null);
@@ -301,17 +304,19 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
           <Button variant="secondary" onClick={() => setDialog({ kind: "import" })}>
             <UploadIcon /> Import
           </Button>
-          <Button asChild variant="secondary">
-            {/* A real navigation, not fetch: the browser handles the file and the cookie
-                rides along because the gateway is same-origin. It is an xlsx workbook. */}
-            <a
-              href={exportUrl(eventId, exportFilter)}
-              download
-              title={`An Excel workbook of ${exportScope ? `the ${exportScope} guests` : "everyone on the list"}. Search, role and delivery filters are not applied to it.`}
-            >
-              <DownloadIcon /> Export{exportScope ? ` ${exportScope}` : ""} to Excel
-            </a>
-          </Button>
+          {can.exports ? (
+            <Button asChild variant="secondary">
+              {/* A real navigation, not fetch: the browser handles the file and the cookie
+                  rides along because the gateway is same-origin. It is an xlsx workbook. */}
+              <a
+                href={exportUrl(eventId, exportFilter)}
+                download
+                title={`An Excel workbook of ${exportScope ? `the ${exportScope} guests` : "everyone on the list"}. Search, role and delivery filters are not applied to it.`}
+              >
+                <DownloadIcon /> Export{exportScope ? ` ${exportScope}` : ""} to Excel
+              </a>
+            </Button>
+          ) : null}
           <Button variant={empty ? "secondary" : "primary"} onClick={() => setDialog({ kind: "add" })}>
             <UserPlusIcon /> Add a guest
           </Button>

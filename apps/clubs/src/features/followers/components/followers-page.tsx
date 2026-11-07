@@ -7,6 +7,8 @@ import { DownloadIcon, MegaphoneIcon, UsersIcon } from "lucide-react";
 import { PersonAvatar, formatDate, formatNumber, relativeTime, useListParams } from "@moa/app-kit";
 import { CardLabel, Chip, EmptyState, FigurePanel, Notice, Pager, ProgressBar, Skeleton, StatTile, cn, SearchField } from "@moa/ui";
 
+import { useAccess } from "@/features/access";
+
 import { followersExportUrl } from "../api";
 import { useFollowersInsights, useFollowersList } from "../queries";
 import { SEGMENTS, SEGMENT_HINT, SEGMENT_LABEL, SORTS, SORT_LABEL, type FollowerRow, type FollowerSort, type FollowersInsights, type Segment } from "../schemas";
@@ -114,6 +116,8 @@ export function FollowersPage() {
   const sort: FollowerSort = (SORTS as readonly string[]).includes(search.get("sort") ?? "") ? (search.get("sort") as FollowerSort) : segment === "regulars" ? "active" : "newest";
   const [now] = React.useState(() => Date.now());
   const insights = useFollowersInsights();
+  // The page is already closed to door staff (RouteGate); the file is held to the same rule on its own.
+  const { can } = useAccess();
   const list = useFollowersList({ segment, sort, search: params.search || undefined, offset: (params.page - 1) * params.pageSize, limit: params.pageSize });
   const i = insights.data;
   const counts = list.data?.counts ?? i?.segments ?? {};
@@ -130,9 +134,11 @@ export function FollowersPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={followersExportUrl(segment)} className="btn btn-secondary" download>
-            <DownloadIcon className="size-4" /> Export {segment === "all" ? "all" : SEGMENT_LABEL[segment].toLowerCase()}
-          </a>
+          {can.exports ? (
+            <a href={followersExportUrl(segment)} className="btn btn-secondary" download>
+              <DownloadIcon className="size-4" /> Export {segment === "all" ? "all" : SEGMENT_LABEL[segment].toLowerCase()}
+            </a>
+          ) : null}
           <Link href="/announcements" className="btn btn-primary">
             <MegaphoneIcon className="size-4" /> Send an announcement
           </Link>

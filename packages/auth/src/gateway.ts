@@ -9,8 +9,17 @@ import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "./constants";
  * registrable domain (any Vercel preview URL, for instance) silently fails to
  * authenticate. Routing through the app's own origin makes the cookie
  * first-party everywhere, removes CORS from the picture entirely, and leaves
- * one chokepoint where CSRF defence can later be added -- the backend has
- * none today.
+ * one chokepoint for CSRF defence, which the backend has none of.
+ *
+ * Because the dashboards call nothing but their own origin, the gateway
+ * needs no CORS at all, and gives none: it answers OPTIONS itself and passes
+ * no `Access-Control-*` header on from the API. The API does allow
+ * credentialed CORS for the public website, which calls it directly; passed
+ * through here, that answer was given on the dashboard's own origin, so
+ * another site's script could have used a signed-in admin's session.
+ * A request that changes something must come from this origin (see
+ * `isSameOrigin`), and the session tokens never reach page script: the
+ * HttpOnly cookies are the session (see `stripTokens`).
  */
 export interface GatewayOptions {
   /**
@@ -48,6 +57,95 @@ const DEFAULT_STRIPPED = [
 
 type RouteContext = { params: Promise<{ path?: string[] }> };
 
+/** Methods that only read: everything else must come from this origin. */
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/** What a refused cross-origin request is answered with. */
+export const CROSS_ORIGIN_REFUSED = "CROSS_ORIGIN_REFUSED";
+
+/** Body fields that are a session: the HttpOnly cookies carry it instead. */
+const TOKEN_FIELDS = ["access_token", "refresh_token"] as const;
+
+/** Where sign-in, refresh, Google, password reset and the impersonation exchange live. */
+const AUTH_PREFIX = "/api/v1/auth/";
+
+/**
+ * The hosts this request was addressed to: the Host header (Caddy and
+ * Vercel pass the visitor's through), the proxy's X-Forwarded-Host should a
+ * proxy rewrite Host, and the host Next built the request URL from. None of
+ * them can be chosen by another site's script: a cross-origin request with a
+ * header of its own needs a preflight, which this gateway never grants.
+ */
+function ownHosts(request: Request): Set<string> {
+  const hosts = new Set<string>();
+  const add = (value: string | null | undefined) => {
+    const host = value?.split(",")[0]?.trim().toLowerCase();
+    if (host) hosts.add(host);
+  };
+  add(request.headers.get("host"));
+  add(request.headers.get("x-forwarded-host"));
+  try {
+    add(new URL(request.url).host);
+  } catch {
+    // A relative URL in a test: the headers decide.
+  }
+  return hosts;
+}
+
+/**
+ * The request came from a page on this dashboard's own origin.
+ *
+ * Every browser in use sends `Origin` on a request that is not GET or HEAD,
+ * and `Sec-Fetch-Site` on all of them. Either one naming another site --
+ * the public website and the other dashboard included, which share the
+ * registrable domain and so the SameSite=Lax cookies -- refuses it; so does
+ * a request with neither (fail closed: nothing in the dashboards sends one).
+ * An `Origin` of "null" (a sandboxed frame, a data: URL) is another site.
+ */
+export function isSameOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  const site = request.headers.get("sec-fetch-site");
+  if (origin === null && site === null) return false;
+  if (site !== null && site.toLowerCase() !== "same-origin") return false;
+  if (origin !== null) {
+    let host: string;
+    try {
+      host = new URL(origin).host.toLowerCase();
+    } catch {
+      return false; // "null", or not a URL
+    }
+    if (!host || !ownHosts(request).has(host)) return false;
+  }
+  return true;
+}
+
+/**
+ * The API's JSON answer with the session tokens taken out. Sign-in, refresh,
+ * Google sign-in, password reset and the impersonation exchange all return
+ * them in the body as well as in the HttpOnly cookies they set; handed to
+ * page script, any script on the page could carry the session away. Applied
+ * to every auth route, and to any answer that sets the session cookie.
+ * Anything that is not a JSON object passes unchanged.
+ */
+export function stripTokens(body: string): string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return body;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return body;
+  const record = parsed as Record<string, unknown>;
+  if (!TOKEN_FIELDS.some((field) => field in record)) return body;
+  for (const field of TOKEN_FIELDS) delete record[field];
+  return JSON.stringify(record);
+}
+
+const isJson = (type: string | null) => !!type && /^application\/(?:[\w.+-]+\+)?json\b/i.test(type);
+
+const setsSession = (cookies: string[]) =>
+  cookies.some((c) => c.trimStart().toLowerCase().startsWith(`${ACCESS_TOKEN_COOKIE}=`) || c.trimStart().toLowerCase().startsWith(`${REFRESH_TOKEN_COOKIE}=`));
+
 /**
  * The API paths whose request bodies are streamed on as they arrive instead
  * of read in full first: a WhatsApp attachment from the club's inbox (up to
@@ -69,6 +167,19 @@ export function createGatewayHandlers(options: GatewayOptions) {
   );
 
   async function handle(request: Request, context: RouteContext): Promise<Response> {
+    // Same-origin pages never preflight, so this is only ever another site
+    // asking: answered here, with no Access-Control-* at all, never by the API.
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: { allow: "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS" } });
+    }
+    // CSRF: a change must come from this dashboard's own pages.
+    if (!SAFE_METHODS.has(request.method) && !isSameOrigin(request)) {
+      return Response.json(
+        { message: "This request did not come from this dashboard, so it was not sent. Reload the page and try again.", error_code: CROSS_ORIGIN_REFUSED },
+        { status: 403 }
+      );
+    }
+
     const apiUrl = options.apiUrl ?? process.env.MOA_API_URL;
     if (!apiUrl) {
       // A deployment problem, not a caller problem: say so plainly rather than
@@ -137,15 +248,29 @@ export function createGatewayHandlers(options: GatewayOptions) {
 
     // Pass the response through, including Set-Cookie so login/refresh/logout
     // keep working. Headers.getSetCookie() preserves multiple cookies, which a
-    // plain get("set-cookie") would collapse into one malformed value.
+    // plain get("set-cookie") would collapse into one malformed value. No
+    // Access-Control-* header: the API's CORS answer is for the public
+    // website calling it directly, never for this origin.
     const responseHeaders = new Headers();
     upstream.headers.forEach((value, key) => {
-      if (key.toLowerCase() === "set-cookie") return;
-      if (["content-encoding", "content-length", "transfer-encoding"].includes(key.toLowerCase())) return;
+      const name = key.toLowerCase();
+      if (name === "set-cookie") return;
+      if (name.startsWith("access-control-")) return;
+      if (["content-encoding", "content-length", "transfer-encoding"].includes(name)) return;
       responseHeaders.set(key, value);
     });
-    for (const cookie of upstream.headers.getSetCookie?.() ?? []) {
+    const cookies = upstream.headers.getSetCookie?.() ?? [];
+    for (const cookie of cookies) {
       responseHeaders.append("set-cookie", cookie);
+    }
+
+    // The session stays in the HttpOnly cookies: tokens in the body are dropped.
+    if (isJson(upstream.headers.get("content-type")) && (upstreamPath.startsWith(AUTH_PREFIX) || setsSession(cookies))) {
+      return new Response(stripTokens(await upstream.text()), {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        headers: responseHeaders,
+      });
     }
 
     return new Response(upstream.body, {

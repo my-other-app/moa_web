@@ -33,7 +33,7 @@ vi.stubGlobal(
       if (!form.totp_code) return reply(401, { message: "Enter the code from your authenticator app", error_code: "TOTP_REQUIRED" });
       if (form.totp_code !== "123456") return reply(401, { message: "That code is not valid", error_code: "TOTP_INVALID" });
     }
-    return reply(200, { token_type: "bearer", access_token: "a", refresh_token: "r" });
+    return reply(200, { token_type: "bearer" });
   }),
 );
 

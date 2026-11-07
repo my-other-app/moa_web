@@ -81,7 +81,7 @@ const { render } = await import("@/test/render");
 const { GateConsole } = await import("./components/gate-console");
 const { OutcomeCard } = await import("./components/outcome-card");
 const { ShelfPicker } = await import("./components/shelf-picker");
-const { outcomeCard } = await import("./lib/outcome-copy");
+const { UNVERIFIED_CARD, outcomeCard } = await import("./lib/outcome-copy");
 const { brandOnDark } = await import("./components/door-kit");
 
 beforeEach(() => {
@@ -103,7 +103,7 @@ describe("the outcome card", () => {
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 
-  it("reads an admission, a repeat and a queued scan in admit, caution and info", () => {
+  it("reads an admission, a repeat and an unverified offline scan in admit, caution and caution", () => {
     const { unmount } = render(<OutcomeCard card={outcomeCard(result({}), "Gate A")} onDismiss={() => {}} />);
     expect(screen.getByRole("status")).toHaveAttribute("data-tone", "admit");
     unmount();
@@ -111,9 +111,9 @@ describe("the outcome card", () => {
     expect(screen.getByRole("status")).toHaveAttribute("data-tone", "caution");
     expect(screen.getByText("Already scanned by")).toBeInTheDocument();
     again.unmount();
-    render(<OutcomeCard card={outcomeCard(result({ attendee: null }), "Gate A", true)} onDismiss={() => {}} />);
-    expect(screen.getByRole("status")).toHaveAttribute("data-tone", "info");
-    expect(screen.getByText("Queued")).toBeInTheDocument();
+    render(<OutcomeCard card={UNVERIFIED_CARD} onDismiss={() => {}} />);
+    expect(screen.getByRole("status")).toHaveAttribute("data-tone", "caution");
+    expect(screen.getByText("Unverified")).toBeInTheDocument();
   });
 });
 

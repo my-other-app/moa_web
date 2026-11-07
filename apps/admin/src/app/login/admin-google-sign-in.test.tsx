@@ -71,9 +71,9 @@ vi.stubGlobal(
         if (body.totp_code !== "123456" && body.totp_code !== "abcd-efgh") {
           return reply(401, { message: "That code is not valid", error_code: "TOTP_INVALID" });
         }
-        return reply(200, { token_type: "bearer", access_token: "a", refresh_token: "r" });
+        return reply(200, { token_type: "bearer" });
       default:
-        return reply(200, { token_type: "bearer", access_token: "a", refresh_token: "r" });
+        return reply(200, { token_type: "bearer" });
     }
   }),
 );

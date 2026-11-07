@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { needsHandCheckIn, outcomeCard, walkupCard } from "./lib/outcome-copy";
+import { OFFLINE_ADMISSION_NUMBER_CARD, OFFLINE_NOT_A_TICKET_CARD, UNVERIFIED_CARD, needsHandCheckIn, offlineRepeatCard, outcomeCard, walkupCard } from "./lib/outcome-copy";
+import { looksLikeAdmissionNumber, looksLikeTicketCode } from "./lib/ticket-code";
 import { scanResultSchema, type ScanResult, type WalkupResult } from "./schemas";
 
 const base: ScanResult = {
@@ -51,10 +52,24 @@ describe("the outcome card", () => {
     expect(outcomeCard({ ...base, outcome: "INVALID", attendee: null }, "Gate A").note).toContain("MOA-XXXXX-XXXXX");
   });
 
-  it("marks a queued scan as saved, not admitted", () => {
-    const c = outcomeCard({ ...base, attendee: null }, "Gate A", true);
-    expect(c.tag).toBe("Queued");
-    expect(c.sub).toContain("WILL SYNC");
+  it("never welcomes anyone in without signal: a saved ticket is unverified, for the volunteer to check", () => {
+    expect(UNVERIFIED_CARD.tag).toBe("Unverified");
+    expect(UNVERIFIED_CARD.tone).toBe("caution");
+    expect(UNVERIFIED_CARD.sub).toContain("WILL SYNC");
+    expect(UNVERIFIED_CARD.note).toMatch(/^Check their name or ID before letting them in\./);
+    for (const c of [UNVERIFIED_CARD, OFFLINE_NOT_A_TICKET_CARD, OFFLINE_ADMISSION_NUMBER_CARD, offlineRepeatCard("2026-10-16T13:05:00Z")]) {
+      expect(`${c.title} ${c.note}`).not.toMatch(/welcome in|let them in\./i);
+    }
+    expect([OFFLINE_NOT_A_TICKET_CARD, OFFLINE_ADMISSION_NUMBER_CARD, offlineRepeatCard("2026-10-16T13:05:00Z")].map((c) => c.tone)).toEqual(["refuse", "refuse", "refuse"]);
+  });
+
+  it("knows a ticket code from anything else, as the server reads one", () => {
+    for (const code of ["MOA-7K3QF-X9PWM", " moa-7k3qf-x9pwm ", "MOA-3F2A9C-K7QXD", "MOA-1-ABCDE", "0b9f6f3e-2c1a-4f7e-9d52-6a1b2c3d4e5f"]) expect(looksLikeTicketCode(code)).toBe(true);
+    for (const code of ["", "hello", "MOA-1", "MOA-0042-E123", "MOA-7K3QF-X9PW0", "MOA-7K3QF-X9PWMX", "MOA-03F2A-K7QXD", "https://myotherapp.in/t/MOA-7K3QF-X9PWM", "MOA-7K3QF-X9PWM\nMOA-3F2A9C-K7QXD"]) expect(looksLikeTicketCode(code)).toBe(false);
+    expect(looksLikeAdmissionNumber("MOA-0042-E123")).toBe(true);
+    expect(looksLikeAdmissionNumber("HN04-0042")).toBe(true);
+    expect(looksLikeAdmissionNumber("MOA-7K3QF-X9PWM")).toBe(false);
+    expect(looksLikeAdmissionNumber("hello")).toBe(false);
   });
 
   it("tells a walk-up apart from a namesake and a repeat", () => {

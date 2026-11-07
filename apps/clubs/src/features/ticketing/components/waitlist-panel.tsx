@@ -164,9 +164,12 @@ export function WaitlistPanel({ eventId }: { eventId: number }) {
       <div className="grid gap-3 px-4 pt-4 pb-3">
         <CardLabel
           right={
-            <a href={waitlistExportUrl(eventId)} className="btn btn-secondary btn-sm" download>
-              <DownloadIcon className="size-4" /> Export
-            </a>
+            // Not for door staff: names and contacts, as a list to take away.
+            can.exports ? (
+              <a href={waitlistExportUrl(eventId)} className="btn btn-secondary btn-sm" download>
+                <DownloadIcon className="size-4" /> Export
+              </a>
+            ) : undefined
           }
         >
           Waiting list

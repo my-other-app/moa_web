@@ -50,7 +50,7 @@ export function ReplayReport({ report, onDismiss }: { report: Report; onDismiss:
           </Button>
         }
       >
-        Checked in: {report.admitted} of {report.synced} synced. These were let in offline, and the server did not admit them:
+        Checked in: {report.admitted} of {report.synced} synced. These were scanned offline, and the server did not admit them:
       </DoorBanner>
       <ul aria-label="Not admitted" className="max-h-[40vh] divide-y overflow-y-auto">
         {problems.map((p) => {

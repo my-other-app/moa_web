@@ -38,6 +38,7 @@ import {
 } from "@moa/ui";
 import { useDebouncedValue } from "@moa/ui/hooks";
 
+import { useAccess } from "@/features/access";
 import { LockedNotice } from "@/features/plan";
 
 import { fetchMerchLog } from "../api";
@@ -452,6 +453,8 @@ function Activity({ eventId }: { eventId: number }) {
 
 /** Every handover scanned at the gate: who took what, where, and from whom. */
 function Handovers({ eventId }: { eventId: number }) {
+  // Who took what, as a file: not for door staff.
+  const { can } = useAccess();
   const [q, setQ] = React.useState("");
   const settled = useDebouncedValue(q.trim(), 300);
   const [itemId, setItemId] = React.useState<string | undefined>();
@@ -526,14 +529,16 @@ function Handovers({ eventId }: { eventId: number }) {
               : "Every handover scanned at the gate: who took what, where, and who gave it to them."}
           </p>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => void exportLog()}
-          disabled={exporting || !f?.total}
-        >
-          <DownloadIcon /> {exporting ? "Exporting…" : "Export"}
-        </Button>
+        {can.exports ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void exportLog()}
+            disabled={exporting || !f?.total}
+          >
+            <DownloadIcon /> {exporting ? "Exporting…" : "Export"}
+          </Button>
+        ) : null}
       </div>
       <Toolbar className="mt-1">
         <NativeSelect
