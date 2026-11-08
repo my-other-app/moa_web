@@ -252,6 +252,25 @@ describe("edit an event", () => {
     );
   });
 
+  it("sends every question's key exactly as stored, whatever its label says now (missing answers §1.1)", async () => {
+    // Reworded after people answered: the keys no longer match the labels, and must not be made from them again.
+    const stored = [
+      { key: "status", label: "Are you working or a student?", field_type: "radio", required: true, options: ["Student", "Working"] },
+      { key: "collage", label: "College name", field_type: "text", required: false, required_when_shown: true, show_if: { key: "status", any_of: ["Student"] } },
+      { key: "college_2", label: "College", field_type: "text", required: false },
+      { key: "employee_student_others", label: "What do you do?", field_type: "text", required: true },
+    ];
+    detail = { ...detailFixture, additional_details: stored };
+    const panel = await openEdit();
+    fireEvent.change(within(panel).getByLabelText("Name"), { target: { value: "Renamed by an admin" } });
+    fireEvent.click(within(panel).getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    const saved = JSON.parse(String(sent().additional_details)) as Array<Record<string, unknown>>;
+    expect(saved.map((q) => [q.key, q.label])).toEqual(stored.map((q) => [q.key, q.label]));
+    // The child still names its parent by the key it was stored under, required when shown as the club set it.
+    expect(saved[1]).toMatchObject({ show_if: { key: "status", any_of: ["Student"] }, required: true, required_when_shown: true });
+  });
+
   it("will not save without a category or a length", async () => {
     const panel = await openEdit();
     const save = within(panel).getByRole("button", { name: "Save changes" });
