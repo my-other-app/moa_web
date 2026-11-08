@@ -38,6 +38,7 @@ import {
 } from "@moa/ui";
 
 import { WriteWithAi } from "@/features/ai";
+import { AsksPanel } from "@/features/answers";
 import { tallyFigures, useDeliveryTally } from "@/features/deliveries";
 
 import {
@@ -616,6 +617,9 @@ export function MessagesPage({ eventId }: { eventId: number }) {
           <PenLineIcon /> New message
         </Button>
       </header>
+
+      {/* Asking people for missing answers: its own sends, with their progress (missing-answers contract §3 item 5). */}
+      <AsksPanel eventId={eventId} />
 
       {list.isError ? (
         <EmptyState

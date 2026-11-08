@@ -103,6 +103,7 @@ export function EventOverviewTab({
     .sort((a, b) => (a.tone === b.tone ? 0 : a.tone === "red" ? -1 : 1))
     .slice(0, 6);
   const paths = new Map(needs.map((a) => [a.kind, `${base}${a.path}`]));
+  const actions = new Map(needs.flatMap((a) => (a.onSelect ? [[a.kind, a.onSelect] as const] : [])));
   const items: AttentionItem[] = needs.map((a) => ({ kind: a.kind, tone: a.tone, title: a.title, body: a.body, event_id: eventId }));
   // Before anyone is through the door its figures are empty panels; the sign-ups lead instead.
   const arrived = s.from_report || s.analytics.total_admitted > 0;
@@ -128,6 +129,7 @@ export function EventOverviewTab({
         <AttentionCard
           items={items}
           hrefFor={(item) => paths.get(item.kind) ?? null}
+          actionFor={(item) => actions.get(item.kind)}
           allClear={
             s.from_report
               ? "The guest list is gone, so there is nothing left to act on. The closeout report holds the final numbers."

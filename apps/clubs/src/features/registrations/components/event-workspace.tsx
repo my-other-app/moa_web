@@ -1,10 +1,13 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { formatNumber } from "@moa/app-kit";
 import { Button, EmptyState, FigurePanel, cn } from "@moa/ui";
 import { enter } from "@moa/ui/motion";
 
+import { useAccess } from "@/features/access";
+import { AskPanel, MoveAnswersDialog, answersAttention, useAnswersSummary, type AskTarget } from "@/features/answers";
 import { EventOverviewTab, type OverviewAttention } from "@/features/console";
 import { useEventDetail } from "@/features/events";
 import { EventReviewsPanel } from "@/features/reviews";
@@ -28,6 +31,14 @@ import { NotifyGuestsPanel } from "./notify-guests-panel";
 export function EventWorkspace({ eventId }: { eventId: number }) {
   const { data: event, isError } = useEventDetail(eventId);
   const { data: analytics } = useEventAnalytics(eventId);
+  // Missing answers (missing-answers contract §3 item 3): asking is for whoever can write to the
+  // guests; moving answers left under an old question is the owner's and admins'.
+  const access = useAccess();
+  const answers = useAnswersSummary(eventId);
+  const [ask, setAsk] = React.useState<AskTarget | null>(null);
+  const [moving, setMoving] = React.useState<{ key: string; count: number } | null>(null);
+  const mayAsk = Boolean(access.can.edit_events);
+  const mayMove = access.role === "owner" || access.role === "admin";
 
   if (isError) {
     return (
@@ -58,6 +69,13 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
           },
         ]
       : [];
+  for (const item of answersAttention(answers.data, { ask: mayAsk, move: mayMove })) {
+    const { action, ...rest } = item;
+    attention.push({
+      ...rest,
+      onSelect: action === "ask" ? () => setAsk({}) : action ? () => setMoving(action.move) : undefined,
+    });
+  }
 
   return (
     <div className={cn(enter)}>
@@ -85,6 +103,8 @@ export function EventWorkspace({ eventId }: { eventId: number }) {
           />
         }
       />
+      {mayAsk ? <AskPanel eventId={eventId} target={ask} onOpenChange={(o) => !o && setAsk(null)} /> : null}
+      {moving && answers.data ? <MoveAnswersDialog eventId={eventId} stray={moving} questions={answers.data.questions} onClose={() => setMoving(null)} /> : null}
     </div>
   );
 }
