@@ -134,6 +134,8 @@ export interface OverviewAttention {
   body: string;
   /** Under the event: "/attendees?delivery=not_delivered". */
   path: string;
+  /** Opens the decision on the overview itself (the Ask panel, a dialog); the item is then a button, not the link. */
+  onSelect?: () => void;
 }
 
 const n = (count: number, one: string, many: string) => `${count.toLocaleString("en-IN")} ${count === 1 ? one : many}`;

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, ChevronDownIcon, DownloadIcon, InboxIcon, Loader2Icon, RotateCcwIcon, XIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, ClipboardListIcon, DownloadIcon, InboxIcon, Loader2Icon, RotateCcwIcon, XIcon } from "lucide-react";
 import { formatDateTime, formatNumber, hasRequestFigures } from "@moa/app-kit";
 import {
   Button,
@@ -22,9 +22,11 @@ import {
 } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
+import { AskPanel, MissingAnswersNote, MissingMarker, requestRef, useAnswersSummary, type AskTarget } from "@/features/answers";
 // The query, not the feature's surface: the console's components reach this page's feature.
 import { useEventSummary } from "@/features/console/queries";
 import { useEventDetail } from "@/features/events";
+import { useMissingCount } from "@/features/registrations/queries";
 
 import { summarise, type OutcomeSummary } from "../bulk";
 import { useBulkDecision, useConfirmRequest, useExportRequests, useReopenRequest, useRequestList, type BulkPlan } from "../queries";
@@ -90,6 +92,9 @@ function useQuestions(eventId: number): QuestionField[] {
   }, [event.data]);
 }
 
+/** Still open (under review, or confirmed and paying): someone who counts for missing answers and can be asked. */
+const isOpen = (r: RegistrationRequest) => r.status === "pending" || (r.status === "approved" && !r.registration_id);
+
 /** What happened to a reviewed registration, in a line. */
 function decidedLine(r: RegistrationRequest): string | null {
   switch (r.status) {
@@ -125,6 +130,7 @@ function RequestRow({
   onConfirm,
   onDecline,
   onReopen,
+  onAskAgain,
   busy,
 }: {
   r: RegistrationRequest;
@@ -139,9 +145,13 @@ function RequestRow({
   onConfirm: () => void;
   onDecline: () => void;
   onReopen: () => void;
+  /** Ask them again for what they're missing; absent when the role can't write to guests. */
+  onAskAgain?: () => void;
   busy: boolean;
 }) {
   const answers = answerRows(r.answers, fields);
+  // Missing answers count only while the registration is open (§0): a decided one is never asked.
+  const missing = isOpen(r) ? r.missing_answers : [];
   // As the waiting list says it: their ticket on WhatsApp too, when they asked.
   const contact = [r.email, r.phone, r.whatsapp_opt_in && r.phone ? "WhatsApp" : null].filter(Boolean).join(" · ");
   const columns = 4 + (selectable ? 1 : 0) + (showDecided ? 1 : 0) + (canDecide ? 1 : 0);
@@ -156,10 +166,11 @@ function RequestRow({
         <td className={CELL}>
           <span className="text-ink block max-w-[260px] truncate text-[13px] font-medium">{r.full_name}</span>
           <span className={cn("block max-w-[260px] truncate font-mono text-[11px]", contact ? "text-ink-3" : "text-caution")}>{contact || "no contact given"}</span>
-          {answers.length ? (
+          {missing.length ? <MissingMarker keys={missing} questions={fields} className="mt-1" /> : null}
+          {answers.length || missing.length ? (
             <button type="button" onClick={onToggleAnswers} aria-expanded={open} className="text-brand hover:text-ink mt-1 inline-flex items-center gap-1 text-[11.5px] font-medium">
               <ChevronDownIcon className={cn("size-3 transition-transform", open && "rotate-180")} aria-hidden="true" />
-              {open ? "Hide answers" : `Answers (${answers.length})`}
+              {open ? "Hide answers" : answers.length ? `Answers (${answers.length})` : "Answers"}
               <span className="sr-only"> of {r.full_name}</span>
             </button>
           ) : null}
@@ -200,11 +211,12 @@ function RequestRow({
           </td>
         ) : null}
       </tr>
-      {open && answers.length ? (
+      {open && (answers.length || missing.length) ? (
         <tr className="bg-sunken/30">
           <td colSpan={columns} className="px-4 pt-1 pb-3">
-            <div className={cn("max-w-[640px]", selectable && "pl-6")} aria-label={`Answers of ${r.full_name}`} role="group">
-              <DefinitionRows rows={answers.map((a) => ({ k: a.label, v: a.value || <span className="text-ink-3">not answered</span> }))} />
+            <div className={cn("grid max-w-[640px] gap-2", selectable && "pl-6")} aria-label={`Answers of ${r.full_name}`} role="group">
+              {missing.length ? <MissingAnswersNote keys={missing} questions={fields} onAskAgain={onAskAgain} /> : null}
+              {answers.length ? <DefinitionRows rows={answers.map((a) => ({ k: a.label, v: a.value || <span className="text-ink-3">not answered</span> }))} /> : null}
             </div>
           </td>
         </tr>
@@ -224,7 +236,15 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   const exporter = useExportRequests(eventId);
   const [searchInput, setSearchInput] = React.useState("");
   const [q, setQ] = React.useState("");
-  const list = useRequestList(eventId, status, q);
+  // Missing answers (missing-answers contract §3 item 2): the filter, its count, and asking them.
+  const [missingOnly, setMissingOnly] = React.useState(false);
+  const list = useRequestList(eventId, status, q, missingOnly ? "1" : "");
+  const answersSummary = useAnswersSummary(eventId);
+  const peopleMissing = answersSummary.data?.people_missing ?? 0;
+  const registrationsMissing = useMissingCount(eventId, peopleMissing > 0);
+  const [ask, setAsk] = React.useState<AskTarget | null>(null);
+  // Asking is writing to the guests: whoever can use Messages.
+  const mayAsk = Boolean(can.edit_events);
   const bulk = useBulkDecision(eventId);
   const confirmOne = useConfirmRequest(eventId);
   const reopenOne = useReopenRequest(eventId);
@@ -273,6 +293,14 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   // Door staff read the requests; the CSV of contacts and answers is not theirs to take away.
   const canExport = Boolean(can.exports) && first?.total !== null && first?.total !== undefined && !exporter.missing;
   const busyRow = (id: string) => (confirmOne.isPending && confirmOne.variables?.id === id) || (reopenOne.isPending && reopenOne.variables?.id === id);
+
+  // Everyone missing answers less those on the guest list: the registrations still open here.
+  const openMissing = registrationsMissing.data === undefined || registrationsMissing.data === null ? null : Math.max(0, peopleMissing - registrationsMissing.data);
+  const missingChip = answersSummary.data != null && (missingOnly || (peopleMissing > 0 && openMissing !== 0));
+  const toggleMissing = () => {
+    setMissingOnly((on) => !on);
+    setSelection(NONE);
+  };
 
   const changeStatus = (next: RequestTab) => {
     setStatus(next);
@@ -403,12 +431,31 @@ export function RequestsPage({ eventId }: { eventId: number }) {
               </Chip>
             ))}
           </div>
+          {missingChip ? (
+            <>
+              <span aria-hidden="true" className="bg-line-soft mx-1 hidden h-5 w-px sm:block" />
+              <Chip active={missingOnly} tone="caution" onClick={toggleMissing}>
+                Missing answers{openMissing !== null ? ` (${formatNumber(openMissing)})` : ""}
+              </Chip>
+            </>
+          ) : null}
           <ToolbarEnd>
             {/* The queue is oldest first (the order confirming takes); what was decided, newest first. */}
             <span className="text-ink-3 hidden font-mono text-[11px] sm:inline">{onWaiting ? "Oldest first" : "Newest first"}</span>
             <SearchField value={searchInput} onChange={setSearchInput} onCommit={commitSearch} placeholder="Name, email or phone" label="Search registrations" className="w-full sm:w-64" />
           </ToolbarEnd>
         </Toolbar>
+
+        {missingOnly ? (
+          <p className="text-ink-3 border-line-soft flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-4 py-2 text-[12px]">
+            <span className="min-w-0 flex-1">Missing answers: a question they must answer is blank, or their choice is no longer one of its options. Nothing is blocked; you can still confirm them.</span>
+            {mayAsk ? (
+              <Button size="xs" variant="secondary" onClick={() => setAsk({})}>
+                <ClipboardListIcon /> Ask them
+              </Button>
+            ) : null}
+          </p>
+        ) : null}
 
         {selectable && selectedCount > 0 ? (
           <div className="border-line-soft bg-brand-soft/30 flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5" role="region" aria-label="Selected registrations">
@@ -543,6 +590,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
                     onConfirm={() => confirmOne.mutate(r)}
                     onDecline={() => setDialog({ kind: "decline", row: r })}
                     onReopen={() => reopenOne.mutate(r)}
+                    onAskAgain={mayAsk ? () => setAsk({ refs: [requestRef(r.id)], preselect: r.missing_answers, who: r.full_name }) : undefined}
                     busy={busyRow(r.id) || bulk.running}
                   />
                 ))}
@@ -567,6 +615,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
         ) : null}
       </FigurePanel>
 
+      {mayAsk ? <AskPanel eventId={eventId} target={ask} onOpenChange={(o) => !o && setAsk(null)} /> : null}
       {dialog?.kind === "confirm" ? (
         <ConfirmDialog count={selectedCount} placesLeft={placesLeft} running={bulk.running} progress={bulk.progress} onConfirm={confirmSelected} onClose={() => setDialog(null)} />
       ) : null}

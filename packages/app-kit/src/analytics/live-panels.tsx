@@ -14,16 +14,20 @@ function Shell({ className, children }: { className?: string; children: React.Re
 /**
  * What needs a decision, as a list that leads to where the decision is made.
  * Red before amber, nothing more than six: a longer list is a backlog, not a
- * dashboard.
+ * dashboard. An item is a link to that place, or, when `actionFor` gives it
+ * one, a button that opens the decision right here (a panel, a dialog).
  */
 export function AttentionCard({
   items,
   hrefFor,
+  actionFor,
   allClear,
   className,
 }: {
   items: AttentionItem[];
   hrefFor: (item: AttentionItem) => string | null;
+  /** What pressing the item does on this page, when it opens the decision here; it wins over the link. */
+  actionFor?: (item: AttentionItem) => (() => void) | null | undefined;
   /** The sentence shown when nothing is waiting. */
   allClear: string;
   className?: string;
@@ -49,6 +53,14 @@ export function AttentionCard({
             </>
           );
           const cls = "border-line-soft block w-full border-t px-4 py-3 text-left transition-colors first:border-t-0";
+          const action = actionFor?.(a);
+          if (action) {
+            return (
+              <button key={`${a.kind}-${a.event_id}`} type="button" onClick={action} className={cn(cls, "hover:bg-sunken")}>
+                {inner}
+              </button>
+            );
+          }
           return href ? (
             <Link key={`${a.kind}-${a.event_id}`} href={href} className={cn(cls, "hover:bg-sunken")}>
               {inner}

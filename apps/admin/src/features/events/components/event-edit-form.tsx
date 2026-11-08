@@ -32,6 +32,12 @@ import type { AdminEventDetail } from "../schemas";
  * would have saved the club's required question as optional and dropped
  * every condition. The form shows them, conditions and all, but they are
  * edited in the club dashboard.
+ *
+ * Every question goes back under the key it was stored with (missing-answers
+ * contract §1.1): answers are stored by key, and a question reworded after
+ * people answered keeps its old key ("collage" under "College"). Nothing
+ * here makes a key from a label; an editor that does uses @moa/questions'
+ * `relabel`, which keeps a saved question's key whatever its label becomes.
  */
 function Field({
   id,
@@ -118,7 +124,7 @@ export function QuestionsSummary({ questions }: { questions: Question[] }) {
         <h3 id="event-questions" className="eyebrow m-0">
           Sign-up questions
         </h3>
-        <p className="text-ink-3 m-0 text-[11.5px]">Edited by the club. Saving here keeps them, and every condition, as they are.</p>
+        <p className="text-ink-3 m-0 text-[11.5px]">Edited by the club. Saving here keeps them as they are: every key, so every answer, and every condition.</p>
       </div>
       <ol className="grid gap-1.5">
         {questions.map((q, i) => {

@@ -20,7 +20,8 @@ import { PAGE_SIZE, indiaTime, skipReasonText, type RegistrationRequest, type Re
 export const requestsKey = (eventId: number) => ["registration-requests", eventId] as const;
 const countsKey = (eventId: number) => [...requestsKey(eventId), "counts"] as const;
 const listsKey = (eventId: number) => [...requestsKey(eventId), "list"] as const;
-const listKey = (eventId: number, status: RequestTab, q: string) => [...listsKey(eventId), status, q] as const;
+// [..., "list", status, q, missing]: moveRows reads the status at [3].
+const listKey = (eventId: number, status: RequestTab, q: string, missing: string) => [...listsKey(eventId), status, q, missing] as const;
 
 type Pages = InfiniteData<RequestPage | null, string | null>;
 
@@ -47,11 +48,11 @@ export function useRequestsOnServer(eventId: number | undefined): boolean | unde
   return q.data !== null;
 }
 
-/** One status's requests (or all of them), a page at a time by the server's cursor ("Load more"). */
-export function useRequestList(eventId: number, status: RequestTab, q: string) {
+/** One status's requests (or all of them), a page at a time by the server's cursor ("Load more"); `missing` keeps those missing answers. */
+export function useRequestList(eventId: number, status: RequestTab, q: string, missing = "") {
   return useInfiniteQuery({
-    queryKey: listKey(eventId, status, q),
-    queryFn: ({ pageParam }) => nullIfRouteMissing(() => fetchRequests(eventId, { status, q, after: pageParam, limit: PAGE_SIZE })),
+    queryKey: listKey(eventId, status, q, missing),
+    queryFn: ({ pageParam }) => nullIfRouteMissing(() => fetchRequests(eventId, { status, q, after: pageParam, limit: PAGE_SIZE, missing: missing || undefined })),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last?.next ?? undefined,
     // Another tab or search keeps the counts and the toolbar on screen while it loads.

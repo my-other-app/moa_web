@@ -3,6 +3,7 @@ import { GATEWAY_PREFIX } from "@moa/auth";
 
 import {attendeeSummarySchema,
   captureResultSchema,
+  gateAnswersResultSchema,
   gateContextSchema,
   scanBatchResultSchema,
   scanResultSchema,
@@ -65,6 +66,15 @@ export async function undoCheckIn(key: string | null, eventId: number, registrat
 
 export async function captureContact(key: string | null, eventId: number, registrationId: string, phone: string) {
   return captureResultSchema.parse(await gateClient(key).post<unknown>(`${base(eventId)}/capture/${registrationId}`, { phone }));
+}
+
+/**
+ * A guest's missing answers, filled at the door (missing-answers contract
+ * §2.5): types are checked, nothing is required, and it counts as answered
+ * for any open ask. Answers what is still missing.
+ */
+export async function saveGateAnswers(key: string | null, eventId: number, registrationId: string, answers: Record<string, string | string[]>) {
+  return gateAnswersResultSchema.parse(await gateClient(key).post<unknown>(`${base(eventId)}/answers/${encodeURIComponent(registrationId)}`, { answers }));
 }
 
 /** Where this phone keeps the key and the door it was set to. */

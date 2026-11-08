@@ -18,6 +18,7 @@ import {
   toast,
 } from "@moa/ui";
 
+import { MissingAnswersNote } from "@/features/answers";
 import { type DeliveryBrief, verdictOf, viaText } from "@/features/deliveries";
 import { visibility } from "@moa/questions";
 
@@ -98,6 +99,8 @@ export function AttendeeDetailDialog({
   onOpenChange,
   onEdit,
   onRemove,
+  missing,
+  onAskAgain,
 }: {
   eventId: number;
   registrationId: string | null;
@@ -106,10 +109,15 @@ export function AttendeeDetailDialog({
   onOpenChange: (open: boolean) => void;
   onEdit: (a: RegistrationDetail) => void;
   onRemove: (a: RegistrationDetail) => void;
+  /** What their row on the list says they're missing, by key (the detail's own word wins when it has one). */
+  missing?: string[];
+  /** Ask them again for what they're missing; absent when the signed-in role can't write to guests. */
+  onAskAgain?: (a: RegistrationDetail, keys: string[]) => void;
 }) {
   const detail = useRegistration(eventId, open ? registrationId : null);
   const a = detail.data;
   const answers = (a?.additional_details ?? {}) as Record<string, unknown>;
+  const missingKeys = a?.missing_answers ?? missing ?? [];
   // Only what this person was asked: a conditional question their answers
   // hid has no answer and is left out, never shown as missing. One they
   // answered is shown whatever the form says now -- a form changed after
@@ -170,8 +178,13 @@ export function AttendeeDetailDialog({
               />
             </Section>
 
-            {asked.length || Object.keys(answers).length ? (
+            {asked.length || Object.keys(answers).length || missingKeys.length ? (
               <Section title="Answers">
+                {missingKeys.length ? (
+                  <div className="mb-2">
+                    <MissingAnswersNote keys={missingKeys} questions={fields} onAskAgain={onAskAgain ? () => onAskAgain(a, missingKeys) : undefined} />
+                  </div>
+                ) : null}
                 <DefinitionRows
                   rows={[
                     ...asked.map((f) => ({

@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   CheckIcon,
+  ClipboardListIcon,
   DownloadIcon,
   IdCardIcon,
   Loader2Icon,
@@ -39,13 +40,14 @@ import {
 } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
+import { AskPanel, MissingMarker, registrationRef, useAnswersSummary, type AskTarget } from "@/features/answers";
 import { useEventSummary } from "@/features/console";
 import { DeliveryBar, TicketCell } from "@/features/deliveries";
 import { useEventDetail } from "@/features/events";
 import { cardPdfUrl, openPdf } from "@/features/idcards";
 
 import { exportUrl } from "../api";
-import { useEventAnalytics, useImports, useMarkAttendance, useRegistrations, useSetRegistrationRole } from "../queries";
+import { useEventAnalytics, useImports, useMarkAttendance, useMissingCount, useRegistrations, useSetRegistrationRole } from "../queries";
 import { REGISTRATION_ROLES, eventFieldSchema, type EventField, type Registration, type RegistrationDetail, type RegistrationRole } from "../schemas";
 import { AttendeeDetailDialog } from "./attendee-detail-dialog";
 import { AttendeeFormDialog } from "./attendee-form-dialog";
@@ -64,7 +66,7 @@ const ROLE_PLURAL: Record<RegistrationRole, string> = {
 };
 
 /** The filters the list reads from the URL; clearing them clears the search too. */
-const FILTER_KEYS = ["role", "in", "delivery", "paid", "q"];
+const FILTER_KEYS = ["role", "in", "delivery", "paid", "missing", "q"];
 
 const CELL = "px-4 py-2.5 text-left align-middle";
 const HEAD = "text-ink-3 px-4 py-2 text-left font-mono text-[10px] font-normal tracking-[0.06em] uppercase";
@@ -74,7 +76,7 @@ type DialogState =
   | { kind: "import" }
   | { kind: "edit"; row: RegistrationDetail }
   | { kind: "remove"; row: { id: string; name: string } }
-  | { kind: "detail"; id: string }
+  | { kind: "detail"; id: string; missing: string[] }
   | null;
 
 const nameOf = (row: Registration) => row.full_name || row.name || row.user?.full_name || "Unknown";
@@ -127,12 +129,15 @@ function RoleSelect({ eventId, row, name }: { eventId: number; row: Registration
 function GuestRow({
   eventId,
   row,
+  fields,
   paidEvent,
   onOpen,
   onRemove,
 }: {
   eventId: number;
   row: Registration;
+  /** The event's questions, to name what they're missing. */
+  fields: EventField[];
   paidEvent: boolean;
   onOpen: () => void;
   onRemove: (name: string) => void;
@@ -151,6 +156,7 @@ function GuestRow({
             <StatusBadge tone="destructive" label="Email bounced · correct it to send again" />
           </span>
         ) : null}
+        {row.missing_answers.length ? <MissingMarker keys={row.missing_answers} questions={fields} className="mt-1" /> : null}
       </td>
       <td className={CELL}>
         <span className="text-ink-2 block max-w-[220px] truncate text-[12.5px]" title={row.institution ?? ""}>
@@ -237,12 +243,20 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
   const listRef = React.useRef<HTMLDivElement>(null);
   const [dialog, setDialog] = React.useState<DialogState>(null);
   const [openImport, setOpenImport] = React.useState<string | null>(null);
+  // Missing answers (missing-answers contract §3 item 2): the filter, its count, and asking them.
+  const answers = useAnswersSummary(eventId);
+  const someoneMissing = (answers.data?.people_missing ?? 0) > 0;
+  const missingCount = useMissingCount(eventId, someoneMissing);
+  const [ask, setAsk] = React.useState<AskTarget | null>(null);
+  // Asking is writing to the guests: whoever can use Messages.
+  const mayAsk = Boolean(can.edit_events);
 
   const roleParam = params.param("role");
   const role = roleParam && (REGISTRATION_ROLES as readonly string[]).includes(roleParam) ? (roleParam as RegistrationRole) : undefined;
   const checkedIn = params.param("in");
   const delivery = params.param("delivery") === "not_delivered" ? "not_delivered" : undefined;
   const paid = params.param("paid");
+  const missing = params.param("missing") || undefined;
 
   const fields: EventField[] = React.useMemo(() => {
     const raw = (event.data as { additional_details?: unknown } | undefined)?.additional_details;
@@ -258,13 +272,14 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
     isPaid: paid === "yes" ? true : paid === "no" ? false : undefined,
     role,
     delivery,
+    missing,
     offset: params.offset,
     limit: params.pageSize,
   });
   const rows = list.data?.items ?? [];
   const total = list.data?.total ?? null;
   const pages = pageCount(total, params.pageSize) ?? 1;
-  const filtered = !!(params.search || role || checkedIn || delivery || paid);
+  const filtered = !!(params.search || role || checkedIn || delivery || paid || missing);
   const empty = !list.isPending && !list.isError && rows.length === 0 && !filtered;
 
   const s = summary.data;
@@ -274,6 +289,9 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
   const bounced = s?.analytics.contacts.bounced ?? 0;
   const roleCount = (r: RegistrationRole) => s?.analytics.by_type.find((ty) => ty.role === r)?.registered;
   const payment = a?.payment_status;
+  const missingN = missingCount.data ?? null;
+  // The chip once the API has missing answers, while anyone on the list is missing some (or it is on).
+  const missingChip = answers.data != null && (Boolean(missing) || (someoneMissing && missingN !== 0));
 
   // The export takes the check-in and payment filters; the others are the list's alone.
   const exportFilter = {
@@ -311,7 +329,7 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
               <a
                 href={exportUrl(eventId, exportFilter)}
                 download
-                title={`An Excel workbook of ${exportScope ? `the ${exportScope} guests` : "everyone on the list"}. Search, role and delivery filters are not applied to it.`}
+                title={`An Excel workbook of ${exportScope ? `the ${exportScope} guests` : "everyone on the list"}, its columns headed by your questions, the last one any answers they're missing. Search, role, delivery and missing-answers filters are not applied to it.`}
               >
                 <DownloadIcon /> Export{exportScope ? ` ${exportScope}` : ""} to Excel
               </a>
@@ -446,6 +464,11 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
               <Chip active={!!delivery} tone="refuse" onClick={() => toggle("delivery", "not_delivered", delivery)}>
                 Not delivered
               </Chip>
+              {missingChip ? (
+                <Chip active={!!missing} tone="caution" onClick={() => toggle("missing", "1", missing)}>
+                  Missing answers{missingN !== null ? ` (${formatNumber(missingN)})` : ""}
+                </Chip>
+              ) : null}
               {paidEvent ? (
                 <>
                   <Chip active={paid === "yes"} onClick={() => toggle("paid", "yes", paid)}>
@@ -476,6 +499,16 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
           {delivery ? (
             <p className="text-ink-3 border-line-soft border-b px-4 py-2 text-[12px]">
               Not delivered: nothing sent, nothing that worked, or something that came back. A guest reached by email is not here.
+            </p>
+          ) : null}
+          {missing ? (
+            <p className="text-ink-3 border-line-soft flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-4 py-2 text-[12px]">
+              <span className="min-w-0 flex-1">Missing answers: a question they must answer is blank, or their choice is no longer one of its options. Nothing is blocked; the door sees it.</span>
+              {mayAsk ? (
+                <Button size="xs" variant="secondary" onClick={() => setAsk({})}>
+                  <ClipboardListIcon /> Ask them
+                </Button>
+              ) : null}
             </p>
           ) : null}
 
@@ -564,8 +597,9 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
                       key={row.id}
                       eventId={eventId}
                       row={row}
+                      fields={fields}
                       paidEvent={paidEvent}
-                      onOpen={() => setDialog({ kind: "detail", id: row.id })}
+                      onOpen={() => setDialog({ kind: "detail", id: row.id, missing: row.missing_answers })}
                       onRemove={(name) => setDialog({ kind: "remove", row: { id: row.id, name } })}
                     />
                   ))}
@@ -626,7 +660,17 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
         onOpenChange={(o) => !o && setDialog(null)}
         onEdit={(row) => setDialog({ kind: "edit", row })}
         onRemove={(row) => setDialog({ kind: "remove", row: { id: row.id, name: row.full_name ?? row.name ?? "this guest" } })}
+        missing={dialog?.kind === "detail" ? dialog.missing : undefined}
+        onAskAgain={
+          mayAsk
+            ? (row, keys) => {
+                setDialog(null);
+                setAsk({ refs: [registrationRef(row.id)], preselect: keys, who: row.full_name ?? row.name ?? null });
+              }
+            : undefined
+        }
       />
+      {mayAsk ? <AskPanel eventId={eventId} target={ask} onOpenChange={(o) => !o && setAsk(null)} /> : null}
     </div>
   );
 }

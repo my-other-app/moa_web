@@ -1,4 +1,4 @@
-import { checkDefinition } from "@moa/questions";
+import { checkDefinition, keyFromLabel } from "@moa/questions";
 import { z } from "zod";
 
 import { ticketTypeDraftSchema } from "@/features/ticketing/schemas";
@@ -30,13 +30,13 @@ export const CHOICE_TYPES: ReadonlySet<string> = new Set(["radio", "checkbox", "
 
 export type FieldType = (typeof FIELD_TYPES)[number];
 
-/** Turns a label into a stable snake_case key so organisers never type one. */
+/**
+ * Turns a label into a snake_case key so organisers never type one. Made
+ * once, when the question is created (missing-answers contract §1.1): a
+ * saved question's key never follows its label again (see QuestionsStep).
+ */
 export function questionKey(label: string): string {
-  return label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 40);
+  return keyFromLabel(label);
 }
 
 /** A custom registration question — one entry of `additional_details`. */
@@ -61,6 +61,14 @@ export const questionSchema = z
      * `required` stays the club's intent -- required when shown.
      */
     show_if: z.object({ key: z.string().min(1), any_of: z.array(z.string()) }).nullish(),
+    /**
+     * The builder's own mark, never sent: added in this sitting, so not yet
+     * saved, and its key may still follow its label. A question read from
+     * the event keeps its key exactly as loaded, whatever its label becomes
+     * (missing-answers contract §1.1): the answers people gave are stored
+     * under it.
+     */
+    fresh: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     // radio, checkbox and select are meaningless without choices, and the

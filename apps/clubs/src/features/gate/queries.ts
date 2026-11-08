@@ -4,7 +4,7 @@ import * as React from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@moa/api";
 
-import { captureContact, checkInByHand, fetchGateContext, registerWalkup, scanBatch, scanTicket, searchGuests, undoCheckIn, fetchGateStoreOrders, gateHandOver, fetchGateCatalog } from "./api";
+import { captureContact, checkInByHand, fetchGateContext, registerWalkup, saveGateAnswers, scanBatch, scanTicket, searchGuests, undoCheckIn, fetchGateStoreOrders, gateHandOver, fetchGateCatalog } from "./api";
 import { scanQueue, supportsQueue, type QueuedScan } from "./lib/queue";
 import { looksLikeAdmissionNumber, looksLikeTicketCode } from "./lib/ticket-code";
 import type { ReplayedScan } from "./lib/replay";
@@ -207,6 +207,15 @@ export function useUndoCheckIn(key: string | null, eventId: number) {
 export function useCaptureContact(key: string | null, eventId: number) {
   return useMutation({
     mutationFn: ({ registrationId, phone }: { registrationId: string; phone: string }) => captureContact(key, eventId, registrationId, phone),
+  });
+}
+
+/** Missing answers filled at the door; the search reads again so its rows say what is still missing. */
+export function useGateAnswers(key: string | null, eventId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ registrationId, answers }: { registrationId: string; answers: Record<string, string | string[]> }) => saveGateAnswers(key, eventId, registrationId, answers),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: [...gateKey(eventId), "search"] }),
   });
 }
 
