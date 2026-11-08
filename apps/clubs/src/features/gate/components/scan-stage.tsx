@@ -10,8 +10,9 @@ import { gateHeaders } from "../api";
 import { OFFLINE_ADMISSION_NUMBER_CARD, OFFLINE_NOT_A_TICKET_CARD, UNVERIFIED_CARD, needsHandCheckIn, offlineRepeatCard, outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { cameraProblem, startScanner, type Scanner } from "../lib/scanner";
 import { useCheckInByHand, useScanMutation, type Enqueued } from "../queries";
-import { newRef, type GateContext, type ScanBody, type ScanResult } from "../schemas";
+import { missingOf, newRef, type GateContext, type ScanBody, type ScanResult } from "../schemas";
 import { CaptureSheet } from "./capture-sheet";
+import { MissingAnswersStrip } from "./missing-answers-sheet";
 import { CameraWell, DOOR_FIELD, DOOR_LABEL, DoorBanner, DoorSpinner } from "./door-kit";
 import { OutcomeCard } from "./outcome-card";
 
@@ -105,7 +106,8 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
   };
   React.useEffect(() => () => scannerRef.current?.stop(), []);
 
-  const mayPrint = card?.response?.attendee && card.response.badge.may_print && (card.response.outcome === "CHECKED_IN" || card.response.outcome === "ALREADY_CHECKED_IN");
+  const admitted = card?.response?.attendee && (card.response.outcome === "CHECKED_IN" || card.response.outcome === "ALREADY_CHECKED_IN") ? card.response.attendee : null;
+  const mayPrint = admitted && card?.response?.badge.may_print;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start lg:gap-5">
@@ -136,6 +138,18 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
                   <PrinterIcon /> {card.response!.badge.printed_at ? "Print the card again" : "Print their card"}
                 </Button>
               </div>
+            ) : null}
+            {admitted && missingOf(admitted).length ? (
+              <MissingAnswersStrip
+                key={admitted.id}
+                gateKey={gateKey}
+                ctx={ctx}
+                registrationId={admitted.id}
+                name={admitted.name}
+                missing={missingOf(admitted)}
+                // Filling them holds the card: it would otherwise clear itself under the volunteer.
+                onOpen={() => clearTimeout(dismissTimer.current)}
+              />
             ) : null}
             {card.captureAsk && card.response ? (
               <CaptureSheet

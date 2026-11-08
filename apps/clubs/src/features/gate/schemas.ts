@@ -10,6 +10,11 @@ export const SCAN_OUTCOMES = ["CHECKED_IN", "ALREADY_CHECKED_IN", "WRONG_EVENT",
  */
 export const ADMISSION_NUMBER_HINT = "ADMISSION_NUMBER";
 
+/** A question this guest must answer and hasn't (missing-answers contract §2.5): soft, never a refusal. */
+export const missingAnswerSchema = z.object({ key: z.string(), label: z.string().nullish().transform((v) => v ?? null) });
+export type MissingAnswer = z.infer<typeof missingAnswerSchema>;
+const missingAnswersField = z.array(missingAnswerSchema).nullish().catch(null).transform((v) => v ?? []);
+
 export const attendeeSummarySchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -22,7 +27,19 @@ export const attendeeSummarySchema = z.object({
   checked_in_at: z.string().nullish(),
   badge_printed_at: z.string().nullish(),
   admission_no: z.string().nullish(),
+  /**
+   * What they haven't answered; [] when nothing, and from a server without it
+   * (read it with missingOf). The door sees it and may fill it.
+   */
+  missing_answers: missingAnswersField.optional(),
 });
+export type AttendeeSummary = z.infer<typeof attendeeSummarySchema>;
+
+/** What a guest at the door is missing: [] when nothing, or from a server that doesn't say. */
+export const missingOf = (a: { missing_answers?: MissingAnswer[] | null } | null | undefined): MissingAnswer[] => a?.missing_answers ?? [];
+
+/** POST …/gate/answers/{registration_id}: what is still missing after the door filled some. */
+export const gateAnswersResultSchema = z.object({ missing_answers: missingAnswersField });
 
 export const scanResultSchema = z.object({
   outcome: z.enum(SCAN_OUTCOMES),

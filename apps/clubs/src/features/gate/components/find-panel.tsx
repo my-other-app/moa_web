@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Button, toast } from "@moa/ui";
-import { CheckIcon, PrinterIcon, SearchIcon, UserPlusIcon } from "lucide-react";
+import { CheckIcon, ClipboardListIcon, PrinterIcon, SearchIcon, UserPlusIcon } from "lucide-react";
 
 import { PrintFrame, cardPdfUrl } from "@/features/idcards";
 import { formatDateTime } from "@moa/app-kit";
@@ -10,8 +10,9 @@ import { formatDateTime } from "@moa/app-kit";
 import { gateHeaders } from "../api";
 import { outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { useCheckInByHand, useGuestSearch } from "../queries";
-import { ROLE_LABEL, type GateContext } from "../schemas";
+import { ROLE_LABEL, missingOf, type GateContext } from "../schemas";
 import { DOOR_LABEL, DoorSpinner } from "./door-kit";
+import { MissingAnswersStrip } from "./missing-answers-sheet";
 import { OutcomeCard } from "./outcome-card";
 
 /** A dead phone, a ticket left at home, a name read off a list: find them, check them in by hand. */
@@ -26,6 +27,8 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
   const byHand = useCheckInByHand(gateKey, ctx.event.id);
   const [card, setCard] = React.useState<OutcomeCardModel | null>(null);
   const [printing, setPrinting] = React.useState<string | null>(null);
+  // The guest whose missing answers are open under their row.
+  const [filling, setFilling] = React.useState<string | null>(null);
   const mayPrint = (printedAt: string | null | undefined) => !printedAt || ctx.event.reprint_policy === "anyone" || (ctx.event.reprint_policy === "organiser" && ctx.permissions.full);
   const admit = async (id: string) => {
     try {
@@ -66,6 +69,19 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
                   {r.ticket_id} · {ROLE_LABEL[r.role] ?? r.role}
                   {r.email ? ` · ${r.email}` : ""}
                 </div>
+                {missingOf(r).length ? (
+                  <button
+                    type="button"
+                    disabled={!ctx.permissions.check_in}
+                    aria-expanded={filling === r.id}
+                    onClick={() => setFilling(filling === r.id ? null : r.id)}
+                    className="bg-caution-soft text-caution mt-1.5 inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium disabled:cursor-default"
+                  >
+                    <ClipboardListIcon aria-hidden="true" className="size-3.5" />
+                    {missingOf(r).length === 1 ? "1 answer missing" : `${missingOf(r).length} answers missing`}
+                    <span className="sr-only"> for {r.name}</span>
+                  </button>
+                ) : null}
               </div>
               {r.checked_in_at ? (
                 <div className="flex items-center gap-2">
@@ -86,6 +102,11 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
               ) : (
                 <span className="bg-refuse-soft text-refuse rounded-full px-2.5 py-1 text-[12px] font-medium">Not paid</span>
               )}
+              {filling === r.id && missingOf(r).length ? (
+                <div className="-mx-4 -mb-3 basis-full">
+                  <MissingAnswersStrip key={r.id} gateKey={gateKey} ctx={ctx} registrationId={r.id} name={r.name} missing={missingOf(r)} startOpen onChange={(left) => (left.length ? null : setFilling(null))} />
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

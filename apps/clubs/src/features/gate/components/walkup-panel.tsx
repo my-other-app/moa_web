@@ -1,18 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { Button, FigurePanel, NativeSelect, cn, toast } from "@moa/ui";
+import { Button, FigurePanel, cn, toast } from "@moa/ui";
 import { IndianRupeeIcon, UserPlusIcon } from "lucide-react";
 import { readShowIf, setAnswer, visibility } from "@moa/questions";
 
 import { RevealNotice, useRevealNotice } from "@/components/question-control";
 
-import { answersPayload, inputTypeOf, isMultiChoice, type AnswerValue } from "@/lib/answers";
+import { answersPayload, type AnswerValue } from "@/lib/answers";
 
 import { walkupCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { useGateCatalog, useWalkup } from "../queries";
 import { newRef, ROLE_LABEL, type GateContext, type WalkupBody } from "../schemas";
 import { DOOR_FIELD, DOOR_LABEL, DoorSpinner, TONE_SOFT, TouchChoice } from "./door-kit";
+import { DoorQuestionField } from "./door-question";
 import { OutcomeCard } from "./outcome-card";
 import { ShelfPicker, picksToStore, type ShelfPicks } from "./shelf-picker";
 
@@ -144,35 +145,7 @@ export function WalkupPanel({ gateKey, ctx, door }: { gateKey: string | null; ct
               </div>
             ) : null}
             {asked.map((f) => (
-              <div key={f.key}>
-                <label htmlFor={`walk-${f.key}`} className={DOOR_LABEL}>
-                  {f.label} <span className="text-ink-3 font-normal">— optional at the door</span>
-                </label>
-                {isMultiChoice(f) ? (
-                  <div id={`walk-${f.key}`} role="group" aria-label={f.label} className="flex flex-wrap gap-2">
-                    {(f.options ?? []).map((o) => {
-                      const ticked = Array.isArray(custom[f.key]) ? (custom[f.key] as string[]) : [];
-                      const on = ticked.includes(o);
-                      return (
-                        <TouchChoice key={o} role="checkbox" checked={on} onClick={() => answer(f.key, on ? ticked.filter((t) => t !== o) : [...ticked, o])}>
-                          {o}
-                        </TouchChoice>
-                      );
-                    })}
-                  </div>
-                ) : f.options?.length ? (
-                  <NativeSelect id={`walk-${f.key}`} value={typeof custom[f.key] === "string" ? (custom[f.key] as string) : ""} onChange={(e) => answer(f.key, e.target.value)} className="h-11 text-[16px]">
-                    <option value="">—</option>
-                    {f.options.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                ) : (
-                  <input id={`walk-${f.key}`} type={inputTypeOf(f)} value={typeof custom[f.key] === "string" ? (custom[f.key] as string) : ""} onChange={(e) => answer(f.key, e.target.value)} className={DOOR_FIELD} />
-                )}
-              </div>
+              <DoorQuestionField key={f.key} field={f} idPrefix="walk" value={custom[f.key]} onChange={(v) => answer(f.key, v)} />
             ))}
             <RevealNotice notice={notice} />
             {ctx.has_store && catalog.data?.enabled ? <ShelfPicker catalog={catalog.data} picks={picks} onChange={setPicks} /> : null}
