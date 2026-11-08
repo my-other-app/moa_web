@@ -13,6 +13,8 @@ export interface RegistrationQuery {
   role?: RegistrationRole | undefined;
   /** Only guests not reached on any channel. */
   delivery?: "not_delivered" | undefined;
+  /** Only guests missing answers: "1" for any, or one question's key (missing-answers contract §1.4). */
+  missing?: string | undefined;
   offset: number;
   limit: number;
 }
@@ -25,6 +27,7 @@ export async function fetchRegistrations(q: RegistrationQuery) {
       is_paid: q.isPaid,
       role: q.role,
       delivery: q.delivery,
+      missing: q.missing,
       offset: q.offset,
       limit: q.limit,
     },

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { missingKeysSchema } from "@/features/answers/schemas";
+
 /**
  * Registrations under review ("Review registrations before sending
  * tickets"), as the club's API sends them (the contracts:
@@ -91,6 +93,8 @@ export const requestSchema = z.object({
   amount: z.coerce.number().nullish().catch(null).transform((v) => (v === null || v === undefined || Number.isNaN(v) ? null : v)),
   /** They asked for their ticket on WhatsApp too. */
   whatsapp_opt_in: z.boolean().catch(false).default(false),
+  /** The questions they must answer and haven't, by key in form order (missing-answers contract §1.4); [] when none. */
+  missing_answers: missingKeysSchema,
 });
 export type RegistrationRequest = z.infer<typeof requestSchema>;
 

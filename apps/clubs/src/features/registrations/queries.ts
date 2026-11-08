@@ -31,6 +31,21 @@ export function useRegistrations(query: RegistrationQuery) {
   });
 }
 
+/**
+ * How many on the list are missing answers: the list asked for one row with
+ * `missing=1`, for its total. Only asked while the event's summary says
+ * someone is missing something.
+ */
+export function useMissingCount(eventId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: [...qk.events.registrations(eventId), "missing-count"],
+    queryFn: async () => (await fetchRegistrations({ eventId, missing: "1", offset: 0, limit: 1 })).total ?? null,
+    enabled: enabled && eventId > 0,
+    staleTime: 15_000,
+    retry: false,
+  });
+}
+
 export function useEventAnalytics(eventId: number) {
   return useQuery({
     queryKey: [...qk.events.detail(eventId), "analytics"],

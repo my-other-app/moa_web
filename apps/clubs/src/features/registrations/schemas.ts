@@ -1,6 +1,7 @@
 import { paginatedSchema } from "@moa/api";
 import { z } from "zod";
 
+import { missingKeysSchema } from "@/features/answers/schemas";
 import { deliveryBriefSchema } from "@/features/deliveries";
 
 /**
@@ -39,6 +40,12 @@ export const registrationSchema = z.object({
   // The ticket's own state: whether it was taken back, and what was sent for it.
   ticket_revoked_at: z.string().nullish(),
   ticket_deliveries: z.array(deliveryBriefSchema).default([]),
+  /**
+   * The questions they must answer and haven't (blank, or a choice that is
+   * no longer an option), by key in form order (missing-answers contract
+   * §1.4). [] when none, and from a server without it.
+   */
+  missing_answers: missingKeysSchema,
   user: z
     .object({
       id: z.coerce.number().nullish(),
@@ -60,6 +67,8 @@ export const registrationDetailSchema = registrationSchema.extend({
   certificate_revoked_at: z.string().nullish(),
   certificate_deliveries: z.array(deliveryBriefSchema).default([]),
   updated_at: z.string().nullish(),
+  /** As on a list row, when the detail carries it; null when it doesn't (the row's own list says). */
+  missing_answers: z.array(z.string()).nullish().catch(null),
 });
 export type RegistrationDetail = z.infer<typeof registrationDetailSchema>;
 
