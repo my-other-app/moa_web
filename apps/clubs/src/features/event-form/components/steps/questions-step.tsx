@@ -13,6 +13,7 @@ import {
   descendantKeys,
   moveQuestion,
   nameOf,
+  relabel,
   removeQuestion,
   setCondition,
   subtreeIndices,
@@ -305,21 +306,17 @@ function QuestionCard({
                   placeholder="T-shirt size"
                   onChange={(e) => {
                     field.onChange(e);
-                    // A saved question keeps its key whatever its label becomes: its answers are stored under it.
-                    if (!followsLabel) return;
+                    // The shared rule (@moa/questions relabel): a saved question keeps its key; a new one's
+                    // follows its label, unique, with its children's conditions; a cleared label keeps it.
+                    // Set field by field, not by replacing the list, so the card keeps its focus.
                     const all = form.getValues("additional_details") ?? [];
-                    const current = all[index]?.key ?? "";
-                    const others = all.flatMap((o, j) => (j !== index && o.key ? [o.key] : []));
-                    // A label cleared to retype it keeps the key it had, so the questions under it keep their condition.
-                    const next = e.target.value.trim() ? uniqueKey(e.target.value, others) : current;
-                    if (next === current) return;
-                    form.setValue(`additional_details.${index}.key`, next, { shouldValidate: true });
-                    // Its children's conditions name it by key: they follow.
-                    if (current) {
-                      all.forEach((c, j) => {
-                        if (c.show_if?.key === current) form.setValue(`additional_details.${j}.show_if.key`, next);
-                      });
-                    }
+                    const next = relabel(all, index, e.target.value, followsLabel);
+                    const key = next[index]?.key ?? "";
+                    if (key === (all[index]?.key ?? "")) return;
+                    form.setValue(`additional_details.${index}.key`, key, { shouldValidate: true });
+                    next.forEach((c, j) => {
+                      if (j !== index && c.show_if && c.show_if.key !== all[j]?.show_if?.key) form.setValue(`additional_details.${j}.show_if.key`, c.show_if.key);
+                    });
                   }}
                 />
               </FormControl>

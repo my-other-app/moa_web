@@ -39,6 +39,34 @@ export function uniqueKey(label: string, taken: Iterable<string>): string {
 }
 
 /**
+ * A question's label changed in an editor (§1.1): the list with the new
+ * label, and the key it should have now.
+ *
+ * - A saved question (`followsLabel` false) keeps the key it was loaded
+ *   with, whatever its label becomes: its answers are stored under it.
+ * - A question not saved yet takes its key from its label, unique among the
+ *   others (`_2`, `_3`, …), and every question whose condition names it
+ *   follows to the new key.
+ * - A label cleared to be retyped keeps the key it had, so the questions
+ *   under it never point at nothing.
+ *
+ * Pure, and generic over the editor's own rows, so every editor runs the
+ * same rule.
+ */
+export function relabel<Q extends Question>(questions: readonly Q[], index: number, label: string, followsLabel: boolean): Q[] {
+  const me = questions[index];
+  if (!me) return [...questions];
+  const current = me.key;
+  const others = questions.flatMap((q, j) => (j !== index && q.key ? [q.key] : []));
+  const key = followsLabel && label.trim() ? uniqueKey(label, others) : current;
+  return questions.map((q, j) => {
+    if (j === index) return { ...q, label, key };
+    if (key !== current && current && q.show_if?.key === current) return { ...q, show_if: { ...q.show_if, key } };
+    return q;
+  });
+}
+
+/**
  * Whether two forms differ in anything an attendee or a stored answer could
  * feel: a question added, removed, moved, reworded, retyped, its options,
  * whether it must be answered, or its condition. Compared as they go over
