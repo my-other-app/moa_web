@@ -6,19 +6,22 @@ import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckIcon, CircleIcon, Loader2Icon, MapPinIcon, SaveIcon } from "lucide-react";
-import { ApiError } from "@moa/api";
+import { ApiError, nullIfRouteMissing } from "@moa/api";
 import { useObjectUrl } from "@moa/ui/hooks";
 import { PosterFrame } from "@moa/app-kit";
+import { formChanged, questionToWire, type Question } from "@moa/questions";
 import { Form, InlineAlert, Notice, ProgressBar, cn, toast } from "@moa/ui";
 
+import { useAccess } from "@/features/access";
 import { AiFilledProvider, AiFilledTag } from "@/features/ai";
+import { AskAfterSaveDialog, AskPanel, FormImpactDialog, impactHasNews, impactToAsk, peopleTotal, previewFormImpact, type AskTarget, type FormImpact } from "@/features/answers";
 import { useMyClub } from "@/features/club";
 import { EventPartnersSection } from "@/features/event-partners";
 import { LimitMeter, isPlanLockError, lockCopy, useLimitGate } from "@/features/plan";
 
 import { useCreateEvent, usePublishEvent, useUpdateEvent } from "../queries";
 import { readiness, spanLabel } from "../readiness";
-import { eventFormSchema, type EventFormValues } from "../schemas";
+import { eventFormSchema, type EventFormParsed, type EventFormValues } from "../schemas";
 import { STEPS } from "../steps";
 import { DraftFromPoster, type DraftApplied } from "./draft-from-poster";
 import { EntryStep } from "./steps/entry-step";
@@ -273,26 +276,89 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
     }
   }, [club.data, form, mode]);
 
+  const { can } = useAccess();
+  // The questions as the event had them when the form opened (and after each save): what "changed" is measured against.
+  const savedQuestions = React.useRef<Question[]>((defaultValues?.additional_details ?? []) as Question[]);
+  // What saving changed questions does to the people already signed up, waiting for the club's word.
+  const [impact, setImpact] = React.useState<{ impact: FormImpact; values: EventFormParsed } | null>(null);
+  // Saved, with new questions some of them haven't answered: ask them now, or not now.
+  const [askAfter, setAskAfter] = React.useState<{ keys: string[]; people: number } | null>(null);
+  const [askTarget, setAskTarget] = React.useState<AskTarget | null>(null);
+  const asked = React.useRef(false);
+
+  const refused = (error: unknown) => {
+    // The plan said no: the upgrade dialog has it, and its `errors` are not field errors.
+    if (isPlanLockError(error)) return;
+    if (error instanceof ApiError && error.fieldErrors) {
+      for (const [field, messages] of Object.entries(error.fieldErrors)) form.setError(field as never, { message: Array.isArray(messages) ? messages.join(", ") : String(messages) });
+    }
+    setFormError(error instanceof ApiError ? error.message : "Could not save the event.");
+  };
+
+  /** After an edit: the event's page, or Messages when the club has just asked people for answers. */
+  const leave = () => {
+    router.push(asked.current ? `/events/${eventId}/messages` : `/events/${eventId}`);
+    router.refresh();
+  };
+
+  /** Saves the edit. With new questions some people haven't answered, it stays to offer asking them. */
+  async function saveEdit(parsed: EventFormParsed, found: FormImpact | null) {
+    try {
+      await update.mutateAsync(parsed);
+    } catch (error) {
+      // Said on the form, where the questions are: the dialog steps aside.
+      setImpact(null);
+      refused(error);
+      return;
+    }
+    setImpact(null);
+    const toAsk = found ? impactToAsk(found) : null;
+    if (toAsk && toAsk.keys.length && toAsk.people > 0 && can.edit_events) {
+      // Saved: the form starts again from what was saved, every key now as stored.
+      const now = form.getValues();
+      const saved = { ...now, additional_details: (now.additional_details ?? []).map(({ fresh: _fresh, ...q }) => q) };
+      savedQuestions.current = saved.additional_details as Question[];
+      form.reset(saved);
+      setAskAfter(toAsk);
+      return;
+    }
+    leave();
+  }
+
   async function onSubmit(raw: EventFormValues) {
     setFormError(null);
     const parsed = eventFormSchema.parse(raw);
-    try {
-      if (mode === "create") {
+    if (mode === "create") {
+      try {
         const made = await create.mutateAsync({ values: parsed, status: intent });
         router.push(intent === "draft" ? "/events?scope=draft" : `/events/${made.id}`);
-      } else {
-        await update.mutateAsync(parsed);
-        router.push(`/events/${eventId}`);
+        router.refresh();
+      } catch (error) {
+        refused(error);
       }
-      router.refresh();
-    } catch (error) {
-      // The plan said no: the upgrade dialog has it, and its `errors` are not field errors.
-      if (isPlanLockError(error)) return;
-      if (error instanceof ApiError && error.fieldErrors) {
-        for (const [field, messages] of Object.entries(error.fieldErrors)) form.setError(field as never, { message: messages.join(", ") });
-      }
-      setFormError(error instanceof ApiError ? error.message : "Could not save the event.");
+      return;
     }
+    // A live event's questions changed: first, what that does to the people already signed up (§1.3).
+    const live = context?.status === "published" || context?.status === "live";
+    if (live && eventId && formChanged(savedQuestions.current, parsed.additional_details as Question[])) {
+      let found: FormImpact | null;
+      try {
+        // A server without the preview: saved as before.
+        found = await nullIfRouteMissing(() => previewFormImpact(eventId, parsed.additional_details.map(questionToWire)));
+      } catch (error) {
+        // A 422 is the form's own rule errors, said under the questions.
+        refused(error);
+        return;
+      }
+      const people = found ? peopleTotal(found.people) : 0;
+      if (found && people > 0 && impactHasNews(found)) {
+        setImpact({ impact: found, values: parsed });
+        return;
+      }
+      // Nobody signed up: nothing to confirm, and nobody to ask afterwards.
+      return saveEdit(parsed, people > 0 ? found : null);
+    }
+    return saveEdit(parsed, null);
   }
 
   const onInvalid = (invalid: Record<string, unknown>) => {
@@ -322,7 +388,7 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
     people: <PeopleStep />,
     sponsors: <EventPartnersSection eventId={mode === "edit" ? eventId : undefined} />,
     reach: <ReachStep />,
-    questions: <QuestionsStep />,
+    questions: <QuestionsStep eventId={mode === "edit" ? eventId : undefined} newEvent={mode === "create"} />,
   };
 
   return (
@@ -394,7 +460,8 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
                 Changing the day, the place or the fee affects them. Push a live update afterwards so they hear it from you.{" "}
                 <Link href={`/events/${eventId}/live?view=updates`} className="underline">
                   Live updates
-                </Link>
+                </Link>{" "}
+                Changing the questions keeps every answer they gave; before it saves, you see what it changes for them.
               </InlineAlert>
             ) : null}
             <ReadinessRail values={values} errors={errors as Record<string, unknown>} />
@@ -405,6 +472,34 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
           </aside>
         </div>
       </form>
+      {impact ? <FormImpactDialog impact={impact.impact} saving={update.isPending} onSave={() => void saveEdit(impact.values, impact.impact)} onCancel={() => setImpact(null)} /> : null}
+      {askAfter ? (
+        <AskAfterSaveDialog
+          people={askAfter.people}
+          onAsk={() => {
+            setAskTarget({ preselect: askAfter.keys });
+            setAskAfter(null);
+          }}
+          onLater={() => {
+            setAskAfter(null);
+            leave();
+          }}
+        />
+      ) : null}
+      {mode === "edit" && eventId ? (
+        <AskPanel
+          eventId={eventId}
+          target={askTarget}
+          onSent={() => {
+            asked.current = true;
+          }}
+          onOpenChange={(o) => {
+            if (o) return;
+            setAskTarget(null);
+            leave();
+          }}
+        />
+      ) : null}
     </Form>
   );
 }

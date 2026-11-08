@@ -16,6 +16,7 @@ import {
   removeQuestion,
   setCondition,
   subtreeIndices,
+  uniqueKey,
   type Question,
 } from "@moa/questions";
 import {
@@ -46,9 +47,10 @@ import {
 } from "@moa/ui";
 
 import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
+import { useAnswersSummary } from "@/features/answers";
 
 import { ANSWER_TYPES } from "../../readiness";
-import { CHOICE_TYPES as NEEDS_OPTIONS, questionKey as toKey, type EventFormValues } from "../../schemas";
+import { CHOICE_TYPES as NEEDS_OPTIONS, type EventFormValues } from "../../schemas";
 import { QuestionsPreview } from "../questions-preview";
 
 const STARTERS = [
@@ -65,8 +67,16 @@ const INDENT_PX = 20;
 
 /**
  * Sign-up questions, beyond a name and an email. The answer types are in
- * words; a few common questions are one click; the key is derived from the
- * label and kept once answers exist under it.
+ * words; a few common questions are one click.
+ *
+ * Every answer is stored under its question's key, so the key is made from
+ * the label when the question is created and then stays (missing-answers
+ * contract §1.1): a question read from the event keeps the key it was
+ * loaded with, whatever its label becomes, so rewording "Collage" to
+ * "College" keeps every answer given to it. Until it is first saved a new
+ * question's key follows its label (nobody can have answered it yet), and a
+ * clash gets `_2`, `_3`, … On a live event, a question people answered
+ * says how many ("Answered by 120").
  *
  * A question can be asked only on certain answers to an earlier choice
  * question ("Only show this if…", conditional-questions contract §7). The
@@ -78,7 +88,7 @@ const INDENT_PX = 20;
  * condition changes. R1–R6 are checked before save (schemas.ts), in the
  * server's words. Preview fills it as an attendee would.
  */
-export function QuestionsStep() {
+export function QuestionsStep({ eventId, newEvent = false }: { /** The event being edited: its questions say how many answered them. */ eventId?: number; /** Nothing is saved yet, so every key may still follow its label. */ newEvent?: boolean } = {}) {
   const form = useFormContext<EventFormValues>();
   const questions = useFieldArray({ control: form.control, name: "additional_details" });
   const live = (useWatch({ control: form.control, name: "additional_details" }) ?? []) as Draft[];
@@ -87,9 +97,11 @@ export function QuestionsStep() {
   const [focusNext, setFocusNext] = React.useState<{ index: number; target: string } | null>(null);
   const [deleting, setDeleting] = React.useState<number | null>(null);
   const [previewing, setPreviewing] = React.useState(false);
+  const summary = useAnswersSummary(eventId, !newEvent);
+  const answeredBy = React.useMemo(() => new Map((summary.data?.questions ?? []).map((q) => [q.key, q.answered])), [summary.data]);
 
   const add = (q: { label: string; field_type: string; options?: readonly string[] }) =>
-    questions.append({ key: toKey(q.label), label: q.label, field_type: q.field_type as "text", required: true, ...(q.options ? { options: [...q.options] } : {}) });
+    questions.append({ key: uniqueKey(q.label, current().map((x) => x.key)), label: q.label, field_type: q.field_type as "text", required: true, fresh: true, ...(q.options ? { options: [...q.options] } : {}) });
 
   /** Puts a restructured list in place, then focus where the club was working and say what happened. */
   const restructure = (next: Draft[] | null, focus: { key: string; target: string } | null, said: string) => {
@@ -139,7 +151,7 @@ export function QuestionsStep() {
             {s.label}
           </Button>
         ))}
-        <Button type="button" variant="outline" size="xs" onClick={() => questions.append({ key: "", label: "", field_type: "text", required: true })}>
+        <Button type="button" variant="outline" size="xs" onClick={() => questions.append({ key: "", label: "", field_type: "text", required: true, fresh: true })}>
           <PlusIcon className="size-3.5" /> Your own
         </Button>
         {questions.fields.length ? (
@@ -157,6 +169,8 @@ export function QuestionsStep() {
             key={item.id}
             index={index}
             list={live}
+            followsLabel={newEvent || live[index]?.fresh === true}
+            answered={live[index]?.fresh ? 0 : (answeredBy.get(live[index]?.key ?? "") ?? 0)}
             onMove={(direction) => {
               const list = current();
               const me = list[index];
@@ -225,6 +239,8 @@ export function QuestionsStep() {
 function QuestionCard({
   index,
   list,
+  followsLabel,
+  answered,
   onMove,
   onCondition,
   onDelete,
@@ -232,6 +248,10 @@ function QuestionCard({
   index: number;
   /** The questions as they are now, for the tree and the rules. */
   list: Draft[];
+  /** Not saved yet: its key may still follow its label. A saved question's key never does. */
+  followsLabel: boolean;
+  /** How many people have answered it (the event's summary); 0 for a new one. */
+  answered: number;
   onMove: (direction: "up" | "down") => void;
   onCondition: (showIf: { key: string; any_of: string[] } | null) => void;
   onDelete: () => void;
@@ -257,12 +277,19 @@ function QuestionCard({
       className={cn("grid gap-3 rounded-xl border p-3", depth > 0 ? "border-brand-line bg-surface border-l-[3px]" : "border-line-soft bg-sunken")}
       style={depth > 0 ? { marginInlineStart: `${Math.min(depth, 5) * INDENT_PX}px` } : undefined}
     >
-      {condition ? (
+      {condition || answered > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="bg-brand-soft text-brand inline-flex items-center gap-1 rounded-[var(--radius-chip)] px-2 py-0.5 text-[11.5px] font-medium">
-            <CornerDownRightIcon aria-hidden="true" className="size-3" />
-            {condition}
-          </span>
+          {condition ? (
+            <span className="bg-brand-soft text-brand inline-flex items-center gap-1 rounded-[var(--radius-chip)] px-2 py-0.5 text-[11.5px] font-medium">
+              <CornerDownRightIcon aria-hidden="true" className="size-3" />
+              {condition}
+            </span>
+          ) : null}
+          {answered > 0 ? (
+            <span className="text-ink-3 ml-auto text-[11.5px]" title="Rewording it keeps their answers.">
+              Answered by {answered.toLocaleString("en-IN")}
+            </span>
+          ) : null}
         </div>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
@@ -278,17 +305,19 @@ function QuestionCard({
                   placeholder="T-shirt size"
                   onChange={(e) => {
                     field.onChange(e);
-                    const current = form.getValues(`additional_details.${index}.key`);
-                    const previous = toKey(field.value ?? "");
-                    if (!current || current === previous) {
-                      const next = toKey(e.target.value);
-                      form.setValue(`additional_details.${index}.key`, next, { shouldValidate: true });
-                      // Its children's conditions name it by key: they follow.
-                      if (current) {
-                        (form.getValues("additional_details") ?? []).forEach((c, j) => {
-                          if (c.show_if?.key === current) form.setValue(`additional_details.${j}.show_if.key`, next);
-                        });
-                      }
+                    // A saved question keeps its key whatever its label becomes: its answers are stored under it.
+                    if (!followsLabel) return;
+                    const all = form.getValues("additional_details") ?? [];
+                    const current = all[index]?.key ?? "";
+                    const others = all.flatMap((o, j) => (j !== index && o.key ? [o.key] : []));
+                    const next = e.target.value.trim() ? uniqueKey(e.target.value, others) : "";
+                    if (next === current) return;
+                    form.setValue(`additional_details.${index}.key`, next, { shouldValidate: true });
+                    // Its children's conditions name it by key: they follow.
+                    if (current) {
+                      all.forEach((c, j) => {
+                        if (c.show_if?.key === current) form.setValue(`additional_details.${j}.show_if.key`, next);
+                      });
                     }
                   }}
                 />
