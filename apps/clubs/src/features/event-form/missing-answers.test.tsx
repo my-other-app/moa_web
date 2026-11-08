@@ -162,6 +162,17 @@ describe("stable keys (§1.1)", () => {
     fireEvent.change(label(3), { target: { value: "Shirt size" } });
     await waitFor(() => expect(keys()[2]).toBe("shirt_size"));
   });
+
+  it("keeps a new parent's key while its label is cleared to retype it, so its children keep their condition", async () => {
+    render(<Builder newEvent />);
+    fireEvent.change(label(1), { target: { value: "" } });
+    await waitFor(() => expect(form.getValues("additional_details.0.label")).toBe(""));
+    expect(keys()[0]).toBe("status");
+    expect(form.getValues("additional_details.1.show_if.key")).toBe("status");
+    fireEvent.change(label(1), { target: { value: "Work status" } });
+    await waitFor(() => expect(keys()[0]).toBe("work_status"));
+    expect(form.getValues("additional_details.1.show_if.key")).toBe("work_status");
+  });
 });
 
 function renderEdit(status: "published" | "draft" = "published") {

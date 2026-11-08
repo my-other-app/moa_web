@@ -310,7 +310,8 @@ function QuestionCard({
                     const all = form.getValues("additional_details") ?? [];
                     const current = all[index]?.key ?? "";
                     const others = all.flatMap((o, j) => (j !== index && o.key ? [o.key] : []));
-                    const next = e.target.value.trim() ? uniqueKey(e.target.value, others) : "";
+                    // A label cleared to retype it keeps the key it had, so the questions under it keep their condition.
+                    const next = e.target.value.trim() ? uniqueKey(e.target.value, others) : current;
                     if (next === current) return;
                     form.setValue(`additional_details.${index}.key`, next, { shouldValidate: true });
                     // Its children's conditions name it by key: they follow.

@@ -252,9 +252,17 @@ function AskFields({ eventId, target, summary, onClose, onSent }: { eventId: num
             Who it reaches
           </span>
           <p className="text-ink m-0 text-[14px] font-semibold" aria-live="polite">
-            {!keys.length ? "Tick a question" : !r ? "Counting…" : peopleWord(r.people)}
+            {!keys.length ? "Tick a question" : !r ? (reach.isError ? "Couldn't count who this reaches" : "Counting…") : peopleWord(r.people)}
             {r && settling ? <Loader2Icon aria-hidden="true" className="text-ink-3 ml-1.5 inline size-3.5 animate-spin" /> : null}
           </p>
+          {!r && reach.isError ? (
+            <p className={cn(note, "flex flex-wrap items-center gap-2")}>
+              Nothing is sent until it&apos;s counted.
+              <Button type="button" size="xs" variant="secondary" onClick={() => void reach.refetch()}>
+                Try again
+              </Button>
+            </p>
+          ) : null}
           {refs ? (
             <p className={note}>Only {target.who?.trim() || peopleWord(refs.length)}, if they still haven&apos;t answered.</p>
           ) : hasRequests ? (
