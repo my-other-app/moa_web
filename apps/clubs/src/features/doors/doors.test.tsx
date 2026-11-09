@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
+import { toCsv } from "@moa/app-kit";
+
+import { pickExport } from "@/test/export-menu";
 import { shownPicture, stubImageLoading } from "@/test/images";
 
 import summary from "../__fixtures__/event-summary.json";
@@ -49,6 +52,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
   return {
     ...actual,
     downloadCsv: vi.fn(),
+    downloadXlsx: vi.fn(async () => {}),
     api: {
       get: vi.fn(async (path: string, options?: Call["options"]) => {
         calls.push({ method: "GET", path, options });
@@ -81,7 +85,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
-const { downloadCsv } = await import("@moa/app-kit");
+const { downloadCsv, downloadXlsx } = await import("@moa/app-kit");
 const { CheckInsPage, TeamPage } = await import("./index");
 
 beforeEach(() => {
@@ -118,9 +122,18 @@ describe("check-ins", () => {
   it("exports every page of the log with the filters on", async () => {
     render(<CheckInsPage eventId={37} />);
     await screen.findByText("Asha Rao");
-    fireEvent.click(screen.getByRole("button", { name: /Export/ }));
+    await pickExport(/^Export/, "csv");
     await waitFor(() => expect(calls.some((c) => c.path.endsWith("/check-ins") && c.options?.query?.page_size === 100)).toBe(true));
     await waitFor(() => expect(downloadCsv).toHaveBeenCalledWith(expect.stringMatching(/^check-ins-37-.*\.csv$/), expect.stringContaining("Asha Rao")));
+
+    // Excel: the same rows and the same columns, as a workbook.
+    await pickExport(/^Export/, "xlsx");
+    await waitFor(() => expect(downloadXlsx).toHaveBeenCalledTimes(1));
+    const [filename, rows, columns, options] = vi.mocked(downloadXlsx).mock.calls[0]!;
+    expect(filename).toMatch(/^check-ins-37-.*\.xlsx$/);
+    expect(options).toEqual({ sheet: "Check-ins" });
+    const csv = vi.mocked(downloadCsv).mock.calls[0]![1];
+    expect(toCsv(rows as never[], columns as never)).toBe(csv);
   });
 });
 

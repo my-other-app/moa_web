@@ -3,8 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { DownloadIcon, MegaphoneIcon, UsersIcon } from "lucide-react";
-import { PersonAvatar, formatDate, formatNumber, relativeTime, useListParams } from "@moa/app-kit";
+import { MegaphoneIcon, UsersIcon } from "lucide-react";
+import { ExportMenu, PersonAvatar, formatDate, formatNumber, relativeTime, useListParams } from "@moa/app-kit";
 import { CardLabel, Chip, EmptyState, FigurePanel, Notice, Pager, ProgressBar, Skeleton, StatTile, cn, SearchField } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
@@ -135,9 +135,7 @@ export function FollowersPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {can.exports ? (
-            <a href={followersExportUrl(segment)} className="btn btn-secondary" download>
-              <DownloadIcon className="size-4" /> Export {segment === "all" ? "all" : SEGMENT_LABEL[segment].toLowerCase()}
-            </a>
+            <ExportMenu href={followersExportUrl(segment)} label={`Export ${segment === "all" ? "all" : SEGMENT_LABEL[segment].toLowerCase()}`} />
           ) : null}
           <Link href="/announcements" className="btn btn-primary">
             <MegaphoneIcon className="size-4" /> Send an announcement

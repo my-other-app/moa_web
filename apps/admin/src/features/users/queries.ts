@@ -8,10 +8,11 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 import { qk } from "@moa/api";
+import type { ExportFormat } from "@moa/app-kit";
 
 import {
   deleteUser,
-  exportUsersCsv,
+  exportUsers,
   fetchUser,
   fetchUserBadges,
   fetchUserClubs,
@@ -165,7 +166,7 @@ export function useResetUserPassword() {
 
 export function useExportUsers() {
   return useMutation({
-    mutationFn: (filters: UserFilters) => exportUsersCsv(filters),
+    mutationFn: ({ filters, format }: { filters: UserFilters; format: ExportFormat }) => exportUsers(filters, format),
     // No success toast: the browser's own download indicator is the
     // confirmation, and a toast saying "exported" before the file has
     // finished writing would be claiming more than we know.

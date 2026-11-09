@@ -303,7 +303,7 @@ describe("reading the list", () => {
     expect(answerRows({ year: "3", college: "CET", diet: ["veg", "no nuts"] }, fields)).toEqual([
       { key: "college", label: "College", value: "CET" },
       { key: "year", label: "Year of study", value: "3" },
-      { key: "diet", label: "diet", value: "veg, no nuts" },
+      { key: "diet", label: "diet", value: ["veg", "no nuts"] },
     ]);
     expect(answerRows({ year: { label: "Year", value: 2 } })).toEqual([{ key: "year", label: "Year", value: "2" }]);
     expect(answerRows([{ key: "team", label: "Team name", value: "Byte Me" }])).toEqual([{ key: "team", label: "Team name", value: "Byte Me" }]);

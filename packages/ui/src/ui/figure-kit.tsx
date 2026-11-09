@@ -93,7 +93,13 @@ function ProgressBar({
   );
 }
 
-/** Key/value rows used on overview cards. */
+/**
+ * Key/value rows used on overview cards: short keys (Name, Ticket, Sent) in
+ * a 92px mono column. Not for registration answers -- a question is a
+ * sentence, and the clubs app's AnswerList shows those. Both columns break
+ * a long unbroken word inside themselves, so a key like
+ * "EMPLOYEE/STUDENT/OTHERS" can never be painted over its value.
+ */
 function DefinitionRows({
   rows,
 }: {
@@ -106,10 +112,10 @@ function DefinitionRows({
           key={r.k}
           className="border-border/60 flex gap-3 border-t py-[7px] first:border-t-0"
         >
-          <dt className="text-muted-foreground w-[92px] shrink-0 font-mono text-[11px] leading-[1.5] tracking-[0.05em] uppercase">
+          <dt className="text-muted-foreground w-[92px] min-w-0 shrink-0 font-mono text-[11px] leading-[1.5] tracking-[0.05em] uppercase [overflow-wrap:anywhere]">
             {r.k}
           </dt>
-          <dd className="text-foreground m-0 min-w-0 flex-1 text-[12.5px]">
+          <dd className="text-foreground m-0 min-w-0 flex-1 text-[12.5px] [overflow-wrap:anywhere]">
             {r.v}
           </dd>
         </div>

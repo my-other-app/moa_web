@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { exportChoices } from "@/test/export-menu";
 import { ApiError, toApiError } from "@moa/api";
 
 import eventFixture from "../__fixtures__/event-detail.json";
@@ -387,7 +388,9 @@ describe("the waiting list", () => {
     expect(rows[1]).toHaveTextContent("asha@example.com · 9876543210 · WhatsApp");
     expect(rows[2]).toHaveTextContent("#2");
     expect(screen.getByRole("switch", { name: "Waiting list on" })).toBeChecked();
-    expect(screen.getByRole("link", { name: /Export/ })).toHaveAttribute("href", "/api/gateway/api/v1/events/37/ticketing/waitlist/export");
+    const exported = await exportChoices(/Export/);
+    expect(exported.xlsx).toHaveAttribute("href", "/api/gateway/api/v1/events/37/ticketing/waitlist/export?format=xlsx");
+    expect(exported.csv).toHaveAttribute("href", "/api/gateway/api/v1/events/37/ticketing/waitlist/export");
     expect(screen.getByRole("button", { name: /Waiting 2/ })).toBeInTheDocument();
   });
 

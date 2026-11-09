@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
+import { exportChoices } from "@/test/export-menu";
 
 import eventFixture from "../__fixtures__/event-detail.json";
 import registrationsFixture from "../__fixtures__/registrations.json";
@@ -101,19 +102,21 @@ describe("the Tickets tab", () => {
     render(<TicketsPage eventId={37} />);
     expect(await screen.findByText("Waiting list")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("This event's discount codes")).toBeNull());
-    expect(screen.queryByRole("link", { name: "Export" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Export" })).toBeNull();
   });
 
   it("shows an editor both", async () => {
     state.me = me("editor");
     render(<TicketsPage eventId={37} />);
     expect(await screen.findByText("This event's discount codes")).toBeInTheDocument();
-    expect(await screen.findByRole("link", { name: "Export" })).toHaveAttribute("href", "/api/gateway/api/v1/events/37/ticketing/waitlist/export");
+    const { xlsx, csv } = await exportChoices("Export");
+    expect(xlsx).toHaveAttribute("href", "/api/gateway/api/v1/events/37/ticketing/waitlist/export?format=xlsx");
+    expect(csv).toHaveAttribute("href", "/api/gateway/api/v1/events/37/ticketing/waitlist/export");
   });
 
   it("keeps the waiting list's Export from door staff wherever the panel is drawn", async () => {
     render(<WaitlistPanel eventId={37} />);
     expect(await screen.findByText("Waiting list")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("link", { name: "Export" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Export" })).toBeNull());
   });
 });

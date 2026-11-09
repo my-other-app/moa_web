@@ -1,10 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { DownloadIcon, Loader2Icon } from "lucide-react";
-import { SectionTitle, formatDateTime, formatNumber } from "@moa/app-kit";
+import { ExportMenu, SectionTitle, formatDateTime, formatNumber } from "@moa/app-kit";
 import {
-  Button,
   DataTable,
   FigurePanel,
   Pager,
@@ -232,15 +230,13 @@ export function UnderReviewSection({ eventId }: { eventId: number }) {
               className="w-full sm:w-60"
             />
             {canExport ? (
-              <Button
+              <ExportMenu
                 size="sm"
-                variant="secondary"
                 className={pressable}
-                disabled={exporter.isPending || !data || data.total === 0}
-                onClick={() => exporter.mutate()}
-              >
-                {exporter.isPending ? <Loader2Icon className="animate-spin" /> : <DownloadIcon />} Export CSV
-              </Button>
+                disabled={!data || data.total === 0}
+                busy={exporter.isPending}
+                onExport={(format) => exporter.mutate(format)}
+              />
             ) : null}
           </ToolbarEnd>
         </Toolbar>

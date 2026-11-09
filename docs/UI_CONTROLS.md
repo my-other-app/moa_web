@@ -58,3 +58,13 @@ Text on a filled tone takes that tone's foreground: `text-brand-foreground` on `
 ## Tags and badges
 
 `.tag` (mono, uppercase) is a label, not a control. `<StatusBadge>` is a status. Neither is clickable; a clickable one is a chip.
+
+## Exports
+
+`<ExportMenu href label>` (from `@moa/app-kit`) is every server export: one button that opens "Download Excel (.xlsx)" first, then "Download CSV". Give it the export's CSV URL as `href` and each choice becomes a download link through `withFormat(url, format)`, which adds `format=xlsx` (CSV is every route's default). For an export fetched first, so a refusal is a toast rather than a file, pass `onExport(format)` and `busy` instead, and fetch with `fetchExport(url, format, stem)`: it names the file from Content-Disposition, else `<stem>.xlsx` or `.csv` by what came back. Never glue `?format=` onto a URL by hand. The guest list is already an Excel workbook and keeps its single "Export to Excel" link.
+
+An export the browser builds itself (the check-in log, swag handovers, deliveries, the admin's lists) uses the same menu with `onExport(format)`, and writes both files from one set of rows and `CsvColumn`s: `downloadCsv(name, toCsv(rows, columns))` or `downloadXlsx(name, rows, columns, { sheet })`. `downloadXlsx` imports the writer (`packages/app-kit/src/xlsx.ts`, on `fflate`) on the click, so no page carries it until then; it writes text as inline strings, which a spreadsheet never evaluates as a formula. Never import `./xlsx` statically.
+
+## Registration answers
+
+`<AnswerList items>` (clubs app, `@/features/answers`) shows what a person answered: each question as the club wrote it, in sentence case, the answer under it (a wide second column once the list itself is 42rem wide), long words and links broken inside their box, line breaks kept, several choices as chips, a blank as "not answered". `DefinitionRows` is for short keys on overview cards (Name, Ticket, Sent), never for questions.

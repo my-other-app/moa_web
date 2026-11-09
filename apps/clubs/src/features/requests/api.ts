@@ -1,5 +1,4 @@
-import { api } from "@moa/app-kit";
-import { toApiError } from "@moa/api";
+import { api, fetchExport, withFormat, type ExportFormat } from "@moa/app-kit";
 import { GATEWAY_PREFIX } from "@moa/auth";
 
 import {
@@ -79,18 +78,19 @@ export async function reopenRequests(eventId: number, ids: readonly string[]) {
   return reopenResultSchema.parse(await api.post<unknown>(`${base(eventId)}/reopen`, { ids }));
 }
 
-/** GET …/requests/export: every request as a CSV (status, contact, ticket type, answers, when asked and decided, by whom, the note, payment). */
-export const requestsExportUrl = (eventId: number) => `${GATEWAY_PREFIX}${base(eventId)}/export`;
+/**
+ * GET …/requests/export: every request (status, contact, ticket type,
+ * answers, when asked and decided, by whom, the note, payment) as a CSV, or
+ * with `format=xlsx` as an Excel workbook.
+ */
+export const requestsExportUrl = (eventId: number, format: ExportFormat = "csv") => withFormat(`${GATEWAY_PREFIX}${base(eventId)}/export`, format);
 
 /**
  * The export, read through the gateway (the same cookie as every call) so a
  * server without the route answers with its bare 404 rather than a file of
  * JSON saved to the club's disk: the caller wraps it in nullIfRouteMissing.
+ * Named as the server names it, else `requests-<event>.xlsx` or `.csv`.
  */
-export async function fetchRequestsExport(eventId: number): Promise<{ blob: Blob; filename: string }> {
-  const response = await fetch(requestsExportUrl(eventId), { credentials: "include", headers: { Accept: "text/csv" } });
-  if (!response.ok) throw await toApiError(response);
-  const disposition = response.headers.get("content-disposition") ?? "";
-  const named = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition)?.[1];
-  return { blob: await response.blob(), filename: named ? decodeURIComponent(named) : `requests-${eventId}.csv` };
+export async function fetchRequestsExport(eventId: number, format: ExportFormat): Promise<{ blob: Blob; filename: string }> {
+  return fetchExport(requestsExportUrl(eventId), format, `requests-${eventId}`);
 }

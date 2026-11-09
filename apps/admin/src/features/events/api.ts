@@ -1,5 +1,4 @@
-import { api, cohostListingSchema, eventSummarySchema } from "@moa/app-kit";
-import { toApiError } from "@moa/api";
+import { api, cohostListingSchema, eventSummarySchema, fetchExport, saveBlob, type ExportFormat } from "@moa/app-kit";
 import { GATEWAY_PREFIX } from "@moa/auth";
 
 import {
@@ -105,7 +104,8 @@ export async function deleteEvent(eventId: number): Promise<void> {
 }
 
 /**
- * A real navigation rather than a fetch: the browser handles the file and the
+ * The guest list as an Excel workbook (the only format it comes in). A real
+ * navigation rather than a fetch: the browser handles the file and the
  * cookie rides along because the gateway is same-origin.
  */
 export function eventExportUrl(eventId: number): string {
@@ -187,28 +187,13 @@ export async function fetchUnderReview(eventId: number, query: ReviewQuery) {
 }
 
 /**
- * Every registration under review, whatever its status, as the server's CSV.
- * A fetch rather than a navigation, so a refusal (the export needs
- * export_data) is an error toast, not a file of JSON saved to disk.
+ * Every registration under review, whatever its status, as the server's
+ * Excel workbook or CSV. A fetch rather than a navigation, so a refusal (the
+ * export needs export_data) is an error toast, not a file of JSON saved to
+ * disk. Named as the server names it, else
+ * `event-<id>-registrations-under-review.xlsx` (or `.csv`).
  */
-export async function downloadUnderReviewCsv(eventId: number): Promise<void> {
-  const response = await fetch(`${GATEWAY_PREFIX}${reviewBase(eventId)}/export`, {
-    credentials: "include",
-    headers: { Accept: "text/csv" },
-  });
-  if (!response.ok) throw await toApiError(response);
-  const disposition = response.headers.get("content-disposition") ?? "";
-  const named = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition)?.[1];
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  try {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = named ? decodeURIComponent(named) : `event-${eventId}-registrations-under-review.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+export async function downloadUnderReview(eventId: number, format: ExportFormat): Promise<void> {
+  const file = await fetchExport(`${GATEWAY_PREFIX}${reviewBase(eventId)}/export`, format, `event-${eventId}-registrations-under-review`);
+  saveBlob(file.blob, file.filename);
 }

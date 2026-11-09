@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 
+import { strFromU8, unzipSync } from "fflate";
+
+import { pickExport } from "@/test/export-menu";
+
 import eventsFixture from "../__fixtures__/events.json";
 
 /**
@@ -15,6 +19,7 @@ import eventsFixture from "../__fixtures__/events.json";
 let search = "";
 const push = vi.fn();
 const downloads: Array<{ filename: string; csv: string }> = [];
+const workbooks: Array<{ filename: string; bytes: Uint8Array }> = [];
 const exports: Array<Record<string, unknown>> = [];
 
 vi.mock("next/navigation", () => ({
@@ -28,6 +33,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
   return {
     ...actual,
     downloadCsv: vi.fn((filename: string, csv: string) => downloads.push({ filename, csv })),
+    // The real workbook, kept rather than saved: the test reads it back.
+    downloadXlsx: vi.fn(async (filename: string, rows: unknown[], columns: Parameters<typeof actual.toXlsxBytes>[1], options?: { sheet?: string }) => {
+      workbooks.push({ filename, bytes: await actual.toXlsxBytes(rows, columns, options) });
+    }),
     api: {
       get: vi.fn(async (path: string, init?: { query?: Record<string, unknown> }) => {
         if (path === "/api/v1/events/categories/list") return [{ id: 1, name: "Hackathon" }];
@@ -67,6 +76,7 @@ beforeEach(() => {
   search = "";
   push.mockClear();
   downloads.length = 0;
+  workbooks.length = 0;
   exports.length = 0;
   Object.defineProperty(window, "localStorage", { value: memoryStorage(), configurable: true });
 });
@@ -81,7 +91,7 @@ describe("exporting the events", () => {
     search = "period=upcoming&fee=paid&category=1&club=5&sort=name&q=hack";
     render(<EventsV2 />);
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    await pickExport("Export", "csv");
     await waitFor(() => expect(downloads).toHaveLength(1));
 
     expect(exports).toEqual([
@@ -106,10 +116,30 @@ describe("exporting the events", () => {
     expect(lines).toHaveLength(1 + eventsFixture.items.length);
   });
 
+  it("writes the same rows as an Excel workbook: one sheet, the same headings, numbers as numbers", async () => {
+    render(<EventsV2 />);
+    await ready();
+    await pickExport("Export", "xlsx");
+    await waitFor(() => expect(workbooks).toHaveLength(1));
+    expect(downloads).toHaveLength(0);
+    expect(workbooks[0]!.filename).toMatch(/^events-\d{4}-\d{2}-\d{2}\.xlsx$/);
+
+    const parts = unzipSync(workbooks[0]!.bytes);
+    expect(strFromU8(parts["xl/workbook.xml"]!)).toContain('<sheet name="Events"');
+    const sheet = strFromU8(parts["xl/worksheets/sheet1.xml"]!);
+    const texts = [...sheet.matchAll(/<t xml:space="preserve">([^<]*)<\/t>/g)].map((m) => m[1]);
+    // The CSV's headings, in the CSV's order.
+    expect(texts.slice(0, 12)).toEqual(["ID", "Name", "Club", "Category", "When", "Where", "Online", "Fee", "Page views", "Reviews registrations", "Registrations under review", "Registrations received for review"]);
+    expect(texts).toContain("Mutate");
+    // The id, the fee and the page views are numbers a spreadsheet can sum.
+    expect(sheet).toContain('<c r="A2" t="n"><v>45</v></c>');
+    expect(sheet.match(/<row /g)).toHaveLength(1 + eventsFixture.items.length);
+  });
+
   it("sends no filter at all for the unfiltered list", async () => {
     render(<EventsV2 />);
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    await pickExport("Export", "csv");
     await waitFor(() => expect(exports).toHaveLength(1));
     expect(exports[0]).toMatchObject({ is_ended: undefined, has_fee: undefined, club_id: undefined, sort: "date", order: "desc" });
   });

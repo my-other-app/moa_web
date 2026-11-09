@@ -124,8 +124,9 @@ function RegistrationsTab({ eventId }: { eventId: number }) {
           </Button>
           {canExport ? (
             <Button size="sm" variant="outline" className={pressable} asChild>
+              {/* The guest list is an Excel workbook already: one file, no choice to make. */}
               <a href={eventExportUrl(eventId)} download>
-                <DownloadIcon /> Export
+                <DownloadIcon /> Export to Excel
               </a>
             </Button>
           ) : null}

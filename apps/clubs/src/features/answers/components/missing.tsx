@@ -39,7 +39,7 @@ export function MissingAnswersNote({ keys, questions, onAskAgain }: { keys: read
   if (!keys.length) return null;
   return (
     <div className="bg-caution-soft border-caution-line flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-3.5 py-2.5" role="group" aria-label="Missing answers">
-      <p className="text-ink m-0 min-w-0 flex-1 text-[12.5px]">
+      <p className="text-ink m-0 min-w-0 flex-1 text-[12.5px] [overflow-wrap:anywhere]">
         <span className="font-semibold">Missing:</span> {labelsOf(keys, questions).join(", ")}
       </p>
       {onAskAgain ? (

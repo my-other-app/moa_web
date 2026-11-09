@@ -40,7 +40,7 @@ export async function fetchFees() {
   return feeFetchSchema.parse(await api.post<unknown>(`${BASE}/fees/fetch`));
 }
 
-/** The statement file, through the gateway like every call: the session cookie goes with it. */
+/** The statement file (CSV; `withFormat(…, "xlsx")` for Excel), through the gateway like every call: the session cookie goes with it. */
 export function statementCsvUrl(clubId: number, query: StatementQuery = {}): string {
   const params = new URLSearchParams();
   if (query.from) params.set("from", query.from);

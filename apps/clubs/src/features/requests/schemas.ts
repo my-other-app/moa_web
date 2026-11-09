@@ -225,6 +225,19 @@ const answerValue = (v: unknown): string => {
   return String(v);
 };
 
+/** An answer to show: the ticked options of a several-choices question as a list, anything else as text. */
+const answerOf = (v: unknown): string | string[] => {
+  const inner = v && typeof v === "object" && !Array.isArray(v) && "value" in (v as object) ? (v as Record<string, unknown>).value : v;
+  return Array.isArray(inner) ? inner.map((x) => answerValue(x)).filter(Boolean) : answerValue(inner);
+};
+
+/** One answer as a row: a several-choices question's ticked options as a list, anything else as text ("" when blank). */
+export interface AnswerRow {
+  key: string;
+  label: string;
+  value: string | string[];
+}
+
 /**
  * The form's answers as rows to read: the event's questions first, in its
  * order and by its labels (as the attendee detail shows them), then
@@ -232,23 +245,23 @@ const answerValue = (v: unknown): string => {
  * value}}` or `[{key, label, value}]`: the contract says the answers are
  * "keyed and labelled", and this reads any of those.
  */
-export function answerRows(answers: unknown, fields: readonly QuestionField[] = []): { key: string; label: string; value: string }[] {
-  const byKey = new Map<string, { label: string | null; value: string }>();
+export function answerRows(answers: unknown, fields: readonly QuestionField[] = []): AnswerRow[] {
+  const byKey = new Map<string, { label: string | null; value: string | string[] }>();
   if (Array.isArray(answers)) {
     for (const a of answers) {
       if (!a || typeof a !== "object") continue;
       const o = a as Record<string, unknown>;
       const key = String(o.key ?? o.label ?? byKey.size);
-      byKey.set(key, { label: typeof o.label === "string" ? o.label : null, value: answerValue(o.value ?? o.answer) });
+      byKey.set(key, { label: typeof o.label === "string" ? o.label : null, value: answerOf(o.value ?? o.answer) });
     }
   } else if (answers && typeof answers === "object") {
     for (const [key, v] of Object.entries(answers as Record<string, unknown>)) {
       const labelled = v && typeof v === "object" && !Array.isArray(v) && "value" in (v as object);
       const label = labelled && typeof (v as Record<string, unknown>).label === "string" ? ((v as Record<string, unknown>).label as string) : null;
-      byKey.set(key, { label, value: answerValue(v) });
+      byKey.set(key, { label, value: answerOf(v) });
     }
   }
-  const rows: { key: string; label: string; value: string }[] = [];
+  const rows: AnswerRow[] = [];
   for (const f of fields) {
     const a = byKey.get(f.key);
     if (!a) continue;

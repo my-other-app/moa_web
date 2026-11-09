@@ -4,7 +4,7 @@ import { screen } from "@testing-library/react";
 /**
  * Exporting followers is a download link through the gateway (the session
  * cookie stays first-party), so the file is whatever the link asks for: the
- * whole list, or the segment on screen.
+ * whole list, or the segment on screen -- as an Excel workbook or a CSV.
  */
 let qs = "";
 vi.mock("next/navigation", async (importOriginal) => {
@@ -32,6 +32,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
+const { exportChoices } = await import("@/test/export-menu");
 const { FollowersPage } = await import("./components/followers-page");
 
 beforeEach(() => {
@@ -41,11 +42,14 @@ beforeEach(() => {
 const EXPORT = "/api/gateway/api/v1/clubs/followers/export.csv";
 
 describe("exporting followers", () => {
-  it("exports everyone when no segment is picked, as a download", async () => {
+  it("exports everyone when no segment is picked, as a download in Excel or CSV", async () => {
     render(<FollowersPage />);
-    const link = await screen.findByRole("link", { name: "Export all" });
-    expect(link).toHaveAttribute("href", `${EXPORT}?segment=all`);
-    expect(link).toHaveAttribute("download");
+    const { order, xlsx, csv } = await exportChoices("Export all");
+    expect(order).toEqual(["Download Excel (.xlsx)", "Download CSV"]);
+    expect(xlsx).toHaveAttribute("href", `${EXPORT}?segment=all&format=xlsx`);
+    expect(csv).toHaveAttribute("href", `${EXPORT}?segment=all`);
+    expect(xlsx).toHaveAttribute("download");
+    expect(csv).toHaveAttribute("download");
   });
 
   it.each([
@@ -56,12 +60,14 @@ describe("exporting followers", () => {
   ])("exports only the %s segment on screen, and says so on the button", async (segment, label) => {
     qs = `segment=${segment}`;
     render(<FollowersPage />);
-    expect(await screen.findByRole("link", { name: label })).toHaveAttribute("href", `${EXPORT}?segment=${segment}`);
+    const { xlsx, csv } = await exportChoices(label);
+    expect(xlsx).toHaveAttribute("href", `${EXPORT}?segment=${segment}&format=xlsx`);
+    expect(csv).toHaveAttribute("href", `${EXPORT}?segment=${segment}`);
   });
 
   it("falls back to everyone for a segment it does not know, rather than asking the API for it", async () => {
     qs = "segment=vip";
     render(<FollowersPage />);
-    expect(await screen.findByRole("link", { name: "Export all" })).toHaveAttribute("href", `${EXPORT}?segment=all`);
+    expect((await exportChoices("Export all")).csv).toHaveAttribute("href", `${EXPORT}?segment=all`);
   });
 });

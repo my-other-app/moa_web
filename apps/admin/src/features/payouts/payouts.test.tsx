@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
+import { exportChoices } from "@/test/export-menu";
 import type { FakeState } from "@/test/fake-api";
 
 /**
@@ -117,7 +118,10 @@ describe("a club's statement", () => {
     render(<ClubStatement clubId={5} />);
     expect(await screen.findByText("Build Night")).toBeInTheDocument();
     expect(screen.getByText("UTR123")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Statement CSV/ })).toHaveAttribute("href", "/api/gateway/api/v1/admin/payouts/clubs/5/statement.csv");
+    const statement = await exportChoices("Statement");
+    expect(statement.order).toEqual(["Download Excel (.xlsx)", "Download CSV"]);
+    expect(statement.xlsx).toHaveAttribute("href", "/api/gateway/api/v1/admin/payouts/clubs/5/statement.csv?format=xlsx");
+    expect(statement.csv).toHaveAttribute("href", "/api/gateway/api/v1/admin/payouts/clubs/5/statement.csv");
     expect(statementCsvUrl(5, { from: "2026-10-01", to: "2026-10-31" })).toBe("/api/gateway/api/v1/admin/payouts/clubs/5/statement.csv?from=2026-10-01&to=2026-10-31");
     expect(feeRateLabel(0.0236)).toBe("2.36%");
   });

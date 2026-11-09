@@ -1,5 +1,6 @@
 /**
- * CSV export for list pages.
+ * CSV export for list pages (and, through `table-export.ts`, the same rows
+ * as an Excel workbook).
  *
  * Only event registrations had an export, and that one is server-side. The
  * rest of the dashboard had no way to get data out at all, which is the first
@@ -26,16 +27,28 @@ function escapeField(value: unknown): string {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
+/** One column of an export: its heading and how to read it off a row. The CSV and the Excel workbook are both written from these. */
 export interface CsvColumn<T> {
   header: string;
   value: (row: T) => unknown;
 }
 
+/** The same thing under the name it has now that it writes Excel too. */
+export type ExportColumn<T> = CsvColumn<T>;
+
+/**
+ * The export as a table: the headings and every row's values, raw. The one
+ * place rows become cells, so the CSV and the Excel file of an export can
+ * never disagree on a column.
+ */
+export function tableOf<T>(rows: readonly T[], columns: readonly CsvColumn<T>[]): { headers: string[]; body: unknown[][] } {
+  return { headers: columns.map((c) => c.header), body: rows.map((row) => columns.map((c) => c.value(row))) };
+}
+
 export function toCsv<T>(rows: readonly T[], columns: readonly CsvColumn<T>[]): string {
-  const lines = [columns.map((c) => escapeField(c.header)).join(",")];
-  for (const row of rows) {
-    lines.push(columns.map((c) => escapeField(c.value(row))).join(","));
-  }
+  const { headers, body } = tableOf(rows, columns);
+  const lines = [headers.map(escapeField).join(",")];
+  for (const cells of body) lines.push(cells.map(escapeField).join(","));
   // CRLF: Excel on Windows treats a bare LF as one long line.
   return lines.join("\r\n");
 }
@@ -55,9 +68,9 @@ export function downloadCsv(filename: string, csv: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** `clubs-2026-10-04.csv` */
-export function timestampedName(prefix: string): string {
-  return `${prefix}-${new Date().toISOString().slice(0, 10)}.csv`;
+/** `clubs-2026-10-04.csv`, or `.xlsx` for the Excel file of the same export. */
+export function timestampedName(prefix: string, extension: "csv" | "xlsx" = "csv"): string {
+  return `${prefix}-${new Date().toISOString().slice(0, 10)}.${extension}`;
 }
 
 /**

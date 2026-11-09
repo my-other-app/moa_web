@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
+import { exportChoices } from "@/test/export-menu";
 import { shownPicture, stubImageLoading } from "@/test/images";
 
 const calls: Array<{ path: string; query?: Record<string, unknown> }> = [];
@@ -95,7 +96,7 @@ describe("the followers page", () => {
     const old = screen.getByRole("link", { name: "Open Old Timer" });
     expect(within(old).getByText("Gone quiet")).toBeInTheDocument();
     expect(within(old).getByText("No events yet")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Export all/ })).toHaveAttribute("href", "/api/gateway/api/v1/clubs/followers/export.csv?segment=all");
+    expect((await exportChoices(/Export all/)).csv).toHaveAttribute("href", "/api/gateway/api/v1/clubs/followers/export.csv?segment=all");
     expect(calls.find((c) => c.path.endsWith("/followers/list"))?.query).toMatchObject({ segment: "all", sort: "newest", limit: 24, offset: 0 });
   });
 
@@ -105,7 +106,7 @@ describe("the followers page", () => {
     expect(await screen.findByRole("link", { name: "Open Old Timer" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Open Ananya Iyer" })).toBeNull();
     expect(screen.getByText("Nothing in 90 days and not in for anything ahead.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Export gone quiet/ })).toHaveAttribute("href", expect.stringContaining("segment=quiet"));
+    expect((await exportChoices(/Export gone quiet/)).xlsx).toHaveAttribute("href", expect.stringContaining("segment=quiet&format=xlsx"));
     await waitFor(() => expect(calls.find((c) => c.path.endsWith("/followers/list"))?.query).toMatchObject({ segment: "quiet" }));
     fireEvent.click(screen.getByRole("button", { name: /Regulars/ }));
   });

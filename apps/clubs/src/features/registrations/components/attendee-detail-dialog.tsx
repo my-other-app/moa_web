@@ -18,7 +18,7 @@ import {
   toast,
 } from "@moa/ui";
 
-import { MissingAnswersNote } from "@/features/answers";
+import { AnswerList, MissingAnswersNote } from "@/features/answers";
 import { type DeliveryBrief, verdictOf, viaText } from "@/features/deliveries";
 import { visibility } from "@moa/questions";
 
@@ -185,15 +185,13 @@ export function AttendeeDetailDialog({
                     <MissingAnswersNote keys={missingKeys} questions={fields} onAskAgain={onAskAgain ? () => onAskAgain(a, missingKeys) : undefined} />
                   </div>
                 ) : null}
-                <DefinitionRows
-                  rows={[
-                    ...asked.map((f) => ({
-                      k: f.label ?? f.key,
-                      v: answerText(answers[f.key]) ? answerText(answers[f.key]) : none("not answered"),
-                    })),
+                <AnswerList
+                  items={[
+                    ...asked.map((f) => ({ key: f.key, label: f.label?.trim() || f.key, value: answers[f.key] })),
+                    // Answers to a question the form no longer has, by the key they were stored under.
                     ...Object.entries(answers)
                       .filter(([k]) => !fields.some((f) => f.key === k))
-                      .map(([k, v]) => ({ k, v: answerText(v) })),
+                      .map(([k, v]) => ({ key: k, label: k.replace(/_/g, " "), value: v })),
                   ]}
                 />
               </Section>

@@ -132,10 +132,11 @@ describe("admin event page", () => {
     ).toBeInTheDocument();
   });
 
-  it("offers an export link", async () => {
+  it("offers the guest list as an Excel download (the only format it comes in)", async () => {
     render(<EventDetail eventId={37} />);
-    const link = await screen.findByRole("link", { name: /Export/ });
+    const link = await screen.findByRole("link", { name: "Export to Excel" });
     expect(link).toHaveAttribute("download");
+    expect(link).toHaveAttribute("href", "/api/gateway/api/v1/events/registration/37/export");
   });
 });
 

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData, type QueryClient } from "@tanstack/react-query";
 import { nullIfRouteMissing, qk } from "@moa/api";
+import { saveBlob, type ExportFormat } from "@moa/app-kit";
 import { toast } from "@moa/ui";
 
 import { TICKETING_KEY } from "@/features/ticketing/queries";
@@ -193,34 +194,23 @@ export function useBulkDecision(eventId: number) {
   return { run, running, progress };
 }
 
-/** Saves a file the browser was handed, under its name. */
-function saveFile(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
 /**
- * Export: every registration the event reviewed, as a CSV, through the gateway. A server without the
- * route (its bare 404) answers null: said once, and the button goes
- * (`missing`), rather than a file of JSON landing in Downloads.
+ * Export: every registration the event reviewed, as an Excel workbook or a
+ * CSV (the format is the mutation's variable), through the gateway. A server
+ * without the route (its bare 404) answers null: said once, and the button
+ * goes (`missing`), rather than a file of JSON landing in Downloads.
  */
 export function useExportRequests(eventId: number) {
   const [missing, setMissing] = React.useState(false);
   const mutation = useMutation({
-    mutationFn: () => nullIfRouteMissing(() => fetchRequestsExport(eventId)),
+    mutationFn: (format: ExportFormat) => nullIfRouteMissing(() => fetchRequestsExport(eventId, format)),
     onSuccess: (file) => {
       if (!file) {
         setMissing(true);
         toast.warning("Exporting registrations arrives with the next update of MyOtherApp.");
         return;
       }
-      saveFile(file.blob, file.filename);
+      saveBlob(file.blob, file.filename);
       toast.success("Registrations under review exported");
     },
     onError: (e) => toast.error(e instanceof Error && e.message ? e.message : "The export didn't go through. Try again."),

@@ -1,23 +1,27 @@
 "use client";
 
 import * as React from "react";
-import { DownloadIcon, Loader2Icon } from "lucide-react";
 import {
+  ExportMenu,
   downloadCsv,
+  downloadXlsx,
   fetchAllPages,
   timestampedName,
   toCsv,
   type CsvColumn,
+  type ExportFormat,
 } from "@moa/app-kit";
-import { Button, cn, toast } from "@moa/ui";
+import { cn, toast } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
 /**
- * Exports the whole filtered result set, not the page on screen.
+ * Exports the whole filtered result set, not the page on screen, as an
+ * Excel workbook or a CSV (the export menu's two choices, Excel first).
  *
  * The filters currently applied are passed in by the caller, so what
  * downloads matches what the admin is looking at -- an export that silently
- * ignored the filters would be worse than none.
+ * ignored the filters would be worse than none. Both files are written from
+ * the same rows and `columns`, so they can't disagree.
  */
 export function ExportButton<T>({
   filename,
@@ -25,16 +29,19 @@ export function ExportButton<T>({
   fetchPage,
   disabled,
   label = "Export",
+  sheet,
 }: {
   filename: string;
   columns: readonly CsvColumn<T>[];
   fetchPage: (offset: number, limit: number) => Promise<{ items: T[]; total?: number | null }>;
   disabled?: boolean;
   label?: string;
+  /** The Excel tab's name; the filename's prefix, capitalised, by default ("Payments"). */
+  sheet?: string;
 }) {
   const [busy, setBusy] = React.useState(false);
 
-  async function onExport() {
+  async function onExport(format: ExportFormat) {
     setBusy(true);
     try {
       const { rows, truncated } = await fetchAllPages(fetchPage);
@@ -42,7 +49,8 @@ export function ExportButton<T>({
         toast.info("Nothing to export with the current filters");
         return;
       }
-      downloadCsv(timestampedName(filename), toCsv(rows, columns));
+      if (format === "xlsx") await downloadXlsx(timestampedName(filename, "xlsx"), rows, columns, { sheet: sheet ?? filename.charAt(0).toUpperCase() + filename.slice(1) });
+      else downloadCsv(timestampedName(filename), toCsv(rows, columns));
       if (truncated) {
         // Say so rather than hand over a quietly incomplete file.
         toast.warning(
@@ -59,15 +67,14 @@ export function ExportButton<T>({
   }
 
   return (
-    <Button
+    <ExportMenu
       size="sm"
       variant="outline"
       className={cn(pressable)}
-      disabled={disabled || busy}
-      onClick={onExport}
-    >
-      {busy ? <Loader2Icon className="animate-spin" /> : <DownloadIcon />}
-      {busy ? "Exporting…" : label}
-    </Button>
+      disabled={disabled}
+      busy={busy}
+      label={label}
+      onExport={(format) => void onExport(format)}
+    />
   );
 }

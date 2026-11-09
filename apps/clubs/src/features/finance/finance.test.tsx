@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { exportChoices } from "@/test/export-menu";
 
 import summaryFixture from "../__fixtures__/finance-summary.json";
 
@@ -94,7 +95,7 @@ describe("finance", () => {
     expect(screen.getAllByText(/₹500 a ticket/).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Upcoming").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Closed")).toHaveLength(2);
-    expect(screen.getByRole("link", { name: /Export statement/ })).toHaveAttribute("href", expect.stringContaining("/api/v1/clubs/finance/statement.csv"));
+    expect((await exportChoices(/Export statement/)).csv).toHaveAttribute("href", expect.stringContaining("/api/v1/clubs/finance/statement.csv"));
     expect(screen.getByText("Midnight pizza")).toBeInTheDocument();
     // The plan's entitlements are read beside it (for the ledger's lock); the page's own read is the finance one.
     expect(calls.find((c) => c.path !== "/api/v1/clubs/entitlements")).toMatchObject({ method: "GET", path: "/api/v1/clubs/finance" });
@@ -191,7 +192,7 @@ describe("finance", () => {
     expect(screen.getByText("Where it stands")).toBeInTheDocument();
     expect(screen.getByText("3 unpaid")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Still owed/ })).toHaveAttribute("href", "/events/37/attendees");
-    expect(screen.getByRole("link", { name: /Export statement/ })).toHaveAttribute("href", expect.stringContaining("/api/v1/events/37/finance/statement.csv"));
+    expect((await exportChoices(/Export statement/)).xlsx).toHaveAttribute("href", expect.stringContaining("/api/v1/events/37/finance/statement.csv?format=xlsx"));
     fireEvent.click(screen.getByRole("button", { name: "Add to ledger" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).queryByLabelText("Against")).not.toBeInTheDocument();

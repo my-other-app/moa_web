@@ -202,14 +202,14 @@ describe("registrations under review on the event page", () => {
     expect(await within(region).findByText("Person 50")).toBeInTheDocument();
   });
 
-  it("exports every registration under review as the server's CSV", async () => {
-    const fetchMock = vi.fn(
-      async () =>
-        new Response("Status,Full name\r\nUnder review,Person 1\r\n", {
-          status: 200,
-          headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="devfest-requests.csv"' },
-        })
-    );
+  it("exports every registration under review as the server's Excel workbook or CSV", async () => {
+    const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    let reply = () =>
+      new Response("PK", {
+        status: 200,
+        headers: { "content-type": XLSX, "content-disposition": 'attachment; filename="devfest-requests.xlsx"' },
+      });
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => reply());
     vi.stubGlobal("fetch", fetchMock);
     const saved: string[] = [];
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
@@ -218,12 +218,25 @@ describe("registrations under review on the event page", () => {
     render(<EventDetail eventId={37} />);
     const region = await section();
     await within(region).findByText("Person 1");
-    fireEvent.click(within(region).getByRole("button", { name: "Export CSV" }));
-    await waitFor(() => expect(saved).toEqual(["devfest-requests.csv"]));
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/gateway/api/v1/events/registration/37/requests/export",
-      expect.objectContaining({ credentials: "include" })
+    const open = () => fireEvent.keyDown(within(region).getByRole("button", { name: "Export" }), { key: "Enter" });
+
+    open();
+    const choices = await screen.findAllByRole("menuitem");
+    expect(choices.map((c) => c.textContent?.trim())).toEqual(["Download Excel (.xlsx)", "Download CSV"]);
+    fireEvent.click(choices[0]!);
+    await waitFor(() => expect(saved).toEqual(["devfest-requests.xlsx"]));
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/gateway/api/v1/events/registration/37/requests/export?format=xlsx",
+      expect.objectContaining({ credentials: "include", headers: { Accept: XLSX } })
     );
+
+    // CSV: the route as it always was; no name from the server, so ours with .csv.
+    reply = () => new Response("Status,Full name\r\nUnder review,Person 1\r\n", { status: 200, headers: { "content-type": "text/csv; charset=utf-8" } });
+    open();
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Download CSV" }));
+    await waitFor(() => expect(saved).toHaveLength(2));
+    expect(saved[1]).toBe("event-37-registrations-under-review.csv");
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/gateway/api/v1/events/registration/37/requests/export", expect.objectContaining({ headers: { Accept: "text/csv" } }));
   });
 
   it("offers no export to an admin whose role can't export data, and no decisions to anyone", async () => {
@@ -231,7 +244,7 @@ describe("registrations under review on the event page", () => {
     render(<EventDetail eventId={37} />);
     const region = await section();
     await within(region).findByText("Person 1");
-    expect(within(region).queryByRole("button", { name: "Export CSV" })).toBeNull();
+    expect(within(region).queryByRole("button", { name: "Export" })).toBeNull();
     expect(within(region).queryByRole("button", { name: /confirm|decline|back to review/i })).toBeNull();
     expect(within(region).queryByRole("checkbox")).toBeNull();
     expect(region).toHaveTextContent("Read-only. The club confirms and declines registrations in its own dashboard.");
