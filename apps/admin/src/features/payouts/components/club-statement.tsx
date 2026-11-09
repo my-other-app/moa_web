@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, BanIcon, DownloadIcon, PlusIcon } from "lucide-react";
+import { ArrowLeftIcon, BanIcon, PlusIcon } from "lucide-react";
 import { ApiError } from "@moa/api";
-import { formatCurrency, formatDate, formatDateTime } from "@moa/app-kit";
+import { ExportMenu, formatCurrency, formatDate, formatDateTime } from "@moa/app-kit";
 import {
   Button,
   DataTable,
@@ -394,11 +394,7 @@ export function ClubStatement({ clubId }: { clubId: number }) {
         </Button>
         <div className="flex flex-wrap items-center gap-2">
           {canExport ? (
-            <Button variant="outline" size="sm" asChild>
-              <a href={statementCsvUrl(clubId, period)} download>
-                <DownloadIcon /> Statement CSV
-              </a>
-            </Button>
+            <ExportMenu href={statementCsvUrl(clubId, period)} variant="outline" size="sm" label="Statement" />
           ) : null}
           {canMoney && data ? (
             <Button size="sm" onClick={() => setRecording(true)}>

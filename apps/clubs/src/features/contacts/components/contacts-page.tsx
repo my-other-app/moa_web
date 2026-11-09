@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { DownloadIcon, UsersRoundIcon } from "lucide-react";
-import { formatDate, formatNumber } from "@moa/app-kit";
+import { UsersRoundIcon } from "lucide-react";
+import { ExportMenu, formatDate, formatNumber } from "@moa/app-kit";
 import { EmptyState, FigurePanel, Notice, Pager, SearchField, Skeleton, cn } from "@moa/ui";
 
 import { contactsExportUrl } from "../api";
@@ -70,9 +70,7 @@ export function ContactsPage() {
           </p>
         </div>
         {data && everKept > 0 ? (
-          <a href={contactsExportUrl(filters)} className="btn btn-secondary" download>
-            <DownloadIcon className="size-4" /> Export {filtered ? "these" : "all"} as CSV
-          </a>
+          <ExportMenu href={contactsExportUrl(filters)} label={`Export ${filtered ? "these" : "all"}`} />
         ) : null}
       </div>
 

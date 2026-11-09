@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { exportChoices } from "@/test/export-menu";
 import { ApiError } from "@moa/api";
 
 /**
@@ -69,7 +70,10 @@ describe("the contact book", () => {
     expect(within(table).getByText("speaker")).toBeInTheDocument();
     expect(within(table).getAllByRole("row")).toHaveLength(3);
     expect(screen.getByText(/2 kept from 2 events/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Export all as CSV/ })).toHaveAttribute("href", "/api/gateway/api/v1/clubs/contacts/export.csv");
+    const all = await exportChoices("Export all");
+    expect(all.order).toEqual(["Download Excel (.xlsx)", "Download CSV"]);
+    expect(all.xlsx).toHaveAttribute("href", "/api/gateway/api/v1/clubs/contacts/export.csv?format=xlsx");
+    expect(all.csv).toHaveAttribute("href", "/api/gateway/api/v1/clubs/contacts/export.csv");
   });
 
   it("filters by event, came and dates, from the first page, and exports with the same filters", async () => {
@@ -82,10 +86,11 @@ describe("the contact book", () => {
     await waitFor(() =>
       expect(lastQuery()).toMatchObject({ event_id: 37, attended: false, since: "2026-09-01", until: "2026-09-30", page: 1, page_size: 50 }),
     );
-    const href = screen.getByRole("link", { name: /Export these as CSV/ }).getAttribute("href")!;
-    expect(href).toBe("/api/gateway/api/v1/clubs/contacts/export.csv?event_id=37&attended=false&since=2026-09-01&until=2026-09-30");
+    const these = await exportChoices("Export these");
+    expect(these.csv.getAttribute("href")).toBe("/api/gateway/api/v1/clubs/contacts/export.csv?event_id=37&attended=false&since=2026-09-01&until=2026-09-30");
+    expect(these.xlsx.getAttribute("href")).toBe("/api/gateway/api/v1/clubs/contacts/export.csv?event_id=37&attended=false&since=2026-09-01&until=2026-09-30&format=xlsx");
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
-    expect(await screen.findByRole("link", { name: /Export all as CSV/ })).toHaveAttribute("href", "/api/gateway/api/v1/clubs/contacts/export.csv");
+    expect((await exportChoices("Export all")).csv).toHaveAttribute("href", "/api/gateway/api/v1/clubs/contacts/export.csv");
     expect(screen.getByLabelText("Event")).toHaveValue("");
   });
 
@@ -103,7 +108,7 @@ describe("the contact book", () => {
     render(<ContactsPage />);
     expect(await screen.findByText("No contacts kept yet")).toBeInTheDocument();
     expect(screen.getByText(/Switch on “Keep contacts for the club” in an event's Close-out/)).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Export/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Export/ })).not.toBeInTheDocument();
   });
 
   it("says the book isn't there yet against a backend without it", async () => {

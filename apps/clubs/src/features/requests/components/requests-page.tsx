@@ -1,13 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, ChevronDownIcon, ClipboardListIcon, DownloadIcon, InboxIcon, Loader2Icon, RotateCcwIcon, XIcon } from "lucide-react";
-import { formatDateTime, formatNumber, hasRequestFigures } from "@moa/app-kit";
+import { CheckIcon, ChevronDownIcon, ClipboardListIcon, InboxIcon, Loader2Icon, RotateCcwIcon, XIcon } from "lucide-react";
+import { ExportMenu, formatDateTime, formatNumber, hasRequestFigures } from "@moa/app-kit";
 import {
   Button,
   Checkbox,
   Chip,
-  DefinitionRows,
   EmptyState,
   FigurePanel,
   Notice,
@@ -22,7 +21,7 @@ import {
 } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
-import { AskPanel, MissingAnswersNote, MissingMarker, requestRef, useAnswersSummary, type AskTarget } from "@/features/answers";
+import { AnswerList, AskPanel, MissingAnswersNote, MissingMarker, requestRef, useAnswersSummary, type AskTarget } from "@/features/answers";
 // The query, not the feature's surface: the console's components reach this page's feature.
 import { useEventSummary } from "@/features/console/queries";
 import { useEventDetail } from "@/features/events";
@@ -62,7 +61,8 @@ import { ConfirmDialog, DeclineDialog } from "./decision-dialogs";
  * at once) and confirmed or declined together; the outcome is said in plain
  * words above the list. Door staff see the list and decide nothing. Above
  * it, the total received and, on a paid event, how many confirmed have paid
- * and how many are paying; Export takes every registration as a CSV.
+ * and how many are paying; Export takes every registration as an Excel
+ * workbook or a CSV.
  */
 
 const CELL = "px-4 py-2.5 text-left align-top";
@@ -216,7 +216,7 @@ function RequestRow({
           <td colSpan={columns} className="px-4 pt-1 pb-3">
             <div className={cn("grid max-w-[640px] gap-2", selectable && "pl-6")} aria-label={`Answers of ${r.full_name}`} role="group">
               {missing.length ? <MissingAnswersNote keys={missing} questions={fields} onAskAgain={onAskAgain} /> : null}
-              {answers.length ? <DefinitionRows rows={answers.map((a) => ({ k: a.label, v: a.value || <span className="text-ink-3">not answered</span> }))} /> : null}
+              {answers.length ? <AnswerList items={answers} className="bg-surface border-line-soft rounded-xl border px-3.5 py-3" /> : null}
             </div>
           </td>
         </tr>
@@ -385,9 +385,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
             {placesLeft === undefined ? null : placesLeft === null ? "No limit on places" : `${formatNumber(placesLeft)} ${placesLeft === 1 ? "place" : "places"} left`}
           </p>
           {canExport ? (
-            <Button size="sm" variant="secondary" onClick={() => exporter.mutate()} disabled={exporter.isPending}>
-              {exporter.isPending ? <Loader2Icon className="animate-spin" /> : <DownloadIcon />} Export
-            </Button>
+            <ExportMenu size="sm" onExport={(format) => exporter.mutate(format)} busy={exporter.isPending} title="Every registration: status, contact, ticket type, answers, when asked and decided, by whom, and payment." />
           ) : null}
         </div>
       </header>

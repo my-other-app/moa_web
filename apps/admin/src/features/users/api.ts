@@ -1,5 +1,4 @@
-import { api } from "@moa/app-kit";
-import { toApiError } from "@moa/api";
+import { api, fetchExport, saveBlob, type ExportFormat } from "@moa/app-kit";
 import { GATEWAY_PREFIX } from "@moa/auth";
 import {
   adminUserDetailSchema,
@@ -12,7 +11,7 @@ import {
   type UserBadges,
 } from "./schemas";
 
-/** Everything that narrows the list. Shared with the CSV export verbatim. */
+/** Everything that narrows the list. Shared with the export verbatim. */
 export interface UserFilters {
   search?: string | undefined;
   userType?: string | undefined;
@@ -89,7 +88,7 @@ export async function fetchUsers(query: UserListQuery): Promise<UserListPage> {
 }
 
 /**
- * Download every matching row as CSV.
+ * Download every matching row as an Excel workbook or a CSV.
  *
  * Fetched rather than linked so a refusal is a toast instead of a downloaded
  * file containing an error message -- and the endpoint does refuse: it sits
@@ -97,9 +96,11 @@ export async function fetchUsers(query: UserListQuery): Promise<UserListPage> {
  *
  * The body is streamed by the API and passed through by the gateway, so the
  * whole user base is never held in memory server-side. It is held in the
- * browser as one Blob, which is the only place it has to be.
+ * browser as one Blob, which is the only place it has to be. The API names
+ * the file (it carries the timestamp); `users.xlsx` / `users.csv` is the
+ * fallback when it doesn't.
  */
-export async function exportUsersCsv(filters: UserFilters): Promise<void> {
+export async function exportUsers(filters: UserFilters, format: ExportFormat): Promise<void> {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filterParams(filters))) {
     if (value === undefined || value === null || value === "") continue;
@@ -107,34 +108,8 @@ export async function exportUsersCsv(filters: UserFilters): Promise<void> {
   }
   const query = params.toString();
 
-  const response = await fetch(
-    `${GATEWAY_PREFIX}/api/v1/user/admin/export${query ? `?${query}` : ""}`,
-    { credentials: "include", headers: { Accept: "text/csv" } }
-  );
-  if (!response.ok) throw await toApiError(response);
-
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  try {
-    const link = document.createElement("a");
-    link.href = url;
-    // The API names the file (it carries the timestamp); this is the fallback
-    // for a browser that ignores Content-Disposition on a blob URL, which is
-    // all of them.
-    link.download = filenameOf(response) ?? "users.csv";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  } finally {
-    // Revoked, or the Blob is pinned in memory for the life of the document.
-    URL.revokeObjectURL(url);
-  }
-}
-
-function filenameOf(response: Response): string | null {
-  const header = response.headers.get("content-disposition");
-  const match = header?.match(/filename="([^"]+)"/);
-  return match?.[1] ?? null;
+  const file = await fetchExport(`${GATEWAY_PREFIX}/api/v1/user/admin/export${query ? `?${query}` : ""}`, format, "users");
+  saveBlob(file.blob, file.filename);
 }
 
 export async function fetchUser(userId: number): Promise<AdminUserDetail> {

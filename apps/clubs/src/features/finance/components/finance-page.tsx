@@ -3,14 +3,13 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  DownloadIcon,
   LockIcon,
   PencilIcon,
   PlusIcon,
   ReceiptIcon,
   Trash2Icon,
 } from "lucide-react";
-import { formatDate, formatNumber } from "@moa/app-kit";
+import { ExportMenu, formatDate, formatNumber } from "@moa/app-kit";
 import {
   CardLabel,
   Chip,
@@ -1029,13 +1028,7 @@ export function FinancePage({ scope }: { scope: FinanceScope }) {
               ))}
             </select>
           )}
-          <a
-            href={statementUrl(scope, range)}
-            download
-            className="btn btn-secondary"
-          >
-            <DownloadIcon className="size-4" /> Export statement
-          </a>
+          <ExportMenu href={statementUrl(scope, range)} label="Export statement" />
           <button
             type="button"
             className="btn btn-primary"

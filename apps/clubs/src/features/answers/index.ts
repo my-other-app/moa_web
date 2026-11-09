@@ -1,3 +1,4 @@
+export { AnswerList, answerParts, type AnswerItem } from "./components/answer-list";
 export { AskPanel, type AskTarget } from "./components/ask-panel";
 export { AsksPanel } from "./components/asks-panel";
 export { AskAfterSaveDialog, FormImpactDialog } from "./components/form-impact-dialog";

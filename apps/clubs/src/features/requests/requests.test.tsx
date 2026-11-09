@@ -548,8 +548,16 @@ describe("the numbers, All and Export", () => {
     expect(screen.getByRole("button", { name: /^Under review/ })).toHaveTextContent("2");
   });
 
-  it("exports every registration as a CSV through the gateway", async () => {
-    const fetchMock = vi.fn(async () => new Response("status,name\r\npending,Asha Rao", { status: 200, headers: { "content-type": "text/csv", "content-disposition": 'attachment; filename="requests-hack-night.csv"' } }));
+  /** Opens the Export menu (Radix opens on Enter, as a keyboard user would) and picks a choice. */
+  async function pick(choice: RegExp) {
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Export" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: choice }));
+  }
+
+  it("offers Excel first, then CSV, and downloads each through the gateway", async () => {
+    const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    let reply = () => new Response("PK", { status: 200, headers: { "content-type": XLSX, "content-disposition": "attachment; filename=\"requests-hack-night.xlsx\"" } });
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => reply());
     vi.stubGlobal("fetch", fetchMock);
     const createUrl = vi.fn(() => "blob:requests");
     const revokeUrl = vi.fn();
@@ -561,11 +569,33 @@ describe("the numbers, All and Export", () => {
     const success = vi.spyOn(toast, "success");
     try {
       render(<RequestsPage eventId={37} />);
-      fireEvent.click(await screen.findByRole("button", { name: "Export" }));
+      fireEvent.keyDown(await screen.findByRole("button", { name: "Export" }), { key: "Enter" });
+      const choices = await screen.findAllByRole("menuitem");
+      expect(choices.map((c) => c.textContent?.trim())).toEqual(["Download Excel (.xlsx)", "Download CSV"]);
+
+      // Excel: the same route with format=xlsx, saved under the server's name.
+      fireEvent.click(choices[0]!);
       await waitFor(() => expect(success).toHaveBeenCalledWith("Registrations under review exported"));
-      expect(fetchMock).toHaveBeenCalledWith("/api/gateway/api/v1/events/registration/37/requests/export", expect.objectContaining({ credentials: "include" }));
-      expect(clicked).toEqual(["requests-hack-night.csv"]);
+      expect(fetchMock).toHaveBeenLastCalledWith("/api/gateway/api/v1/events/registration/37/requests/export?format=xlsx", expect.objectContaining({ credentials: "include", headers: { Accept: XLSX } }));
+      expect(clicked).toEqual(["requests-hack-night.xlsx"]);
       expect(createUrl).toHaveBeenCalled();
+
+      // CSV: the route as it always was (CSV is its default); no name from the server, so ours, with the right extension.
+      reply = () => new Response("status,name\r\npending,Asha Rao", { status: 200, headers: { "content-type": "text/csv" } });
+      await pick(/Download CSV/);
+      await waitFor(() => expect(clicked).toHaveLength(2));
+      expect(fetchMock).toHaveBeenLastCalledWith("/api/gateway/api/v1/events/registration/37/requests/export", expect.objectContaining({ headers: { Accept: "text/csv" } }));
+      expect(clicked[1]).toBe("requests-37.csv");
+
+      // Excel asked of a server that names nothing: requests-37.xlsx; of an older one that answers CSV anyway: .csv, as it is.
+      reply = () => new Response("PK", { status: 200, headers: { "content-type": XLSX } });
+      await pick(/Download Excel/);
+      await waitFor(() => expect(clicked).toHaveLength(3));
+      expect(clicked[2]).toBe("requests-37.xlsx");
+      reply = () => new Response("status\r\npending", { status: 200, headers: { "content-type": "text/csv; charset=utf-8" } });
+      await pick(/Download Excel/);
+      await waitFor(() => expect(clicked).toHaveLength(4));
+      expect(clicked[3]).toBe("requests-37.csv");
     } finally {
       click.mockRestore();
       success.mockRestore();
@@ -579,7 +609,7 @@ describe("the numbers, All and Export", () => {
     const warn = vi.spyOn(toast, "warning");
     try {
       render(<RequestsPage eventId={37} />);
-      fireEvent.click(await screen.findByRole("button", { name: "Export" }));
+      await pick(/Download Excel/);
       await waitFor(() => expect(warn).toHaveBeenCalledWith("Exporting registrations arrives with the next update of MyOtherApp."));
       await waitFor(() => expect(screen.queryByRole("button", { name: "Export" })).toBeNull());
     } finally {

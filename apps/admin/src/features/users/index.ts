@@ -38,5 +38,5 @@ export {
 } from "./schemas";
 export { ResetPasswordDialog } from "./components/reset-password-dialog";
 export { useResetUserPassword, useExportUsers } from "./queries";
-export { exportUsersCsv, type UserFilters } from "./api";
+export { exportUsers, type UserFilters } from "./api";
 export { generatePassword } from "./password";

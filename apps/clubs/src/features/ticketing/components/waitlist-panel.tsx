@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { CopyIcon, DownloadIcon, LockIcon, SendIcon, UserMinusIcon, UsersRoundIcon } from "lucide-react";
-import { formatDateTime } from "@moa/app-kit";
+import { CopyIcon, LockIcon, SendIcon, UserMinusIcon, UsersRoundIcon } from "lucide-react";
+import { ExportMenu, formatDateTime } from "@moa/app-kit";
 import {
   CardLabel,
   Chip,
@@ -166,9 +166,7 @@ export function WaitlistPanel({ eventId }: { eventId: number }) {
           right={
             // Not for door staff: names and contacts, as a list to take away.
             can.exports ? (
-              <a href={waitlistExportUrl(eventId)} className="btn btn-secondary btn-sm" download>
-                <DownloadIcon className="size-4" /> Export
-              </a>
+              <ExportMenu href={waitlistExportUrl(eventId)} size="sm" />
             ) : undefined
           }
         >

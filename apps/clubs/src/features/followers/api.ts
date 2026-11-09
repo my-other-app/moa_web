@@ -33,5 +33,5 @@ export async function fetchFollowersInsights() {
   return followersInsightsSchema.parse(await api.get<unknown>("/api/v1/clubs/followers/insights"));
 }
 
-/** The spreadsheet goes through the gateway like everything else; the browser just opens it. */
+/** The spreadsheet goes through the gateway like everything else; the browser just opens it. CSV as written; the export menu adds `format=xlsx` for Excel. */
 export const followersExportUrl = (segment: Segment) => `/api/gateway/api/v1/clubs/followers/export.csv?segment=${segment}`;

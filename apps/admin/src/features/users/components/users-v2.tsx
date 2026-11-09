@@ -6,11 +6,9 @@ import {
   ArrowUpNarrowWideIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  FileSpreadsheetIcon,
-  Loader2Icon,
   SearchIcon,
 } from "lucide-react";
-import { PersonAvatar, formatNumber, useListParams } from "@moa/app-kit";
+import { ExportMenu, PersonAvatar, formatNumber, useListParams } from "@moa/app-kit";
 import { InlineAlert, Skeleton, cn } from "@moa/ui";
 
 import { useCan } from "@/hooks/use-can";
@@ -251,21 +249,12 @@ export function UsersV2() {
         </div>
 
         {canExport ? (
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={exportUsers.isPending || total === 0}
-            onClick={() => exportUsers.mutate(filters)}
-          >
-            {exportUsers.isPending ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <FileSpreadsheetIcon className="size-4" />
-            )}
-            {exportUsers.isPending
-              ? "Preparing…"
-              : `Export ${totalText} as CSV`}
-          </button>
+          <ExportMenu
+            label={`Export ${totalText}`}
+            disabled={total === 0}
+            busy={exportUsers.isPending}
+            onExport={(format) => exportUsers.mutate({ filters, format })}
+          />
         ) : null}
       </header>
 

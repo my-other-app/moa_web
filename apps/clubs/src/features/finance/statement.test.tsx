@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { exportChoices } from "@/test/export-menu";
 
 import summaryFixture from "../__fixtures__/finance-summary.json";
 
@@ -37,17 +38,21 @@ beforeEach(() => {
   gets.length = 0;
 });
 
-const statement = () => screen.getByRole("link", { name: /Export statement/ });
+/** The statement's two downloads: the CSV the API always sent, and the Excel workbook (`format=xlsx`). */
+const statement = () => exportChoices(/Export statement/);
 const lastQuery = () => new URLSearchParams(gets.filter((g) => g.path.endsWith("/clubs/finance")).at(-1)?.query ?? {});
 
 describe("the finance statement", () => {
   it("downloads the club's statement through the gateway, as a file, for the default window", async () => {
     render(<FinancePage scope={{ kind: "club" }} />);
     await waitFor(() => expect(gets.length).toBeGreaterThan(0));
-    const link = statement();
-    expect(link).toHaveAttribute("download");
+    const { order, xlsx, csv } = await statement();
+    expect(order).toEqual(["Download Excel (.xlsx)", "Download CSV"]);
+    expect(csv).toHaveAttribute("download");
+    expect(xlsx).toHaveAttribute("download");
     // The last six months is the API's own default, so neither asks for dates.
-    expect(link).toHaveAttribute("href", "/api/gateway/api/v1/clubs/finance/statement.csv");
+    expect(csv).toHaveAttribute("href", "/api/gateway/api/v1/clubs/finance/statement.csv");
+    expect(xlsx).toHaveAttribute("href", "/api/gateway/api/v1/clubs/finance/statement.csv?format=xlsx");
     expect(lastQuery().toString()).toBe("");
   });
 
@@ -58,12 +63,15 @@ describe("the finance statement", () => {
     for (const period of ["month", "year", "all", "3m"]) {
       fireEvent.change(screen.getByRole("combobox", { name: "Period" }), { target: { value: period } });
       await waitFor(() => expect(lastQuery().get("from")).toBeTruthy());
-      const href = statement().getAttribute("href")!;
-      const [path, search] = href.split("?");
-      expect(path).toBe("/api/gateway/api/v1/clubs/finance/statement.csv");
-      const asked = new URLSearchParams(search);
-      expect(asked.get("from")).toBe(lastQuery().get("from"));
-      expect(asked.get("to")).toBe(lastQuery().get("to"));
+      const { xlsx, csv } = await statement();
+      for (const [link, format] of [[csv, null], [xlsx, "xlsx"]] as const) {
+        const [path, search] = link.getAttribute("href")!.split("?");
+        expect(path).toBe("/api/gateway/api/v1/clubs/finance/statement.csv");
+        const asked = new URLSearchParams(search);
+        expect(asked.get("from")).toBe(lastQuery().get("from"));
+        expect(asked.get("to")).toBe(lastQuery().get("to"));
+        expect(asked.get("format")).toBe(format);
+      }
     }
   });
 
@@ -71,7 +79,9 @@ describe("the finance statement", () => {
     render(<FinancePage scope={{ kind: "event", eventId: 37 }} />);
     await waitFor(() => expect(gets.some((g) => g.path.endsWith("/events/37/finance"))).toBe(true));
     expect(screen.queryByRole("combobox", { name: "Period" })).not.toBeInTheDocument();
-    expect(statement()).toHaveAttribute("href", "/api/gateway/api/v1/events/37/finance/statement.csv");
-    expect(statement()).toHaveAttribute("download");
+    const { xlsx, csv } = await statement();
+    expect(csv).toHaveAttribute("href", "/api/gateway/api/v1/events/37/finance/statement.csv");
+    expect(xlsx).toHaveAttribute("href", "/api/gateway/api/v1/events/37/finance/statement.csv?format=xlsx");
+    expect(csv).toHaveAttribute("download");
   });
 });

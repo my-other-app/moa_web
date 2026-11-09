@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
+import { exportChoices } from "@/test/export-menu";
 import { shownPicture, stubImageLoading } from "@/test/images";
 import usersFixture from "../__fixtures__/users.json";
 
@@ -71,7 +72,7 @@ function pageOf(items: Row[]) {
 const { render } = await import("@/test/render");
 const { UsersV2 } = await import("./components/users-v2");
 const { adminUserSchema } = await import("./schemas");
-const { exportUsersCsv, fetchUsers, cursorOf } = await import("./api");
+const { exportUsers, fetchUsers, cursorOf } = await import("./api");
 
 beforeEach(() => {
   calls.length = 0;
@@ -134,18 +135,19 @@ describe("users screen", () => {
     expect(calls[0]).toContain("limit=25");
   });
 
-  it("offers the export to an owner", async () => {
+  it("offers the export to an owner, as Excel first or CSV", async () => {
     render(<UsersV2 />);
-    expect(
-      await screen.findByRole("button", { name: /Export .* as CSV/ })
-    ).toBeInTheDocument();
+    // Off until the list has loaded and has someone in it.
+    await screen.findByText("@platform_admin");
+    const { order } = await exportChoices(/^Export \d/);
+    expect(order).toEqual(["Download Excel (.xlsx)", "Download CSV"]);
   });
 
   it("hides the export from a role that cannot use it", async () => {
     role = "support";
     render(<UsersV2 />);
     await screen.findByText("@platform_admin");
-    expect(screen.queryByRole("button", { name: /as CSV/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Export/ })).not.toBeInTheDocument();
   });
 
   it("says how many users the filters are hiding, not just that none matched", async () => {
@@ -213,7 +215,7 @@ describe("a platform past ten thousand accounts", () => {
     envelope = { total: 10_000, next: "/api/v1/user/admin/list?limit=25&sort=joined&order=desc&cursor=2026-10-18T09%3A00%3A00%2B00%3A00~4211" };
     render(<UsersV2 />);
     expect(await screen.findByText(/^10,000\+ people/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Export 10,000+ as CSV" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export 10,000+" })).toBeInTheDocument();
     expect(screen.getByText("Page 1 · 1–3 of 10,000+")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Next/ })).toBeEnabled();
   });
@@ -248,7 +250,7 @@ describe("a platform past ten thousand accounts", () => {
   });
 });
 
-describe("the CSV export request", () => {
+describe("the export request", () => {
   function stubFetch(response: Response) {
     // Typed with the arguments so the assertions below can read the URL it
     // was called with.
@@ -273,14 +275,14 @@ describe("the CSV export request", () => {
       })
     );
 
-    await exportUsersCsv({
+    await exportUsers({
       search: "ara",
       userType: "club",
       provider: "apple",
       sort: "name",
       order: "asc",
       isActive: false,
-    });
+    }, "csv");
 
     const url = String(fetchMock.mock.calls.at(0)?.[0]);
     expect(url).toContain("/api/gateway/api/v1/user/admin/export");
@@ -297,7 +299,7 @@ describe("the CSV export request", () => {
   it("leaves an unset filter out rather than sending it empty", async () => {
     const fetchMock = stubFetch(new Response("id\n", { status: 200 }));
 
-    await exportUsersCsv({ search: "", userType: undefined });
+    await exportUsers({ search: "", userType: undefined }, "csv");
 
     const url = String(fetchMock.mock.calls.at(0)?.[0]);
     expect(url).not.toContain("search=");
@@ -312,6 +314,23 @@ describe("the CSV export request", () => {
       })
     );
 
-    await expect(exportUsersCsv({})).rejects.toThrow(/Not permitted/);
+    await expect(exportUsers({}, "xlsx")).rejects.toThrow(/Not permitted/);
+  });
+
+  it("asks for Excel with format=xlsx beside the filters, and names the file .xlsx", async () => {
+    const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    const fetchMock = stubFetch(new Response("PK", { status: 200, headers: { "content-type": XLSX } }));
+    const saved: string[] = [];
+    vi.mocked(HTMLAnchorElement.prototype.click).mockImplementation(function (this: HTMLAnchorElement) {
+      saved.push(this.download);
+    });
+
+    await exportUsers({ search: "ara" }, "xlsx");
+
+    const [url, init] = fetchMock.mock.calls.at(0)!;
+    expect(url).toBe("/api/gateway/api/v1/user/admin/export?search=ara&format=xlsx");
+    expect(init).toMatchObject({ credentials: "include", headers: { Accept: XLSX } });
+    // The API names its file; without a name, ours, with the extension of what came back.
+    expect(saved).toEqual(["users.xlsx"]);
   });
 });

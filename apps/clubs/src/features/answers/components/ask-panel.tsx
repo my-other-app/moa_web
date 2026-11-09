@@ -234,7 +234,7 @@ function AskFields({ eventId, target, summary, onClose, onSent }: { eventId: num
                 <li key={q.key} className="flex items-start gap-2.5 px-3 py-2.5">
                   <Checkbox id={boxId} checked={on} onCheckedChange={(v) => toggle(q.key, v === true)} disabled={!on && picked.size >= ASK_QUESTIONS_MAX} className="mt-0.5" />
                   <label htmlFor={boxId} className="min-w-0 flex-1 cursor-pointer">
-                    <span className="text-ink block text-[13px] font-medium">{q.label?.trim() || q.key}</span>
+                    <span className="text-ink block text-[13px] font-medium [overflow-wrap:anywhere]">{q.label?.trim() || q.key}</span>
                     <span className="text-ink-3 block text-[11.5px]">
                       {q.missing > 0 ? `${peopleWord(q.missing)} missing` : q.blank + q.invalid > 0 ? `${peopleWord(q.blank + q.invalid)} left it blank` : "everyone has answered"}
                       {q.required ? " · must be answered" : " · optional"}
@@ -365,7 +365,7 @@ function AskFields({ eventId, target, summary, onClose, onSent }: { eventId: num
                   ))}
                 </ul>
                 {texts.email.deadline ? <p className="mt-2 mb-0">{texts.email.deadline}</p> : null}
-                <span className="bg-brand mt-3 inline-block rounded-lg px-3 py-1.5 text-[12px] font-medium text-white">{texts.email.button}</span>
+                <span className="bg-brand mt-3 inline-block rounded-lg px-3 py-1.5 text-[12px] font-medium text-brand-foreground">{texts.email.button}</span>
               </>
             ) : preview === "push" ? (
               <>

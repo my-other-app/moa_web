@@ -7,11 +7,12 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { ApiError, nullIfRouteMissing, qk } from "@moa/api";
+import type { ExportFormat } from "@moa/app-kit";
 import { toast } from "@moa/ui";
 
 import {
   deleteEvent,
-  downloadUnderReviewCsv,
+  downloadUnderReview,
   fetchEvent,
   fetchEventCategories,
   fetchEventCohosts,
@@ -56,10 +57,10 @@ export function useUnderReview(eventId: number, query: ReviewQuery, enabled = tr
   });
 }
 
-/** Every registration under review of the event, as the server's CSV. */
+/** Every registration under review of the event, as the server's Excel workbook or CSV (the mutation's variable). */
 export function useExportUnderReview(eventId: number) {
   return useMutation({
-    mutationFn: () => downloadUnderReviewCsv(eventId),
+    mutationFn: (format: ExportFormat) => downloadUnderReview(eventId, format),
     onSuccess: () => toast.success("Registrations under review exported"),
     onError: (error: Error) =>
       toast.error(error.message || "The export didn't go through. Try again."),
