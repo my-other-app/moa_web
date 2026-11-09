@@ -4,12 +4,13 @@ import * as React from "react";
 import Link from "next/link";
 import {
   DoorOpenIcon,
-  DownloadIcon,
   ScanLineIcon,
   Undo2Icon,
 } from "lucide-react";
 import {
+  ExportMenu,
   downloadCsv,
+  downloadXlsx,
   EVENT_TIMEZONE,
   fetchAllPages,
   formatDateTime,
@@ -22,6 +23,7 @@ import {
   timestampedName,
   toCsv,
   type CsvColumn,
+  type ExportFormat,
   type EventSummary,
 } from "@moa/app-kit";
 import {
@@ -695,7 +697,7 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
     filtered: !!(q.trim() || doorId || via || by !== undefined),
   };
 
-  const exportLog = async () => {
+  const exportLog = async (format: ExportFormat) => {
     setExporting(true);
     try {
       const { rows, truncated } = await fetchAllPages<CheckInRow>(
@@ -708,10 +710,10 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
           return { items: res.items, total: res.total };
         },
       );
-      downloadCsv(
-        timestampedName(`check-ins-${eventId}`),
-        toCsv(rows, COLUMNS),
-      );
+      // One set of rows and columns for both files, so they can't disagree.
+      if (format === "xlsx")
+        await downloadXlsx(timestampedName(`check-ins-${eventId}`, "xlsx"), rows, COLUMNS, { sheet: "Check-ins" });
+      else downloadCsv(timestampedName(`check-ins-${eventId}`), toCsv(rows, COLUMNS));
       if (truncated)
         toast.warning(
           `The first ${formatNumber(rows.length)} admissions were exported`,
@@ -739,13 +741,11 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
         actions={
           <>
             {can.exports ? (
-              <Button
-                variant="secondary"
-                onClick={() => void exportLog()}
-                disabled={exporting || !f?.total}
-              >
-                <DownloadIcon /> {exporting ? "Exporting…" : "Export"}
-              </Button>
+              <ExportMenu
+                onExport={(format) => void exportLog(format)}
+                busy={exporting}
+                disabled={!f?.total}
+              />
             ) : null}
             <Link
               href={`/gate/${eventId}`}

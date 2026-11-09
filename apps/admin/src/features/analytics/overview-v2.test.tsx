@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { formatCurrency } from "@moa/app-kit";
 
+import { pickExport } from "@/test/export-menu";
+
 import doorsFixture from "../__fixtures__/platform-doors.json";
 
 /**
@@ -397,11 +399,25 @@ describe("taking the figures away", () => {
     render(<AdminOverviewV2 />);
     await screen.findByRole("heading", { name: "Is the platform healthy?" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    await pickExport("Export", "csv");
 
-    expect(downloaded).toBe("platform-snapshot.csv");
+    await waitFor(() => expect(downloaded).toBe("platform-snapshot.csv"));
     const csv = (await readText(blob!)).replace(/^\uFEFF/, "");
-    expect(csv.split("\n").slice(0, 3)).toEqual(["metric,value", '"Users","669"', '"Clubs","50 (38 verified)"']);
+    expect(csv.split("\r\n").slice(0, 3)).toEqual(["metric,value", "Users,669", "Clubs,50 (38 verified)"]);
+  });
+
+  it("exports the same totals as an Excel workbook", async () => {
+    vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:snapshot");
+    let downloaded = "";
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      downloaded = this.download;
+    });
+    render(<AdminOverviewV2 />);
+    await screen.findByRole("heading", { name: "Is the platform healthy?" });
+
+    await pickExport("Export", "xlsx");
+
+    await waitFor(() => expect(downloaded).toBe("platform-snapshot.xlsx"));
   });
 
 });

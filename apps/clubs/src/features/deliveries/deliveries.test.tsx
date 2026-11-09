@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
+import { pickExport } from "@/test/export-menu";
+
 const calls: Array<{ method: string; path: string; body?: unknown; query?: Record<string, unknown> }> = [];
 
 const tally = (t: Partial<Record<"sent" | "delivered" | "awaiting" | "bounced" | "complained" | "failed" | "skipped" | "pending", number>>) => ({
@@ -20,6 +22,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
   return {
     ...actual,
+    downloadCsv: vi.fn(),
+    downloadXlsx: vi.fn(async () => {}),
     api: {
       get: vi.fn(async (path: string, options?: { query?: Record<string, unknown> }) => {
         calls.push({ method: "GET", path, query: options?.query });
@@ -53,6 +57,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 
 const { render } = await import("@/test/render");
 const { DeliveryLog } = await import("./components/delivery-log");
+const { downloadCsv, downloadXlsx, toCsv } = await import("@moa/app-kit");
 
 beforeEach(() => {
   calls.length = 0;
@@ -81,6 +86,28 @@ describe("the deliveries tab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send 10 tickets" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.path === "/api/v1/events/42/tickets/send")).toBe(true));
     expect(calls.find((c) => c.path === "/api/v1/events/42/tickets/send")?.body).toEqual({ only: "unsent" });
+  });
+
+  it("exports every send as a CSV or, from the same rows and columns, an Excel workbook", async () => {
+    render(<DeliveryLog eventId={42} />);
+    await screen.findByText("Guest b1");
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Export/ })).toBeEnabled());
+
+    await pickExport(/^Export/, "csv");
+    await waitFor(() => expect(downloadCsv).toHaveBeenCalledTimes(1));
+    const [csvName, csv] = vi.mocked(downloadCsv).mock.calls[0]!;
+    expect(csvName).toMatch(/-deliveries\.csv$/);
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toBe("Guest,Ticket,Address,Channel,What,Sent,Outcome,Reason");
+    expect(lines.some((l) => l.startsWith("Guest b1,MOA-b1,b1@example.com,email,ticket,") && l.endsWith(",Mailbox does not exist"))).toBe(true);
+    expect(lines.some((l) => l.includes("message: Doors open at six"))).toBe(true);
+
+    await pickExport(/^Export/, "xlsx");
+    await waitFor(() => expect(downloadXlsx).toHaveBeenCalledTimes(1));
+    const [xlsxName, rows, columns, options] = vi.mocked(downloadXlsx).mock.calls[0]!;
+    expect(xlsxName).toMatch(/-deliveries\.xlsx$/);
+    expect(options).toEqual({ sheet: "Deliveries" });
+    expect(toCsv(rows as never[], columns as never)).toBe(csv);
   });
 
   it("lists every send with what became of it, and sends a ticket that bounced again", async () => {

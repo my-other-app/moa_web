@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 
+import { pickExport } from "@/test/export-menu";
+
 /**
  * The Organisations list's Export and Views.
  *
@@ -54,7 +56,7 @@ const { OrgsTable } = await import("./index");
 const { toast } = await import("@moa/ui");
 
 const exportList = async () => {
-  fireEvent.click(await screen.findByRole("button", { name: "Export" }));
+  await pickExport("Export", "csv");
   await waitFor(() => expect(downloads).toHaveLength(1));
   return downloads[0]!.csv.split("\r\n");
 };
@@ -126,7 +128,7 @@ describe("exporting the organisations", () => {
     const said = vi.spyOn(toast, "info");
     render(<OrgsTable />);
     await screen.findByText("No organisations");
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    await pickExport("Export", "csv");
     await waitFor(() => expect(said).toHaveBeenCalledWith("Nothing to export with the current filters"));
     expect(downloads).toHaveLength(0);
   });

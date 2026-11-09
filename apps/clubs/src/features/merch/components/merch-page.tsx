@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { DownloadIcon, GiftIcon, Trash2Icon } from "lucide-react";
+import { GiftIcon, Trash2Icon } from "lucide-react";
 import {
+  ExportMenu,
   downloadCsv,
+  downloadXlsx,
   fetchAllPages,
   formatDateTime,
   formatNumber,
@@ -12,6 +14,7 @@ import {
   timestampedName,
   toCsv,
   type CsvColumn,
+  type ExportFormat,
 } from "@moa/app-kit";
 import {
   Button,
@@ -490,7 +493,7 @@ function Handovers({ eventId }: { eventId: number }) {
     setBy(undefined);
     setPage(1);
   };
-  const exportLog = async () => {
+  const exportLog = async (format: ExportFormat) => {
     setExporting(true);
     try {
       const { rows, truncated } = await fetchAllPages<MerchLogRow>(
@@ -503,7 +506,10 @@ function Handovers({ eventId }: { eventId: number }) {
           return { items: res.items, total: res.total };
         },
       );
-      downloadCsv(timestampedName(`swag-handovers-${eventId}`), toCsv(rows, COLUMNS));
+      // One set of rows and columns for both files, so they can't disagree.
+      if (format === "xlsx")
+        await downloadXlsx(timestampedName(`swag-handovers-${eventId}`, "xlsx"), rows, COLUMNS, { sheet: "Swag handovers" });
+      else downloadCsv(timestampedName(`swag-handovers-${eventId}`), toCsv(rows, COLUMNS));
       if (truncated)
         toast.warning(`The first ${formatNumber(rows.length)} handovers were exported`, {
           description: "Narrow the filters to export the rest.",
@@ -530,14 +536,12 @@ function Handovers({ eventId }: { eventId: number }) {
           </p>
         </div>
         {can.exports ? (
-          <Button
-            variant="secondary"
+          <ExportMenu
             size="sm"
-            onClick={() => void exportLog()}
-            disabled={exporting || !f?.total}
-          >
-            <DownloadIcon /> {exporting ? "Exporting…" : "Export"}
-          </Button>
+            onExport={(format) => void exportLog(format)}
+            busy={exporting}
+            disabled={!f?.total}
+          />
         ) : null}
       </div>
       <Toolbar className="mt-1">

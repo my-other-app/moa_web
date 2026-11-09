@@ -6,14 +6,22 @@ import {
   ArrowRightIcon,
   CalendarCheckIcon,
   CopyIcon,
-  FileDownIcon,
   IndianRupeeIcon,
   PresentationIcon,
   TicketIcon,
   UserPlusIcon,
   WrenchIcon,
 } from "lucide-react";
-import { formatCurrency, formatNumber } from "@moa/app-kit";
+import {
+  ExportMenu,
+  downloadCsv,
+  downloadXlsx,
+  formatCurrency,
+  formatNumber,
+  toCsv,
+  type CsvColumn,
+  type ExportFormat,
+} from "@moa/app-kit";
 import { Button, Skeleton, cn, toast } from "@moa/ui";
 
 import { useAdminOverview } from "../queries";
@@ -23,6 +31,12 @@ import { Meter, Micro, Panel, PanelTitle, RuleRow, Segmented } from "./v2-primit
 import { RevenueStrip } from "@/features/revenue";
 
 import { PlatformDoorsPanel } from "./platform-doors-panel";
+
+/** The snapshot's two columns, for both the CSV and the Excel file. */
+const SNAPSHOT_COLUMNS: CsvColumn<readonly [string, string]>[] = [
+  { header: "metric", value: ([k]) => k },
+  { header: "value", value: ([, v]) => v },
+];
 
 /**
  * The v2 Overview.
@@ -279,6 +293,17 @@ export function AdminOverviewV2() {
     ["Average rating", `${averages.average_rating} from ratings`],
   ] as const;
 
+  /** The same totals as a file: Excel or CSV, from the same rows. */
+  const exportSnapshot = async (format: ExportFormat) => {
+    try {
+      if (format === "xlsx") await downloadXlsx("platform-snapshot.xlsx", summary, SNAPSHOT_COLUMNS, { sheet: "Platform snapshot" });
+      else downloadCsv("platform-snapshot.csv", toCsv(summary, SNAPSHOT_COLUMNS));
+      toast.success("Snapshot exported");
+    } catch (error) {
+      toast.error(error instanceof Error && error.message ? error.message : "Export failed");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-[22px]">
       <header className="flex flex-wrap items-end gap-3.5">
@@ -317,26 +342,11 @@ export function AdminOverviewV2() {
           >
             <CopyIcon /> Copy summary
           </Button>
-          <Button
+          <ExportMenu
             variant="outline"
             size="sm"
-            onClick={() => {
-              const csv =
-                "metric,value\n" +
-                summary.map(([k, v]) => `"${k}","${v}"`).join("\n");
-              const url = URL.createObjectURL(
-                new Blob(["﻿" + csv], { type: "text/csv" })
-              );
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = "platform-snapshot.csv";
-              a.click();
-              URL.revokeObjectURL(url);
-              toast.success("Snapshot exported");
-            }}
-          >
-            <FileDownIcon /> Export
-          </Button>
+            onExport={(format) => void exportSnapshot(format)}
+          />
           <Segmented
             label="Reporting period"
             value={String(days)}

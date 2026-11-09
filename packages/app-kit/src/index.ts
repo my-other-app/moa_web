@@ -2,12 +2,16 @@ export { getQueryClient, staleTimes } from "./query-client";
 export { api } from "./client";
 export {
   toCsv,
+  tableOf,
   downloadCsv,
   timestampedName,
   fetchAllPages,
   EXPORT_MAX_ROWS,
   type CsvColumn,
+  type ExportColumn,
 } from "./csv";
+// Not "./xlsx": the writer is imported on the click, inside these.
+export { downloadXlsx, toXlsxBytes } from "./table-export";
 export {
   EXPORT_CHOICE_LABEL,
   EXPORT_FORMATS,

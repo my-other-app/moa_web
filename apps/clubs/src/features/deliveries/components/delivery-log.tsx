@@ -5,12 +5,21 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   CheckCircle2Icon,
-  DownloadIcon,
   Loader2Icon,
   MailIcon,
   RotateCwIcon,
 } from "lucide-react";
-import { formatDateTime, formatNumber, relativeTime } from "@moa/app-kit";
+import {
+  ExportMenu,
+  downloadCsv,
+  downloadXlsx,
+  formatDateTime,
+  formatNumber,
+  relativeTime,
+  toCsv,
+  type CsvColumn,
+  type ExportFormat,
+} from "@moa/app-kit";
 import {
   Button,
   CardLabel,
@@ -26,6 +35,7 @@ import {
   StatusBadge,
   Toolbar,
   ToolbarEnd,
+  toast,
 } from "@moa/ui";
 
 import { useEventDetail } from "@/features/events";
@@ -81,8 +91,17 @@ const readKind = (v: string | null): Kind =>
   v === "ticket" || v === "certificate" || v === "message" ? v : "all";
 const n = (count: number, [one, many]: [string, string]) =>
   `${formatNumber(count)} ${count === 1 ? one : many}`;
-const csvCell = (v: string | null | undefined) =>
-  `"${(v ?? "").replace(/"/g, '""')}"`;
+/** The export's columns: the CSV and the Excel file are both written from these. */
+const EXPORT_COLUMNS: CsvColumn<DeliveryLogRow>[] = [
+  { header: "Guest", value: (r) => r.name },
+  { header: "Ticket", value: (r) => r.ticket_id },
+  { header: "Address", value: (r) => r.address },
+  { header: "Channel", value: (r) => r.channel },
+  { header: "What", value: (r) => (r.kind === "message" ? `message: ${r.what ?? ""}` : r.kind) },
+  { header: "Sent", value: (r) => (r.sent_at ? formatDateTime(r.sent_at) : "") },
+  { header: "Outcome", value: (r) => verdictOf(r).label },
+  { header: "Reason", value: (r) => r.reason },
+];
 const emailOf = (s: DeliverySummary | undefined) =>
   s?.channels.find((c) => c.channel === "email");
 const COLS =
@@ -548,7 +567,7 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
       ? resendCertificate.variables
       : null;
 
-  const download = async () => {
+  const download = async (format: ExportFormat) => {
     setDownloading(true);
     try {
       const rows: DeliveryLogRow[] = [];
@@ -559,38 +578,12 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
         rows.push(...res.items);
         if (rows.length >= res.total || !res.items.length) break;
       }
-      const csv = [
-        [
-          "Guest",
-          "Ticket",
-          "Address",
-          "Channel",
-          "What",
-          "Sent",
-          "Outcome",
-          "Reason",
-        ].join(","),
-        ...rows.map((r) =>
-          [
-            csvCell(r.name),
-            csvCell(r.ticket_id),
-            csvCell(r.address),
-            csvCell(r.channel),
-            csvCell(r.kind === "message" ? `message: ${r.what ?? ""}` : r.kind),
-            csvCell(r.sent_at ? formatDateTime(r.sent_at) : ""),
-            csvCell(verdictOf(r).label),
-            csvCell(r.reason),
-          ].join(","),
-        ),
-      ].join("\n");
-      const url = URL.createObjectURL(
-        new Blob([csv], { type: "text/csv;charset=utf-8" }),
-      );
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${event.data?.slug ?? `event-${eventId}`}-deliveries${kind === "all" ? "" : `-${kind}`}${problem ? "-problems" : ""}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const stem = `${event.data?.slug ?? `event-${eventId}`}-deliveries${kind === "all" ? "" : `-${kind}`}${problem ? "-problems" : ""}`;
+      // One set of rows and columns for both files, so they can't disagree.
+      if (format === "xlsx") await downloadXlsx(`${stem}.xlsx`, rows, EXPORT_COLUMNS, { sheet: "Deliveries" });
+      else downloadCsv(`${stem}.csv`, toCsv(rows, EXPORT_COLUMNS));
+    } catch (err) {
+      toast.error(err instanceof Error && err.message ? err.message : "Could not export the deliveries");
     } finally {
       setDownloading(false);
     }
@@ -609,18 +602,11 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
               : "Every ticket, certificate and message sent to a guest, and what became of it."}
           </p>
         </div>
-        <Button
-          variant="secondary"
-          disabled={downloading || !total}
-          onClick={download}
-        >
-          {downloading ? (
-            <Loader2Icon className="animate-spin" />
-          ) : (
-            <DownloadIcon />
-          )}
-          Export CSV
-        </Button>
+        <ExportMenu
+          onExport={(format) => void download(format)}
+          busy={downloading}
+          disabled={!total}
+        />
       </header>
 
       {tallies.isError ? (

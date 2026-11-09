@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 
+import { pickExport } from "@/test/export-menu";
+
 /**
  * The Payments list's Export and Views. The export walks every page of the
  * filtered result set -- not just the page on screen -- with the filters the
@@ -92,7 +94,7 @@ describe("exporting the payments", () => {
     search = "status=captured&gateway=club&q=pay_";
     render(<PaymentsTable />);
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    await pickExport("Export", "csv");
     await waitFor(() => expect(downloads).toHaveLength(1));
 
     expect(exports).toEqual([{ status: "captured", gateway: "club", search: "pay_", user_id: undefined, offset: 0, limit: 100 }]);
@@ -108,7 +110,7 @@ describe("exporting the payments", () => {
     const said = vi.spyOn(toast, "success");
     render(<PaymentsTable />);
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    await pickExport("Export", "csv");
     await waitFor(() => expect(downloads).toHaveLength(1));
 
     expect(exports.map((q) => q.offset)).toEqual([0, 100]);
@@ -121,7 +123,7 @@ describe("exporting the payments", () => {
     const said = vi.spyOn(toast, "error");
     render(<PaymentsTable />);
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    await pickExport("Export", "csv");
 
     await waitFor(() => expect(said).toHaveBeenCalledWith("Gateway Timeout"));
     expect(downloads).toHaveLength(0);

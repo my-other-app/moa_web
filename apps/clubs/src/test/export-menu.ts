@@ -16,3 +16,9 @@ export async function exportChoices(name: string | RegExp): Promise<{ order: str
   fireEvent.keyDown(items[0]!, { key: "Escape" });
   return { order, xlsx, csv };
 }
+
+/** Opens an export menu and picks one of its choices: what a click on "Download CSV" or "Download Excel (.xlsx)" does. */
+export async function pickExport(name: string | RegExp, format: "xlsx" | "csv"): Promise<void> {
+  fireEvent.keyDown(await screen.findByRole("button", { name }), { key: "Enter" });
+  fireEvent.click(await screen.findByRole("menuitem", { name: format === "xlsx" ? "Download Excel (.xlsx)" : "Download CSV" }));
+}
