@@ -1,5 +1,6 @@
 export { EmailsPage } from "./components/emails-page";
-export { EmailEditor } from "./components/email-editor";
+export { EmailEditor, EventReviewEditor } from "./components/email-editor";
+export { ReviewSection } from "./components/review-section";
 export { MessagesPage } from "./components/messages-page";
 export { EmailLibraryPage } from "./components/library-page";
 export {

@@ -357,6 +357,8 @@ describe("the email library", () => {
     expect(within(section).getByText("Goes out when the event ends, or is deleted, while someone is still under review: once to each.")).toBeInTheDocument();
     // Sent by itself, not a timer and an audience, and no figures.
     expect(within(section).getAllByText(/^Sent by itself/)).toHaveLength(6);
+    // Each can be changed per event, in that event's Emails page.
+    expect(within(section).getAllByText("Each event can have its own words in its Emails page.")).toHaveLength(6);
     expect(within(section).queryByText(/by hand|sent to|opened/)).toBeNull();
     expect(within(section).queryByText("Automatic")).toBeNull();
     expect(within(section).queryByText("Request received")).toBeNull();

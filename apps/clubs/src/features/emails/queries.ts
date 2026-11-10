@@ -27,11 +27,16 @@ import {
   sendMessage,
   sendTemplate,
   sendTestEmail,
+  countReviewResend,
+  fetchReviewEmails,
+  resendReviewEmail,
+  resetReviewEmail,
+  saveReviewEmail,
   type MessageBody,
   type MessageQuery,
   type PreviewBody,
 } from "./api";
-import type { EmailAttachments, EmailAudience, EmailScope, EmailStage, EmailTemplateFields } from "./schemas";
+import type { EmailAttachments, EmailAudience, EmailScope, EmailStage, EmailTemplateFields, ReviewEmail } from "./schemas";
 
 export const emailsKey = (scope: EmailScope) =>
   scope.kind === "event" ? ([...qk.events.detail(scope.eventId), "emails"] as const) : ([...qk.clubs.self(), "emails"] as const);
@@ -247,5 +252,83 @@ export function useMessage(eventId: number, messageId: string | null, q: Message
     enabled: messageId !== null,
     placeholderData: keepPreviousData,
     refetchInterval: (query) => (query.state.data?.message.status === "SENDING" ? 3_000 : false),
+  });
+}
+
+// --- an event's own registration review emails --------------------------------------------------------------------------------------
+
+export const reviewEmailsKey = (eventId: number) => [...emailsKey({ kind: "event", eventId }), "review"] as const;
+
+/**
+ * The six review emails as this event sends them; `null` from an API
+ * without them per event (the section hides). While a send-again is going
+ * out its counts are read again every few seconds.
+ */
+export function useReviewEmails(eventId: number) {
+  return useQuery({
+    queryKey: reviewEmailsKey(eventId),
+    queryFn: () => fetchReviewEmails(eventId),
+    staleTime: 10_000,
+    refetchInterval: (query) => (query.state.data?.some((r) => r.lastResend?.status === "sending") ? 3_000 : false),
+  });
+}
+
+/** Puts a stage's new template into the cached list, as this event's own (a save) or the club's (a reset). */
+function useSetReviewTemplate(eventId: number) {
+  const queryClient = useQueryClient();
+  return (stage: string, template: ReviewEmail["template"] | null, source: ReviewEmail["source"]) => {
+    queryClient.setQueryData<ReviewEmail[] | null>(reviewEmailsKey(eventId), (list) =>
+      list?.map((r) => (r.stage === stage.toUpperCase() ? { ...r, source, template: template ?? r.template } : r)),
+    );
+    // The counts (who a send-again reaches) and the club's template come from the server.
+    void queryClient.invalidateQueries({ queryKey: reviewEmailsKey(eventId) });
+  };
+}
+
+export function useSaveReviewEmail(eventId: number) {
+  const setTemplate = useSetReviewTemplate(eventId);
+  return useMutation({
+    mutationFn: ({ stage, fields }: { stage: string; fields: EmailTemplateFields }) => saveReviewEmail(eventId, stage, fields),
+    onSuccess: (template, { stage }) => setTemplate(stage, template, "event"),
+    onError: toastError,
+  });
+}
+
+/** "Use club's default": drops this event's own words for the stage. */
+export function useResetReviewEmail(eventId: number) {
+  const setTemplate = useSetReviewTemplate(eventId);
+  return useMutation({
+    mutationFn: (stage: string) => resetReviewEmail(eventId, stage),
+    onSuccess: (template, stage) => {
+      setTemplate(stage, template, "club");
+      toast.success("Back to the club's words", { description: "This event now sends the club's version of this email." });
+    },
+    onError: toastError,
+  });
+}
+
+export function useReviewResendCount(eventId: number, stage: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...reviewEmailsKey(eventId), "count", stage],
+    queryFn: () => countReviewResend(eventId, stage),
+    enabled,
+    staleTime: 0,
+    retry: false,
+  });
+}
+
+/** A send-again; its errors are said in the confirm dialog (a plan refusal opens the upgrade dialog instead). */
+export function useResendReviewEmail(eventId: number) {
+  const queryClient = useQueryClient();
+  const refreshDeliveries = useRefreshDeliveries(eventId);
+  return useMutation({
+    mutationFn: ({ stage, clientRef }: { stage: string; clientRef: string }) => resendReviewEmail(eventId, stage, clientRef),
+    onSuccess: (r) => {
+      toast.success(r.recipients ? `Sending to ${r.recipients} ${r.recipients === 1 ? "person" : "people"}` : "Nobody to send to", {
+        description: r.recipients ? "Each email goes out one by one; the card shows how it went." : undefined,
+      });
+      void queryClient.invalidateQueries({ queryKey: reviewEmailsKey(eventId) });
+      refreshDeliveries();
+    },
   });
 }

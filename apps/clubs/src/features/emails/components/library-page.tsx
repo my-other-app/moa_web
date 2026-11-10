@@ -355,6 +355,9 @@ function ReviewCard({ t }: { t: LibraryTemplate }) {
       </div>
       {when ? <p className="text-ink-2 mt-2 text-[12.5px]">{goesOut(when)}</p> : null}
       <p className="text-ink-3 mt-0.5 text-[12px]">{meta.note}</p>
+      <p className="text-ink-3 mt-0.5 text-[12px]">
+        Each event can have its own words in its Emails page.
+      </p>
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
         <span className="text-ink-3 text-[11.5px]">
           Sent by itself · v{t.version} · edited {formatDate(t.updatedAt)}
