@@ -1,4 +1,5 @@
 import { api } from "@moa/app-kit";
+import { ApiError } from "@moa/api";
 
 import {
   audienceCountSchema,
@@ -18,6 +19,11 @@ import {
   type EmailStage,
   type EmailTemplateFields,
   libraryOverviewSchema,
+  reviewEmailSchema,
+  reviewEmailsSchema,
+  reviewResendCountSchema,
+  reviewResendSchema,
+  emailTemplateFieldsSchema,
 } from "./schemas";
 import { z } from "zod";
 
@@ -177,4 +183,63 @@ export async function fetchMessage(eventId: number, messageId: string, q: Messag
 /** The library with how each email is used and what it did, the month, and what goes out next. */
 export async function fetchLibraryOverview() {
   return libraryOverviewSchema.parse(await api.get<unknown>(`${scopeBase({ kind: "library" })}/overview`));
+}
+
+// --- an event's own registration review emails (event-review-emails-contract.md, section 2) ----------------------------------------
+
+const reviewBase = (eventId: number) => `${scopeBase({ kind: "event", eventId })}/review`;
+
+/** The editor of an event's own copy of a review email. */
+export const reviewHref = (eventId: number, stage: string) => `/events/${eventId}/emails/review/${stage.toLowerCase()}`;
+
+/**
+ * Whether an error means "this API has no review emails per event yet": its
+ * bare 404, a 405, or — on an API from before them — the 422 of `review`
+ * read as a template's id (a framework validation error, with no code).
+ */
+export function isReviewMissing(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  if (error.status === 404 || error.status === 405) return error.errorCode === null;
+  return error.status === 422 && error.errorCode === null;
+}
+
+/**
+ * The six review emails as this event sends them (GET /review), or `null`
+ * when the API doesn't have them per event yet: the section then hides.
+ */
+export async function fetchReviewEmails(eventId: number) {
+  try {
+    return reviewEmailsSchema.parse(await api.get<unknown>(reviewBase(eventId)));
+  } catch (error) {
+    if (isReviewMissing(error)) return null;
+    throw error;
+  }
+}
+
+/** Saves this event's own words for a stage (PUT /review/{stage}); the first save makes the copy. */
+export async function saveReviewEmail(eventId: number, stage: string, fields: EmailTemplateFields) {
+  const raw = await api.put<unknown>(`${reviewBase(eventId)}/${stage.toUpperCase()}`, emailTemplateFieldsSchema.parse(fields));
+  return reviewEmailSchema.shape.template.parse(raw);
+}
+
+/** Drops this event's own copy (DELETE /review/{stage}); answers the club's (or the default) template. */
+export async function resetReviewEmail(eventId: number, stage: string) {
+  const raw = await api.del<unknown>(`${reviewBase(eventId)}/${stage.toUpperCase()}`);
+  return reviewEmailSchema.shape.template.safeParse(raw).data ?? null;
+}
+
+/** How many a send-again reaches right now, and how many of them have no email. */
+export async function countReviewResend(eventId: number, stage: string) {
+  const raw = await api.post<unknown>(`${reviewBase(eventId)}/${stage.toUpperCase()}/resend/count`);
+  return reviewResendCountSchema.parse(raw);
+}
+
+/**
+ * Sends the stage's current words again to the people who got it. One
+ * `clientRef` per press, the same on a retry of that press: the API answers
+ * a ref it has seen with that send and mails nobody twice.
+ */
+export async function resendReviewEmail(eventId: number, stage: string, clientRef: string) {
+  const raw = await api.post<unknown>(`${reviewBase(eventId)}/${stage.toUpperCase()}/resend`, { clientRef });
+  return reviewResendSchema.parse(raw);
 }

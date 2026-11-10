@@ -563,3 +563,70 @@ export const libraryOverviewSchema = z.object({
   automatic: z.array(automaticEmailSchema).catch([]).default([]),
 });
 export type LibraryOverview = z.infer<typeof libraryOverviewSchema>;
+
+// --- an event's own registration review emails (event-review-emails-contract.md, sections 2 and 4) --------------------------------
+
+/**
+ * One send-again of a review email to the people who already got it:
+ * `GET /events/{id}/emails/review` (each stage's last) and
+ * `POST …/review/{stage}/resend` answer it.
+ */
+export const reviewResendSchema = z.object({
+  id: z.string(),
+  stage: z.string(),
+  createdAt: z.string(),
+  createdBy: z.object({ id: z.union([z.number(), z.string()]).nullish(), name: z.string().nullish() }).nullish().catch(null),
+  recipients: z.number().catch(0),
+  sent: z.number().catch(0),
+  failed: z.number().catch(0),
+  skipped: z.number().catch(0),
+  status: z.enum(["sending", "done"]).catch("done"),
+});
+export type ReviewResend = z.infer<typeof reviewResendSchema>;
+
+/** Where an event's review email gets its words: its own copy, the club's library, or MyOtherApp's starter. */
+export const REVIEW_SOURCES = ["event", "club", "default"] as const;
+export type ReviewSource = (typeof REVIEW_SOURCES)[number];
+
+/**
+ * The template a review stage answers with. The club's or the starter's
+ * may come without the bookkeeping an event's own copy has, so those parts
+ * are read leniently: what the editor needs is the words.
+ */
+const reviewTemplateSchema = emailTemplateSchema.extend({
+  id: z.string().catch(""),
+  clubId: z.number().catch(0),
+  eventId: z.number().nullable().catch(null),
+  version: z.number().catch(0),
+  createdAt: z.string().catch(""),
+  updatedAt: z.string().catch(""),
+});
+
+export const reviewEmailSchema = z.object({
+  stage: stageSchema,
+  label: z.string().nullish().catch(null),
+  source: z.enum(REVIEW_SOURCES).catch("club"),
+  template: reviewTemplateSchema,
+  clubTemplateId: z.string().nullish().catch(null),
+  /** Whether a send-again makes sense for this stage (a timed nudge doesn't). */
+  resendable: z.boolean().catch(false),
+  /** How many people a send-again would reach right now. */
+  eligible: z.number().catch(0),
+  lastResend: reviewResendSchema.nullish().catch(null),
+});
+export type ReviewEmail = z.infer<typeof reviewEmailSchema>;
+export const reviewEmailsSchema = z.array(reviewEmailSchema);
+
+export const reviewResendCountSchema = z.object({ eligible: z.number(), withoutEmail: z.number().catch(0) });
+
+/** Who a send-again of each stage reaches, for the confirm dialog's sentence. */
+export const REVIEW_RESEND_WHO: Record<(typeof REQUEST_STAGES)[number], string> = {
+  REQUEST_RECEIVED: "everyone still waiting for review",
+  REQUEST_APPROVED: "everyone confirmed with a ticket, with their ticket attached",
+  REQUEST_APPROVED_PAY: "everyone confirmed who hasn't paid yet",
+  REQUEST_DECLINED: "everyone you declined, each with their own note",
+  REQUEST_LAPSED: "everyone whose registration expired before they paid",
+  REQUEST_UNANSWERED: "everyone whose registration closed before review",
+};
+export const reviewResendWho = (stage: string): string =>
+  REVIEW_RESEND_WHO[stage.toUpperCase() as keyof typeof REVIEW_RESEND_WHO] ?? "everyone who already got it";

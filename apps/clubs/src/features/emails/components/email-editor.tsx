@@ -61,7 +61,10 @@ import {
   useEmailContext,
   usePreview,
   useResetLibraryTemplate,
+  useResetReviewEmail,
   useResetTemplate,
+  useReviewEmails,
+  useSaveReviewEmail,
   useSaveTemplate,
   useSaveToLibrary,
   useSendTest,
@@ -74,6 +77,7 @@ import {
   fieldsOf,
   isRequestStage,
   newBlock,
+  stageOf,
   tokensForStage,
   type BlockKind,
   type EmailBlock,
@@ -81,11 +85,13 @@ import {
   type EmailScope,
   type EmailTemplate,
   type EmailTemplateFields,
+  type ReviewEmail,
 } from "../schemas";
 import { BlockInspector } from "./block-inspector";
 import { useDebounced, ui } from "./kit";
 import { SendingPanel, SubjectPanel, ThemePanel } from "./panels";
 import { isCustomised } from "./parts";
+import { ResendReviewDialog } from "./resend-dialog";
 import { SendTemplateDialog } from "./send-dialog";
 
 /** Loads the template and its context, then hands a fresh editor the lot. */
@@ -131,6 +137,92 @@ export function EmailEditor({
       template={tpl.data}
       context={ctx.data}
     />
+  );
+}
+
+/**
+ * An event's own words for a registration review email
+ * (/events/{id}/emails/review/{stage}): the editor in review mode, on this
+ * event. It opens on the words the event sends now — the club's until the
+ * first save makes the event's own copy. After a save, when the stage can
+ * be sent again and someone already got it, it offers to send them the new
+ * version.
+ */
+export function EventReviewEditor({ eventId, stage: param }: { eventId: number; stage: string }) {
+  const scope: EmailScope = { kind: "event", eventId };
+  const stage = stageOf(param);
+  const list = useReviewEmails(eventId);
+  const ctx = useEmailContext(scope);
+  const [offer, setOffer] = React.useState(false);
+  const [sendOpen, setSendOpen] = React.useState(false);
+  if (list.isPending || ctx.isPending)
+    return (
+      <div className="grid gap-4">
+        <Skeleton className="h-14 w-full max-w-md rounded-xl" />
+        <Skeleton className="h-[40rem] rounded-2xl" />
+      </div>
+    );
+  const item = list.data?.find((r) => r.stage === stage) ?? null;
+  if (!isRequestStage(stage) || list.isError || ctx.isError || !ctx.data || !item)
+    return (
+      <FigurePanel className="p-0">
+        <EmptyState
+          title="This email could not be opened"
+          description={
+            list.data === null
+              ? "Review emails can't be changed per event yet. Change the club's in the Email library."
+              : `${list.error?.message ?? ctx.error?.message ?? "There is no such review email."} Go back to the event's emails and open it again.`
+          }
+          action={
+            <Link href={scopeHref(scope)} className="btn btn-secondary">
+              <ArrowLeftIcon /> Event emails
+            </Link>
+          }
+        />
+      </FigurePanel>
+    );
+  const t = item.template;
+  const n = item.eligible;
+  return (
+    <>
+      <Editor
+        key={`${item.stage}:${item.source}:${t.id}:${t.version}`}
+        scope={scope}
+        template={t}
+        context={ctx.data}
+        eventReview={item}
+        onSaved={() => setOffer(true)}
+        banner={
+          offer && item.resendable && n > 0 ? (
+            <Notice
+              tone="accent"
+              tag="Saved"
+              action={
+                <span className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setOffer(false)}>
+                    Not now
+                  </Button>
+                  <Button size="sm" onClick={() => setSendOpen(true)}>
+                    <SendIcon /> Send it…
+                  </Button>
+                </span>
+              }
+            >
+              Send this new version to the {n} {n === 1 ? "person" : "people"} who already got the old one?
+            </Notice>
+          ) : null
+        }
+      />
+      <ResendReviewDialog
+        eventId={eventId}
+        stage={item.stage}
+        label={STAGE_META[item.stage].label}
+        eligible={n}
+        open={sendOpen}
+        onOpenChange={setSendOpen}
+        onSent={() => setOffer(false)}
+      />
+    </>
   );
 }
 
@@ -294,10 +386,18 @@ function Editor({
   scope,
   template,
   context,
+  eventReview,
+  onSaved,
+  banner,
 }: {
   scope: EmailScope;
   template: EmailTemplate;
   context: EmailContext;
+  /** An event's own copy of a review email: saved with PUT …/review/{stage}. */
+  eventReview?: ReviewEmail;
+  onSaved?: (saved: EmailTemplate) => void;
+  /** A line under the header (the offer to send a saved review email again). */
+  banner?: React.ReactNode;
 }) {
   const router = useRouter();
   const eventId = scope.kind === "event" ? scope.eventId : undefined;
@@ -316,9 +416,12 @@ function Editor({
   const [testOpen, setTestOpen] = React.useState(false);
   const [testTo, setTestTo] = React.useState("");
   const [sendOpen, setSendOpen] = React.useState(false);
-  const [confirm, setConfirm] = React.useState<"reset" | "default" | "delete" | null>(null);
+  const [confirm, setConfirm] = React.useState<"reset" | "default" | "delete" | "club" | null>(null);
 
-  const save = useSaveTemplate(scope);
+  const saveTemplate = useSaveTemplate(scope);
+  const saveReview = useSaveReviewEmail(eventId ?? 0);
+  const save = eventReview ? saveReview : saveTemplate;
+  const resetReview = useResetReviewEmail(eventId ?? 0);
   const sendTest = useSendTest(eventId ?? 0);
   const toLibrary = useSaveToLibrary(eventId ?? 0);
   const reset = useResetTemplate(eventId ?? 0);
@@ -369,22 +472,21 @@ function Editor({
     setTab("block");
   };
 
+  const onSuccess = (saved: EmailTemplate) => {
+    setBaseline(JSON.stringify(fieldsOf(saved)));
+    setFields(fieldsOf(saved));
+    toast.success("Saved", {
+      description:
+        saved.version > template.version
+          ? `Version ${saved.version}.`
+          : undefined,
+    });
+    onSaved?.(saved);
+  };
   const doSave = () =>
-    save.mutate(
-      { templateId: template.id, fields },
-      {
-        onSuccess: (saved) => {
-          setBaseline(JSON.stringify(fieldsOf(saved)));
-          setFields(fieldsOf(saved));
-          toast.success("Saved", {
-            description:
-              saved.version > template.version
-                ? `Version ${saved.version}.`
-                : undefined,
-          });
-        },
-      },
-    );
+    eventReview
+      ? saveReview.mutate({ stage: eventReview.stage, fields }, { onSuccess })
+      : saveTemplate.mutate({ templateId: template.id, fields }, { onSuccess });
 
   const stageMeta = STAGE_META[template.stage];
   const problems = preview.data?.problems ?? [];
@@ -415,7 +517,17 @@ function Editor({
             {fields.name || "Untitled email"}
           </Title>
           <p className="text-ink-3 mt-1 text-[12.5px]">
-            {review ? (
+            {eventReview ? (
+              <>
+                This event&apos;s own words — other events keep the
+                club&apos;s.
+                {eventReview.source === "event"
+                  ? ""
+                  : " Until you save, this event sends the club's."}{" "}
+                Goes out {stageMeta.when}
+                {/[.!?]$/.test(stageMeta.when ?? "") ? "" : "."} Always on.
+              </>
+            ) : review ? (
               <>
                 The club&apos;s email for every event that reviews
                 registrations. Goes out {stageMeta.when}
@@ -445,6 +557,7 @@ function Editor({
               <SendIcon /> Send test
             </Button>
           ) : null}
+          {eventReview && eventReview.source !== "event" ? null : (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <IconButton label="More for this email" size="md">
@@ -452,7 +565,16 @@ function Editor({
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              {review ? (
+              {eventReview ? (
+                <DropdownMenuItem onSelect={() => setConfirm("club")}>
+                  <span className="flex flex-col">
+                    <span>Use club&apos;s default…</span>
+                    <span className="text-ink-3 text-xs">
+                      Drop this event&apos;s words and send the club&apos;s.
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+              ) : review ? (
                 <DropdownMenuItem onSelect={() => setConfirm("default")}>
                   <span className="flex flex-col">
                     <span>Reset to default…</span>
@@ -540,6 +662,7 @@ function Editor({
               ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
           <Button disabled={!dirty || save.isPending} onClick={doSave}>
             {save.isPending ? (
               <Loader2Icon className="animate-spin" />
@@ -552,10 +675,12 @@ function Editor({
       </header>
       {dirty && eventId !== undefined ? (
         <Notice tone="neutral" tag="Unsaved">
-          A send to the audience and the club&apos;s default use the last saved
-          version. Save to send what you see; a test sends it as it is.
+          {eventReview
+            ? "Registrations get the last saved version, and so does a send-again. Save to send what you see; a test sends it as it is."
+            : "A send to the audience and the club's default use the last saved version. Save to send what you see; a test sends it as it is."}
         </Notice>
       ) : null}
+      {banner}
 
       <div className="grid gap-4 xl:grid-cols-[250px_minmax(0,1fr)_340px]">
         {/* Blocks */}
@@ -870,14 +995,18 @@ function Editor({
             <AlertDialogTitle>
               {confirm === "delete"
                 ? `Delete “${fields.name}”?`
-                : confirm === "default"
+                : confirm === "club"
+                  ? "Use the club's default?"
+                  : confirm === "default"
                   ? "Reset to the default words?"
                   : "Back to the club's version?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirm === "delete"
                 ? "Messages already sent from it stay in the history. This cannot be undone."
-                : confirm === "default"
+                : confirm === "club"
+                  ? "This event's own words are dropped, and it sends the club's version from now on. This cannot be undone."
+                  : confirm === "default"
                   ? "Your changes to this email are replaced by MyOtherApp's default."
                   : "Everything you changed on this event's copy is replaced by the library's version of this email."}
             </AlertDialogDescription>
@@ -887,13 +1016,20 @@ function Editor({
             <AlertDialogAction
               variant={confirm === "delete" ? "destructive" : "primary"}
               disabled={
-                remove.isPending || reset.isPending || resetToDefault.isPending
+                remove.isPending ||
+                reset.isPending ||
+                resetToDefault.isPending ||
+                resetReview.isPending
               }
               onClick={(e) => {
                 e.preventDefault();
                 if (confirm === "delete")
                   remove.mutate(template.id, {
                     onSuccess: () => router.push(scopeHref(scope)),
+                  });
+                else if (confirm === "club" && eventReview)
+                  resetReview.mutate(eventReview.stage, {
+                    onSuccess: () => setConfirm(null),
                   });
                 else if (confirm === "default")
                   // Refused or done, the question is answered: a refusal is said in a toast.
@@ -908,9 +1044,11 @@ function Editor({
             >
               {confirm === "delete"
                 ? "Delete"
-                : confirm === "default"
-                  ? "Reset"
-                  : "Replace"}
+                : confirm === "club"
+                  ? "Use the club's"
+                  : confirm === "default"
+                    ? "Reset"
+                    : "Replace"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { ApiError } from "@moa/api";
 
 const calls: Array<{ method: string; path: string; body?: unknown; query?: Record<string, unknown> }> = [];
 
@@ -46,6 +47,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         calls.push({ method: "GET", path, query: options?.query });
         const q = options?.query ?? {};
         if (path === "/api/v1/events/42/emails") return TEMPLATES;
+        // An API from before review emails per event reads "review" as a template's id.
+        if (path === "/api/v1/events/42/emails/review") throw new ApiError({ status: 422, message: "Some of the submitted values were not valid.", fieldErrors: { "path.template_id": ["Input should be a valid UUID"] } });
         if (path === "/api/v1/events/42/emails/context") return { tokens: [], sampleValues: {}, brandPrimary: "#0f8a73" };
         if (path === "/api/v1/events/42/messages") return { items: MESSAGES, total: MESSAGES.length, page: 1, pageSize: Number(q.page_size ?? 20) };
         if (path === "/api/v1/events/42/messages/m1")
@@ -125,6 +128,9 @@ describe("an event's emails", () => {
 
     expect(screen.getByRole("link", { name: "Sponsor note" })).toHaveAttribute("href", "/events/42/emails/t5");
     expect(screen.getByText("28 of 30 sent")).toBeInTheDocument();
+    // No review emails per event on this API: no section for them.
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/events/42/emails/review")).toBe(true));
+    expect(screen.queryByRole("heading", { name: "Registration review" })).toBeNull();
   });
 
   it("switches a journey email on, and previews one in place", async () => {

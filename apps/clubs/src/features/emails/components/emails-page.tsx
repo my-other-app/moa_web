@@ -79,6 +79,7 @@ import {
   isCustomised,
   type Figure,
 } from "./parts";
+import { ReviewSection } from "./review-section";
 import { SendTemplateDialog } from "./send-dialog";
 
 /**
@@ -643,6 +644,8 @@ export function EmailsPage({ eventId }: { eventId: number }) {
               ))}
             </div>
           </section>
+
+          <ReviewSection eventId={eventId} />
 
           <section>
             <h3 className="eyebrow mb-2">Other emails</h3>
