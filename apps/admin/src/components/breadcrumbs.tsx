@@ -10,7 +10,9 @@ import { navItems } from "./nav-items";
  * The trail in the top bar, read from the path: the rail's label for the
  * section, then the record under it. Nothing to wire up, nothing to forget.
  */
-const NOUN: Record<string, string> = { users: "User", clubs: "Club", organizations: "Organisation", events: "Event", badges: "Badge" };
+const NOUN: Record<string, string> = { users: "User", clubs: "Club", organizations: "Organisation", events: "Event", badges: "Badge", support: "Case", leads: "Lead", speakers: "Speaker" };
+/** A section's own pages under its path, named rather than read as a record: /speakers/duplicates. */
+const PAGE: Record<string, string> = { new: "New", duplicates: "Merge queue" };
 
 export function Breadcrumbs() {
   const pathname = usePathname();
@@ -21,7 +23,10 @@ export function Breadcrumbs() {
     crumbs.push({ label: "Overview" });
   } else {
     crumbs.push({ label: first.label, href: first.href });
-    if (parts[1]) crumbs.push({ label: parts[1] === "new" ? "New" : `${NOUN[parts[0]!] ?? "Record"} ${parts[1]}` });
+    // The record is the segment after the section's own path: /users/12, /teamwork/support/1042.
+    const base = first.href.split("/").filter(Boolean);
+    const record = parts[base.length];
+    if (record) crumbs.push({ label: PAGE[record] ?? `${NOUN[base.at(-1)!] ?? "Record"} ${record}` });
   }
 
   return (

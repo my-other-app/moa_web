@@ -91,7 +91,8 @@ describe("a backend without the operator tools", () => {
     await screen.findByRole("link", { name: "Payments" });
     await waitFor(() => expect(state.calls.some((c) => c.path === "/api/v1/admin/ops/me")).toBe(true));
     for (const name of TOOL_LINKS) expect(screen.queryByRole("link", { name })).toBeNull();
-    expect(visibleNavItems(null).length).toBe(navItems.filter((n) => !n.feature).length);
+    // Items behind their own probe (Team work) wait for it, as the tools wait for /ops/me.
+    expect(visibleNavItems(null).length).toBe(navItems.filter((n) => !n.feature && !n.probe).length);
   });
 
   it("draws no banner", async () => {

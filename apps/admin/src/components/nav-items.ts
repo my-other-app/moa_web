@@ -17,6 +17,7 @@ import {
   MailXIcon,
   MegaphoneIcon,
   MessageSquareTextIcon,
+  MicIcon,
   ScaleIcon,
   Settings2Icon,
   ShieldCheckIcon,
@@ -50,7 +51,16 @@ export interface NavItem {
    * offers a page that would 404.
    */
   feature?: OpsFeature;
+  /**
+   * A feature that answers its own probe instead of /ops/me: shown once its
+   * first endpoint answers (Team work: GET /admin/teamwork/badge), hidden on
+   * an API from before it.
+   */
+  probe?: Probe;
 }
+
+/** The features the rail asks about themselves. */
+export type Probe = "teamwork" | "speakers";
 
 /**
  * The v2 rail: eighteen destinations in five groups, and the operator
@@ -83,6 +93,8 @@ export const navItems: NavItem[] = [
   // Topics and the interests under them. The address stays /interests so old links still land.
   { href: "/interests", label: "Topics", icon: TagIcon },
   { href: "/avatars", label: "Avatars", icon: SmileIcon },
+  // Everyone who has spoken at an event, one profile each, once the API has the directory. The rail asks it itself.
+  { href: "/speakers", label: "Speakers", icon: MicIcon, probe: "speakers" },
 
   { href: "/announcements", label: "Announcements", icon: BellIcon, group: "Comms" },
   { href: "/notifications", label: "Notifications", icon: InboxIcon },
@@ -100,9 +112,29 @@ export const navItems: NavItem[] = [
   { href: "/jobs", label: "Jobs", icon: ListChecksIcon, feature: "jobs" },
 ];
 
-/** The rail's items this backend has: every plain item, and each tool `features` lists. */
-export function visibleNavItems(features: readonly string[] | null | undefined): NavItem[] {
-  return navItems.filter((item) => !item.feature || Boolean(features?.includes(item.feature)));
+/**
+ * The rail's items this backend has: every plain item, each tool `features`
+ * lists, and each probed feature whose probe answered. A group whose first
+ * item is hidden keeps its heading on the next one shown.
+ */
+export function visibleNavItems(features: readonly string[] | null | undefined, probes: Partial<Record<Probe, boolean>> = {}): NavItem[] {
+  const out: NavItem[] = [];
+  let heading: string | undefined;
+  for (const item of navItems) {
+    if (item.group) heading = item.group;
+    const shown = (!item.feature || Boolean(features?.includes(item.feature))) && (!item.probe || probes[item.probe] === true);
+    if (!shown) continue;
+    // The group's heading rides on the first item shown under it.
+    if (heading && !item.group && (out.length === 0 || groupOf(out) !== heading)) out.push({ ...item, group: heading });
+    else out.push(item);
+  }
+  return out;
+}
+
+/** The group the last item shown belongs to. */
+function groupOf(items: NavItem[]): string | undefined {
+  for (let i = items.length - 1; i >= 0; i--) if (items[i]!.group) return items[i]!.group;
+  return undefined;
 }
 
 export function isActive(pathname: string, item: NavItem): boolean {
