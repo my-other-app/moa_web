@@ -162,14 +162,7 @@ function ToLeadDialog({ c, open, onOpenChange }: { c: CaseDetail; open: boolean;
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="to-lead-type">What kind of lead</Label>
-          <NativeSelect
-            id="to-lead-type"
-            value={type}
-            onChange={(e) => {
-              setType(e.target.value);
-              setMatches(null);
-            }}
-          >
+          <NativeSelect id="to-lead-type" value={type} onChange={(e) => setType(e.target.value)}>
             {LEAD_TYPES.map((t) => (
               <option key={t} value={t}>
                 {LEAD_TYPE_LABEL[t]}
@@ -191,7 +184,7 @@ function ToLeadDialog({ c, open, onOpenChange }: { c: CaseDetail; open: boolean;
                 </li>
               ))}
             </ul>
-            <p className="m-0 mt-1.5">Open it to add this case there, or create a new lead anyway.</p>
+            <p className="m-0 mt-1.5">Open it instead, or create a new lead anyway.</p>
           </Notice>
         ) : null}
         <DialogFooter>
