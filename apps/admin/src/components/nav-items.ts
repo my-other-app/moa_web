@@ -64,7 +64,7 @@ export interface NavItem {
 }
 
 /** The features the rail asks about themselves. */
-export type Probe = "teamwork";
+export type Probe = "teamwork" | "speakers";
 
 /**
  * The v2 rail: eighteen destinations in five groups, and the operator
