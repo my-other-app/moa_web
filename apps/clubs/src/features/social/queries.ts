@@ -3,7 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
-import { useAccess } from "@/features/access";
+import { useAccess, useMyAccess } from "@/features/access";
 import { toastError } from "@/features/plan";
 
 import {
@@ -60,15 +60,20 @@ export interface SocialRole {
   manage: boolean;
   /** Draft, edit and schedule posts. */
   post: boolean;
-  /** The server has said who is signed in (until then the dashboard assumes the owner). */
+  /**
+   * The question of who is signed in is settled: answered, or failed (an
+   * API without team access, where the club's own account is signed in).
+   * Until then the dashboard assumes the owner.
+   */
   known: boolean;
 }
 
 export function useSocialRole(): SocialRole {
   const access = useAccess();
+  const me = useMyAccess();
   const see = Boolean(access.can.edit_events);
   const manage = see && (access.role === "owner" || access.role === "admin");
-  return { see, manage, post: see, known: access.known };
+  return { see, manage, post: see, known: access.known || me.isError };
 }
 
 /**
@@ -184,7 +189,7 @@ export function useEventPosts(eventId: number, enabled = true) {
  * they would be now) and its warnings. Asked for the text the club stopped
  * typing at; the last answer stays while the next is on its way.
  */
-export function usePreview(eventId: number, platform: Platform, text: string, variantId: number | null, enabled = true) {
+export function usePreview(eventId: number, platform: Platform, text: string, variantId: string | null, enabled = true) {
   return useQuery({
     queryKey: [...SOCIAL_KEY, "event", eventId, "preview", platform, variantId, text] as const,
     queryFn: () => previewPost(eventId, { platform, text, variant_id: variantId }),
@@ -222,7 +227,7 @@ function useRefreshEvent(eventId: number) {
 export function useSavePost(eventId: number) {
   const refresh = useRefreshEvent(eventId);
   return useMutation({
-    mutationFn: async ({ postId, body, schedule }: { postId: number | null; body: PostBody; schedule: boolean }) => {
+    mutationFn: async ({ postId, body, schedule }: { postId: string | null; body: PostBody; schedule: boolean }) => {
       if (postId === null) return createPost(eventId, { ...body, draft: !schedule });
       const saved = await updatePost(postId, body);
       if (!schedule || saved.status === "scheduled" || saved.status === "needs_approval") return saved;
@@ -235,7 +240,7 @@ export function useSavePost(eventId: number) {
 export function usePostAction(eventId: number) {
   const refresh = useRefreshEvent(eventId);
   return useMutation({
-    mutationFn: async ({ action, postId }: { action: "approve" | "cancel" | "delete" | "schedule"; postId: number }) => {
+    mutationFn: async ({ action, postId }: { action: "approve" | "cancel" | "delete" | "schedule"; postId: string }) => {
       if (action === "approve") return approvePost(postId);
       if (action === "cancel") return cancelPost(postId);
       if (action === "schedule") return schedulePost(postId);
@@ -253,7 +258,7 @@ export function usePostAction(eventId: number) {
 export function useRetryTarget(eventId: number) {
   const refresh = useRefreshEvent(eventId);
   return useMutation({
-    mutationFn: (targetId: number) => retryTarget(targetId),
+    mutationFn: (targetId: string) => retryTarget(targetId),
     onSuccess: () => {
       toast.success("Trying again now");
       refresh();
@@ -265,7 +270,7 @@ export function useRetryTarget(eventId: number) {
 export function useAnnounce(eventId: number) {
   const refresh = useRefreshEvent(eventId);
   return useMutation({
-    mutationFn: (body: { platforms: Platform[]; account_ids: number[] }) => announceCampaign(eventId, body),
+    mutationFn: (body: { platforms: Platform[]; account_ids: string[] }) => announceCampaign(eventId, body),
     onSuccess: refresh,
     onError: toastError,
   });

@@ -11,6 +11,9 @@ import { z } from "zod";
  * choice's id on the way back from Meta) accept the likely spellings.
  */
 
+/** Settings → Social accounts: where the backend's alerts and a sign-in's default return lead. */
+export const SOCIAL_SETTINGS_PATH = "/settings/social";
+
 // ─── Platforms ───────────────────────────────────────────────────────────
 
 export const PLATFORMS = ["instagram", "facebook", "linkedin", "linkedin_page", "x"] as const;
@@ -70,8 +73,11 @@ const personSchema = z
   .transform((p) => (p == null ? null : typeof p === "string" ? { id: null, name: p } : { id: p.id ?? null, name: p.name ?? null }));
 export type Person = z.infer<typeof personSchema>;
 
+/** Ids are the server's UUIDs (numbers read as strings, so either works). */
+const idField = z.coerce.string();
+
 export const accountSchema = z.object({
-  id: z.coerce.number(),
+  id: idField,
   platform: platformField,
   name: z.string().nullish().catch(null),
   handle: z.string().nullish().catch(null),
@@ -133,12 +139,12 @@ export const FAILURE_ACTIONS = ["retry", "reconnect", "share_manually", "fix_ima
 export type FailureAction = (typeof FAILURE_ACTIONS)[number];
 
 export const targetSchema = z.object({
-  id: z.coerce.number(),
+  id: idField,
   platform: platformField,
-  account_id: z.coerce.number().nullish().catch(null),
+  account_id: idField.nullish().catch(null),
   text: z.string().catch(""),
   image_url: z.string().nullish().catch(null),
-  variant_id: z.coerce.number().nullish().catch(null),
+  variant_id: idField.nullish().catch(null),
   status: z.enum(TARGET_STATUSES).catch("scheduled"),
   post_url: z.string().nullish().catch(null),
   error: z
@@ -156,13 +162,12 @@ export const targetSchema = z.object({
 export type PostTarget = z.infer<typeof targetSchema>;
 
 export const postSchema = z.object({
-  id: z.coerce.number(),
+  id: idField,
   name: z.string().catch("Post"),
   trigger: lenientTrigger,
   status: z.enum(POST_STATUSES).catch("draft"),
-  /** Why a post is paused (`event_changed`); the contract's posts shape names no field for it, so either spelling. */
-  paused_reason: z.string().nullish().catch(null),
-  reason: z.string().nullish().catch(null),
+  /** Why it is paused or cancelled: `event_changed`, `by_club`… */
+  status_reason: z.string().nullish().catch(null),
   created_by: personSchema,
   approved_by: personSchema,
   targets: rowsOf(targetSchema).catch([]),
@@ -200,7 +205,7 @@ export const SIZES_FOR: Record<Platform, PosterSize[]> = {
 };
 
 export const variantSchema = z.object({
-  id: z.coerce.number(),
+  id: idField,
   size: z.enum(POSTER_SIZES),
   width: z.coerce.number().catch(0),
   height: z.coerce.number().catch(0),
@@ -208,8 +213,8 @@ export const variantSchema = z.object({
   focus: z.object({ x: z.coerce.number(), y: z.coerce.number() }).nullish().catch(null),
   background: z.string().nullish().catch(null),
   url: z.string().nullish().catch(null),
-  /** The club put its own image in this size (absent on the contract's shape: then unknown). */
-  custom: z.boolean().nullish().catch(null),
+  /** The club put its own image in this size. */
+  own: z.boolean().catch(false),
 });
 export type PosterVariant = z.infer<typeof variantSchema>;
 export const variantsSchema = z
@@ -232,7 +237,7 @@ export const draftSchema = z
     suggested_hashtags: z.array(z.string()).nullish().catch(null),
     variant: variantSchema.nullish().catch(null),
     poster: variantSchema.nullish().catch(null),
-    variant_id: z.coerce.number().nullish().catch(null),
+    variant_id: idField.nullish().catch(null),
     link: z.union([z.string(), z.object({ url: z.string() }).passthrough()]).nullish().catch(null),
     tracking_link: z.union([z.string(), z.object({ url: z.string() }).passthrough()]).nullish().catch(null),
   })
@@ -270,6 +275,8 @@ export const draftsSchema = z
 
 export const previewSchema = z.object({
   text_rendered: z.string().catch(""),
+  /** The poster this post would carry. */
+  image_url: z.string().nullish().catch(null),
   warnings: z
     .array(z.union([z.object({ code: z.string(), message: z.string().nullish() }).passthrough(), z.string()]))
     .catch([])
@@ -662,7 +669,7 @@ export function readConnectReturn(params: URLSearchParams): ConnectReturn | null
   const p = params.get("platform");
   const platform = isPlatform(p) ? p : null;
   const stateId = params.get("pending") ?? params.get("state_id") ?? params.get("pending_id") ?? params.get("state");
-  if ((social === "pick" || social === "pending" || social === "connected") && stateId) return { kind: "pick", stateId, platform };
+  if ((social === "choose" || social === "pick" || social === "pending" || social === "connected") && stateId) return { kind: "pick", stateId, platform };
   if (social === "connected") return { kind: "connected", platform };
   if (social === "error") return { kind: "error", reason: params.get("reason"), platform };
   return null;

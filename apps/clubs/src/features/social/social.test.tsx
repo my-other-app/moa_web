@@ -30,6 +30,8 @@ const me = (role: Role) => ({
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
 const state = {
   role: "owner" as Role,
+  /** GET /clubs/access/me answers a bare 404: an API from before team access (the club's own account). */
+  meMissing: false,
   platformsRoute: "ok" as "ok" | "old404" | "old405",
   accounts: [] as unknown[],
   posts: { attribution: {}, posts: [] } as { attribution: Record<string, number>; posts: unknown[] },
@@ -41,7 +43,7 @@ const state = {
 };
 
 const router = { push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() };
-let pathname = "/social";
+let pathname = "/settings/social";
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
   usePathname: () => pathname,
@@ -57,7 +59,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     api: {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
-        if (path === "/api/v1/clubs/access/me") return me(state.role);
+        if (path === "/api/v1/clubs/access/me") {
+          if (state.meMissing) throw notFound();
+          return me(state.role);
+        }
         if (path === "/api/v1/clubs/social/platforms") {
           if (state.platformsRoute === "old404") throw notFound();
           if (state.platformsRoute === "old405") throw new ApiError({ status: 405, message: "Method Not Allowed" });
@@ -116,12 +121,14 @@ const { SocialAccountsPage, PromotePage, AnnouncePrompt } = await import("./inde
 const { TriggerPicker } = await import("./components/trigger-picker");
 const { browser } = await import("./queries");
 const { blockedBy } = await import("@/features/access");
+const { SidebarNav } = await import("@/components/sidebar-nav");
 
 const writeText = vi.fn(async () => {});
 beforeEach(() => {
   calls.length = 0;
   Object.assign(state, {
     role: "owner",
+    meMissing: false,
     platformsRoute: "ok",
     accounts: fixture.accounts,
     posts: fixture.posts,
@@ -131,7 +138,7 @@ beforeEach(() => {
     eventStatus: "published",
     search: "",
   });
-  pathname = "/social";
+  pathname = "/settings/social";
   Object.values(router).forEach((f) => f.mockClear());
   browser.go = vi.fn();
   writeText.mockClear();
@@ -172,7 +179,7 @@ describe("Settings → Social accounts", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Connect Instagram" }));
     await waitFor(() => expect(browser.go).toHaveBeenCalledWith("https://www.facebook.com/v21.0/dialog/oauth?state=abc"));
     const [c] = sent("POST", /\/accounts\/instagram\/connect$/);
-    expect((c!.body as { return_to: string }).return_to).toMatch(/\/social$/);
+    expect((c!.body as { return_to: string }).return_to).toMatch(/\/settings\/social$/);
   });
 
   it("disconnects only after asking", async () => {
@@ -207,11 +214,11 @@ describe("Settings → Social accounts", () => {
     state.search = "social=error&reason=not_admin&platform=linkedin_page";
     render(<SocialAccountsPage />);
     expect(await screen.findByText("Only a Page admin can post as the Page. Ask the Page's admin to connect it.")).toBeInTheDocument();
-    expect(router.replace).toHaveBeenCalledWith("/social");
+    expect(router.replace).toHaveBeenCalledWith("/settings/social");
   });
 
   it("Facebook with several Pages: the club picks which one to post as", async () => {
-    state.search = "social=pick&pending=st_1&platform=facebook";
+    state.search = "social=choose&pending=st_1&platform=facebook";
     render(<SocialAccountsPage />);
     const dialog = await screen.findByRole("dialog", { name: "Which Page should the club post as?" });
     fireEvent.click(await within(dialog).findByRole("radio", { name: /Women Techmakers TVM/ }));
@@ -252,7 +259,7 @@ describe("Event → Promote", () => {
 
     const held = screen.getByTestId("target-9002");
     expect(within(held).getByText("Reconnect Facebook to send")).toBeInTheDocument();
-    expect(within(held).getByRole("link", { name: "Reconnect Facebook" })).toHaveAttribute("href", "/social");
+    expect(within(held).getByRole("link", { name: "Reconnect Facebook" })).toHaveAttribute("href", "/settings/social");
     expect(within(held).getByRole("button", { name: "Share manually" })).toBeInTheDocument();
 
     const failed = screen.getByTestId("target-9003");
@@ -308,7 +315,7 @@ describe("Event → Promote", () => {
   it("door staff can't open the tab or the accounts page; editors can", () => {
     const door = me("door").can;
     expect(blockedBy("/events/42/promote", door)?.what).toBe("social posting");
-    expect(blockedBy("/social", door)?.what).toBe("social posting");
+    expect(blockedBy("/settings/social", door)?.what).toBe("social posting");
     expect(blockedBy("/events/42/promote", me("editor").can)).toBeNull();
   });
 });
@@ -335,6 +342,18 @@ describe("the post editor", () => {
     expect(screen.getByRole("tab", { name: /LinkedIn/ })).toBeInTheDocument();
     expect(screen.getByTestId("hashtag-count")).toHaveTextContent("2 / 30 hashtags");
     expect(screen.getByTestId("char-count")).toHaveTextContent(/\/ 2,200 characters/);
+  });
+
+  it("an account waiting to be reconnected starts switched off", async () => {
+    state.accounts = fixture.accounts;
+    await openAnnouncement();
+    fireEvent.click(screen.getByRole("tab", { name: /Facebook/ }));
+    expect(screen.getByRole("switch", { name: "Post to Facebook" })).not.toBeChecked();
+    expect(screen.getByText(/needs reconnecting: it will be held/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(sent("POST", /\/events\/42\/posts$/)).toHaveLength(1));
+    const body = sent("POST", /\/events\/42\/posts$/)[0]!.body as { targets: Array<{ platform: string }> };
+    expect(body.targets.map((t) => t.platform)).toEqual(["instagram", "linkedin"]);
   });
 
   it("warns over 30 hashtags and won't schedule; a link in a caption offers “link in bio”", async () => {
@@ -387,11 +406,11 @@ describe("the post editor", () => {
     await openAnnouncement();
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
     await waitFor(() => expect(sent("POST", /\/events\/42\/posts$/)).toHaveLength(1));
-    const draft = sent("POST", /\/events\/42\/posts$/)[0]!.body as { draft: boolean; name: string; trigger: unknown; targets: Array<{ platform: string; account_id: number; variant_id?: number }> };
+    const draft = sent("POST", /\/events\/42\/posts$/)[0]!.body as { draft: boolean; name: string; trigger: unknown; targets: Array<{ platform: string; account_id: string; variant_id?: string }> };
     expect(draft).toMatchObject({ draft: true, name: "Announcement", trigger: { mode: "on_publish" } });
     expect(draft.targets.map((t) => [t.platform, t.account_id, t.variant_id])).toEqual([
-      ["instagram", 11, 71],
-      ["linkedin", 13, 74],
+      ["instagram", "11", "71"],
+      ["linkedin", "13", "74"],
     ]);
   });
 
@@ -470,8 +489,14 @@ describe("the publish step: “Announce it?”", () => {
     expect(within(dialog).queryByRole("checkbox", { name: /Facebook/ })).toBeNull();
     fireEvent.click(within(dialog).getByRole("checkbox", { name: "LinkedIn @ananya-menon" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Announce it" }));
-    await waitFor(() => expect(sent("POST", /\/posts\/campaign$/)[0]?.body).toEqual({ platforms: ["instagram"], account_ids: [11] }));
+    await waitFor(() => expect(sent("POST", /\/posts\/campaign$/)[0]?.body).toEqual({ platforms: ["instagram"], account_ids: ["11"] }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/events/42/promote"));
+  });
+
+  it("asks the club's own account on an API without team access too", async () => {
+    state.meMissing = true;
+    render(<AnnouncePrompt eventId={42} />);
+    expect(await screen.findByRole("dialog", { name: "Announce it?" })).toBeInTheDocument();
   });
 
   it("Edit posts opens the editor on the Promote tab; Not now leaves it", async () => {
@@ -510,5 +535,28 @@ describe("the publish step: “Announce it?”", () => {
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/events/42"));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(sent("GET", /\/social\/platforms$/)).toHaveLength(0);
+  });
+});
+
+// ─── The rail ────────────────────────────────────────────────────────────
+
+describe("the rail's Social accounts item", () => {
+  it("appears once the API has social posting, and not for door staff", async () => {
+    const a = render(<SidebarNav />);
+    expect(await screen.findByRole("link", { name: /Social accounts/ })).toHaveAttribute("href", "/settings/social");
+    a.unmount();
+
+    state.platformsRoute = "old404";
+    const b = render(<SidebarNav />);
+    await waitFor(() => expect(sent("GET", /\/social\/platforms$/).length).toBeGreaterThan(0));
+    expect(screen.getByRole("link", { name: /Tracking links/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Social accounts/ })).toBeNull();
+    b.unmount();
+
+    state.platformsRoute = "ok";
+    state.role = "door";
+    render(<SidebarNav />);
+    await waitFor(() => expect(screen.queryByRole("link", { name: /Tracking links/ })).toBeNull());
+    expect(screen.queryByRole("link", { name: /Social accounts/ })).toBeNull();
   });
 });

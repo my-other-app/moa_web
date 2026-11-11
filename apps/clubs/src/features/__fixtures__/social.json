@@ -54,7 +54,7 @@
         "name": "Reminder",
         "trigger": { "mode": "before_start", "minutes": 2880 },
         "status": "paused",
-        "paused_reason": "event_changed",
+        "status_reason": "event_changed",
         "created_by": { "id": 4, "name": "Rahul" },
         "approved_by": null,
         "targets": [

@@ -51,6 +51,7 @@ import {
   PLATFORM_LABEL,
   POST_STATUS_LABEL,
   POST_TEMPLATES,
+  SOCIAL_SETTINGS_PATH,
   cancellable,
   editable,
   fillIn,
@@ -143,7 +144,7 @@ export function PromotePage({ eventId }: { eventId: number }) {
           tone="neutral"
           tag="Accounts"
           action={
-            <Link href="/social" className="btn btn-secondary btn-sm">
+            <Link href={SOCIAL_SETTINGS_PATH} className="btn btn-secondary btn-sm">
               {role.manage ? "Connect accounts" : "See accounts"}
             </Link>
           }
@@ -159,8 +160,8 @@ export function PromotePage({ eventId }: { eventId: number }) {
           tag="Reconnect"
           action={
             role.manage ? (
-              <Link href="/social" className="btn btn-secondary btn-sm">
-                Reconnect {PLATFORM_LABEL[a.platform]}
+              <Link href={SOCIAL_SETTINGS_PATH} className="btn btn-secondary btn-sm" aria-label={`Reconnect ${PLATFORM_LABEL[a.platform]}`}>
+                Reconnect
               </Link>
             ) : undefined
           }
@@ -327,9 +328,9 @@ function PostRow({ eventId, post, accounts, onEdit }: { eventId: number; post: S
 
       {paused ? (
         <Notice tone="caution" tag="Paused" className="mt-2.5">
-          {post.paused_reason === "event_changed" || post.reason === "event_changed" || (!post.paused_reason && !post.reason)
+          {!post.status_reason || post.status_reason === "event_changed"
             ? "The event changed — review this post. It mentions a detail that changed (the date, time, venue or fee), so it waits until someone looks."
-            : `Paused: ${(post.paused_reason ?? post.reason ?? "").replace(/_/g, " ")}.`}
+            : `Paused: ${post.status_reason.replace(/_/g, " ")}.`}
         </Notice>
       ) : null}
       {post.status === "needs_approval" ? (
@@ -381,12 +382,15 @@ function TargetRow({ eventId, post, target: t, account, onFixImage }: { eventId:
     setSharing(true);
     try {
       let text = fillIn(t.text, { event_name: event.data?.name });
+      let image = t.image_url ?? null;
       try {
-        text = (await previewPost(eventId, { platform: t.platform, text: t.text, variant_id: t.variant_id })).text_rendered || text;
+        const p = await previewPost(eventId, { platform: t.platform, text: t.text, variant_id: t.variant_id });
+        text = p.text_rendered || text;
+        image = image ?? p.image_url ?? null;
       } catch {
         // The words as stored, with what the dashboard can fill: better than nothing to paste.
       }
-      await shareManually({ platform: t.platform, text, imageUrl: t.image_url ?? null, filename: posterName({ slug: event.data?.slug, name: event.data?.name, id: eventId }, t.platform) });
+      await shareManually({ platform: t.platform, text, imageUrl: image, filename: posterName({ slug: event.data?.slug, name: event.data?.name, id: eventId }, t.platform) });
     } finally {
       setSharing(false);
     }
@@ -402,7 +406,7 @@ function TargetRow({ eventId, post, target: t, account, onFixImage }: { eventId:
         ) : null;
       case "reconnect":
         return role.manage ? (
-          <Link key={a} href="/social" className="btn btn-secondary btn-xs">
+          <Link key={a} href={SOCIAL_SETTINGS_PATH} className="btn btn-secondary btn-xs">
             <RefreshCwIcon className="size-3" /> Reconnect {PLATFORM_LABEL[t.platform]}
           </Link>
         ) : (

@@ -60,7 +60,7 @@ export async function startConnect(platform: Platform, returnTo: string) {
   return connectResponseSchema.parse(await api.post<unknown>(`${SOCIAL_BASE}/accounts/${platform}/connect`, { return_to: returnTo }));
 }
 
-export async function disconnectAccount(id: number) {
+export async function disconnectAccount(id: string) {
   await api.del<unknown>(`${SOCIAL_BASE}/accounts/${id}`);
 }
 
@@ -93,9 +93,9 @@ export async function fetchDrafts(eventId: number, platforms: Platform[]) {
 
 export interface TargetBody {
   platform: Platform;
-  account_id: number;
+  account_id: string;
   text: string;
-  variant_id?: number;
+  variant_id?: string;
   image_key?: string;
 }
 
@@ -110,36 +110,36 @@ export async function createPost(eventId: number, body: PostBody & { draft: bool
   return postSchema.parse(await api.post<unknown>(`${eventBase(eventId)}/posts`, body));
 }
 
-export async function updatePost(postId: number, body: PostBody) {
+export async function updatePost(postId: string, body: PostBody) {
   return postSchema.parse(await api.patch<unknown>(`${SOCIAL_BASE}/posts/${postId}`, body));
 }
 
-export async function schedulePost(postId: number) {
+export async function schedulePost(postId: string) {
   return postSchema.safeParse(await api.post<unknown>(`${SOCIAL_BASE}/posts/${postId}/schedule`)).data ?? null;
 }
 
-export async function approvePost(postId: number) {
+export async function approvePost(postId: string) {
   return postSchema.safeParse(await api.post<unknown>(`${SOCIAL_BASE}/posts/${postId}/approve`)).data ?? null;
 }
 
-export async function cancelPost(postId: number) {
+export async function cancelPost(postId: string) {
   return postSchema.safeParse(await api.post<unknown>(`${SOCIAL_BASE}/posts/${postId}/cancel`)).data ?? null;
 }
 
-export async function deletePost(postId: number) {
+export async function deletePost(postId: string) {
   await api.del<unknown>(`${SOCIAL_BASE}/posts/${postId}`);
 }
 
-export async function retryTarget(targetId: number) {
+export async function retryTarget(targetId: string) {
   return api.post<unknown>(`${SOCIAL_BASE}/targets/${targetId}/retry`);
 }
 
 /** The publish step's one click: the standard Announcement (on publish) and Reminder (2 days before) from the drafts. */
-export async function announceCampaign(eventId: number, body: { platforms: Platform[]; account_ids: number[] }) {
+export async function announceCampaign(eventId: number, body: { platforms: Platform[]; account_ids: string[] }) {
   return api.post<unknown>(`${eventBase(eventId)}/posts/campaign`, body);
 }
 
-export async function previewPost(eventId: number, body: { platform: Platform; text: string; variant_id?: number | null }) {
+export async function previewPost(eventId: number, body: { platform: Platform; text: string; variant_id?: string | null }) {
   const { variant_id, ...rest } = body;
   return previewSchema.parse(await api.post<unknown>(`${eventBase(eventId)}/preview`, variant_id ? { ...rest, variant_id } : rest));
 }

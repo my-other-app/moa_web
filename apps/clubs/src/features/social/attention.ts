@@ -6,7 +6,7 @@ import type { AttentionItem } from "@moa/app-kit";
 import { useClubAlerts, type ClubAlert } from "@/features/club-alerts";
 
 import { useSocialAccounts, useSocialOnServer, useSocialRole } from "./queries";
-import { EXPIRY_WARN_DAYS, PLATFORM_LABEL, daysLeft, type SocialAccount } from "./schemas";
+import { EXPIRY_WARN_DAYS, PLATFORM_LABEL, SOCIAL_SETTINGS_PATH, daysLeft, type SocialAccount } from "./schemas";
 
 /**
  * The dashboard's "Needs attention" items for social posting (spec:
@@ -66,8 +66,8 @@ export function socialAttention(accounts: SocialAccount[], alerts: ClubAlert[], 
 
 /** Where a social attention item leads; null for any other kind. */
 export function socialAttentionHref(item: Pick<AttentionItem, "kind" | "event_id">): string | null {
-  if (item.kind === SOCIAL_KINDS.disconnected || item.kind === SOCIAL_KINDS.expiring) return "/social";
-  if (item.kind === SOCIAL_KINDS.failed) return item.event_id ? `/events/${item.event_id}/promote` : "/social";
+  if (item.kind === SOCIAL_KINDS.disconnected || item.kind === SOCIAL_KINDS.expiring) return SOCIAL_SETTINGS_PATH;
+  if (item.kind === SOCIAL_KINDS.failed) return item.event_id ? `/events/${item.event_id}/promote` : SOCIAL_SETTINGS_PATH;
   return null;
 }
 

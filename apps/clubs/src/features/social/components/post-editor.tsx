@@ -144,7 +144,7 @@ function EditorLoader({ eventId, request, onClose }: { eventId: number; request:
   return <EditorForm eventId={eventId} request={request} accounts={usable} drafts={drafts.data ?? []} variants={posters.data ?? []} onClose={onClose} />;
 }
 
-function sizeOfVariant(variants: PosterVariant[], id: number | null | undefined, platform: Platform): PosterSize {
+function sizeOfVariant(variants: PosterVariant[], id: string | null | undefined, platform: Platform): PosterSize {
   const v = id ? variants.find((x) => x.id === id) : undefined;
   return v && SIZES_FOR[platform].includes(v.size) ? v.size : SIZES_FOR[platform][0]!;
 }
@@ -154,7 +154,8 @@ function initialTargets(request: EditorRequest, accounts: SocialAccount[], draft
     const existing = request.post?.targets.find((t) => t.account_id === account.id) ?? request.post?.targets.find((t) => t.account_id == null && t.platform === account.platform);
     const draft = drafts.find((d) => d.platform === account.platform);
     if (existing) return { account, enabled: true, text: existing.text, size: sizeOfVariant(variants, existing.variant_id, account.platform) };
-    return { account, enabled: request.post === null, text: draft?.text ?? "", size: sizeOfVariant(variants, draft?.variantId, account.platform) };
+    // A new post goes to every account that can send now; one waiting to be reconnected starts off (its post would be held).
+    return { account, enabled: request.post === null && account.status === "connected", text: draft?.text ?? "", size: sizeOfVariant(variants, draft?.variantId, account.platform) };
   });
 }
 
@@ -173,14 +174,14 @@ function EditorForm({ eventId, request, accounts, drafts, variants, onClose }: {
   const [name, setName] = React.useState(request.post?.name ?? template?.name ?? "Post");
   const [trigger, setTrigger] = React.useState<Trigger>(request.post?.trigger ?? template?.trigger ?? { mode: "on_publish" });
   const [targets, setTargets] = React.useState<TargetDraft[]>(() => initialTargets(request, accounts, drafts, variants));
-  const [active, setActive] = React.useState<number>(() => {
+  const [active, setActive] = React.useState<string>(() => {
     const wanted = request.platform ? targets.find((t) => t.account.platform === request.platform) : undefined;
     return (wanted ?? targets.find((t) => t.enabled) ?? targets[0]!).account.id;
   });
   // Unsaved poster settings, per size: they apply to every post of that size, so they live with the sizes, not the tabs.
   const [pendingPosters, setPendingPosters] = React.useState<Partial<Record<PosterSize, PosterSettings>>>({});
   const [posterAspect, setPosterAspect] = React.useState<number | null>(null);
-  const [undo, setUndo] = React.useState<Record<number, string>>({});
+  const [undo, setUndo] = React.useState<Record<string, string>>({});
   const [confirmNow, setConfirmNow] = React.useState(false);
   const [openedAt] = React.useState(() => Date.now());
   const textRef = React.useRef<HTMLTextAreaElement>(null);
@@ -218,7 +219,7 @@ function EditorForm({ eventId, request, accounts, drafts, variants, onClose }: {
   const stats = textStats(platform, rendered);
   const warnings = mergeWarnings(localWarnings(platform, current.text, rendered), fresh?.warnings);
 
-  const update = (id: number, patch: Partial<TargetDraft>) => setTargets((ts) => ts.map((t) => (t.account.id === id ? { ...t, ...patch } : t)));
+  const update = (id: string, patch: Partial<TargetDraft>) => setTargets((ts) => ts.map((t) => (t.account.id === id ? { ...t, ...patch } : t)));
   const setText = (text: string) => update(current.account.id, { text });
 
   const insert = (word: string) => {
@@ -319,10 +320,10 @@ function EditorForm({ eventId, request, accounts, drafts, variants, onClose }: {
       <div className="px-5 pt-1">
         <TabRail
           label="Platforms"
-          value={String(current.account.id)}
-          onChange={(k) => setActive(Number(k))}
+          value={current.account.id}
+          onChange={setActive}
           items={targets.map((t) => ({
-            key: String(t.account.id),
+            key: t.account.id,
             label: (
               <span className={cn("inline-flex items-center gap-1.5", !t.enabled && "opacity-50")}>
                 <PlatformMark platform={t.account.platform} size="sm" />

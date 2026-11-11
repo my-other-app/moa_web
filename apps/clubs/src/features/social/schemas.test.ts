@@ -48,8 +48,27 @@ describe("the API's shapes", () => {
     expect(accounts[1]).toMatchObject({ platform: "facebook", status: "needs_reconnect", waiting_posts: 2, connected_by: { id: 3, name: "Ananya" } });
     expect(posts.attribution).toEqual({ instagram: 42, linkedin: 18, x: 3 });
     expect(posts.posts[1]!.targets[2]!.error).toEqual({ code: "platform_down", message: "LinkedIn didn't answer", action: "retry" });
-    expect(draftsSchema.parse(fixture.drafts)[0]).toMatchObject({ platform: "instagram", variantId: 71, link: "https://myotherapp.in/l/ig42", hashtags: ["DevFest", "GDGTrivandrum", "Trivandrum", "Kerala"] });
+    expect(draftsSchema.parse(fixture.drafts)[0]).toMatchObject({ platform: "instagram", variantId: "71", link: "https://myotherapp.in/l/ig42", hashtags: ["DevFest", "GDGTrivandrum", "Trivandrum", "Kerala"] });
     expect(variantsSchema.parse(fixture.posters)).toHaveLength(6);
+  });
+
+  it("reads the backend's own shapes: UUID ids, status_reason, an own image, the drafts envelope", () => {
+    const uuid = (n: number) => `0b8f6c2e-4d1a-4f7e-9a3c-${String(n).padStart(12, "0")}`;
+    const posted = eventPostsSchema.parse({
+      attribution: { instagram: 4 },
+      posts: [{
+        id: uuid(1), event_id: 42, name: "Reminder", trigger: { mode: "before_start", minutes: 2880 }, status: "paused", status_reason: "event_changed",
+        template: "reminder", created_by: { id: null, name: "GDG Trivandrum" }, approved_by: null, approved_at: null, created_at: "2026-11-11T10:00:00+05:30",
+        targets: [{ id: uuid(2), platform: "instagram", account_id: uuid(3), text: "Hi", variant_id: uuid(4), image_url: null, status: "scheduled", post_url: null, error: null, attempts: 0, posted_at: null, scheduled_for: "2026-11-20T07:00:00+05:30" }],
+      }],
+    });
+    expect(posted.posts[0]).toMatchObject({ id: uuid(1), status_reason: "event_changed", created_by: { id: null, name: "GDG Trivandrum" } });
+    expect(posted.posts[0]!.targets[0]).toMatchObject({ id: uuid(2), account_id: uuid(3), variant_id: uuid(4) });
+    expect(accountsSchema.parse([{ ...fixture.accounts[0], id: uuid(3), connected_by: { id: null, name: null } }])[0]!.id).toBe(uuid(3));
+    const variant = { id: uuid(4), size: "ig_portrait", width: 1080, height: 1350, mode: "crop", focus: { x: 0.5, y: 0.5 }, background: null, own: true, url: "https://media.myotherapp.in/a.jpg" };
+    expect(variantsSchema.parse([variant])[0]).toMatchObject({ id: uuid(4), own: true });
+    const drafts = draftsSchema.parse({ fill_ins: ["event_name"], platforms: [{ platform: "x", text: "{event_name}", hashtags: ["DevFest"], variant: { ...variant, size: "x" }, link: "https://myotherapp.in/l/x1", link_id: uuid(5), limit: 280 }] });
+    expect(drafts[0]).toMatchObject({ platform: "x", variantId: uuid(4), link: "https://myotherapp.in/l/x1", hashtags: ["DevFest"] });
   });
 
   it("drops a row it doesn't know (a new platform) instead of failing the page", () => {
@@ -60,7 +79,7 @@ describe("the API's shapes", () => {
 
   it("reads drafts keyed by platform, under `drafts`, or as a list; hashtags with or without #", () => {
     const keyed = draftsSchema.parse({ instagram: { text: "Hi", suggested_hashtags: ["#gdg"], variant: fixture.posters[0], tracking_link: { url: "https://x.y/1" } } });
-    expect(keyed[0]).toMatchObject({ platform: "instagram", hashtags: ["gdg"], variantId: 71, link: "https://x.y/1" });
+    expect(keyed[0]).toMatchObject({ platform: "instagram", hashtags: ["gdg"], variantId: "71", link: "https://x.y/1" });
     expect(draftsSchema.parse({ drafts: fixture.drafts })).toHaveLength(3);
   });
 
@@ -104,7 +123,10 @@ describe("coming back from a platform", () => {
   it("connected, refused with a reason, or a Page to pick", () => {
     expect(read("social=connected&platform=instagram")).toEqual({ kind: "connected", platform: "instagram" });
     expect(read("social=error&reason=not_admin&platform=linkedin_page")).toEqual({ kind: "error", reason: "not_admin", platform: "linkedin_page" });
+    // The backend's spelling: social=choose&platform=…&pending=<state id>.
+    expect(read("social=choose&platform=facebook&pending=st_1")).toEqual({ kind: "pick", stateId: "st_1", platform: "facebook" });
     expect(read("social=pick&pending=st_1&platform=facebook")).toEqual({ kind: "pick", stateId: "st_1", platform: "facebook" });
+    expect(read("social=connected&platform=instagram&account=8c7e")).toEqual({ kind: "connected", platform: "instagram" });
     // The contract doesn't name the parameter: the likely spellings, and `connected` carrying one.
     expect(read("social=connected&state_id=st_2")).toMatchObject({ kind: "pick", stateId: "st_2" });
     expect(read("tab=1")).toBeNull();
@@ -260,7 +282,7 @@ describe("the overview's attention items", () => {
     expect(socialAttention(accounts, [], false, now)[0]!.body).toMatch(/Ask the club's owner or an admin/);
   });
   it("leads to Social accounts, or to the event's Promote tab", () => {
-    expect(socialAttentionHref({ kind: "SOCIAL_DISCONNECTED", event_id: null })).toBe("/social");
+    expect(socialAttentionHref({ kind: "SOCIAL_DISCONNECTED", event_id: null })).toBe("/settings/social");
     expect(socialAttentionHref({ kind: "SOCIAL_FAILED", event_id: 42 })).toBe("/events/42/promote");
     expect(socialAttentionHref({ kind: "TICKETS_MISSING", event_id: 42 })).toBeNull();
   });

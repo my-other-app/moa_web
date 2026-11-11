@@ -67,9 +67,9 @@ export const KIND_INFO: Record<string, { label: string; link: string; tone: Aler
   mail_message: { label: "Mail", link: "/mail", tone: "info" },
   mailbox_lapsed: { label: "Club mailbox", link: "/mail/settings", tone: "caution" },
   mailbox_expired: { label: "Club mailbox", link: "/mail/settings", tone: "refuse" },
-  social_disconnected: { label: "Social account", link: "/social", tone: "refuse" },
-  social_expiring: { label: "Social account", link: "/social", tone: "caution" },
-  social_failed: { label: "Social post", link: "/social", tone: "refuse" },
+  social_disconnected: { label: "Social account", link: "/settings/social", tone: "refuse" },
+  social_expiring: { label: "Social account", link: "/settings/social", tone: "caution" },
+  social_failed: { label: "Social post", link: "/settings/social", tone: "refuse" },
 };
 
 /**

@@ -51,6 +51,7 @@ import {
   PLATFORMS,
   PLATFORM_LABEL,
   PLATFORM_NEEDS,
+  SOCIAL_SETTINGS_PATH,
   cardState,
   connectErrorText,
   daysLeft,
@@ -224,7 +225,7 @@ function PlanLocked({ platform, feature }: { platform: Platform; feature: string
 
 function ConnectButton({ platform, again = false }: { platform: Platform; again?: boolean }) {
   const connect = useConnect();
-  const go = () => connect.mutate({ platform, returnTo: `${window.location.origin}/social` });
+  const go = () => connect.mutate({ platform, returnTo: `${window.location.origin}${SOCIAL_SETTINGS_PATH}` });
   const busy = connect.isPending || connect.isSuccess;
   return (
     <div>

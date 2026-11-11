@@ -93,7 +93,7 @@ export const navItems: NavItem[] = [
   { href: "/discount-codes", label: "Discount codes", icon: TicketPercentIcon, group: "grow", needs: "edit_events", feature: "coupons", server: "ticketing" },
   // The club's Instagram, Facebook, LinkedIn and X, connected once for every event's posts. Owners, admins
   // and editors (editors read it; only owners and admins connect) -- once the API has social posting.
-  { href: "/social", label: "Social accounts", icon: MegaphoneIcon, group: "grow", needs: "edit_events", server: "social" },
+  { href: "/settings/social", label: "Social accounts", icon: MegaphoneIcon, group: "grow", needs: "edit_events", server: "social" },
   { href: "/website", label: "Website", icon: GlobeIcon, group: "grow", needs: "edit_events", feature: "website" },
   { href: "/templates", label: "Templates", icon: PaletteIcon, group: "grow", needs: "edit_events" },
   { href: "/finance", label: "Finance", icon: WalletIcon, group: "manage", needs: "money", feature: "finance" },

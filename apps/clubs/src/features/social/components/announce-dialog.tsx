@@ -69,10 +69,10 @@ export function AnnouncePrompt({ eventId }: { eventId: number }) {
 }
 
 export function AnnounceDialog({ eventId, accounts, approval, onClose }: { eventId: number; accounts: SocialAccount[]; approval: boolean; onClose: (next?: string) => void }) {
-  const [picked, setPicked] = React.useState<Set<number>>(() => new Set(accounts.map((a) => a.id)));
+  const [picked, setPicked] = React.useState<Set<string>>(() => new Set(accounts.map((a) => a.id)));
   const announce = useAnnounce(eventId);
   const chosen = accounts.filter((a) => picked.has(a.id));
-  const toggle = (id: number, on: boolean) => setPicked((s) => {
+  const toggle = (id: string, on: boolean) => setPicked((s) => {
     const next = new Set(s);
     if (on) next.add(id);
     else next.delete(id);
