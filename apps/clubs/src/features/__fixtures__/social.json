@@ -1,0 +1,103 @@
+{
+  "platforms": [
+    { "platform": "facebook", "available": true, "reason": null, "plan_feature": "social_autopost" },
+    { "platform": "instagram", "available": true, "reason": null, "plan_feature": "social_autopost" },
+    { "platform": "linkedin", "available": true, "reason": null, "plan_feature": "social_autopost" },
+    { "platform": "linkedin_page", "available": false, "reason": "review_pending", "plan_feature": "social_autopost" },
+    { "platform": "x", "available": false, "reason": "plan", "plan_feature": "social_x" }
+  ],
+  "accounts": [
+    {
+      "id": 11,
+      "platform": "instagram",
+      "name": "GDG Trivandrum",
+      "handle": "gdgtvm",
+      "picture_url": null,
+      "connected_by": { "id": 3, "name": "Ananya" },
+      "connected_at": "2026-11-03T09:30:00+05:30",
+      "expires_at": null,
+      "status": "connected",
+      "waiting_posts": 0
+    },
+    {
+      "id": 12,
+      "platform": "facebook",
+      "name": "GDG Trivandrum",
+      "handle": null,
+      "picture_url": null,
+      "connected_by": { "id": 3, "name": "Ananya" },
+      "connected_at": "2026-11-03T09:32:00+05:30",
+      "expires_at": null,
+      "status": "needs_reconnect",
+      "waiting_posts": 2,
+      "last_error": "The session was invalidated because the user changed their password"
+    },
+    {
+      "id": 13,
+      "platform": "linkedin",
+      "name": "Ananya Menon",
+      "handle": "ananya-menon",
+      "picture_url": null,
+      "connected_by": { "id": 3, "name": "Ananya" },
+      "connected_at": "2026-11-05T18:00:00+05:30",
+      "expires_at": "2027-01-07T18:00:00+05:30",
+      "status": "connected",
+      "waiting_posts": 0
+    }
+  ],
+  "settings": { "approval_required": false },
+  "posts": {
+    "attribution": { "instagram": 42, "linkedin": 18, "x": 3 },
+    "posts": [
+      {
+        "id": 501,
+        "name": "Reminder",
+        "trigger": { "mode": "before_start", "minutes": 2880 },
+        "status": "paused",
+        "status_reason": "event_changed",
+        "created_by": { "id": 4, "name": "Rahul" },
+        "approved_by": null,
+        "targets": [
+          { "id": 9101, "platform": "instagram", "account_id": 11, "text": "Two days to {event_name}! {seats_left} seats left. Link in bio.", "image_url": "https://media.myotherapp.in/social/42/ig_portrait.jpg", "variant_id": 71, "status": "scheduled", "attempts": 0, "scheduled_for": "2026-11-20T07:00:00+05:30" }
+        ]
+      },
+      {
+        "id": 500,
+        "name": "Announcement",
+        "trigger": { "mode": "on_publish" },
+        "status": "done",
+        "created_by": { "id": 3, "name": "Ananya" },
+        "approved_by": null,
+        "targets": [
+          { "id": 9001, "platform": "instagram", "account_id": 11, "text": "{event_name} is here! {date}, {time} at {venue}. Link in bio. #DevFest #GDG", "image_url": "https://media.myotherapp.in/social/42/ig_portrait.jpg", "variant_id": 71, "status": "posted", "post_url": "https://www.instagram.com/p/C0abc123/", "attempts": 1, "posted_at": "2026-11-10T10:02:00+05:30" },
+          { "id": 9002, "platform": "facebook", "account_id": 12, "text": "{event_name} — {date}, {time}, {venue}. Register: {link}", "image_url": "https://media.myotherapp.in/social/42/facebook.jpg", "variant_id": 73, "status": "held", "attempts": 1 },
+          { "id": 9003, "platform": "linkedin", "account_id": 13, "text": "We're hosting {event_name} on {date}. {link}", "image_url": "https://media.myotherapp.in/social/42/linkedin.jpg", "variant_id": 74, "status": "failed", "attempts": 6, "error": { "code": "platform_down", "message": "LinkedIn didn't answer", "action": "retry" } }
+        ]
+      }
+    ]
+  },
+  "drafts": [
+    { "platform": "instagram", "text": "{event_name} is coming to {venue} on {date}! Registrations are open — link in bio. #DevFest #GDGTrivandrum", "hashtags": ["DevFest", "GDGTrivandrum", "Trivandrum", "Kerala"], "variant_id": 71, "link": "https://myotherapp.in/l/ig42" },
+    { "platform": "facebook", "text": "{event_name} — {date}, {time} at {venue}. Register here: {link}", "hashtags": ["DevFest"], "variant_id": 73, "link": "https://myotherapp.in/l/fb42" },
+    { "platform": "linkedin", "text": "We're hosting {event_name} on {date} at {venue}. Speakers: {speakers}. Register: {link}", "hashtags": ["DevFest", "Google"], "variant_id": 74, "link": "https://myotherapp.in/l/li42" }
+  ],
+  "posters": [
+    { "id": 71, "size": "ig_portrait", "width": 1080, "height": 1350, "mode": "crop", "focus": { "x": 0.5, "y": 0.4 }, "background": null, "url": "https://media.myotherapp.in/social/42/ig_portrait.jpg" },
+    { "id": 72, "size": "ig_square", "width": 1080, "height": 1080, "mode": "crop", "focus": { "x": 0.5, "y": 0.5 }, "background": null, "url": "https://media.myotherapp.in/social/42/ig_square.jpg" },
+    { "id": 73, "size": "facebook", "width": 1200, "height": 630, "mode": "fit", "focus": null, "background": "#0f8a73", "url": "https://media.myotherapp.in/social/42/facebook.jpg" },
+    { "id": 74, "size": "linkedin", "width": 1200, "height": 627, "mode": "fit", "focus": null, "background": "#0f8a73", "url": "https://media.myotherapp.in/social/42/linkedin.jpg" },
+    { "id": 75, "size": "linkedin_square", "width": 1080, "height": 1080, "mode": "crop", "focus": { "x": 0.5, "y": 0.5 }, "background": null, "url": "https://media.myotherapp.in/social/42/linkedin_square.jpg" },
+    { "id": 76, "size": "x", "width": 1600, "height": 900, "mode": "fit", "focus": null, "background": "#0f8a73", "url": "https://media.myotherapp.in/social/42/x.jpg" }
+  ],
+  "share_kit": {
+    "event": { "id": 42, "name": "DevFest Trivandrum 2026", "date": "2026-11-22", "slug": "devfest-trivandrum-2026" },
+    "platforms": [
+      { "platform": "instagram", "text": "DevFest Trivandrum 2026 is coming! Link in bio. #DevFest", "image_url": "https://media.myotherapp.in/social/42/ig_portrait.jpg", "link": "https://myotherapp.in/l/ig42" },
+      { "platform": "linkedin", "text": "We're hosting DevFest Trivandrum 2026. Register: https://myotherapp.in/l/li42", "image_url": "https://media.myotherapp.in/social/42/linkedin.jpg", "link": "https://myotherapp.in/l/li42" }
+    ]
+  },
+  "pending": [
+    { "external_id": "1001", "name": "GDG Trivandrum", "picture": null },
+    { "external_id": "1002", "name": "Women Techmakers TVM", "picture": null }
+  ]
+}

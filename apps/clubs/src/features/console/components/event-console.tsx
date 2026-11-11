@@ -26,6 +26,7 @@ import { CancelEventDialog, useCancelState } from "@/features/event-cancel";
 import { useResults } from "@/features/results";
 import { EventRowMenu, EventStatusBadge, useEventDetail } from "@/features/events";
 import { useEventPlan, usePlan } from "@/features/plan";
+import { AnnouncePrompt, useSocialOnServer } from "@/features/social";
 import { useRequestCounts } from "@/features/requests/queries";
 import { totalOf } from "@/features/requests/schemas";
 import { useTicketTypes } from "@/features/ticketing/queries";
@@ -95,6 +96,8 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   // event that reviews registrations or has any at all.
   const requests = useRequestCounts(eventId);
   const pending = requests.data?.counts.pending ?? 0;
+  // The Promote tab, once the API has social posting, for those who may write posts (not door staff).
+  const social = useSocialOnServer(Boolean(can.edit_events));
   // A clock read once per navigation is enough for a "has it started" notice.
   const now = React.useMemo(() => new Date(), [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -129,6 +132,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
     payments: moneyTools && can.money && (Boolean(e?.has_fee) || status === "cancelled"),
     requests: requests.data != null && (Boolean(e?.requires_approval) || totalOf(requests.data.counts) > 0),
     cohosts: cohostsOn,
+    promote: social === true && Boolean(can.edit_events),
   };
   const cohosts = e?.cohosts ?? [];
   const notices = s ? clockNotices(s, now) : [];
@@ -275,6 +279,11 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
           {children}
         </TabPanel>
       </div>
+
+      {/* Just published (?announce=1): "Announce it?" on the club's connected accounts. Suspense: it reads the address. */}
+      <React.Suspense fallback={null}>
+        <AnnouncePrompt eventId={eventId} />
+      </React.Suspense>
     </div>
   );
 }

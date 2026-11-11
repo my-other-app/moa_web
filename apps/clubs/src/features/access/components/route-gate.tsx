@@ -23,6 +23,8 @@ const RULES: { test: (path: string) => boolean; needs: Cap; what: string; applie
   { test: (p) => p === "/whatsapp" || p.startsWith("/whatsapp/"), needs: "whatsapp", what: "WhatsApp", appliesIf: "whatsapp_known" },
   { test: (p) => p === "/mail" || p.startsWith("/mail/"), needs: "mail", what: "Mail", appliesIf: "mail_known" },
   { test: (p) => p === "/contacts" || p.startsWith("/contacts/"), needs: "contacts", what: "the contact book" },
+  // Social accounts and an event's Promote tab: owners, admins and editors (door staff have no posts to write).
+  { test: (p) => p === "/settings/social" || p.startsWith("/settings/social/") || /^\/events\/\d+\/promote(\/|$)/.test(p), needs: "edit_events", what: "social posting" },
   // Codes can make a ticket free: not for door staff (the rail already leaves the link out).
   { test: (p) => p === "/discount-codes" || p.startsWith("/discount-codes/"), needs: "edit_events", what: "discount codes" },
 ];
