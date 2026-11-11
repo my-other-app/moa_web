@@ -3,12 +3,12 @@
 import * as React from "react";
 import Link from "next/link";
 import { ExportMenu, downloadCsv, downloadXlsx, formatDateTime, timestampedName, toCsv, type CsvColumn, type ExportFormat } from "@moa/app-kit";
-import { CardLabel, EmptyState, FigurePanel, Notice, Skeleton, StatTile, StatusBadge, toast } from "@moa/ui";
+import { Button, CardLabel, EmptyState, FigurePanel, Notice, Skeleton, StatTile, StatusBadge, toast } from "@moa/ui";
 import { pressable } from "@moa/ui/motion";
 
 import { useCan } from "@/hooks/use-can";
 
-import { useWebhookHealth } from "../queries";
+import { useSetEndpointEnabled, useWebhookHealth } from "../queries";
 import { answeredText, type FailingEndpoint } from "../schemas";
 import { DailyBars } from "./parts";
 
@@ -18,11 +18,12 @@ export const FAILING_COLUMNS: CsvColumn<FailingEndpoint>[] = [
   { header: "Endpoint", value: (e) => e.url },
   { header: "Club", value: (e) => e.club?.name ?? "" },
   { header: "Club ID", value: (e) => e.club?.id ?? "" },
-  { header: "Partner app", value: (e) => e.partner_app?.name ?? "" },
+  { header: "Made by", value: (e) => (e.by_partner ? "A partner app" : "The club") },
   { header: "On", value: (e) => (e.enabled ? "Yes" : "No, turned off") },
   { header: "Failing since", value: (e) => e.failing_since ?? "" },
   { header: "Failures in a row", value: (e) => e.consecutive_failures },
-  { header: "Last answer", value: (e) => answeredText(e) },
+  { header: "Last failure", value: (e) => e.last_failure_at ?? "" },
+  { header: "Last error", value: (e) => answeredText(e) },
 ];
 
 /**
@@ -34,6 +35,8 @@ export const FAILING_COLUMNS: CsvColumn<FailingEndpoint>[] = [
 export function WebhookHealthPage() {
   const health = useWebhookHealth();
   const canExport = useCan("export_data");
+  const moderate = useCan("moderate");
+  const toggle = useSetEndpointEnabled();
   const [busy, setBusy] = React.useState(false);
   const h = health.data;
 
@@ -59,7 +62,7 @@ export function WebhookHealthPage() {
         <StatTile label="Delivered, 7 days" value={n(h.totals.delivered)} />
         <StatTile label="Failed" value={n(h.totals.failed)} note={sent ? `${((h.totals.failed / sent) * 100).toFixed(1)}% of sent` : undefined} />
         <StatTile label="Waiting to retry" value={n(h.totals.pending)} />
-        <StatTile label="Endpoints failing" value={n(h.endpoints.failing)} note={`${n(h.endpoints.active)} on · ${n(h.endpoints.disabled)} turned off`} />
+        <StatTile label="Endpoints failing" value={n(h.endpoints.failing)} note={`${n(h.endpoints.active)} of ${n(h.endpoints.total)} on · ${n(h.endpoints.disabled)} turned off for failing`} />
       </div>
       <FigurePanel className="flex flex-col gap-2 p-4" role="region" aria-label="Deliveries per day">
         <CardLabel right={<span className="text-ink-3 text-[11px]">Failures in red</span>}>Deliveries per day</CardLabel>
@@ -84,6 +87,19 @@ export function WebhookHealthPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <code className="text-ink text-[12.5px] break-all">{e.url}</code>
                   <StatusBadge tone={e.enabled ? "destructive" : "default"} label={e.enabled ? "Failing" : "Turned off"} />
+                  <span className="flex-1" />
+                  {moderate ? (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      className={pressable}
+                      disabled={toggle.isPending}
+                      onClick={() => toggle.mutate({ endpointId: e.endpoint_id, enabled: !e.enabled, url: e.url })}
+                      aria-label={e.enabled ? `Turn off ${e.url}` : `Turn on ${e.url}`}
+                    >
+                      {e.enabled ? "Turn off" : "Turn on"}
+                    </Button>
+                  ) : null}
                 </div>
                 <p className="text-ink-3 m-0 text-[12px] leading-[1.5]">
                   {e.club ? (
@@ -93,7 +109,7 @@ export function WebhookHealthPage() {
                   ) : (
                     "No club"
                   )}
-                  {e.partner_app ? ` · via ${e.partner_app.name}` : ""}
+                  {e.by_partner ? " · made by a partner app" : ""}
                   {e.failing_since ? ` · failing since ${formatDateTime(e.failing_since)}` : ""}
                   {` · ${e.consecutive_failures} in a row · ${answeredText(e)}`}
                 </p>
@@ -102,6 +118,22 @@ export function WebhookHealthPage() {
           </ul>
         )}
       </FigurePanel>
+      {h.topClubs.length ? (
+        <FigurePanel className="flex flex-col gap-2 p-4" role="region" aria-label="Busiest clubs">
+          <CardLabel>Busiest clubs, 7 days</CardLabel>
+          <ul className="m-0 flex list-none flex-col p-0">
+            {h.topClubs.map((c) => (
+              <li key={c.club_id} className="border-line-soft flex items-center gap-2 border-b py-2 text-[12.5px] last:border-0">
+                <Link href={`/clubs/${c.club_id}`} className="text-ink min-w-0 flex-1 truncate hover:underline">
+                  {c.club_name || `Club ${c.club_id}`}
+                </Link>
+                <span className="text-ink-2 tabular-nums">{n(c.deliveries)} sent</span>
+                {c.failed ? <span className="text-refuse tabular-nums">{n(c.failed)} failed</span> : null}
+              </li>
+            ))}
+          </ul>
+        </FigurePanel>
+      ) : null}
     </div>
   );
 }

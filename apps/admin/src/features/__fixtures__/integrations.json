@@ -1,126 +1,410 @@
 {
   "allocations": {
-    "items": [
+    "clubs": [
       {
-        "club": { "id": 5, "name": "GDG Trivandrum", "slug": "gdg-trivandrum" },
-        "allocated": true,
+        "club": {
+          "id": 5,
+          "name": "GDG Trivandrum",
+          "slug": "gdg-trivandrum",
+          "verified": true
+        },
+        "enabled": true,
         "rate_tier": "standard",
+        "rate_limit": {
+          "read_per_min": 600,
+          "write_per_min": 120
+        },
         "max_keys": 5,
         "notes": "Syncs with the college ERP",
-        "allocated_at": "2026-11-01T10:00:00+05:30",
-        "allocated_by": { "name": "Mohammed", "email": "admin@myotherapp.in" },
-        "revoked_at": null,
-        "keys_active": 2,
-        "apps_connected": 1,
-        "endpoints": 2,
-        "requests_30d": 18234,
-        "errors_30d": 112,
-        "last_used_at": "2026-11-11T18:20:00+05:30"
+        "source": "admin",
+        "updated_at": "2026-11-01T10:00:00+05:30",
+        "live_keys": 2
       },
       {
-        "club": { "id": 8, "name": "Quiz Society", "slug": "quiz" },
-        "allocated": false,
+        "club": {
+          "id": 8,
+          "name": "Quiz Society",
+          "slug": "quiz",
+          "verified": true
+        },
+        "enabled": false,
         "rate_tier": "high",
+        "rate_limit": {
+          "read_per_min": 3000,
+          "write_per_min": 600
+        },
         "max_keys": 10,
         "notes": null,
-        "allocated_at": "2026-10-01T10:00:00+05:30",
-        "allocated_by": null,
-        "revoked_at": "2026-10-20T10:00:00+05:30",
-        "keys_active": 0,
-        "apps_connected": 0,
-        "endpoints": 0,
-        "requests_30d": 0,
-        "errors_30d": 0,
-        "last_used_at": null
+        "source": "admin",
+        "updated_at": "2026-10-20T10:00:00+05:30",
+        "live_keys": 0
+      }
+    ]
+  },
+  "club_detail": {
+    "club": {
+      "id": 5,
+      "name": "GDG Trivandrum",
+      "slug": "gdg-trivandrum",
+      "verified": true
+    },
+    "enabled": true,
+    "rate_tier": "standard",
+    "rate_limit": {
+      "read_per_min": 600,
+      "write_per_min": 120
+    },
+    "max_keys": 5,
+    "notes": "Syncs with the college ERP",
+    "source": "admin",
+    "updated_at": "2026-11-01T10:00:00+05:30",
+    "live_keys": 1,
+    "plan_allows": null,
+    "keys": [
+      {
+        "id": "k1",
+        "client_id": "moa_key_erp1",
+        "name": "College ERP",
+        "prefix": "moa_live_Qx7p",
+        "mode": "live",
+        "livemode": true,
+        "scopes": [
+          "events:read",
+          "attendees:read"
+        ],
+        "expires_at": null,
+        "ip_allowlist": [],
+        "last_used_at": "2026-11-11T18:20:00+05:30",
+        "last_used_ip": "203.0.113.10",
+        "created_at": "2026-11-01T10:00:00+05:30",
+        "created_by": "Asha Nair",
+        "rotated_at": null,
+        "revoked_at": null,
+        "expired": false,
+        "attendees_disclosure_ack_at": "2026-11-01T10:00:00+05:30"
+      },
+      {
+        "id": "k3",
+        "client_id": "moa_key_old3",
+        "name": "Old sheet script",
+        "prefix": "moa_live_a1B2",
+        "mode": "live",
+        "livemode": true,
+        "scopes": [
+          "registrations:read"
+        ],
+        "expires_at": null,
+        "ip_allowlist": [],
+        "last_used_at": null,
+        "last_used_ip": null,
+        "created_at": "2026-09-01T10:00:00+05:30",
+        "created_by": "The club's own account",
+        "rotated_at": null,
+        "revoked_at": "2026-10-01T10:00:00+05:30",
+        "expired": false,
+        "attendees_disclosure_ack_at": null
       }
     ],
-    "total": 2
+    "connected_apps": [
+      {
+        "id": "c1",
+        "club_id": 5,
+        "mode": "live",
+        "livemode": true,
+        "scopes": [
+          {
+            "key": "events:read",
+            "label": "See events"
+          },
+          {
+            "key": "events:write",
+            "label": "Create and edit events"
+          }
+        ],
+        "via": "consent",
+        "connected_by": "Asha Nair",
+        "connected_at": "2026-11-03T10:00:00+05:30",
+        "last_used_at": "2026-11-11T08:00:00+05:30",
+        "attendees_disclosure_ack_at": null,
+        "app": {
+          "id": "p1",
+          "name": "EventHub",
+          "logo_url": null,
+          "website": "https://www.eventhub.example",
+          "status": "active"
+        }
+      }
+    ],
+    "usage": [
+      {
+        "day": "2026-11-01",
+        "requests": 100,
+        "writes": 10,
+        "errors": 1,
+        "rate_limited": 0,
+        "attendee_reads": 3
+      },
+      {
+        "day": "2026-11-02",
+        "requests": 200,
+        "writes": 10,
+        "errors": 0,
+        "rate_limited": 0,
+        "attendee_reads": 3
+      },
+      {
+        "day": "2026-11-03",
+        "requests": 300,
+        "writes": 10,
+        "errors": 1,
+        "rate_limited": 0,
+        "attendee_reads": 3
+      },
+      {
+        "day": "2026-11-04",
+        "requests": 400,
+        "writes": 10,
+        "errors": 0,
+        "rate_limited": 0,
+        "attendee_reads": 3
+      },
+      {
+        "day": "2026-11-05",
+        "requests": 500,
+        "writes": 10,
+        "errors": 1,
+        "rate_limited": 0,
+        "attendee_reads": 3
+      }
+    ]
   },
   "partner_apps": {
-    "items": [
+    "apps": [
       {
         "id": "p1",
-        "name": "EventHub",
         "client_id": "moa_client_7Hk2pQ",
-        "logo_url": null,
+        "name": "EventHub",
+        "description": "Event pages and ticketing",
         "website": "https://www.eventhub.example",
-        "redirect_uris": ["https://app.eventhub.example/oauth/myotherapp"],
-        "allowed_scopes": ["events:read", "events:write", "registrations:write", "attendees:read"],
+        "logo_url": null,
+        "contact_email": "dev@eventhub.example",
+        "redirect_uris": [
+          "https://app.eventhub.example/oauth/myotherapp"
+        ],
+        "allowed_scopes": [
+          "events:read",
+          "events:write",
+          "registrations:write",
+          "attendees:read"
+        ],
+        "rate_tier": "standard",
         "status": "active",
-        "created_at": "2026-11-02T10:00:00+05:30",
         "suspended_at": null,
-        "clubs_connected": 3,
-        "last_used_at": "2026-11-11T08:00:00+05:30"
+        "suspended_reason": null,
+        "secret_rotated_at": null,
+        "created_at": "2026-11-02T10:00:00+05:30",
+        "connected_clubs": 3
       },
       {
         "id": "p2",
-        "name": "CampusOS",
         "client_id": "moa_client_Zz81aa",
-        "logo_url": null,
+        "name": "CampusOS",
+        "description": null,
         "website": null,
-        "redirect_uris": ["https://campusos.example/cb"],
-        "allowed_scopes": ["clubs:create", "club:read"],
+        "logo_url": null,
+        "contact_email": null,
+        "redirect_uris": [
+          "https://campusos.example/cb"
+        ],
+        "allowed_scopes": [
+          "club:read",
+          "clubs:create"
+        ],
+        "rate_tier": "high",
         "status": "suspended",
-        "created_at": "2026-10-02T10:00:00+05:30",
         "suspended_at": "2026-11-05T10:00:00+05:30",
-        "clubs_connected": 0,
-        "last_used_at": null
+        "suspended_reason": "Sent too many requests",
+        "secret_rotated_at": null,
+        "created_at": "2026-10-02T10:00:00+05:30",
+        "connected_clubs": 0
       }
     ],
-    "total": 2
+    "scopes": []
   },
   "partner_created": {
-    "app": {
-      "id": "p9",
-      "name": "Sheet Sync",
-      "client_id": "moa_client_Nw9LxT",
-      "logo_url": null,
-      "website": "https://sheetsync.example",
-      "redirect_uris": ["https://sheetsync.example/oauth", "com.sheetsync.app:/oauth"],
-      "allowed_scopes": ["events:read", "registrations:read"],
-      "status": "active",
-      "created_at": "2026-11-12T10:00:00+05:30",
-      "suspended_at": null,
-      "clubs_connected": 0,
-      "last_used_at": null
-    },
+    "id": "p9",
+    "client_id": "moa_client_Nw9LxT",
+    "name": "Sheet Sync",
+    "description": null,
+    "website": "https://sheetsync.example",
+    "logo_url": null,
+    "contact_email": null,
+    "redirect_uris": [
+      "https://sheetsync.example/oauth",
+      "http://localhost:3000/cb"
+    ],
+    "allowed_scopes": [
+      "events:read",
+      "registrations:read"
+    ],
+    "rate_tier": "standard",
+    "status": "active",
+    "suspended_at": null,
+    "suspended_reason": null,
+    "secret_rotated_at": null,
+    "created_at": "2026-11-12T10:00:00+05:30",
+    "connected_clubs": 0,
     "client_secret": "moa_cs_4Hq7TzR1wL9nB2vX6mK8pJ3dF5gS0aYe"
   },
-  "partner_clubs": {
-    "items": [
+  "partner_detail": {
+    "id": "p1",
+    "client_id": "moa_client_7Hk2pQ",
+    "name": "EventHub",
+    "description": "Event pages and ticketing",
+    "website": "https://www.eventhub.example",
+    "logo_url": null,
+    "contact_email": "dev@eventhub.example",
+    "redirect_uris": [
+      "https://app.eventhub.example/oauth/myotherapp"
+    ],
+    "allowed_scopes": [
+      "events:read",
+      "events:write",
+      "registrations:write",
+      "attendees:read"
+    ],
+    "rate_tier": "standard",
+    "status": "active",
+    "suspended_at": null,
+    "suspended_reason": null,
+    "secret_rotated_at": null,
+    "created_at": "2026-11-02T10:00:00+05:30",
+    "connected_clubs": 1,
+    "connections": [
       {
-        "club": { "id": 5, "name": "GDG Trivandrum", "slug": "gdg-trivandrum" },
-        "scopes": ["events:read", "events:write"],
+        "id": "c1",
+        "club_id": 5,
+        "mode": "live",
+        "livemode": true,
+        "scopes": [
+          {
+            "key": "events:read",
+            "label": "See events"
+          },
+          {
+            "key": "events:write",
+            "label": "Create and edit events"
+          }
+        ],
+        "via": "consent",
+        "connected_by": "Asha Nair",
         "connected_at": "2026-11-03T10:00:00+05:30",
-        "connected_by": { "name": "Asha Nair", "email": "asha@gdgtvm.in" },
-        "last_used_at": "2026-11-11T08:00:00+05:30"
+        "last_used_at": "2026-11-11T08:00:00+05:30",
+        "attendees_disclosure_ack_at": null,
+        "club": {
+          "id": 5,
+          "name": "GDG Trivandrum"
+        }
       }
     ]
   },
   "health": {
-    "totals": { "delivered": 4210, "failed": 38, "pending": 4 },
-    "days": [
-      { "date": "2026-11-06", "delivered": 500, "failed": 2 },
-      { "date": "2026-11-07", "delivered": 610, "failed": 0 },
-      { "date": "2026-11-08", "delivered": 580, "failed": 4 },
-      { "date": "2026-11-09", "delivered": 700, "failed": 10 },
-      { "date": "2026-11-10", "delivered": 640, "failed": 12 },
-      { "date": "2026-11-11", "delivered": 690, "failed": 8 },
-      { "date": "2026-11-12", "delivered": 490, "failed": 2 }
-    ],
-    "endpoints": { "active": 14, "failing": 1, "disabled": 1 },
-    "failing": [
+    "endpoints": {
+      "total": 16,
+      "enabled": 14,
+      "turned_off_failing": 1,
+      "failing_now": 1
+    },
+    "per_day": [
       {
-        "endpoint_id": "w2",
+        "day": "2026-11-06",
+        "deliveries": 500,
+        "succeeded": 495,
+        "failed": 0,
+        "waiting": 0
+      },
+      {
+        "day": "2026-11-07",
+        "deliveries": 510,
+        "succeeded": 504,
+        "failed": 1,
+        "waiting": 0
+      },
+      {
+        "day": "2026-11-08",
+        "deliveries": 520,
+        "succeeded": 513,
+        "failed": 2,
+        "waiting": 0
+      },
+      {
+        "day": "2026-11-09",
+        "deliveries": 530,
+        "succeeded": 522,
+        "failed": 3,
+        "waiting": 0
+      },
+      {
+        "day": "2026-11-10",
+        "deliveries": 540,
+        "succeeded": 531,
+        "failed": 4,
+        "waiting": 0
+      },
+      {
+        "day": "2026-11-11",
+        "deliveries": 550,
+        "succeeded": 540,
+        "failed": 5,
+        "waiting": 0
+      },
+      {
+        "day": "2026-11-12",
+        "deliveries": 560,
+        "succeeded": 549,
+        "failed": 6,
+        "waiting": 1
+      }
+    ],
+    "top_clubs_7d": [
+      {
+        "club_id": 5,
+        "club_name": "GDG Trivandrum",
+        "deliveries": 3100,
+        "failed": 21
+      }
+    ],
+    "failing_endpoints": [
+      {
+        "id": "w2",
         "url": "https://hooks.eventhub.example/moa/club-5",
-        "club": { "id": 5, "name": "GDG Trivandrum" },
-        "partner_app": { "id": "p1", "name": "EventHub" },
+        "description": null,
+        "events": [
+          "*"
+        ],
+        "include_own_changes": false,
+        "livemode": true,
         "enabled": true,
+        "status": "enabled",
+        "disabled_reason": null,
+        "owner": {
+          "type": "partner_app",
+          "client_id": "moa_client_7Hk2pQ",
+          "partner_app_id": "p1"
+        },
         "failing_since": "2026-11-10T08:00:00+05:30",
         "consecutive_failures": 31,
-        "last_response_status": 503,
-        "last_error": null
+        "last_success_at": "2026-11-10T07:00:00+05:30",
+        "last_failure_at": "2026-11-12T08:00:00+05:30",
+        "created_at": "2026-11-03T10:00:00+05:30",
+        "club_id": 5,
+        "club_name": "GDG Trivandrum",
+        "last_error": "HTTP 503."
       }
+    ],
+    "retry_schedule_seconds": [
+      60,
+      300
     ]
   }
 }

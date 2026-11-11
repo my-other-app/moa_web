@@ -10,7 +10,9 @@ import fixture from "../__fixtures__/integrations.json";
  * the export), partner apps (register with redirect URIs and the scopes it
  * may ask for, the client secret shown once; suspend; connected clubs),
  * webhook health, the rail's item only on an API that has them, and what
- * a role that may only look is offered.
+ * a role that may only look is offered. The fixture is in the backend's own
+ * shapes (feat/partner-api app/api/partner/admin_router.py, feat/api-webhooks
+ * app/api/webhooks_out/router.py).
  */
 let role: string | null = "owner";
 let search = "";
@@ -19,7 +21,7 @@ let server: "new" | "old" = "new";
 const calls: Array<{ method: string; path: string; body?: unknown; query?: Record<string, unknown> }> = [];
 const notFound = () => new ApiError({ status: 404, message: "Not Found", routeMissing: true });
 
-const USAGE = Array.from({ length: 30 }, (_, i) => ({ date: new Date(Date.UTC(2026, 9, 14 + i)).toISOString().slice(0, 10), requests: 600 + i, errors: i % 7 === 0 ? 4 : 0 }));
+const USAGE = Array.from({ length: 30 }, (_, i) => ({ day: new Date(Date.UTC(2026, 9, 14 + i)).toISOString().slice(0, 10), requests: 600 + i, writes: 0, errors: i % 7 === 0 ? 4 : 0, rate_limited: 0, attendee_reads: 0 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
@@ -39,10 +41,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         calls.push({ method: "GET", path, query: init?.query });
         if (path.startsWith("/api/v1/admin/integrations") && server === "old") throw notFound();
         if (path === "/api/v1/admin/integrations/clubs") return fixture.allocations;
-        if (path === "/api/v1/admin/integrations/usage") return { days: USAGE };
-        if (/\/admin\/integrations\/clubs\/\d+\/usage$/.test(path)) return { days: USAGE.slice(0, 5) };
+        if (path === "/api/v1/admin/integrations/usage") return { days: USAGE, clients: [] };
+        if (/\/admin\/integrations\/clubs\/\d+$/.test(path)) return fixture.club_detail;
         if (path === "/api/v1/admin/integrations/partner-apps") return fixture.partner_apps;
-        if (/\/partner-apps\/\w+\/clubs$/.test(path)) return fixture.partner_clubs;
+        if (/\/partner-apps\/p1$/.test(path)) return fixture.partner_detail;
         if (path === "/api/v1/admin/integrations/webhooks/health") return fixture.health;
         if (path === "/api/v1/clubs/admin/list")
           return { items: [{ id: 12, name: "Robotics Club", slug: "robotics", logo: null, is_verified: true }], total: 1, limit: 8, offset: 0 };
@@ -51,22 +53,26 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       post: vi.fn(async (path: string, body?: unknown) => {
         calls.push({ method: "POST", path, body });
         if (path === "/api/v1/admin/integrations/partner-apps") return fixture.partner_created;
-        if (/\/partner-apps\/p1\/suspend$/.test(path)) return { ...fixture.partner_apps.items[0], status: "suspended" };
-        if (/\/partner-apps\/p2\/resume$/.test(path)) return { ...fixture.partner_apps.items[1], status: "active" };
-        if (/\/partner-apps\/\w+\/rotate-secret$/.test(path)) return { app: fixture.partner_apps.items[0], client_secret: "moa_cs_rotatedrotatedrotated" };
+        if (/\/partner-apps\/p1\/suspend$/.test(path)) return { ...fixture.partner_apps.apps[0], status: "suspended" };
+        if (/\/partner-apps\/p2\/resume$/.test(path)) return { ...fixture.partner_apps.apps[1], status: "active" };
+        if (/\/partner-apps\/\w+\/rotate-secret$/.test(path)) return { ...fixture.partner_apps.apps[0], client_secret: "moa_cs_rotatedrotatedrotated" };
         throw new Error(`unstubbed POST ${path}`);
       }),
       put: vi.fn(async (path: string, body: unknown) => {
         calls.push({ method: "PUT", path, body });
         const id = Number(path.split("/").at(-1));
-        const row = fixture.allocations.items.find((r) => r.club.id === id) ?? { ...fixture.allocations.items[0], club: { id, name: "Robotics Club", slug: "robotics" } };
+        const row = fixture.allocations.clubs.find((r) => r.club.id === id) ?? { ...fixture.allocations.clubs[0], club: { id, name: "Robotics Club", slug: "robotics", verified: true } };
         return { ...row, ...(body as object) };
       }),
       patch: vi.fn(async (path: string, body: unknown) => {
         calls.push({ method: "PATCH", path, body });
-        return { ...fixture.partner_apps.items[0], ...(body as object) };
+        if (path.includes("/webhooks/endpoints/")) return { ...fixture.health.failing_endpoints[0], ...(body as object) };
+        return { ...fixture.partner_apps.apps[0], ...(body as object) };
       }),
-      del: vi.fn(),
+      del: vi.fn(async (path: string) => {
+        calls.push({ method: "DELETE", path });
+        return { disconnected: true };
+      }),
     },
   };
 });
@@ -99,35 +105,40 @@ describe("the rules", () => {
     expect(mod.redirectProblem("https://app.example/cb")).toBeNull();
     expect(mod.redirectProblem("http://localhost:3000/cb")).toBeNull();
     expect(mod.redirectProblem("http://127.0.0.1:8080/cb")).toBeNull();
-    expect(mod.redirectProblem("com.example.app:/oauth")).toBeNull();
+    // As the server takes them: no app schemes, no fragments, http only back to this computer.
+    expect(mod.redirectProblem("com.example.app:/oauth")).toMatch(/must use https/);
     expect(mod.redirectProblem("http://app.example/cb")).toMatch(/must use https/);
     expect(mod.redirectProblem("https://app.example/cb#x")).toMatch(/# part/);
-    expect(mod.redirectProblem("javascript:alert(1)")).toMatch(/can't be a redirect/);
-    expect(mod.redirectProblem("myapp:/cb")).toMatch(/com\.example\.app/);
-    const p = mod.partnerProblems({ ...mod.EMPTY_PARTNER_FORM, website: "http://x.example" });
-    expect(Object.keys(p).sort()).toEqual(["name", "redirects", "scopes", "website"]);
-    const body = mod.partnerBody({ name: " Sheet Sync ", logoUrl: "", website: "https://sheetsync.example", redirects: "https://sheetsync.example/oauth\ncom.sheetsync.app:/oauth\n", scopes: ["clubs:create", "registrations:read", "events:read"] });
+    expect(mod.redirectProblem("javascript:alert(1)")).toMatch(/must use https/);
+    const p = mod.partnerProblems({ ...mod.EMPTY_PARTNER_FORM, website: "http://x.example", contactEmail: "nope" });
+    expect(Object.keys(p).sort()).toEqual(["contactEmail", "name", "redirects", "scopes", "website"]);
+    const body = mod.partnerBody({ ...mod.EMPTY_PARTNER_FORM, name: " Sheet Sync ", website: "https://sheetsync.example", redirects: "https://sheetsync.example/oauth\nhttp://localhost:3000/cb\n", scopes: ["clubs:create", "registrations:read", "events:read"], tier: "high" });
     expect(body).toEqual({
       name: "Sheet Sync",
+      description: null,
       logo_url: null,
       website: "https://sheetsync.example",
-      redirect_uris: ["https://sheetsync.example/oauth", "com.sheetsync.app:/oauth"],
+      contact_email: null,
+      redirect_uris: ["https://sheetsync.example/oauth", "http://localhost:3000/cb"],
       allowed_scopes: ["events:read", "registrations:read", "clubs:create"],
+      rate_tier: "high",
     });
-    expect(mod.allocationProblems({ tier: "standard", maxKeys: "0", notes: "" }).maxKeys).toBe("A whole number from 1 to 50.");
+    expect(mod.allocationProblems({ tier: "standard", maxKeys: "101", notes: "" }).maxKeys).toBe("A whole number from 0 to 100.");
+    expect(mod.allocationProblems({ tier: "standard", maxKeys: "0", notes: "" })).toEqual({});
     expect(mod.allocationProblems({ tier: "high", maxKeys: "10", notes: "" })).toEqual({});
   });
 });
 
 describe("Integrations → Clubs with access", () => {
-  it("lists each club's access, tier, keys and use, with the platform's 30 days", async () => {
+  it("lists each club's access, tier and keys, with the platform's 30 days", async () => {
     render(<ClubsAccessPage />);
     expect(await screen.findByRole("link", { name: "GDG Trivandrum" })).toHaveAttribute("href", "/clubs/5");
     const gdg = within(rowOf("GDG Trivandrum"));
     expect(gdg.getByText("On")).toBeInTheDocument();
     expect(gdg.getByText("Standard · 2/5 keys")).toBeInTheDocument();
-    expect(gdg.getByText("112 errors")).toBeInTheDocument();
-    expect(within(rowOf("Quiz Society")).getByText("Taken away")).toBeInTheDocument();
+    expect(gdg.getByText("Given here")).toBeInTheDocument();
+    expect(within(rowOf("Quiz Society")).getByText("Off")).toBeInTheDocument();
+    expect(within(rowOf("Quiz Society")).getByText("High · 0/10 keys")).toBeInTheDocument();
     expect(await screen.findByRole("img", { name: /API requests per day/ })).toBeInTheDocument();
   });
 
@@ -145,7 +156,7 @@ describe("Integrations → Clubs with access", () => {
     fireEvent.change(within(dialog).getByLabelText(/Notes/), { target: { value: "Asked on 12 Nov" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Give access" }));
     await waitFor(() => expect(sent("PUT", /\/admin\/integrations\/clubs\/12$/)).toHaveLength(1));
-    expect(sent("PUT", /clubs\/12$/)[0]!.body).toEqual({ allocated: true, rate_tier: "high", max_keys: 8, notes: "Asked on 12 Nov" });
+    expect(sent("PUT", /clubs\/12$/)[0]!.body).toEqual({ enabled: true, rate_tier: "high", max_keys: 8, notes: "Asked on 12 Nov" });
     await waitFor(() => expect(success).toHaveBeenCalledWith("Robotics Club has API access. Its owner and admins make keys under Settings → Integrations."));
   });
 
@@ -156,18 +167,29 @@ describe("Integrations → Clubs with access", () => {
     const dialog = await screen.findByRole("dialog", { name: "GDG Trivandrum's API access" });
     expect(within(dialog).getByLabelText(/Notes/)).toHaveValue("Syncs with the college ERP");
     fireEvent.click(within(dialog).getByRole("switch", { name: "API access" }));
-    expect(within(dialog).getByText(/Every key GDG Trivandrum made stops working at once/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/API keys and the partner apps it connected are refused from that moment/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Take access away" }));
-    await waitFor(() => expect(sent("PUT", /clubs\/5$/)[0]?.body).toEqual({ allocated: false, rate_tier: "standard", max_keys: 5, notes: "Syncs with the college ERP" }));
+    await waitFor(() => expect(sent("PUT", /clubs\/5$/)[0]?.body).toEqual({ enabled: false, rate_tier: "standard", max_keys: 5, notes: "Syncs with the college ERP" }));
   });
 
-  it("shows a club's own usage", async () => {
+  it("shows a club's usage, keys and connected apps, and revokes a key after asking", async () => {
     render(<ClubsAccessPage />);
     await screen.findByRole("link", { name: "GDG Trivandrum" });
-    fireEvent.click(screen.getByRole("button", { name: "Usage of GDG Trivandrum" }));
-    const sheet = await screen.findByRole("dialog", { name: "GDG Trivandrum: API usage" });
+    fireEvent.click(screen.getByRole("button", { name: "Keys and usage of GDG Trivandrum" }));
+    const sheet = await screen.findByRole("dialog", { name: "GDG Trivandrum: API access" });
     expect(await within(sheet).findByRole("img", { name: /API requests per day/ })).toBeInTheDocument();
-    expect(sent("GET", /\/clubs\/5\/usage$/)[0]!.query).toEqual({ days: 30 });
+    expect(sent("GET", /\/admin\/integrations\/clubs\/5$/)).toHaveLength(1);
+    const erp = within(sheet).getByRole("listitem", { name: "College ERP" });
+    expect(within(erp).getByText("See people's details")).toBeInTheDocument();
+    expect(within(erp).getByText(/made by Asha Nair/)).toBeInTheDocument();
+    const old = within(sheet).getByRole("listitem", { name: "Old sheet script" });
+    expect(within(old).getByText("Revoked")).toBeInTheDocument();
+    expect(within(old).queryByRole("button", { name: /Revoke/ })).toBeNull();
+    expect(within(sheet).getByText("EventHub")).toBeInTheDocument();
+    fireEvent.click(within(erp).getByRole("button", { name: "Revoke College ERP" }));
+    expect(sent("DELETE", /keys/)).toHaveLength(0);
+    fireEvent.click(within(erp).getByRole("button", { name: "Revoke it" }));
+    await waitFor(() => expect(sent("DELETE", /\/admin\/integrations\/keys\/k1$/)).toHaveLength(1));
   });
 
   it("exports the list as Excel", async () => {
@@ -187,7 +209,7 @@ describe("Integrations → Clubs with access", () => {
     await screen.findByRole("link", { name: "GDG Trivandrum" });
     expect(screen.queryByRole("button", { name: /Give a club access/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Change GDG/ })).toBeNull();
-    expect(screen.getByRole("button", { name: "Usage of GDG Trivandrum" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Keys and usage of GDG Trivandrum" })).toBeInTheDocument();
   });
 });
 
@@ -201,6 +223,7 @@ describe("Integrations → Partner apps", () => {
     expect(hub.getByText("Active")).toBeInTheDocument();
     const campus = within(rowOf("CampusOS"));
     expect(campus.getByText("Suspended")).toBeInTheDocument();
+    expect(campus.getByText("Sent too many requests")).toBeInTheDocument();
     expect(campus.getByText("Create clubs")).toBeInTheDocument();
     expect(campus.getByRole("button", { name: "Resume CampusOS" })).toBeInTheDocument();
   });
@@ -215,7 +238,7 @@ describe("Integrations → Partner apps", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Register" }));
     expect(await within(dialog).findByText(/must use https/)).toBeInTheDocument();
     expect(within(dialog).getByText("Choose at least one thing it may ask clubs for.")).toBeInTheDocument();
-    fireEvent.change(within(dialog).getByLabelText("Redirect URIs"), { target: { value: "https://sheetsync.example/oauth\ncom.sheetsync.app:/oauth" } });
+    fireEvent.change(within(dialog).getByLabelText("Redirect URIs"), { target: { value: "https://sheetsync.example/oauth\nhttp://localhost:3000/cb" } });
     fireEvent.click(within(dialog).getByRole("checkbox", { name: /See registrations/ }));
     fireEvent.click(within(dialog).getByRole("checkbox", { name: /See events/ }));
     expect(within(dialog).getByRole("group", { name: "The platform" })).toBeInTheDocument();
@@ -223,10 +246,13 @@ describe("Integrations → Partner apps", () => {
     await waitFor(() => expect(sent("POST", /\/admin\/integrations\/partner-apps$/)).toHaveLength(1));
     expect(sent("POST", /partner-apps$/)[0]!.body).toEqual({
       name: "Sheet Sync",
+      description: null,
       logo_url: null,
       website: "https://sheetsync.example",
-      redirect_uris: ["https://sheetsync.example/oauth", "com.sheetsync.app:/oauth"],
+      contact_email: null,
+      redirect_uris: ["https://sheetsync.example/oauth", "http://localhost:3000/cb"],
       allowed_scopes: ["events:read", "registrations:read"],
+      rate_tier: "standard",
     });
 
     const shown = await screen.findByRole("dialog", { name: "Sheet Sync is registered" });
@@ -247,8 +273,9 @@ describe("Integrations → Partner apps", () => {
     const ask = await screen.findByRole("alertdialog");
     expect(within(ask).getByText(/Its tokens stop working at once, for every club connected to it \(3\)/)).toBeInTheDocument();
     expect(sent("POST", /suspend/)).toHaveLength(0);
+    fireEvent.change(within(ask).getByLabelText(/Why/), { target: { value: "Leaked secret" } });
     fireEvent.click(within(ask).getByRole("button", { name: "Suspend" }));
-    await waitFor(() => expect(sent("POST", /\/partner-apps\/p1\/suspend$/)).toHaveLength(1));
+    await waitFor(() => expect(sent("POST", /\/partner-apps\/p1\/suspend$/)[0]?.body).toEqual({ reason: "Leaked secret" }));
 
     fireEvent.click(screen.getByRole("button", { name: "New secret for EventHub" }));
     fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Make a new secret" }));
@@ -267,7 +294,7 @@ describe("Integrations → Partner apps", () => {
     await waitFor(() => expect((sent("PATCH", /\/partner-apps\/p1$/)[0]?.body as { allowed_scopes: string[] }).allowed_scopes).toEqual(["events:read", "events:write", "registrations:write"]));
   });
 
-  it("lists the clubs connected to an app", async () => {
+  it("lists the clubs connected to an app, and disconnects one after asking", async () => {
     render(<PartnerAppsPage />);
     await screen.findByText("EventHub");
     fireEvent.click(screen.getByRole("button", { name: "Clubs connected to EventHub" }));
@@ -275,6 +302,10 @@ describe("Integrations → Partner apps", () => {
     const gdg = await within(sheet).findByRole("listitem", { name: "GDG Trivandrum" });
     expect(within(gdg).getByText("Create and edit events")).toBeInTheDocument();
     expect(within(gdg).getByText(/by Asha Nair/)).toBeInTheDocument();
+    fireEvent.click(within(gdg).getByRole("button", { name: "Disconnect GDG Trivandrum" }));
+    expect(sent("DELETE", /connections/)).toHaveLength(0);
+    fireEvent.click(within(gdg).getByRole("button", { name: "Disconnect it" }));
+    await waitFor(() => expect(sent("DELETE", /\/partner-apps\/p1\/connections\/c1$/)).toHaveLength(1));
   });
 
   it("a viewer can't register, change or suspend", async () => {
@@ -289,11 +320,15 @@ describe("Integrations → Partner apps", () => {
 describe("Integrations → Webhook health", () => {
   it("counts the week's deliveries and lists the failing endpoints, whose they are and what they answer", async () => {
     render(<WebhookHealthPage />);
-    expect(await screen.findByText("4,210")).toBeInTheDocument();
+    const delivered = fixture.health.per_day.reduce((n, d) => n + d.succeeded, 0);
+    expect(await screen.findByText(delivered.toLocaleString("en-IN"))).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /Webhook deliveries per day/ })).toBeInTheDocument();
     const hook = screen.getByRole("listitem", { name: "https://hooks.eventhub.example/moa/club-5" });
     expect(within(hook).getByRole("link", { name: "GDG Trivandrum" })).toHaveAttribute("href", "/clubs/5");
-    expect(within(hook).getByText(/via EventHub · failing since .* · 31 in a row · answered 503/)).toBeInTheDocument();
+    expect(within(hook).getByText(/made by a partner app · failing since .* · 31 in a row · HTTP 503/)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Busiest clubs" })).toHaveTextContent("3,100 sent");
+    fireEvent.click(within(hook).getByRole("button", { name: "Turn off https://hooks.eventhub.example/moa/club-5" }));
+    await waitFor(() => expect(sent("PATCH", /\/webhooks\/endpoints\/w2$/)[0]?.body).toEqual({ enabled: false }));
     await pickExport(/Export/, "xlsx");
     await waitFor(() => expect(downloadXlsx).toHaveBeenCalled());
     expect(vi.mocked(downloadXlsx).mock.calls[0]![0]).toMatch(/^failing-webhooks.*\.xlsx$/);

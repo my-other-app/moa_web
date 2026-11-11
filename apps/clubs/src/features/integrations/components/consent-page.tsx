@@ -12,24 +12,26 @@ import { FigurePanel, InitialsAvatar, Notice, Skeleton, cn } from "@moa/ui";
 import { PRODUCT } from "@/components/auth-frame";
 
 import { browser, useConsent, useDecideConsent } from "../queries";
-import { CONSENT_GONE, hostOf, isIntegrationsMissing, needsNoticeTick, safeRedirect, type Consent } from "../schemas";
+import { consentPath, hostOf, isIntegrationsMissing, needsNoticeTick, refusalRedirect, safeRedirect, type Consent, type OAuthParams } from "../schemas";
 import { ScopePicker } from "./parts";
 
 /**
- * /connect/{request}: where a partner app's "Connect MyOtherApp" lands.
+ * /integrations/connect?client_id=…: where a partner app's "Connect
+ * MyOtherApp" lands.
  *
- * MyOtherApp's authorization endpoint checks the app and its request, then
- * sends the browser here. Signed out, the page goes to sign-in and comes
- * back (as the assistant approvals at /confirm do). Signed in, it says
- * plainly which app wants which club and what it may do, each thing as a
- * tick the owner or admin may take off; people's details need the club's
- * word that its form tells them. Allow or Cancel sends the browser back to
- * the app, with a code or a refusal.
+ * MyOtherApp's /partner/oauth/authorize checks the app and its request, then
+ * sends the browser here with the request in the address; the API checks it
+ * again on every read and on the answer. Signed out, the page goes to
+ * sign-in and comes back (as the assistant approvals at /confirm do).
+ * Signed in, it says plainly which app wants which club and what it may do,
+ * each thing a tick the owner or admin may take off; people's details need
+ * the club's word that its form tells them. Allow or Cancel sends the
+ * browser back to the app, with a code or a refusal.
  */
-export function ConsentPage({ requestId }: { requestId: string }) {
-  const q = useConsent(requestId);
+export function ConsentPage({ params }: { params: OAuthParams }) {
+  const q = useConsent(params);
   const router = useRouter();
-  const signIn = `/login?next=${encodeURIComponent(`/connect/${requestId}`)}`;
+  const signIn = `/login?next=${encodeURIComponent(consentPath(params))}`;
   const unauthorised = q.error instanceof ApiError && q.error.isUnauthorized;
 
   React.useEffect(() => {
@@ -53,7 +55,7 @@ export function ConsentPage({ requestId }: { requestId: string }) {
         ) : q.isError ? (
           <LoadError error={q.error} onRetry={() => void q.refetch()} />
         ) : (
-          <Ask requestId={requestId} consent={q.data} signIn={signIn} />
+          <Ask params={params} consent={q.data} signIn={signIn} />
         )}
       </div>
     </main>
@@ -86,6 +88,16 @@ function Stop({ icon: Icon, tone = "neutral", title, children, action }: { icon:
   );
 }
 
+/** "Go back to the app": where the API says the person should land, with the refusal for the app to read. */
+const BackToApp = ({ error }: { error: unknown }) => {
+  const to = refusalRedirect(error);
+  return to ? (
+    <button type="button" className="btn btn-secondary btn-sm" onClick={() => browser.go(to)}>
+      Go back to the app
+    </button>
+  ) : null;
+};
+
 function LoadError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   const code = error instanceof ApiError ? error.errorCode : null;
   if (isIntegrationsMissing(error))
@@ -94,10 +106,22 @@ function LoadError({ error, onRetry }: { error: unknown; onRetry: () => void }) 
         MyOtherApp can&apos;t connect partner apps to clubs yet. Nothing was connected.
       </Stop>
     );
-  if (code && (CONSENT_GONE as readonly string[]).includes(code))
+  if (code === "OAUTH_REQUEST_INVALID")
     return (
-      <Stop icon={ClockIcon} tone="caution" title="This link has run out">
-        Links to connect an app last a few minutes and work once. Go back to the app and choose Connect MyOtherApp again.
+      <Stop icon={ClockIcon} tone="caution" title="This link doesn't work" action={<BackToApp error={error} />}>
+        {error instanceof Error && error.message ? `${error.message.replace(/\.$/, "")}. ` : ""}Go back to the app and choose Connect MyOtherApp again.
+      </Stop>
+    );
+  if (code === "NOT_ALLOCATED")
+    return (
+      <Stop icon={PlugZapIcon} tone="caution" title="API access isn't on for your club" action={<BackToApp error={error} />}>
+        No app can connect to your club until the MyOtherApp team turns API access on. Ask them through Help, and say which app you&apos;d like to connect.
+      </Stop>
+    );
+  if (code === "ROLE_FORBIDDEN" || (error instanceof ApiError && error.status === 403))
+    return (
+      <Stop icon={AlertTriangleIcon} tone="caution" title="Only the club's owner or an admin can connect an app">
+        You&apos;re signed in with a role that can&apos;t. Ask the club&apos;s owner or an admin to open this link, or sign in with the club&apos;s own login.
       </Stop>
     );
   if (code === "NOT_A_CLUB")
@@ -131,15 +155,17 @@ const RetryButton = ({ onRetry }: { onRetry: () => void }) => (
   </button>
 );
 
-function Ask({ requestId, consent: c, signIn }: { requestId: string; consent: Consent; signIn: string }) {
-  const decide = useDecideConsent(requestId);
+function Ask({ params, consent: c, signIn }: { params: OAuthParams; consent: Consent; signIn: string }) {
+  const decide = useDecideConsent(params);
   const logout = useLogout();
   const router = useRouter();
   const [scopes, setScopes] = React.useState<string[]>(c.scopes);
   const [ticked, setTicked] = React.useState(false);
   const [tried, setTried] = React.useState(false);
   const [leaving, setLeaving] = React.useState<"allow" | "deny" | null>(null);
-  const host = hostOf(c.partner.website);
+  const partner = c.app;
+  const host = hostOf(partner.website);
+  const live = c.mode === "live";
   const noScopes = scopes.length === 0;
   const noTick = needsNoticeTick(scopes) && !ticked;
 
@@ -150,7 +176,7 @@ function Ask({ requestId, consent: c, signIn }: { requestId: string; consent: Co
     }
     setLeaving(decision);
     decide.mutate(
-      { decision, scopes: decision === "allow" ? scopes : [], attendees_notice_ack: decision === "allow" && needsNoticeTick(scopes) && ticked },
+      { decision, scopes: decision === "allow" ? scopes : [], attendees_disclosure_ack: decision === "allow" && needsNoticeTick(scopes) && ticked },
       {
         onSuccess: ({ redirect_to }) => {
           const to = safeRedirect(redirect_to);
@@ -179,25 +205,25 @@ function Ask({ requestId, consent: c, signIn }: { requestId: string; consent: Co
           <BlocksIcon className="size-3.5" aria-hidden="true" /> Connect an app
         </span>
         <h1 className="text-ink m-0 text-[24px] leading-[1.2] font-semibold tracking-[-0.02em]">
-          {c.partner.name} wants to connect to {c.club.name}
+          {partner.name} wants to connect to {c.club.name}
         </h1>
         <p className="text-ink-2 m-0 text-[14px] leading-[1.55]">It will work for your club on MyOtherApp, within what you allow below. You can disconnect it any time from Settings → Integrations.</p>
       </div>
 
       <FigurePanel className="flex flex-col gap-3 p-4">
         <div className="flex items-center gap-3">
-          {c.partner.logo_url ? (
+          {partner.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element -- the partner's own logo, from its address
-            <img src={c.partner.logo_url} alt="" className="border-line-soft size-11 shrink-0 rounded-xl border object-cover" />
+            <img src={partner.logo_url} alt="" className="border-line-soft size-11 shrink-0 rounded-xl border object-cover" />
           ) : (
-            <InitialsAvatar name={c.partner.name} size={44} />
+            <InitialsAvatar name={partner.name} size={44} />
           )}
           <ArrowLeftRightIcon className="text-ink-3 size-4 shrink-0" aria-hidden="true" />
           <div className="min-w-0 flex-1">
-            <p className="text-ink m-0 truncate text-[14px] font-semibold">{c.partner.name}</p>
+            <p className="text-ink m-0 truncate text-[14px] font-semibold">{partner.name}</p>
             <p className="text-ink-3 m-0 truncate text-[12.5px]">
               {host ? (
-                <a href={c.partner.website!} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                <a href={partner.website!} target="_blank" rel="noopener noreferrer" className="hover:underline">
                   {host}
                 </a>
               ) : (
@@ -216,25 +242,25 @@ function Ask({ requestId, consent: c, signIn }: { requestId: string; consent: Co
         </div>
       </FigurePanel>
 
-      {!c.livemode ? (
+      {!live ? (
         <Notice tone="caution" tag="Test">
           A test connection: it sees and changes only test events, which nobody else sees and which send no emails.
         </Notice>
       ) : null}
-      {c.already ? (
+      {c.already_connected ? (
         <Notice tone="neutral" tag="Connected">
-          {c.partner.name} is already connected to your club. Allowing replaces what it may do with what you tick here.
+          {partner.name} is already connected to your club. Allowing replaces what it may do with what you tick here.
         </Notice>
       ) : null}
 
-      {c.can_decide ? (
+      {c.scopes.length ? (
         <FigurePanel className="p-4">
           <ScopePicker
             idPrefix="consent"
             value={scopes}
             offered={c.scopes}
             onChange={setScopes}
-            recipient={c.partner.name}
+            recipient={partner.name}
             noticeTicked={ticked}
             onNoticeTicked={setTicked}
             error={tried && noScopes ? "Leave at least one ticked, or choose Cancel." : undefined}
@@ -242,14 +268,14 @@ function Ask({ requestId, consent: c, signIn }: { requestId: string; consent: Co
           />
         </FigurePanel>
       ) : (
-        <Notice tone="caution" tag="Owners and admins">
-          {c.cannot_decide_reason ?? "Only the club's owner or an admin can connect an app. Ask one of them to open this link, or use Use another club."}
+        <Notice tone="caution" tag="Nothing to allow">
+          The app asked for nothing your club can give. Cancel, and tell the app.
         </Notice>
       )}
 
       {refused !== undefined ? (
-        <Notice tone="refuse" tag="Not connected">
-          {refused && refused.errorCode && (CONSENT_GONE as readonly string[]).includes(refused.errorCode)
+        <Notice tone="refuse" tag="Not connected" action={<BackToApp error={decide.error} />}>
+          {refused?.errorCode === "OAUTH_REQUEST_INVALID"
             ? "This link has run out. Go back to the app and choose Connect MyOtherApp again."
             : refused?.message || "That didn't go through. Check your connection and try again."}
         </Notice>
@@ -257,7 +283,7 @@ function Ask({ requestId, consent: c, signIn }: { requestId: string; consent: Co
 
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap gap-2">
-          {c.can_decide ? (
+          {c.scopes.length ? (
             <button type="button" className="btn btn-primary btn-lg" onClick={() => go("allow")} disabled={busy}>
               {leaving === "allow" && busy ? <Loader2Icon className="size-4 animate-spin" /> : <ShieldCheckIcon className="size-4" />} Allow
             </button>
@@ -268,10 +294,10 @@ function Ask({ requestId, consent: c, signIn }: { requestId: string; consent: Co
         </div>
         <p className="text-ink-3 m-0 text-[12px]" role="status">
           {decide.isSuccess
-            ? `Taking you back to ${c.partner.name}…`
-            : c.redirect_host
-              ? `Either way, you go back to ${c.redirect_host}.`
-              : `Either way, you go back to ${c.partner.name}.`}
+            ? `Taking you back to ${partner.name}…`
+            : c.redirect_target
+              ? `Either way, you go back to ${c.redirect_target}.`
+              : `Either way, you go back to ${partner.name}.`}
         </p>
       </div>
     </div>

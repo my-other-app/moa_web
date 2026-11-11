@@ -19,16 +19,16 @@ import {
   fetchKeys,
   fetchStatus,
   fetchUsage,
+  fetchWebhookStatus,
   retryDelivery,
   revokeKey,
   rotateEndpointSecret,
   rotateKey,
   testEndpoint,
   updateEndpoint,
-  type ConsentBody,
-  type EndpointBody,
+  type ConsentDecision,
 } from "./api";
-import { deliveryOutcome, integrationsVisible, type Connection, type CreateKeyBody, type Endpoint } from "./schemas";
+import { deliveryOutcome, integrationsVisible, type Connection, type CreateKeyBody, type Endpoint, type EndpointBody, type OAuthParams } from "./schemas";
 
 export const INTEGRATIONS_KEY = ["integrations"] as const;
 const STATUS_KEY = [...INTEGRATIONS_KEY, "status"] as const;
@@ -121,6 +121,11 @@ export function useRevokeKey() {
 
 // ─── Webhooks ────────────────────────────────────────────────────────────
 
+/** Whether webhooks can be used now (the server has its signing key, the club its access). */
+export function useWebhookStatus(enabled = true) {
+  return useQuery({ queryKey: [...ENDPOINTS_KEY, "status"], queryFn: fetchWebhookStatus, enabled, staleTime: 60_000, retry: false });
+}
+
 export function useEndpoints(enabled = true) {
   return useQuery({ queryKey: ENDPOINTS_KEY, queryFn: fetchEndpoints, enabled, staleTime: 15_000, retry: false });
 }
@@ -137,7 +142,7 @@ export function useCreateEndpoint() {
 export function useUpdateEndpoint() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ endpoint, body }: { endpoint: Endpoint; body: Partial<EndpointBody & { enabled: boolean }> }) => updateEndpoint(endpoint.id, body),
+    mutationFn: ({ endpoint, body }: { endpoint: Endpoint; body: Partial<Pick<EndpointBody, "events" | "include_own_changes" | "description">> & { enabled?: boolean } }) => updateEndpoint(endpoint.id, body),
     onSuccess: (next, { body }) => {
       queryClient.setQueryData<Endpoint[]>(ENDPOINTS_KEY, (list) => list?.map((e) => (e.id === next.id ? next : e)));
       if (body.enabled === true) toast.success("Turned on. Changes are sent to it again.");
@@ -238,18 +243,18 @@ export function useUsage(enabled = true) {
 
 // ─── Consent ─────────────────────────────────────────────────────────────
 
-/** What a partner app asks for. Not retried: a 404 or 410 is an answer, not a blip. */
-export function useConsent(requestId: string) {
-  return useQuery({ queryKey: [...INTEGRATIONS_KEY, "consent", requestId], queryFn: () => fetchConsent(requestId), retry: false, staleTime: 30_000 });
+/** What a partner app asks for. Not retried: a 400 or 403 is an answer, not a blip. */
+export function useConsent(params: OAuthParams) {
+  return useQuery({ queryKey: [...INTEGRATIONS_KEY, "consent", params], queryFn: () => fetchConsent(params), retry: false, staleTime: 30_000 });
 }
 
 /** Leaving the dashboard for the partner app (a seam, so tests can watch it without a navigation). */
 export const browser = { go: (url: string) => window.location.assign(url) };
 
-export function useDecideConsent(requestId: string) {
+export function useDecideConsent(params: OAuthParams) {
   const refresh = useRefresh();
   return useMutation({
-    mutationFn: (body: ConsentBody) => decideConsent(requestId, body),
+    mutationFn: (body: ConsentDecision) => decideConsent(params, body),
     onSuccess: () => refresh(APPS_KEY, STATUS_KEY),
   });
 }

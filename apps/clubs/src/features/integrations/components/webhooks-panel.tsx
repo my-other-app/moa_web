@@ -23,6 +23,7 @@ import {
   DialogTitle,
   EmptyState,
   FigurePanel,
+  NativeSelect,
   Notice,
   Segmented,
   Sheet,
@@ -37,22 +38,25 @@ import {
   cn,
 } from "@moa/ui";
 
-import { useCreateEndpoint, useDeleteEndpoint, useDeliveries, useEndpoints, useRetryDelivery, useRotateEndpointSecret, useTestEndpoint, useUpdateEndpoint } from "../queries";
+import { useApiKeys, useCreateEndpoint, useDeleteEndpoint, useDeliveries, useEndpoints, useRetryDelivery, useRotateEndpointSecret, useTestEndpoint, useUpdateEndpoint, useWebhookStatus } from "../queries";
 import {
   EMPTY_ENDPOINT_FORM,
   EVENT_TYPE_GROUPS,
+  KEY_MODES,
   deliveryBadge,
   endpointBody,
   endpointHealth,
+  endpointNoticeText,
   eventTypeLabel,
   eventsSummary,
+  keyStatus,
   webhookUrlProblem,
   type Delivery,
   type Endpoint,
   type EndpointForm,
   type EndpointWithSecret,
 } from "../schemas";
-import { SecretOnce } from "./parts";
+import { NoticeTick, SecretOnce } from "./parts";
 
 const field = "input h-10 w-full";
 
@@ -64,17 +68,21 @@ const field = "input h-10 w-full";
  * endpoint failing three days running is turned off and the owner emailed.
  */
 export function WebhooksPanel() {
+  const status = useWebhookStatus();
   const endpoints = useEndpoints();
   const [adding, setAdding] = React.useState(false);
   const [shown, setShown] = React.useState<{ made: EndpointWithSecret; rotated: boolean } | null>(null);
   const [log, setLog] = React.useState<Endpoint | null>(null);
   const list = endpoints.data ?? [];
+  // Webhooks can't be used right now (MyOtherApp hasn't their signing key set up): say so, and make nothing new.
+  const off = status.data != null && !status.data.available;
+  const full = status.data?.max_endpoints != null && list.length >= status.data.max_endpoints;
 
   return (
     <FigurePanel className="flex flex-col gap-3 p-4" role="region" aria-label="Webhook endpoints">
       <CardLabel
         right={
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)} disabled={off || full}>
             <PlusIcon className="size-3.5" /> Add endpoint
           </button>
         }
@@ -84,6 +92,15 @@ export function WebhooksPanel() {
       <p className="text-ink-3 m-0 text-[12.5px] leading-[1.5]">
         We send each change to these addresses as it happens: a new registration, a check-in, an event published. Each one is signed, so your system can tell it came from us.
       </p>
+      {off ? (
+        <Notice tone="caution" tag="Not now">
+          {status.data?.message ?? "Webhooks can't be used right now."}
+        </Notice>
+      ) : full ? (
+        <Notice tone="caution" tag="Limit">
+          Your club has {status.data!.max_endpoints} endpoints, the most it may have. Remove one to add another.
+        </Notice>
+      ) : null}
       {endpoints.isPending ? (
         <div className="flex flex-col gap-2" aria-busy="true">
           <Skeleton className="h-20 rounded-xl" />
@@ -117,7 +134,7 @@ export function WebhooksPanel() {
               <DialogTitle>{shown.rotated ? "New signing secret" : "Endpoint added"}</DialogTitle>
               <DialogDescription>
                 {shown.rotated
-                  ? "Changes are signed with this secret from now on. Put it in your system straight away."
+                  ? "Changes are signed with this secret from now on. The old one still signs them too for a day, so your system can switch over."
                   : "Check each change's MOA-Signature header with this secret before trusting it. Send a test to see one arrive."}
               </DialogDescription>
             </DialogHeader>
@@ -152,8 +169,8 @@ function EndpointRow({ e, onLog, onRotated }: { e: Endpoint; onLog: () => void; 
   const [asking, setAsking] = React.useState<"delete" | "rotate" | null>(null);
   const health = endpointHealth(e);
   const [now] = React.useState(() => new Date());
-  // One a partner app made for the club: shown, and turned off here if need be, but changed by that app.
-  const byPartner = Boolean(e.partner_app);
+  // One a partner app made for the club: shown, but that app manages it.
+  const byPartner = e.byPartner;
 
   return (
     <li className="border-line-soft flex flex-col gap-2 border-b py-3 last:border-0" aria-label={e.url}>
@@ -162,33 +179,43 @@ function EndpointRow({ e, onLog, onRotated }: { e: Endpoint; onLog: () => void; 
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-ink font-mono text-[13px] break-all">{e.url}</span>
             <StatusBadge label={HEALTH_BADGE[health].label} tone={HEALTH_BADGE[health].tone} />
+            {e.livemode ? null : <span className="tag text-caution">Test</span>}
           </div>
           {e.description ? <p className="text-ink-2 m-0 mt-0.5 text-[12.5px]">{e.description}</p> : null}
           <p className="text-ink-3 m-0 mt-0.5 text-[12px] leading-[1.5]">
             {eventsSummary(e.events)}
+            {e.share_attendee_details ? " · with people's details" : ""}
             {e.include_own_changes ? " · including your own API changes" : ""}
-            {e.partner_app ? ` · added by ${e.partner_app.name}` : ""}
-            {e.last_delivery_at ? (
+            {byPartner ? " · added by a connected app" : ""}
+            {e.lastSentAt ? (
               <>
                 {" · last sent "}
-                <time dateTime={e.last_delivery_at} title={formatDateTime(e.last_delivery_at)}>
-                  {relativeTime(e.last_delivery_at, now)}
+                <time dateTime={e.lastSentAt} title={formatDateTime(e.lastSentAt)}>
+                  {relativeTime(e.lastSentAt, now)}
                 </time>
-                {e.last_response_status ? ` (answered ${e.last_response_status})` : ""}
+                {e.lastSentAt === e.last_failure_at ? " (failed)" : ""}
+              </>
+            ) : null}
+            {e.secret_hint ? (
+              <>
+                {" · secret "}
+                <span className="font-mono">{e.secret_hint}</span>
               </>
             ) : null}
           </p>
         </div>
         <Switch
           checked={e.enabled}
-          disabled={update.isPending}
+          disabled={update.isPending || byPartner}
           onCheckedChange={(next) => update.mutate({ endpoint: e, body: { enabled: next } })}
           aria-label={e.enabled ? `Turn off ${e.url}` : `Turn on ${e.url}`}
         />
       </div>
       {health === "failing" ? (
         <Notice tone="caution" tag="Retrying">
-          It has been failing since {formatDateTime(e.failing_since!)}. We keep retrying for a day; after three days of failures it is turned off and the club&apos;s owner is emailed.
+          It has been failing since {formatDateTime(e.failing_since!)}
+          {e.consecutive_failures ? `, ${e.consecutive_failures} times in a row` : ""}. We keep retrying each change for a day; after three days of failures it is turned off and the club&apos;s
+          owner is emailed.
         </Notice>
       ) : !e.enabled && e.disabled_reason === "failing" ? (
         <Notice tone="refuse" tag="Turned off">
@@ -196,7 +223,7 @@ function EndpointRow({ e, onLog, onRotated }: { e: Endpoint; onLog: () => void; 
         </Notice>
       ) : null}
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-secondary btn-xs" onClick={() => test.mutate(e.id)} disabled={test.isPending || !e.enabled}>
+        <button type="button" className="btn btn-secondary btn-xs" onClick={() => test.mutate(e.id)} disabled={test.isPending || byPartner}>
           {test.isPending ? <Loader2Icon className="size-3 animate-spin" /> : <SendIcon className="size-3" />} Send test
         </button>
         <button type="button" className="btn btn-secondary btn-xs" onClick={onLog}>
@@ -219,7 +246,7 @@ function EndpointRow({ e, onLog, onRotated }: { e: Endpoint; onLog: () => void; 
             <AlertDialogTitle>{asking === "rotate" ? "Make a new signing secret?" : "Remove this endpoint?"}</AlertDialogTitle>
             <AlertDialogDescription>
               {asking === "rotate"
-                ? "The new secret is shown once. Changes are signed with it from now on, so your system must check against the new one."
+                ? "The new secret is shown once. Changes are signed with it from now on; the old one still signs them too for a day, while your system switches over."
                 : "Nothing more is sent to it, and its delivery log goes with it."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -245,17 +272,22 @@ function EndpointRow({ e, onLog, onRotated }: { e: Endpoint; onLog: () => void; 
 
 function AddEndpointDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (made: EndpointWithSecret) => void }) {
   const create = useCreateEndpoint();
+  const keys = useApiKeys();
   const [form, setForm] = React.useState<EndpointForm>(EMPTY_ENDPOINT_FORM);
   const [tried, setTried] = React.useState(false);
+  const [now] = React.useState(() => new Date());
   const urlProblem = webhookUrlProblem(form.url);
   const eventsProblem = !form.all && form.events.length === 0 ? "Choose at least one kind of change, or All." : null;
+  const noticeProblem = form.shareDetails && !form.noticeTicked ? "Tick this to send people's details, or untick Send people's details." : null;
+  // The club's live keys of the same mode, by name: the one this system uses, so its own changes don't come back.
+  const ownKeys = (keys.data ?? []).filter((k) => keyStatus(k, now) === "active" && k.client_id && k.mode === form.mode);
   const set = <K extends keyof EndpointForm>(key: K, value: EndpointForm[K]) => setForm((f) => ({ ...f, [key]: value }));
   const toggle = (type: string, on: boolean) => set("events", on ? [...form.events.filter((t) => t !== type), type] : form.events.filter((t) => t !== type));
 
   const submit = (ev: React.FormEvent) => {
     ev.preventDefault();
     setTried(true);
-    if (urlProblem || eventsProblem) return;
+    if (urlProblem || eventsProblem || noticeProblem) return;
     create.mutate(endpointBody(form), { onSuccess: onCreated });
   };
 
@@ -292,6 +324,16 @@ function AddEndpointDialog({ onClose, onCreated }: { onClose: () => void; onCrea
               Note (optional)
             </label>
             <input id="hook-description" className={field} value={form.description} maxLength={200} placeholder="Our registrations sheet" onChange={(ev) => set("description", ev.target.value)} />
+          </div>
+          <div>
+            <span className="eyebrow mb-1.5 block">Changes to</span>
+            <Segmented
+              label="Changes to"
+              className="sm:max-w-[360px]"
+              value={form.mode}
+              options={KEY_MODES.map((m) => ({ value: m, label: m === "live" ? "Live events" : "Test events" }))}
+              onChange={(m) => setForm((f) => ({ ...f, mode: m, keyClientId: "" }))}
+            />
           </div>
           <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
             <legend className="eyebrow mb-1.5 p-0">What to send</legend>
@@ -333,14 +375,41 @@ function AddEndpointDialog({ onClose, onCreated }: { onClose: () => void; onCrea
               </p>
             ) : null}
           </fieldset>
-          <div className="flex items-start gap-3">
-            <Checkbox id="hook-own" checked={form.includeOwn} onCheckedChange={(next) => set("includeOwn", next === true)} className="mt-0.5" />
-            <div>
+          <div>
+            <label htmlFor="hook-key" className="eyebrow mb-1.5 block">
+              The API key this system uses (optional)
+            </label>
+            <NativeSelect id="hook-key" className="h-10 w-full" value={form.keyClientId} onChange={(ev) => setForm((f) => ({ ...f, keyClientId: ev.target.value, includeOwn: false }))}>
+              <option value="">None: send every change</option>
+              {ownKeys.map((k) => (
+                <option key={k.id} value={k.client_id!}>
+                  {k.name} ({k.prefix}…)
+                </option>
+              ))}
+            </NativeSelect>
+            <p className="text-ink-3 m-0 mt-1 text-[12px] leading-[1.5]">Changes your system makes with that key aren&apos;t sent back to it, so the two sides don&apos;t go round in a loop.</p>
+          </div>
+          {form.keyClientId ? (
+            <div className="flex items-start gap-3">
+              <Checkbox id="hook-own" checked={form.includeOwn} onCheckedChange={(next) => set("includeOwn", next === true)} className="mt-0.5" />
               <label htmlFor="hook-own" className="text-ink cursor-pointer text-[13px] font-medium">
-                Also send changes made with your own API keys
+                Send its own changes back too
               </label>
-              <p className="text-ink-3 m-0 text-[12px] leading-[1.5]">Off, a change your system made through the API isn&apos;t sent back to it, so the two sides don&apos;t go round in a loop.</p>
             </div>
+          ) : null}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-start gap-3">
+              <Checkbox id="hook-share" checked={form.shareDetails} onCheckedChange={(next) => set("shareDetails", next === true)} className="mt-0.5" />
+              <div>
+                <label htmlFor="hook-share" className="text-ink cursor-pointer text-[13px] font-medium">
+                  Send people&apos;s details
+                </label>
+                <p className="text-ink-3 m-0 text-[12px] leading-[1.5]">Names, emails, phone numbers and answers go with each registration and check-in. Off, only ids and statuses do.</p>
+              </div>
+            </div>
+            {form.shareDetails ? (
+              <NoticeTick id="hook-notice" recipient="" text={endpointNoticeText(form.url)} checked={form.noticeTicked} onChange={(next) => set("noticeTicked", next)} error={tried ? (noticeProblem ?? undefined) : undefined} />
+            ) : null}
           </div>
           <DialogFooter>
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={create.isPending}>
@@ -389,7 +458,7 @@ function DeliveryLog({ endpoint, onClose }: { endpoint: Endpoint | null; onClose
           ) : (
             <ul className="m-0 flex list-none flex-col p-0">
               {items.map((d) => (
-                <DeliveryRow key={d.id} d={d} endpointId={endpoint!.id} />
+                <DeliveryRow key={d.id} d={d} endpointId={endpoint!.id} canReplay={!endpoint!.byPartner && endpoint!.enabled} />
               ))}
             </ul>
           )}
@@ -404,7 +473,7 @@ function DeliveryLog({ endpoint, onClose }: { endpoint: Endpoint | null; onClose
   );
 }
 
-function DeliveryRow({ d, endpointId }: { d: Delivery; endpointId: string }) {
+function DeliveryRow({ d, endpointId, canReplay }: { d: Delivery; endpointId: string; canReplay: boolean }) {
   const retry = useRetryDelivery(endpointId);
   const badge = deliveryBadge(d.status);
   return (
@@ -414,9 +483,11 @@ function DeliveryRow({ d, endpointId }: { d: Delivery; endpointId: string }) {
         <span className="text-ink text-[13px] font-medium">{eventTypeLabel(d.type)}</span>
         {d.test ? <span className="tag">Test</span> : null}
         <span className="flex-1" />
-        <button type="button" className="btn btn-ghost btn-xs" onClick={() => retry.mutate(d.id)} disabled={retry.isPending || d.status === "pending"}>
-          {retry.isPending ? <Loader2Icon className="size-3 animate-spin" /> : <RotateCcwIcon className="size-3" />} Send again
-        </button>
+        {canReplay ? (
+          <button type="button" className="btn btn-ghost btn-xs" onClick={() => retry.mutate(d.id)} disabled={retry.isPending || d.status === "pending"}>
+            {retry.isPending ? <Loader2Icon className="size-3 animate-spin" /> : <RotateCcwIcon className="size-3" />} Send again
+          </button>
+        ) : null}
       </div>
       <p className="text-ink-3 m-0 text-[12px] leading-[1.5]">
         <code className="font-mono">{d.type}</code>

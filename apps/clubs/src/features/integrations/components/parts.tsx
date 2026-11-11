@@ -147,14 +147,29 @@ export function ScopePicker({
 }
 
 /** The club's word, required before people's details are shared (India's DPDP Act 2023: the club is the data fiduciary). */
-export function NoticeTick({ id, recipient, checked, onChange, error }: { id: string; recipient: string; checked: boolean; onChange: (next: boolean) => void; error?: string | undefined }) {
+export function NoticeTick({
+  id,
+  recipient,
+  text,
+  checked,
+  onChange,
+  error,
+}: {
+  id: string;
+  recipient: string;
+  /** The words, when the server words them its own way (an endpoint: by its host). */
+  text?: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  error?: string | undefined;
+}) {
   return (
     <div className={cn("rounded-xl border p-3", checked ? "border-line bg-sunken" : "border-caution-line bg-caution-soft")}>
       <div className="flex items-start gap-3">
         <Checkbox id={id} checked={checked} onCheckedChange={(next) => onChange(next === true)} className="mt-0.5" aria-describedby={`${id}-why`} />
         <div className="min-w-0">
           <label htmlFor={id} className="text-ink cursor-pointer text-[13px] font-medium">
-            {noticeText(recipient)}
+            {text ?? noticeText(recipient)}
           </label>
           <p id={`${id}-why`} className="text-ink-3 m-0 mt-0.5 text-[12px] leading-[1.5]">
             Required by India&apos;s DPDP Act before people&apos;s names, emails, phones and answers leave MyOtherApp. Your club decides who gets them and answers for it. Every read

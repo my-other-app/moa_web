@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { BarChart3Icon, Loader2Icon, PencilIcon, PlusIcon } from "lucide-react";
+import { BarChart3Icon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { ListFilters, ResourceList, formatDate, formatDateTime, relativeTime, useListParams, type CsvColumn } from "@moa/app-kit";
 import {
   Button,
@@ -35,9 +35,9 @@ import { ExportButton } from "@/components/export-button";
 import { useCan } from "@/hooks/use-can";
 
 import { fetchAllocations } from "../api";
-import { useAllocations, useClubUsage, usePlatformUsage, useSaveAllocation } from "../queries";
-import { ACCESS_FILTERS, DEFAULT_MAX_KEYS, RATE_TIERS, TIER_INFO, allocationProblems, tierLabel, type Allocation, type AllocationForm, type RateTier } from "../schemas";
-import { DailyBars } from "./parts";
+import { useAllocations, useClubDetail, usePlatformUsage, useRevokeClubKey, useSaveAllocation } from "../queries";
+import { ACCESS_FILTERS, DEFAULT_MAX_KEYS, RATE_TIERS, SOURCE_LABEL, TIER_INFO, allocationProblems, byName, tierLabel, type Allocation, type AllocationForm, type ClubKey, type RateTier } from "../schemas";
+import { DailyBars, ScopeTags } from "./parts";
 
 const n = (v: number) => v.toLocaleString("en-IN");
 
@@ -45,17 +45,14 @@ const n = (v: number) => v.toLocaleString("en-IN");
 export const ALLOCATION_COLUMNS: CsvColumn<Allocation>[] = [
   { header: "Club", value: (r) => r.club.name },
   { header: "Club ID", value: (r) => r.club.id },
-  { header: "API access", value: (r) => (r.allocated ? "On" : "Taken away") },
+  { header: "API access", value: (r) => (r.allocated ? "On" : "Off") },
+  { header: "Given", value: (r) => (r.source ? (SOURCE_LABEL[r.source] ?? r.source) : "") },
   { header: "Rate tier", value: (r) => tierLabel(r.rate_tier) },
-  { header: "Max keys", value: (r) => r.max_keys },
-  { header: "Active keys", value: (r) => r.keys_active },
-  { header: "Partner apps", value: (r) => r.apps_connected },
-  { header: "Webhook endpoints", value: (r) => r.endpoints },
-  { header: "Requests, 30 days", value: (r) => r.requests_30d },
-  { header: "Errors, 30 days", value: (r) => r.errors_30d },
-  { header: "Last used", value: (r) => r.last_used_at ?? "" },
-  { header: "Given", value: (r) => r.allocated_at ?? "" },
-  { header: "Given by", value: (r) => r.allocated_by?.name ?? r.allocated_by?.email ?? "" },
+  { header: "Reads a minute", value: (r) => r.rate_limit?.read_per_min ?? TIER_INFO[r.rate_tier as RateTier]?.read ?? "" },
+  { header: "Changes a minute", value: (r) => r.rate_limit?.write_per_min ?? TIER_INFO[r.rate_tier as RateTier]?.write ?? "" },
+  { header: "Most keys", value: (r) => r.max_keys },
+  { header: "Live keys", value: (r) => r.keys_active },
+  { header: "Changed", value: (r) => r.updated_at ?? "" },
   { header: "Notes", value: (r) => r.notes ?? "" },
 ];
 
@@ -70,10 +67,10 @@ export function ClubsAccessPage() {
   const params = useListParams();
   // Unset: every club that has had access, on or taken away.
   const status = params.param("status");
-  const manage = useCan("manage_admins");
+  const manage = useCan("manage_content");
   const canExport = useCan("export_data");
   const [editing, setEditing] = React.useState<Editing | null>(null);
-  const [usageOf, setUsageOf] = React.useState<Allocation | null>(null);
+  const [detailOf, setDetailOf] = React.useState<Allocation | null>(null);
   const query = { status, search: params.search || undefined, offset: params.offset, limit: params.pageSize };
   const list = useAllocations(query);
 
@@ -90,6 +87,8 @@ export function ClubsAccessPage() {
             <p className="text-muted-foreground max-w-[260px] truncate text-xs" title={r.notes}>
               {r.notes}
             </p>
+          ) : r.club.verified === false ? (
+            <p className="text-caution text-xs">Not approved yet</p>
           ) : null}
         </div>
       ),
@@ -99,7 +98,7 @@ export function ClubsAccessPage() {
       header: "Access",
       cell: (r) => (
         <div className="flex flex-col items-start gap-0.5">
-          <StatusBadge tone={r.allocated ? "success" : "default"} label={r.allocated ? "On" : "Taken away"} />
+          <StatusBadge tone={r.allocated ? "success" : "default"} label={r.allocated ? "On" : "Off"} />
           <span className="text-muted-foreground text-[11px]">
             {tierLabel(r.rate_tier)} · {r.keys_active}/{r.max_keys} keys
           </span>
@@ -107,38 +106,24 @@ export function ClubsAccessPage() {
       ),
     },
     {
-      key: "apps",
-      header: "Apps · hooks",
+      key: "source",
+      header: "Given",
       className: "hidden md:table-cell",
       headerClassName: "hidden md:table-cell",
-      cell: (r) => (
-        <span className="text-muted-foreground text-xs tabular-nums">
-          {r.apps_connected} {r.apps_connected === 1 ? "app" : "apps"} · {r.endpoints} {r.endpoints === 1 ? "endpoint" : "endpoints"}
-        </span>
-      ),
+      cell: (r) => <span className="text-muted-foreground text-xs">{r.source ? (SOURCE_LABEL[r.source] ?? r.source) : "--"}</span>,
     },
     {
-      key: "usage",
-      header: "30 days",
-      cell: (r) => (
-        <span className="text-xs tabular-nums">
-          {n(r.requests_30d)} <span className="text-muted-foreground">requests</span>
-          {r.errors_30d ? <span className="text-refuse block">{n(r.errors_30d)} errors</span> : null}
-        </span>
-      ),
-    },
-    {
-      key: "last",
-      header: "Last used",
+      key: "updated",
+      header: "Changed",
       className: "hidden lg:table-cell",
       headerClassName: "hidden lg:table-cell",
       cell: (r) =>
-        r.last_used_at ? (
-          <time className="text-muted-foreground text-xs" dateTime={r.last_used_at} title={formatDateTime(r.last_used_at)}>
-            {relativeTime(r.last_used_at)}
+        r.updated_at ? (
+          <time className="text-muted-foreground text-xs" dateTime={r.updated_at} title={formatDateTime(r.updated_at)}>
+            {relativeTime(r.updated_at)}
           </time>
         ) : (
-          <span className="text-muted-foreground text-xs">Never</span>
+          <span className="text-muted-foreground text-xs">--</span>
         ),
     },
     {
@@ -148,12 +133,12 @@ export function ClubsAccessPage() {
       headerClassName: "text-right",
       cell: (r) => (
         <div className="flex justify-end gap-1.5">
-          <Button size="xs" variant="outline" className={pressable} onClick={() => setUsageOf(r)} aria-label={`Usage of ${r.club.name}`}>
-            <BarChart3Icon /> Usage
+          <Button size="xs" variant="outline" className={pressable} onClick={() => setDetailOf(r)} aria-label={`Keys and usage of ${r.club.name}`}>
+            <BarChart3Icon /> Details
           </Button>
           {manage ? (
             <Button size="xs" variant="outline" className={pressable} onClick={() => setEditing({ club: { id: r.club.id, name: r.club.name }, row: r })} aria-label={`Change ${r.club.name}'s API access`}>
-              <PencilIcon /> {r.allocated ? "Change" : "Give again"}
+              <PencilIcon /> {r.allocated ? "Change" : "Turn on"}
             </Button>
           ) : null}
         </div>
@@ -172,9 +157,9 @@ export function ClubsAccessPage() {
         rowKey={(r) => r.club.id}
         params={params}
         searchPlaceholder="Club name or slug…"
-        emptyTitle={status === "revoked" ? "No club has had its access taken away" : "No club has API access yet"}
+        emptyTitle={status === "revoked" ? "No club has its access off" : "No club has API access yet"}
         emptyDescription={status === "revoked" ? undefined : "Give a club access when it asks to connect its own systems. Nothing is on by default."}
-        toolbar={<ListFilters params={params} filters={[{ key: "status", label: "Access", allLabel: "On or taken away", options: ACCESS_FILTERS.map((f) => ({ value: f.value, label: f.label })) }]} />}
+        toolbar={<ListFilters params={params} filters={[{ key: "status", label: "Access", allLabel: "On or off", options: ACCESS_FILTERS.map((f) => ({ value: f.value, label: f.label })) }]} />}
         actions={
           <div className="flex items-center gap-2">
             {canExport ? (
@@ -194,7 +179,7 @@ export function ClubsAccessPage() {
         }
       />
       {editing ? <AllocationDialog editing={editing} onClose={() => setEditing(null)} /> : null}
-      <UsageSheet row={usageOf} onClose={() => setUsageOf(null)} />
+      <DetailSheet row={detailOf} manage={manage} onClose={() => setDetailOf(null)} />
     </div>
   );
 }
@@ -239,7 +224,7 @@ function AllocationDialog({ editing, onClose }: { editing: Editing; onClose: () 
     setTried(true);
     if (!club || Object.keys(problems).length) return;
     save.mutate(
-      { clubId: club.id, clubName: club.name, was: Boolean(row?.allocated), body: { allocated: on, rate_tier: form.tier, max_keys: Number(form.maxKeys), notes: form.notes.trim() || null } },
+      { clubId: club.id, clubName: club.name, was: Boolean(row?.allocated), body: { enabled: on, rate_tier: form.tier, max_keys: Number(form.maxKeys), notes: form.notes.trim() || null } },
       { onSuccess: onClose },
     );
   };
@@ -268,7 +253,8 @@ function AllocationDialog({ editing, onClose }: { editing: Editing; onClose: () 
           ) : null}
           {taking ? (
             <Notice tone="refuse" tag="Taking it away">
-              Every key {row!.club.name} made stops working at once, and its own webhooks stop. Its keys stay listed for it, revoked. Partner apps it connected aren&apos;t affected.
+              {row!.club.name}&apos;s API keys and the partner apps it connected are refused from that moment. Nothing is deleted: turning access back on lets the same keys
+              work again.
             </Notice>
           ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
@@ -314,11 +300,9 @@ function AllocationDialog({ editing, onClose }: { editing: Editing; onClose: () 
             />
             {shown.notes ? <p className="text-refuse m-0 mt-1 text-[12px]">{shown.notes}</p> : null}
           </div>
-          {row?.allocated_at ? (
+          {row?.updated_at ? (
             <p className="text-ink-3 m-0 text-[12px]">
-              Given {formatDate(row.allocated_at)}
-              {row.allocated_by?.name || row.allocated_by?.email ? ` by ${row.allocated_by.name ?? row.allocated_by.email}` : ""}
-              {row.revoked_at ? ` · taken away ${formatDate(row.revoked_at)}` : ""}
+              {row.source ? `${SOURCE_LABEL[row.source] ?? row.source} · ` : ""}last changed {formatDate(row.updated_at)}
             </p>
           ) : null}
           <DialogFooter>
@@ -336,30 +320,107 @@ function AllocationDialog({ editing, onClose }: { editing: Editing; onClose: () 
   );
 }
 
-function UsageSheet({ row, onClose }: { row: Allocation | null; onClose: () => void }) {
-  const usage = useClubUsage(row?.club.id ?? null);
-  const days = (usage.data?.days ?? []).map((d) => ({ date: d.date, total: d.requests, bad: d.errors }));
+/** One club's access: 30 days of use, every key (revoked too), and the partner apps it connected. */
+function DetailSheet({ row, manage, onClose }: { row: Allocation | null; manage: boolean; onClose: () => void }) {
+  const detail = useClubDetail(row?.club.id ?? null);
+  const days = (detail.data?.usage ?? []).map((d) => ({ date: d.date, total: d.requests, bad: d.errors }));
+  const keys = detail.data?.keys ?? [];
+  const apps = detail.data?.connected_apps ?? [];
   return (
     <Sheet open={row !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-[620px]">
         <SheetHeader>
-          <SheetTitle>{row?.club.name}: API usage</SheetTitle>
-          <SheetDescription>Requests from its keys and the partner apps it connected, the last 30 days.</SheetDescription>
+          <SheetTitle>{row?.club.name}: API access</SheetTitle>
+          <SheetDescription>Requests from its keys and the partner apps it connected, the last 30 days; its keys and apps.</SheetDescription>
         </SheetHeader>
-        <div className="px-4 pb-6">
-          {usage.isPending ? (
+        <div className="flex flex-col gap-4 px-4 pb-6">
+          {detail.isPending ? (
             <Skeleton className="h-[140px] rounded-xl" />
-          ) : usage.isError ? (
-            <Notice tone="refuse" tag="Usage">
-              Couldn&apos;t load its figures.
+          ) : detail.isError ? (
+            <Notice tone="refuse" tag="Club">
+              Couldn&apos;t load its access.
             </Notice>
-          ) : days.some((d) => d.total > 0) ? (
-            <DailyBars days={days} what="API requests" bad="errors" />
           ) : (
-            <p className="text-ink-3 m-0 py-8 text-center text-[12.5px]">No requests in the last 30 days.</p>
+            <>
+              {days.some((d) => d.total > 0) ? (
+                <DailyBars days={days} what="API requests" bad="errors" />
+              ) : (
+                <p className="text-ink-3 m-0 py-6 text-center text-[12.5px]">No requests in the last 30 days.</p>
+              )}
+              <section aria-label="Keys" className="flex flex-col gap-1">
+                <CardLabel>Keys · {keys.filter((k) => !k.revoked_at && !k.expired).length} live</CardLabel>
+                {keys.length === 0 ? (
+                  <p className="text-ink-3 m-0 text-[12.5px]">It hasn&apos;t made a key yet.</p>
+                ) : (
+                  <ul className="m-0 flex list-none flex-col p-0">
+                    {keys.map((k) => (
+                      <KeyRow key={k.id} k={k} clubId={row!.club.id} manage={manage} />
+                    ))}
+                  </ul>
+                )}
+              </section>
+              <section aria-label="Connected apps" className="flex flex-col gap-1">
+                <CardLabel>Connected apps · {apps.length}</CardLabel>
+                {apps.length === 0 ? (
+                  <p className="text-ink-3 m-0 text-[12.5px]">No partner app is connected to it.</p>
+                ) : (
+                  <ul className="m-0 flex list-none flex-col p-0">
+                    {apps.map((c) => (
+                      <li key={c.id} className="border-line-soft flex flex-col gap-1 border-b py-2 last:border-0">
+                        <span className="text-ink text-[13px] font-medium">{c.app?.name ?? "A partner app"}</span>
+                        <ScopeTags scopes={c.scopes} />
+                        <span className="text-ink-3 text-[12px]">
+                          {c.connected_at ? `Connected ${formatDate(c.connected_at)}` : "Connected"}
+                          {byName(c.connected_by) ? ` by ${byName(c.connected_by)}` : ""}
+                          {c.last_used_at ? ` · last used ${relativeTime(c.last_used_at)}` : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </>
           )}
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function KeyRow({ k, clubId, manage }: { k: ClubKey; clubId: number; manage: boolean }) {
+  const revoke = useRevokeClubKey(clubId);
+  const [asking, setAsking] = React.useState(false);
+  const live = !k.revoked_at && !k.expired;
+  return (
+    <li className="border-line-soft flex flex-col gap-1 border-b py-2 last:border-0" aria-label={k.name}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-ink text-[13px] font-medium">{k.name}</span>
+        <code className="bg-sunken text-ink-2 rounded px-1.5 py-0.5 text-[11px]">{k.prefix}…</code>
+        <StatusBadge tone={live ? "success" : "default"} label={k.revoked_at ? "Revoked" : k.expired ? "Expired" : k.mode === "test" ? "Test" : "Live"} />
+        <span className="flex-1" />
+        {manage && live ? (
+          asking ? (
+            <span className="flex items-center gap-1.5">
+              <Button size="xs" variant="destructive" className={pressable} disabled={revoke.isPending} onClick={() => revoke.mutate(k.id, { onSettled: () => setAsking(false) })}>
+                {revoke.isPending ? <Loader2Icon className="animate-spin" /> : null} Revoke it
+              </Button>
+              <Button size="xs" variant="ghost" onClick={() => setAsking(false)}>
+                Keep
+              </Button>
+            </span>
+          ) : (
+            <Button size="xs" variant="outline" danger className={pressable} onClick={() => setAsking(true)} aria-label={`Revoke ${k.name}`}>
+              <Trash2Icon /> Revoke
+            </Button>
+          )
+        ) : null}
+      </div>
+      <ScopeTags scopes={k.scopes} />
+      <span className="text-ink-3 text-[12px]">
+        {k.last_used_at ? `Last used ${relativeTime(k.last_used_at)}` : "Never used"}
+        {byName(k.created_by) ? ` · made by ${byName(k.created_by)}` : ""}
+        {k.revoked_at ? ` · revoked ${formatDate(k.revoked_at)}` : ""}
+      </span>
+    </li>
   );
 }

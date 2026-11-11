@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { BuildingIcon, KeyRoundIcon, Loader2Icon, PauseCircleIcon, PencilIcon, PlayCircleIcon, PlusIcon } from "lucide-react";
+import { BuildingIcon, KeyRoundIcon, Loader2Icon, PauseCircleIcon, PencilIcon, PlayCircleIcon, PlusIcon, UnplugIcon } from "lucide-react";
 import { ListFilters, ResourceList, formatDate, formatDateTime, relativeTime, useListParams, type CsvColumn } from "@moa/app-kit";
 import {
   AlertDialog,
@@ -22,6 +22,7 @@ import {
   DialogTitle,
   EmptyState,
   InitialsAvatar,
+  NativeSelect,
   Notice,
   Sheet,
   SheetContent,
@@ -40,18 +41,23 @@ import { ExportButton } from "@/components/export-button";
 import { useCan } from "@/hooks/use-can";
 
 import { fetchPartnerApps } from "../api";
-import { useCreatePartnerApp, usePartnerApps, usePartnerClubs, useRotatePartnerSecret, useSuspendPartnerApp, useUpdatePartnerApp } from "../queries";
+import { useCreatePartnerApp, useDisconnectPartnerClub, usePartnerApp, usePartnerApps, useRotatePartnerSecret, useSuspendPartnerApp, useUpdatePartnerApp } from "../queries";
 import {
   EMPTY_PARTNER_FORM,
+  RATE_TIERS,
+  TIER_INFO,
+  byName,
   isSuspended,
   orderScopes,
   partnerBody,
   partnerFormFrom,
   partnerProblems,
   scopeLabel,
+  tierLabel,
   type PartnerApp,
   type PartnerAppForm,
   type PartnerAppWithSecret,
+  type RateTier,
 } from "../schemas";
 import { ScopeChecklist, ScopeTags, SecretOnce, ShownOnceWarning } from "./parts";
 
@@ -59,11 +65,14 @@ export const PARTNER_COLUMNS: CsvColumn<PartnerApp>[] = [
   { header: "App", value: (a) => a.name },
   { header: "Client ID", value: (a) => a.client_id },
   { header: "Status", value: (a) => (isSuspended(a) ? "Suspended" : "Active") },
+  { header: "Why suspended", value: (a) => a.suspended_reason ?? "" },
+  { header: "About", value: (a) => a.description ?? "" },
   { header: "Website", value: (a) => a.website ?? "" },
+  { header: "Contact", value: (a) => a.contact_email ?? "" },
+  { header: "Rate tier", value: (a) => tierLabel(a.rate_tier) },
   { header: "Redirect URIs", value: (a) => a.redirect_uris.join(" ") },
   { header: "May ask for", value: (a) => orderScopes(a.allowed_scopes).join(" ") },
   { header: "Clubs connected", value: (a) => a.clubs_connected },
-  { header: "Last used", value: (a) => a.last_used_at ?? "" },
   { header: "Registered", value: (a) => a.created_at ?? "" },
 ];
 
@@ -81,7 +90,7 @@ const STATUS_FILTERS = [
 export function PartnerAppsPage() {
   const params = useListParams();
   const status = params.param("status");
-  const manage = useCan("manage_admins");
+  const manage = useCan("manage_content");
   const canExport = useCan("export_data");
   const query = { status, search: params.search || undefined, offset: params.offset, limit: params.pageSize };
   const list = usePartnerApps(query);
@@ -111,7 +120,16 @@ export function PartnerAppsPage() {
     {
       key: "status",
       header: "Status",
-      cell: (a) => <StatusBadge tone={isSuspended(a) ? "warning" : "success"} label={isSuspended(a) ? "Suspended" : "Active"} />,
+      cell: (a) => (
+        <div className="flex flex-col items-start gap-0.5">
+          <StatusBadge tone={isSuspended(a) ? "warning" : "success"} label={isSuspended(a) ? "Suspended" : "Active"} />
+          {isSuspended(a) && a.suspended_reason ? (
+            <span className="text-muted-foreground max-w-[180px] truncate text-[11px]" title={a.suspended_reason}>
+              {a.suspended_reason}
+            </span>
+          ) : null}
+        </div>
+      ),
     },
     {
       key: "scopes",
@@ -130,17 +148,17 @@ export function PartnerAppsPage() {
       ),
     },
     {
-      key: "last",
-      header: "Last used",
+      key: "registered",
+      header: "Registered",
       className: "hidden md:table-cell",
       headerClassName: "hidden md:table-cell",
       cell: (a) =>
-        a.last_used_at ? (
-          <time className="text-muted-foreground text-xs" dateTime={a.last_used_at} title={formatDateTime(a.last_used_at)}>
-            {relativeTime(a.last_used_at)}
+        a.created_at ? (
+          <time className="text-muted-foreground text-xs" dateTime={a.created_at} title={formatDateTime(a.created_at)}>
+            {formatDate(a.created_at)}
           </time>
         ) : (
-          <span className="text-muted-foreground text-xs">Never</span>
+          <span className="text-muted-foreground text-xs">--</span>
         ),
     },
     {
@@ -189,7 +207,7 @@ export function PartnerAppsPage() {
         />
       ) : null}
       {shown ? <SecretDialog shown={shown} onClose={() => setShown(null)} /> : null}
-      <ClubsSheet app={clubsOf} onClose={() => setClubsOf(null)} />
+      <ClubsSheet app={clubsOf} manage={manage} onClose={() => setClubsOf(null)} />
     </div>
   );
 }
@@ -198,6 +216,7 @@ function RowActions({ app, onEdit, onRotated }: { app: PartnerApp; onEdit: () =>
   const suspend = useSuspendPartnerApp();
   const rotate = useRotatePartnerSecret();
   const [asking, setAsking] = React.useState<"suspend" | "rotate" | null>(null);
+  const [reason, setReason] = React.useState("");
   const suspended = isSuspended(app);
   return (
     <div className="flex justify-end gap-1.5">
@@ -226,6 +245,14 @@ function RowActions({ app, onEdit, onRotated }: { app: PartnerApp; onEdit: () =>
                 : `Its tokens stop working at once, for every club connected to it (${app.clubs_connected}), and its webhooks stop. Nothing it made is deleted; resuming it lets the same clubs work with it again.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {asking === "suspend" ? (
+            <div>
+              <label htmlFor={`suspend-${app.id}`} className="eyebrow mb-1.5 block">
+                Why (optional, admins only)
+              </label>
+              <input id={`suspend-${app.id}`} className="input h-10 w-full" value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} />
+            </div>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
@@ -233,7 +260,7 @@ function RowActions({ app, onEdit, onRotated }: { app: PartnerApp; onEdit: () =>
               onClick={() => {
                 const what = asking;
                 setAsking(null);
-                if (what === "suspend") suspend.mutate({ appId: app.id, suspend: true });
+                if (what === "suspend") suspend.mutate({ appId: app.id, suspend: true, reason: reason.trim() || null });
                 else rotate.mutate(app.id, { onSuccess: onRotated });
               }}
             >
@@ -267,7 +294,7 @@ function PartnerDialog({ app, onClose, onCreated }: { app: PartnerApp | null; on
     else create.mutate(body, { onSuccess: onCreated });
   };
 
-  const text = (key: "name" | "logoUrl" | "website", label: string, placeholder: string, mono = false) => (
+  const text = (key: "name" | "logoUrl" | "website" | "contactEmail" | "description", label: string, placeholder: string, mono = false) => (
     <div>
       <label htmlFor={`partner-${key}`} className="eyebrow mb-1.5 block">
         {label}
@@ -293,9 +320,23 @@ function PartnerDialog({ app, onClose, onCreated }: { app: PartnerApp | null; on
         </DialogHeader>
         <form onSubmit={submit} noValidate className="flex flex-col gap-4">
           {text("name", "Name", "EventHub")}
+          {text("description", "What it is (clubs see it)", "Event pages and ticketing for colleges")}
           <div className="grid gap-3 sm:grid-cols-2">
             {text("website", "Website", "https://eventhub.example", true)}
             {text("logoUrl", "Logo address", "https://eventhub.example/logo.png", true)}
+            {text("contactEmail", "Contact email (admins only)", "dev@eventhub.example")}
+            <div>
+              <label htmlFor="partner-tier" className="eyebrow mb-1.5 block">
+                Rate, per club
+              </label>
+              <NativeSelect id="partner-tier" className="h-10 w-full" value={form.tier} onChange={(e) => set("tier", e.target.value as RateTier)}>
+                {RATE_TIERS.map((t) => (
+                  <option key={t} value={t}>
+                    {TIER_INFO[t].label}: {TIER_INFO[t].read.toLocaleString("en-IN")} reads, {TIER_INFO[t].write.toLocaleString("en-IN")} changes a minute
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
           </div>
           <div>
             <label htmlFor="partner-redirects" className="eyebrow mb-1.5 block">
@@ -305,13 +346,13 @@ function PartnerDialog({ app, onClose, onCreated }: { app: PartnerApp | null; on
               id="partner-redirects"
               className="input min-h-[80px] w-full py-2 font-mono text-[12.5px]"
               value={form.redirects}
-              placeholder={"https://app.eventhub.example/oauth/myotherapp\ncom.eventhub.app:/oauth"}
+              placeholder={"https://app.eventhub.example/oauth/myotherapp\nhttp://localhost:3000/callback"}
               onChange={(e) => set("redirects", e.target.value)}
               aria-invalid={shown.redirects ? true : undefined}
               aria-describedby="partner-redirects-hint"
             />
             <p id="partner-redirects-hint" className={cn("m-0 mt-1 text-[12px]", shown.redirects ? "text-refuse" : "text-ink-3")}>
-              {shown.redirects ?? "One a line: where people go back to after allowing it. Matched exactly."}
+              {shown.redirects ?? "One a line, up to ten: where people go back to after allowing it. Matched exactly; http only for localhost while building."}
             </p>
           </div>
           <ScopeChecklist value={form.scopes} onChange={(next) => set("scopes", next)} error={shown.scopes} />
@@ -358,20 +399,22 @@ function SecretDialog({ shown, onClose }: { shown: { made: PartnerAppWithSecret;
   );
 }
 
-function ClubsSheet({ app, onClose }: { app: PartnerApp | null; onClose: () => void }) {
-  const clubs = usePartnerClubs(app?.id ?? null);
-  const list = clubs.data ?? [];
+function ClubsSheet({ app, manage, onClose }: { app: PartnerApp | null; manage: boolean; onClose: () => void }) {
+  const detail = usePartnerApp(app?.id ?? null);
+  const disconnect = useDisconnectPartnerClub(app?.id ?? "");
+  const [asking, setAsking] = React.useState<string | null>(null);
+  const list = detail.data?.connections ?? [];
   return (
     <Sheet open={app !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-[560px]">
         <SheetHeader>
           <SheetTitle>Clubs connected to {app?.name}</SheetTitle>
-          <SheetDescription>Each club allowed some or all of what the app may ask for. A club disconnects it from its own dashboard.</SheetDescription>
+          <SheetDescription>Each club allowed some or all of what the app may ask for. A club disconnects it from its own dashboard; MyOtherApp can too, here.</SheetDescription>
         </SheetHeader>
         <div className="px-4 pb-6">
-          {clubs.isPending ? (
+          {detail.isPending ? (
             <Skeleton className="h-24 rounded-xl" />
-          ) : clubs.isError ? (
+          ) : detail.isError ? (
             <Notice tone="refuse" tag="Clubs">
               Couldn&apos;t load them.
             </Notice>
@@ -379,19 +422,48 @@ function ClubsSheet({ app, onClose }: { app: PartnerApp | null; onClose: () => v
             <EmptyState size="sm" tone="muted" title="No club has connected it yet" />
           ) : (
             <ul className="m-0 flex list-none flex-col p-0">
-              {list.map((c) => (
-                <li key={c.club.id} className="border-line-soft flex flex-col gap-1.5 border-b py-3 last:border-0" aria-label={c.club.name}>
-                  <Link href={`/clubs/${c.club.id}`} className="text-ink text-[13.5px] font-medium hover:underline">
-                    {c.club.name}
-                  </Link>
-                  <ScopeTags scopes={c.scopes} />
-                  <p className="text-ink-3 m-0 text-[12px]">
-                    {c.connected_at ? `Connected ${formatDate(c.connected_at)}` : "Connected"}
-                    {c.connected_by?.name || c.connected_by?.email ? ` by ${c.connected_by.name ?? c.connected_by.email}` : ""}
-                    {c.last_used_at ? ` · last used ${relativeTime(c.last_used_at)}` : " · not used yet"}
-                  </p>
-                </li>
-              ))}
+              {list.map((c) => {
+                const name = c.club.name ?? `Club ${c.club.id}`;
+                return (
+                  <li key={c.id} className="border-line-soft flex flex-col gap-1.5 border-b py-3 last:border-0" aria-label={name}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link href={`/clubs/${c.club.id}`} className="text-ink text-[13.5px] font-medium hover:underline">
+                        {name}
+                      </Link>
+                      {c.mode === "test" ? <span className="tag text-caution">Test</span> : null}
+                      <span className="flex-1" />
+                      {manage ? (
+                        asking === c.id ? (
+                          <span className="flex items-center gap-1.5">
+                            <Button
+                              size="xs"
+                              variant="destructive"
+                              className={pressable}
+                              disabled={disconnect.isPending}
+                              onClick={() => disconnect.mutate({ connectionId: c.id, clubName: name }, { onSettled: () => setAsking(null) })}
+                            >
+                              {disconnect.isPending ? <Loader2Icon className="animate-spin" /> : null} Disconnect it
+                            </Button>
+                            <Button size="xs" variant="ghost" onClick={() => setAsking(null)}>
+                              Keep
+                            </Button>
+                          </span>
+                        ) : (
+                          <Button size="xs" variant="outline" danger className={pressable} onClick={() => setAsking(c.id)} aria-label={`Disconnect ${name}`}>
+                            <UnplugIcon /> Disconnect
+                          </Button>
+                        )
+                      ) : null}
+                    </div>
+                    <ScopeTags scopes={c.scopes} />
+                    <p className="text-ink-3 m-0 text-[12px]">
+                      {c.connected_at ? `Connected ${formatDate(c.connected_at)}` : "Connected"}
+                      {byName(c.connected_by) ? ` by ${byName(c.connected_by)}` : ""}
+                      {c.last_used_at ? ` · last used ${relativeTime(c.last_used_at)}` : " · not used yet"}
+                    </p>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

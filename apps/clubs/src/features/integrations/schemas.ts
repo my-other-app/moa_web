@@ -11,6 +11,11 @@ import { ApiError } from "@moa/api";
  * Nothing here is on by default: the MyOtherApp team allocates API access to
  * a club. Until it has (and on an API from before integrations) the section
  * stays out of sight.
+ *
+ * The shapes are the backend's own (app/api/partner/club_router.py and
+ * app/api/webhooks_out/router.py on feat/partner-api and feat/api-webhooks),
+ * read leniently: a field this build doesn't know is ignored, one it
+ * expects and doesn't get falls back.
  */
 
 // ─── Scopes ──────────────────────────────────────────────────────────────
@@ -97,28 +102,34 @@ const personSchema = z.object({
 });
 export type Person = z.infer<typeof personSchema>;
 
-/** "Asha (admin)", "the club account", or "someone". */
-export function personLabel(p: Person | null | undefined): string {
+/** "Asha (admin)", "the club account", or "someone"; a plain name as it is. */
+export function personLabel(p: Person | string | null | undefined): string {
   if (!p) return "someone";
+  if (typeof p === "string") return p === "The club's own account" ? "the club account" : p;
   if (p.role === "owner" && !p.name && !p.email) return "the club account";
   const who = p.name || p.email || "a team member";
   return p.role && p.role !== "owner" ? `${who} (${p.role})` : who;
 }
 
 /**
- * GET /clubs/integrations: whether the club has API access, and the limits
- * it comes with. `apps_connected` keeps Connected apps reachable for a club
- * that connected a partner app without API access of its own.
+ * GET /clubs/integrations (owners and admins): whether the club has API
+ * access (`source`: given by the MyOtherApp team, or with the plan), and the
+ * limits it comes with. `apps_connected`, if a server sends it, keeps
+ * Connected apps reachable for a club with a partner app but no access.
  */
-export const statusSchema = z.object({
-  allocated: z.boolean().catch(false),
-  can_manage: z.boolean().catch(false),
-  rate_tier: z.string().catch("standard"),
-  rate_limit: z.object({ read_per_min: z.number(), write_per_min: z.number() }).nullable().catch(null),
-  max_keys: z.number().catch(5),
-  keys_active: z.number().catch(0),
-  apps_connected: z.number().catch(0),
-});
+export const statusSchema = z.preprocess(
+  (raw) => (raw && typeof raw === "object" && !("keys_active" in raw) && "live_keys" in raw ? { ...raw, keys_active: (raw as { live_keys: unknown }).live_keys } : raw),
+  z.object({
+    allocated: z.boolean().catch(false),
+    source: z.string().nullable().optional().catch(null),
+    rate_tier: z.string().catch("standard"),
+    rate_limit: z.object({ read_per_min: z.number(), write_per_min: z.number() }).nullable().catch(null),
+    max_keys: z.number().catch(5),
+    keys_active: z.number().catch(0),
+    apps_connected: z.number().catch(0),
+    docs_url: z.string().nullable().optional().catch(null),
+  }),
+);
 export type IntegrationsStatus = z.infer<typeof statusSchema>;
 
 /** Whether there is anything to show: API access, or a partner app to disconnect. */
@@ -151,6 +162,8 @@ export type KeyMode = (typeof KEY_MODES)[number];
 
 export const apiKeySchema = z.object({
   id: z.coerce.string(),
+  /** The key's public id: what a webhook endpoint names to keep this key's own changes from coming back. */
+  client_id: z.string().nullable().optional().catch(null),
   name: z.string().catch("API key"),
   /** The key's first characters ("moa_live_Ab3d"), to recognise it by; never the key itself. */
   prefix: z.string().catch(""),
@@ -159,17 +172,29 @@ export const apiKeySchema = z.object({
   expires_at: z.string().nullable().optional().catch(null),
   ip_allowlist: z.array(z.string()).nullable().optional().catch(null),
   created_at: z.string().nullable().optional().catch(null),
-  created_by: personSchema.nullable().optional().catch(null),
+  /** Who made it: a name, as the server keeps it. */
+  created_by: z.union([z.string(), personSchema]).nullable().optional().catch(null),
   last_used_at: z.string().nullable().optional().catch(null),
   last_used_ip: z.string().nullable().optional().catch(null),
+  rotated_at: z.string().nullable().optional().catch(null),
   revoked_at: z.string().nullable().optional().catch(null),
 });
 export type ApiKey = z.infer<typeof apiKeySchema>;
 
-export const keysSchema = z.object({ items: z.array(apiKeySchema).catch([]) });
+/** `{keys: [...]}` (or `{items}`): the club's keys, never a secret. */
+export const keysSchema = z
+  .object({ keys: z.array(apiKeySchema).optional(), items: z.array(apiKeySchema).optional() })
+  .transform((r) => r.keys ?? r.items ?? []);
 
-/** A new or rotated key: the key's row, and the key itself, which the server never shows again. */
-export const keyWithSecretSchema = z.object({ key: apiKeySchema, secret: z.string().min(1) });
+/**
+ * A new or rotated key: the key's row with its `secret`, the full key,
+ * which the server never sends again. Kept apart here so nothing that
+ * lists keys can carry it.
+ */
+export const keyWithSecretSchema = z
+  .object({ secret: z.string().min(1) })
+  .passthrough()
+  .transform(({ secret, ...rest }) => ({ key: apiKeySchema.parse(rest), secret }));
 export type KeyWithSecret = z.infer<typeof keyWithSecretSchema>;
 
 export type KeyStatus = "active" | "expired" | "revoked";
@@ -256,7 +281,7 @@ export interface CreateKeyBody {
   scopes: string[];
   expires_at: string | null;
   ip_allowlist: string[];
-  attendees_notice_ack: boolean;
+  attendees_disclosure_ack: boolean;
 }
 
 export function keyBody(f: KeyForm, now: Date = new Date()): CreateKeyBody {
@@ -267,7 +292,7 @@ export function keyBody(f: KeyForm, now: Date = new Date()): CreateKeyBody {
     scopes: [...SCOPES.filter((s) => f.scopes.includes(s)), ...f.scopes.filter((s) => !(SCOPES as readonly string[]).includes(s))],
     expires_at: expiryAt(f.expiry, f.expiryDate, now),
     ip_allowlist: parseAllowlist(f.allowlist).entries,
-    attendees_notice_ack: needsNoticeTick(f.scopes) && f.noticeTicked,
+    attendees_disclosure_ack: needsNoticeTick(f.scopes) && f.noticeTicked,
   };
 }
 
@@ -314,6 +339,7 @@ export const EVENT_TYPES = EVENT_TYPE_GROUPS.flatMap((g) => g.types.map((t) => t
 export const ALL_EVENTS = "*";
 
 export function eventTypeLabel(type: string): string {
+  if (type === TEST_EVENT) return "A test";
   for (const g of EVENT_TYPE_GROUPS) for (const t of g.types) if (t.key === type) return t.label;
   return type;
 }
@@ -325,38 +351,70 @@ export function eventsSummary(events: readonly string[]): string {
   return `${events.length} kinds of change`;
 }
 
-export const endpointSchema = z.object({
+const endpointShape = z.object({
   id: z.coerce.string(),
   url: z.string(),
   description: z.string().nullable().optional().catch(null),
   events: z.array(z.string()).catch([ALL_EVENTS]),
   include_own_changes: z.boolean().catch(false),
+  /** Live changes, or test-mode ones. */
+  livemode: z.boolean().catch(true),
   enabled: z.boolean().catch(true),
-  /** Why it is off: "failing" (3 days of failures) or "manual"; null while on. */
+  /** Why it is off: "failing" (three days of failures), or turned off by the club or MyOtherApp; null while on. */
   disabled_reason: z.string().nullable().optional().catch(null),
-  /** Made by a partner app for this club (shown, but changed by that app). */
-  partner_app: z.object({ id: z.coerce.string(), name: z.string() }).nullable().optional().catch(null),
-  created_at: z.string().nullable().optional().catch(null),
-  last_delivery_at: z.string().nullable().optional().catch(null),
-  /** The HTTP status the endpoint last answered; null when it couldn't be reached. */
-  last_response_status: z.number().nullable().optional().catch(null),
+  /** People's names, emails, phones and answers go with each change (the club's DPDP tick). */
+  share_attendee_details: z.boolean().catch(false),
+  /** A club's own, or one a connected partner app made for the club (shown, but that app manages it). */
+  owner: z.object({ type: z.string().catch("club"), client_id: z.string().nullable().optional().catch(null), partner_app_id: z.string().nullable().optional().catch(null) }).nullable().optional().catch(null),
+  /** "whsec_…a1b2": enough to tell secrets apart, never the secret. */
+  secret_hint: z.string().nullable().optional().catch(null),
+  previous_secret_expires_at: z.string().nullable().optional().catch(null),
   failing_since: z.string().nullable().optional().catch(null),
+  consecutive_failures: z.number().catch(0),
+  last_success_at: z.string().nullable().optional().catch(null),
+  last_failure_at: z.string().nullable().optional().catch(null),
+  created_at: z.string().nullable().optional().catch(null),
 });
+
+export const endpointSchema = endpointShape.transform((e) => ({
+  ...e,
+  byPartner: e.owner?.type === "partner_app",
+  /** The key whose own changes aren't sent back (the dashboard's "which of your systems"). */
+  ownClientId: e.owner?.type === "partner_app" ? null : (e.owner?.client_id ?? null),
+  lastSentAt: [e.last_success_at, e.last_failure_at].filter((t): t is string => Boolean(t)).sort().at(-1) ?? null,
+}));
 export type Endpoint = z.infer<typeof endpointSchema>;
 
-export const endpointsSchema = z.object({ items: z.array(endpointSchema).catch([]) });
+/** `{data: [...], next_cursor}` (or `{items}`). */
+export const endpointsSchema = z
+  .object({ data: z.array(endpointSchema).optional(), items: z.array(endpointSchema).optional() })
+  .transform((r) => r.data ?? r.items ?? []);
 
-/** A new endpoint, or one whose secret was replaced: the signing secret, shown this once. */
-export const endpointWithSecretSchema = z.object({ endpoint: endpointSchema, secret: z.string().min(1) });
+/** A new endpoint, or one whose secret was replaced: the endpoint with its signing secret, shown this once. */
+export const endpointWithSecretSchema = z
+  .object({ secret: z.string().min(1) })
+  .passthrough()
+  .transform(({ secret, ...rest }) => ({ endpoint: endpointSchema.parse(rest), secret }));
 export type EndpointWithSecret = z.infer<typeof endpointWithSecretSchema>;
+
+/** GET /clubs/integrations/webhooks/status: whether webhooks can be used now (`reason`: "unavailable" | "not_allocated"). */
+export const webhookStatusSchema = z.object({
+  available: z.boolean().catch(false),
+  reason: z.string().nullable().optional().catch(null),
+  message: z.string().nullable().optional().catch(null),
+  max_endpoints: z.number().nullable().optional().catch(null),
+});
+export type WebhookStatus = z.infer<typeof webhookStatusSchema>;
 
 export const DELIVERY_STATUSES = ["pending", "retrying", "succeeded", "failed"] as const;
 
-export const deliverySchema = z.object({
+export const TEST_EVENT = "webhook.test";
+
+const deliveryShape = z.object({
   id: z.coerce.string(),
   /** `evt_…`, the MOA-Event-Id a receiver de-duplicates by. */
   event_id: z.string().nullable().optional().catch(null),
-  type: z.string().catch("unknown"),
+  event_type: z.string().nullable().optional().catch(null),
   status: z.string().catch("pending"),
   attempts: z.number().catch(0),
   response_status: z.number().nullable().optional().catch(null),
@@ -365,14 +423,17 @@ export const deliverySchema = z.object({
   created_at: z.string().nullable().optional().catch(null),
   last_attempt_at: z.string().nullable().optional().catch(null),
   next_attempt_at: z.string().nullable().optional().catch(null),
-  test: z.boolean().optional().catch(false),
 });
+
+export const deliverySchema = deliveryShape.transform((d) => ({ ...d, type: d.event_type ?? "unknown", test: d.event_type === TEST_EVENT }));
 export type Delivery = z.infer<typeof deliverySchema>;
 
-export const deliveriesSchema = z.object({
-  items: z.array(deliverySchema).catch([]),
-  next_cursor: z.string().nullable().optional().catch(null),
-});
+/** A test or a replay's answer: `{ok, delivery}`. */
+export const sentSchema = z.object({ ok: z.boolean().catch(false), delivery: deliverySchema }).transform((r) => r.delivery);
+
+export const deliveriesSchema = z
+  .object({ data: z.array(deliverySchema).optional(), items: z.array(deliverySchema).optional(), next_cursor: z.string().nullable().optional().catch(null) })
+  .transform((r) => ({ items: r.data ?? r.items ?? [], next_cursor: r.next_cursor ?? null }));
 export type DeliveryPage = z.infer<typeof deliveriesSchema>;
 
 export const DELIVERY_BADGE: Record<string, { label: string; tone: "default" | "success" | "warning" | "destructive" | "info" }> = {
@@ -397,11 +458,22 @@ export function deliveryOutcome(d: Delivery): { ok: boolean; text: string } {
 
 export type EndpointHealth = "ok" | "failing" | "off" | "new";
 
-export function endpointHealth(e: Endpoint): EndpointHealth {
+export function endpointHealth(e: Pick<Endpoint, "enabled" | "failing_since" | "lastSentAt">): EndpointHealth {
   if (!e.enabled) return "off";
   if (e.failing_since) return "failing";
-  if (!e.last_delivery_at) return "new";
+  if (!e.lastSentAt) return "new";
   return "ok";
+}
+
+/** The words the club ticks before people's details go to an endpoint: named by its host, as the server words it. */
+export function endpointNoticeText(url: string): string {
+  let host = url.trim();
+  try {
+    host = new URL(url.trim()).hostname || host;
+  } catch {
+    // as typed
+  }
+  return noticeText(host || "this address");
 }
 
 /** An https address on a public host: what the server will take (it checks the address itself too). */
@@ -423,40 +495,76 @@ export function webhookUrlProblem(raw: string): string | null {
 export interface EndpointForm {
   url: string;
   description: string;
+  mode: KeyMode;
   all: boolean;
   events: string[];
+  /** The `client_id` of the club's key the same system uses: its own changes aren't sent back. "" for none. */
+  keyClientId: string;
   includeOwn: boolean;
+  shareDetails: boolean;
+  noticeTicked: boolean;
 }
 
-export const EMPTY_ENDPOINT_FORM: EndpointForm = { url: "", description: "", all: true, events: [], includeOwn: false };
+export const EMPTY_ENDPOINT_FORM: EndpointForm = { url: "", description: "", mode: "live", all: true, events: [], keyClientId: "", includeOwn: false, shareDetails: false, noticeTicked: false };
 
-export function endpointBody(f: EndpointForm) {
-  return {
+export interface EndpointBody {
+  url: string;
+  description: string | null;
+  events: string[];
+  livemode: boolean;
+  include_own_changes: boolean;
+  share_attendee_details: boolean;
+  dpdp_confirmed: boolean;
+  client_id?: string;
+}
+
+/** What the server takes (it refuses fields it doesn't know). */
+export function endpointBody(f: EndpointForm): EndpointBody {
+  const body: EndpointBody = {
     url: f.url.trim(),
     description: f.description.trim() || null,
     events: f.all ? [ALL_EVENTS] : EVENT_TYPES.filter((t) => f.events.includes(t)),
-    include_own_changes: f.includeOwn,
+    livemode: f.mode === "live",
+    include_own_changes: Boolean(f.keyClientId) && f.includeOwn,
+    share_attendee_details: f.shareDetails,
+    dpdp_confirmed: f.shareDetails && f.noticeTicked,
   };
+  if (f.keyClientId) body.client_id = f.keyClientId;
+  return body;
 }
 
 // ─── Connected partner apps ──────────────────────────────────────────────
 
-export const connectionSchema = z.object({
-  id: z.coerce.string(),
-  partner: z.object({
+const scopeRef = z.union([z.string(), z.object({ key: z.string() }).passthrough()]).transform((v) => (typeof v === "string" ? v : v.key));
+
+/**
+ * A partner app connected to the club, as GET /clubs/integrations/connected-apps
+ * lists it: `app` is the partner, `scopes` what the club allowed.
+ */
+export const connectionSchema = z
+  .object({
     id: z.coerce.string(),
-    name: z.string().catch("A partner app"),
-    logo_url: z.string().nullable().optional().catch(null),
-    website: z.string().nullable().optional().catch(null),
-  }),
-  scopes: z.array(z.string()).catch([]),
-  connected_by: personSchema.nullable().optional().catch(null),
-  connected_at: z.string().nullable().optional().catch(null),
-  last_used_at: z.string().nullable().optional().catch(null),
-});
+    app: z
+      .object({
+        id: z.coerce.string().catch(""),
+        name: z.string().catch("A partner app"),
+        logo_url: z.string().nullable().optional().catch(null),
+        website: z.string().nullable().optional().catch(null),
+        status: z.string().nullable().optional().catch(null),
+      })
+      .catch({ id: "", name: "A partner app", logo_url: null, website: null, status: null }),
+    livemode: z.boolean().catch(true),
+    scopes: z.array(scopeRef).catch([]),
+    connected_by: z.union([z.string(), personSchema]).nullable().optional().catch(null),
+    connected_at: z.string().nullable().optional().catch(null),
+    last_used_at: z.string().nullable().optional().catch(null),
+  })
+  .transform((c) => ({ ...c, partner: c.app }));
 export type Connection = z.infer<typeof connectionSchema>;
 
-export const connectionsSchema = z.object({ items: z.array(connectionSchema).catch([]) });
+export const connectionsSchema = z
+  .object({ apps: z.array(connectionSchema).optional(), items: z.array(connectionSchema).optional() })
+  .transform((r) => r.apps ?? r.items ?? []);
 
 /** "partner.example", from the app's website; null when it has none worth showing. */
 export function hostOf(uri: string | null | undefined): string | null {
@@ -471,13 +579,16 @@ export function hostOf(uri: string | null | undefined): string | null {
 
 // ─── Usage ───────────────────────────────────────────────────────────────
 
-export const usageDaySchema = z.object({ date: z.string(), requests: z.number().catch(0), errors: z.number().catch(0) });
+/** A day of use: `day` (YYYY-MM-DD, IST) from the server, `date` here. */
+export const usageDaySchema = z
+  .object({ day: z.string().optional(), date: z.string().optional(), requests: z.number().catch(0), errors: z.number().catch(0), rate_limited: z.number().catch(0), attendee_reads: z.number().catch(0) })
+  .transform((d) => ({ date: d.day ?? d.date ?? "", requests: d.requests, errors: d.errors, rate_limited: d.rate_limited, attendee_reads: d.attendee_reads }));
 export type UsageDay = z.infer<typeof usageDaySchema>;
 
 export const usageSchema = z.object({ days: z.array(usageDaySchema).catch([]) });
 export type Usage = z.infer<typeof usageSchema>;
 
-export function usageTotals(days: readonly UsageDay[]) {
+export function usageTotals(days: readonly Pick<UsageDay, "requests" | "errors">[]) {
   const requests = days.reduce((n, d) => n + d.requests, 0);
   const errors = days.reduce((n, d) => n + d.errors, 0);
   return { requests, errors, errorRate: requests ? errors / requests : 0 };
@@ -485,25 +596,44 @@ export function usageTotals(days: readonly UsageDay[]) {
 
 // ─── Consent (a partner app asking to connect) ───────────────────────────
 
+/**
+ * The OAuth request the partner sent, as MyOtherApp's /partner/oauth/authorize
+ * passed it on to /integrations/connect after checking it. The page hands it
+ * back to the API, which checks it again; the dashboard keeps nothing of it.
+ */
+export const OAUTH_PARAMS = ["client_id", "redirect_uri", "response_type", "scope", "state", "code_challenge", "code_challenge_method", "mode"] as const;
+export type OAuthParams = Partial<Record<(typeof OAUTH_PARAMS)[number], string>>;
+
+export function oauthParams(from: URLSearchParams | Record<string, string | string[] | undefined>): OAuthParams {
+  const get = (k: string) => (from instanceof URLSearchParams ? from.get(k) : ((v) => (Array.isArray(v) ? v[0] : v))(from[k])) ?? undefined;
+  const out: OAuthParams = {};
+  for (const k of OAUTH_PARAMS) {
+    const v = get(k);
+    if (typeof v === "string" && v !== "") out[k] = v;
+  }
+  return out;
+}
+
+export function consentPath(params: OAuthParams): string {
+  const qs = new URLSearchParams(Object.entries(params) as [string, string][]).toString();
+  return `/integrations/connect${qs ? `?${qs}` : ""}`;
+}
+
 export const consentSchema = z.object({
-  id: z.string(),
-  partner: z.object({
-    id: z.coerce.string(),
+  app: z.object({
     name: z.string(),
+    client_id: z.string().nullable().optional().catch(null),
+    description: z.string().nullable().optional().catch(null),
     logo_url: z.string().nullable().optional().catch(null),
     website: z.string().nullable().optional().catch(null),
   }),
-  club: z.object({ id: z.coerce.number(), name: z.string(), slug: z.string().nullable().optional().catch(null), logo: z.string().nullable().optional().catch(null) }),
+  club: z.object({ id: z.coerce.number(), name: z.string() }),
+  mode: z.enum(KEY_MODES).catch("live"),
   /** What the app asks for (within what MyOtherApp lets it ask for). */
-  scopes: z.array(z.string()).catch([]),
-  /** The app is already connected to this club, with these. */
-  already: z.object({ scopes: z.array(z.string()).catch([]), connected_at: z.string().nullable().optional().catch(null) }).nullable().optional().catch(null),
+  scopes: z.array(scopeRef).catch([]),
   /** Where the browser goes back to, as a host ("erp.college.edu"). */
-  redirect_host: z.string().nullable().optional().catch(null),
-  livemode: z.boolean().catch(true),
-  can_decide: z.boolean().catch(false),
-  cannot_decide_reason: z.string().nullable().optional().catch(null),
-  expires_at: z.string().nullable().optional().catch(null),
+  redirect_target: z.string().nullable().optional().catch(null),
+  already_connected: z.boolean().catch(false),
 });
 export type Consent = z.infer<typeof consentSchema>;
 
@@ -519,4 +649,9 @@ export function safeRedirect(uri: string): string | null {
   }
 }
 
-export const CONSENT_GONE = ["CONSENT_NOT_FOUND", "CONSENT_EXPIRED", "CONSENT_DECIDED"] as const;
+/** Where a refusal says to send the person back to the app (`errors.redirect_to`), when it says. */
+export function refusalRedirect(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  const raw = (error.fieldErrors as unknown as Record<string, unknown> | null)?.redirect_to;
+  return typeof raw === "string" ? safeRedirect(raw) : null;
+}

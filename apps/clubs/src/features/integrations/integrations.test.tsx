@@ -12,7 +12,9 @@ import fixture from "../__fixtures__/integrations.json";
  * endpoints (a test, the delivery log and a replay), connected partner apps
  * and usage; the rail's item, there only for an allocated club's owner or
  * admin on an API that has integrations; and the consent page a partner
- * app sends the club to.
+ * app sends the club to. The fixture is in the backend's own shapes
+ * (feat/partner-api app/api/partner/club_router.py, feat/api-webhooks
+ * app/api/webhooks_out/router.py).
  */
 
 type Role = "owner" | "admin" | "editor" | "door";
@@ -36,17 +38,34 @@ const USAGE_DAYS = Array.from({ length: 30 }, (_, i) => ({
   errors: i % 10 === 0 ? 3 : 0,
 }));
 
+const TEST_OK = { ok: true, delivery: { id: "t1", event_id: "evt_t1", event_type: "webhook.test", status: "succeeded", attempts: 1, response_status: 200 } };
+
 const state = {
   role: "owner" as Role,
   /** GET /clubs/integrations: "old" answers FastAPI's bare 404 (an API from before integrations). */
   status: fixture.status as unknown,
-  statusRoute: "ok" as "ok" | "old" | "not_allocated",
-  keys: fixture.keys.items as unknown[],
+  statusRoute: "ok" as "ok" | "old" | "forbidden",
+  keys: fixture.keys as unknown,
+  hooksStatus: fixture.webhook_status as unknown,
   consent: fixture.consent as unknown,
   consentError: null as ApiError | null,
   decideError: null as ApiError | null,
-  testAnswer: { id: "t1", event_id: "evt_t1", type: "event.updated", status: "succeeded", attempts: 1, response_status: 200, test: true } as unknown,
+  testAnswer: TEST_OK as unknown,
 };
+
+/** The partner's OAuth request, as /partner/oauth/authorize passed it on to /integrations/connect. */
+const PARAMS = {
+  client_id: "moa_client_7Hk2pQ",
+  redirect_uri: "https://app.eventhub.example/callback",
+  response_type: "code",
+  scope: "events:read events:write registrations:read attendees:read",
+  state: "xyz",
+  code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+  code_challenge_method: "S256",
+  mode: "live",
+};
+const refusal = (status: number, errorCode: string, message: string, redirect_to: string | null = null) =>
+  new ApiError({ status, message, errorCode, fieldErrors: { error: "access_denied", redirect_to } as unknown as Record<string, string[]> });
 
 const router = { push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() };
 vi.mock("next/navigation", () => ({
@@ -65,15 +84,16 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path === "/api/v1/clubs/access/me") return me(state.role);
         if (path === "/api/v1/clubs/integrations") {
           if (state.statusRoute === "old") throw notFound();
-          if (state.statusRoute === "not_allocated") throw new ApiError({ status: 403, message: "API access isn't on for this club.", errorCode: "NOT_ALLOCATED" });
+          if (state.statusRoute === "forbidden") throw new ApiError({ status: 403, message: "Your role can't open this.", errorCode: "ROLE_FORBIDDEN" });
           return state.status;
         }
-        if (path === "/api/v1/clubs/integrations/keys") return { items: state.keys };
+        if (path === "/api/v1/clubs/integrations/keys") return state.keys;
+        if (path === "/api/v1/clubs/integrations/webhooks/status") return state.hooksStatus;
         if (path === "/api/v1/clubs/integrations/webhooks") return fixture.webhooks;
         if (/\/webhooks\/\w+\/deliveries$/.test(path)) return fixture.deliveries;
-        if (path === "/api/v1/clubs/integrations/apps") return fixture.apps;
-        if (path === "/api/v1/clubs/integrations/usage") return { days: USAGE_DAYS };
-        if (path.startsWith("/api/v1/clubs/integrations/consent/")) {
+        if (path === "/api/v1/clubs/integrations/connected-apps") return fixture.apps;
+        if (path === "/api/v1/clubs/integrations/usage") return { days: USAGE_DAYS, clients: [] };
+        if (path === "/api/v1/clubs/integrations/connect") {
           if (state.consentError) throw state.consentError;
           return state.consent;
         }
@@ -83,12 +103,12 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       post: vi.fn(async (path: string, body?: unknown) => {
         calls.push({ method: "POST", path, body });
         if (path === "/api/v1/clubs/integrations/keys") return fixture.created;
-        if (/\/keys\/\w+\/rotate$/.test(path)) return { key: fixture.keys.items[0], secret: "moa_live_Qx7pNEWNEWNEWNEWNEWNEWNEWNEWNEWNEWNEWN" };
+        if (/\/keys\/\w+\/rotate$/.test(path)) return { ...fixture.keys.keys[0], rotated_at: "2026-11-12T10:00:00+05:30", secret: "moa_live_Qx7pNEWNEWNEWNEWNEWNEWNEWNEWNEWNEWNEWN" };
         if (path === "/api/v1/clubs/integrations/webhooks") return fixture.endpoint_created;
         if (/\/webhooks\/\w+\/test$/.test(path)) return state.testAnswer;
-        if (/\/webhooks\/deliveries\/\w+\/retry$/.test(path)) return { ...fixture.deliveries.items[0], attempts: 8 };
-        if (/\/webhooks\/\w+\/rotate-secret$/.test(path)) return { endpoint: fixture.webhooks.items[0], secret: "whsec_rotated" };
-        if (path.startsWith("/api/v1/clubs/integrations/consent/")) {
+        if (/\/webhooks\/deliveries\/\w+\/retry$/.test(path)) return { ok: false, delivery: { ...fixture.deliveries.data[0], attempts: 8 } };
+        if (/\/webhooks\/\w+\/rotate-secret$/.test(path)) return { ...fixture.webhooks.data[0], secret: "whsec_rotated" };
+        if (path === "/api/v1/clubs/integrations/connect") {
           if (state.decideError) throw state.decideError;
           const b = body as { decision: string };
           return { redirect_to: b.decision === "allow" ? "https://app.eventhub.example/callback?code=abc&state=xyz" : "https://app.eventhub.example/callback?error=access_denied&state=xyz" };
@@ -97,7 +117,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       }),
       patch: vi.fn(async (path: string, body: unknown) => {
         calls.push({ method: "PATCH", path, body });
-        const e = fixture.webhooks.items.find((w) => path.endsWith(`/${w.id}`))!;
+        const e = fixture.webhooks.data.find((w) => path.endsWith(`/${w.id}`))!;
         return { ...e, ...(body as object) };
       }),
       put: vi.fn(),
@@ -122,11 +142,12 @@ beforeEach(() => {
     role: "owner",
     status: fixture.status,
     statusRoute: "ok",
-    keys: fixture.keys.items,
+    keys: fixture.keys,
+    hooksStatus: fixture.webhook_status,
     consent: fixture.consent,
     consentError: null,
     decideError: null,
-    testAnswer: { id: "t1", event_id: "evt_t1", type: "event.updated", status: "succeeded", attempts: 1, response_status: 200, test: true },
+    testAnswer: TEST_OK,
   });
   Object.values(router).forEach((f) => f.mockClear());
   vi.restoreAllMocks();
@@ -160,10 +181,10 @@ describe("scopes, keys and webhooks, as rules", () => {
     expect(schemas.needsNoticeTick(base.scopes)).toBe(true);
     expect(schemas.keyFormProblems(base).notice).toMatch(/Tick this/);
     expect(schemas.keyFormProblems({ ...base, noticeTicked: true })).toEqual({});
-    expect(schemas.keyBody({ ...base, noticeTicked: true }).attendees_notice_ack).toBe(true);
+    expect(schemas.keyBody({ ...base, noticeTicked: true }).attendees_disclosure_ack).toBe(true);
     // Without the scope, the tick is neither asked for nor sent.
     expect(schemas.keyFormProblems({ ...base, scopes: ["checkins:write"] })).toEqual({});
-    expect(schemas.keyBody({ ...base, scopes: ["checkins:write"], noticeTicked: true }).attendees_notice_ack).toBe(false);
+    expect(schemas.keyBody({ ...base, scopes: ["checkins:write"], noticeTicked: true }).attendees_disclosure_ack).toBe(false);
     expect(schemas.noticeText("College ERP")).toBe("Our registration form tells people their details are shared with College ERP.");
   });
 
@@ -186,11 +207,22 @@ describe("scopes, keys and webhooks, as rules", () => {
     expect(schemas.webhookUrlProblem("https://10.0.0.5/hook")).toBe("Use a public address with a domain name.");
     expect(schemas.webhookUrlProblem("not a url")).toBe("That isn't a web address.");
     expect(schemas.webhookUrlProblem("https://erp.example.edu/hook")).toBeNull();
-    expect(schemas.endpointBody({ ...schemas.EMPTY_ENDPOINT_FORM, url: " https://a.example/h ", all: false, events: ["checkin.created", "event.created"] }).events).toEqual(["event.created", "checkin.created"]);
+    expect(schemas.endpointBody({ ...schemas.EMPTY_ENDPOINT_FORM, url: " https://a.example/h ", all: false, events: ["checkin.created", "event.created"] })).toEqual({
+      url: "https://a.example/h",
+      description: null,
+      events: ["event.created", "checkin.created"],
+      livemode: true,
+      include_own_changes: false,
+      share_attendee_details: false,
+      dpdp_confirmed: false,
+    });
+    // Its own changes stay away only for a key named, and the tick goes only with people's details.
+    expect(schemas.endpointBody({ ...schemas.EMPTY_ENDPOINT_FORM, url: "https://a.example/h", includeOwn: true, noticeTicked: true })).toMatchObject({ include_own_changes: false, dpdp_confirmed: false });
+    expect(schemas.endpointNoticeText("https://erp.example.edu/hook")).toBe("Our registration form tells people their details are shared with erp.example.edu.");
   });
 
   it("says what a test or a replay came to", () => {
-    const d = (over: object) => schemas.deliverySchema.parse({ id: "1", type: "event.updated", status: "succeeded", attempts: 1, response_status: 200, ...over });
+    const d = (over: object) => schemas.deliverySchema.parse({ id: "1", event_type: "event.updated", status: "succeeded", attempts: 1, response_status: 200, ...over });
     expect(schemas.deliveryOutcome(d({}))).toEqual({ ok: true, text: "Delivered: your endpoint answered 200." });
     expect(schemas.deliveryOutcome(d({ status: "failed", response_status: 500 })).text).toBe("Your endpoint answered 500. Anything but a 2xx counts as failed.");
     expect(schemas.deliveryOutcome(d({ status: "failed", response_status: null, error: "Timed out after 10 s." })).text).toBe("Couldn't reach your endpoint: Timed out after 10 s.");
@@ -199,6 +231,7 @@ describe("scopes, keys and webhooks, as rules", () => {
   it("shows the section to an allocated club, or one with a partner app to disconnect", () => {
     const s = schemas.statusSchema.parse(fixture.status);
     expect(schemas.integrationsVisible(s)).toBe(true);
+    expect(s.keys_active).toBe(2);
     expect(schemas.integrationsVisible({ ...s, allocated: false, apps_connected: 0 })).toBe(false);
     expect(schemas.integrationsVisible({ ...s, allocated: false, apps_connected: 1 })).toBe(true);
     expect(schemas.integrationsVisible(null)).toBe(false);
@@ -252,7 +285,7 @@ describe("Settings → Integrations: API keys", () => {
       scopes: ["attendees:read", "checkins:write"],
       expires_at: null,
       ip_allowlist: [],
-      attendees_notice_ack: true,
+      attendees_disclosure_ack: true,
     });
 
     const shown = await screen.findByRole("dialog", { name: "“Gate scanner” is ready" });
@@ -307,7 +340,7 @@ describe("Settings → Integrations: webhooks", () => {
 
   it("says a test failed, in the endpoint's answer", async () => {
     const error = vi.spyOn(toast, "error");
-    state.testAnswer = { id: "t2", type: "event.updated", status: "failed", attempts: 1, response_status: 401, test: true };
+    state.testAnswer = { ok: false, delivery: { id: "t2", event_type: "webhook.test", status: "failed", attempts: 1, response_status: 401 } };
     render(<IntegrationsPage />);
     await tab("Webhooks");
     const erp = await screen.findByRole("listitem", { name: "https://erp.example.edu/moa/webhooks" });
@@ -322,12 +355,15 @@ describe("Settings → Integrations: webhooks", () => {
     const hub = await screen.findByRole("listitem", { name: "https://hooks.eventhub.example/moa/club-5" });
     expect(within(hub).getByText("Failing")).toBeInTheDocument();
     expect(within(hub).getByText(/after three days of failures it is turned off/)).toBeInTheDocument();
-    expect(within(hub).getByText(/added by EventHub/)).toBeInTheDocument();
-    // The partner app's endpoint: it changes it, not the club (which may still turn it off).
+    expect(within(hub).getByText(/added by a connected app/)).toBeInTheDocument();
+    expect(within(hub).getByText(/31 times in a row/)).toBeInTheDocument();
+    // The partner app's endpoint: it manages it, not the club.
     expect(within(hub).queryByRole("button", { name: "Remove" })).toBeNull();
-    expect(within(hub).getByRole("switch")).toBeInTheDocument();
+    expect(within(hub).getByRole("switch")).toBeDisabled();
+    expect(within(hub).getByRole("button", { name: "Send test" })).toBeDisabled();
 
-    fireEvent.click(within(hub).getByRole("button", { name: "Delivery log" }));
+    const erp = screen.getByRole("listitem", { name: "https://erp.example.edu/moa/webhooks" });
+    fireEvent.click(within(erp).getByRole("button", { name: "Delivery log" }));
     const log = await screen.findByRole("dialog", { name: "Delivery log" });
     const failed = await within(log).findByRole("listitem", { name: "Someone registers, Failed" });
     expect(within(failed).getByText(/7 attempts · answered 500/)).toBeInTheDocument();
@@ -337,7 +373,7 @@ describe("Settings → Integrations: webhooks", () => {
     await waitFor(() => expect(error).toHaveBeenCalledWith("Sent again. Your endpoint answered 500. Anything but a 2xx counts as failed."));
 
     fireEvent.click(within(log).getByRole("button", { name: "Failed" }));
-    await waitFor(() => expect(calls.some((c) => c.path.endsWith("/webhooks/w2/deliveries") && c.query?.status === "failed")).toBe(true));
+    await waitFor(() => expect(calls.some((c) => c.path.endsWith("/webhooks/w1/deliveries") && c.query?.status === "failed")).toBe(true));
   });
 
   it("turns an endpoint off and on", async () => {
@@ -361,14 +397,42 @@ describe("Settings → Integrations: webhooks", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Add endpoint" }));
     expect(await within(dialog).findByText("Choose at least one kind of change, or All.")).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("checkbox", { name: "Someone registers" }));
-    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Also send changes made with your own API keys" }));
+    // The key the same system uses: its own changes don't come back, unless asked for.
+    const keySelect = within(dialog).getByLabelText(/The API key this system uses/);
+    expect(within(keySelect).getAllByRole("option").map((o) => o.textContent)).toEqual(["None: send every change", "College ERP (moa_live_Qx7p…)"]);
+    fireEvent.change(keySelect, { target: { value: "moa_key_erp1" } });
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Send its own changes back too" }));
+    // People's details: the club's word, named by the endpoint's host.
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Send people's details" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add endpoint" }));
+    expect(await within(dialog).findByText(/Tick this to send people's details/)).toBeInTheDocument();
+    expect(sent("POST", /\/integrations\/webhooks$/)).toHaveLength(0);
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "Our registration form tells people their details are shared with sheet.example.org." }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add endpoint" }));
     await waitFor(() => expect(sent("POST", /\/integrations\/webhooks$/)).toHaveLength(1));
-    expect(sent("POST", /\/integrations\/webhooks$/)[0]!.body).toEqual({ url: "https://sheet.example.org/hook", description: null, events: ["registration.created"], include_own_changes: true });
+    expect(sent("POST", /\/integrations\/webhooks$/)[0]!.body).toEqual({
+      url: "https://sheet.example.org/hook",
+      description: null,
+      events: ["registration.created"],
+      livemode: true,
+      include_own_changes: true,
+      share_attendee_details: true,
+      dpdp_confirmed: true,
+      client_id: "moa_key_erp1",
+    });
     const shown = await screen.findByRole("dialog", { name: "Endpoint added" });
     expect(within(shown).getByTestId("secret")).toHaveTextContent(fixture.endpoint_created.secret);
+    expect(within(shown).getByText("https://sheet.example.org/hook")).toBeInTheDocument();
     fireEvent.click(within(shown).getByRole("button", { name: "I've copied it" }));
     await waitFor(() => expect(document.body.textContent).not.toContain(fixture.endpoint_created.secret));
+  });
+
+  it("says when webhooks can't be used now, and adds none", async () => {
+    state.hooksStatus = { ...fixture.webhook_status, available: false, reason: "unavailable", message: "Webhooks are not set up on this server yet." };
+    render(<IntegrationsPage />);
+    await tab("Webhooks");
+    expect(await screen.findByText("Webhooks are not set up on this server yet.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add endpoint" })).toBeDisabled();
   });
 });
 
@@ -378,14 +442,14 @@ describe("Settings → Integrations: connected apps and usage", () => {
     await tab("Connected apps");
     const hub = await screen.findByRole("listitem", { name: "EventHub" });
     expect(within(hub).getByText("eventhub.example")).toBeInTheDocument();
-    expect(within(hub).getByText(/by Asha Nair \(admin\)/)).toBeInTheDocument();
+    expect(within(hub).getByText(/by Asha Nair/)).toBeInTheDocument();
     expect(within(hub).getByText("Create and edit events")).toBeInTheDocument();
     fireEvent.click(within(hub).getByRole("button", { name: "Disconnect" }));
     const ask = await screen.findByRole("alertdialog");
     expect(within(ask).getByText(/loses access to your club at once/)).toBeInTheDocument();
     expect(sent("DELETE", /apps/)).toHaveLength(0);
     fireEvent.click(within(ask).getByRole("button", { name: "Disconnect" }));
-    await waitFor(() => expect(sent("DELETE", /\/integrations\/apps\/c1$/)).toHaveLength(1));
+    await waitFor(() => expect(sent("DELETE", /\/integrations\/connected-apps\/c1$/)).toHaveLength(1));
   });
 
   it("draws 30 days of requests and errors", async () => {
@@ -410,7 +474,7 @@ describe("Settings → Integrations: who sees it, and when", () => {
   });
 
   it("says it isn't on for a club the team hasn't allocated, or on an older API", async () => {
-    state.statusRoute = "not_allocated";
+    state.status = { ...fixture.status, allocated: false, source: null, live_keys: 0 };
     const a = render(<IntegrationsPage />);
     expect(await screen.findByText(/API access isn't on for your club/)).toBeInTheDocument();
     expect(screen.queryByRole("tab")).toBeNull();
@@ -423,7 +487,7 @@ describe("Settings → Integrations: who sees it, and when", () => {
   });
 
   it("keeps Connected apps for a club with a partner app but no API access", async () => {
-    state.status = { ...fixture.status, allocated: false, keys_active: 0, apps_connected: 1 };
+    state.status = { ...fixture.status, allocated: false, live_keys: 0, apps_connected: 1 };
     render(<IntegrationsPage />);
     expect(await screen.findByRole("listitem", { name: "EventHub" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "API keys" })).toBeNull();
@@ -468,8 +532,10 @@ describe("the rail's Integrations item", () => {
 
 describe("a partner app asking to connect", () => {
   it("names the app, the club and each thing it asks for, and needs the DPDP tick for people's details", async () => {
-    render(<ConsentPage requestId="req_8Kq2" />);
+    render(<ConsentPage params={PARAMS} />);
     expect(await screen.findByRole("heading", { name: "EventHub wants to connect to GDG Trivandrum" })).toBeInTheDocument();
+    // The request goes back to the API as it came, to be checked again.
+    expect(sent("GET", /\/integrations\/connect$/)[0]!.query).toEqual(PARAMS);
     expect(screen.getByText("eventhub.example")).toBeInTheDocument();
     // Only what it asked for, all ticked to start with.
     expect(screen.getByRole("checkbox", { name: /Create and edit events/ })).toBeChecked();
@@ -478,59 +544,78 @@ describe("a partner app asking to connect", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Allow" }));
     expect(await screen.findByText(/Tick this to give it people's details/)).toBeInTheDocument();
-    expect(sent("POST", /consent/)).toHaveLength(0);
+    expect(sent("POST", /connect/)).toHaveLength(0);
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Our registration form tells people their details are shared with EventHub." }));
     fireEvent.click(screen.getByRole("checkbox", { name: /Create and edit events/ }));
     fireEvent.click(screen.getByRole("button", { name: "Allow" }));
-    await waitFor(() => expect(sent("POST", /\/integrations\/consent\/req_8Kq2$/)).toHaveLength(1));
-    expect(sent("POST", /consent/)[0]!.body).toEqual({ decision: "allow", scopes: ["events:read", "registrations:read", "attendees:read"], attendees_notice_ack: true });
+    await waitFor(() => expect(sent("POST", /\/integrations\/connect$/)).toHaveLength(1));
+    expect(sent("POST", /connect/)[0]!.body).toEqual({ ...PARAMS, decision: "allow", scopes: ["events:read", "registrations:read", "attendees:read"], attendees_disclosure_ack: true });
     await waitFor(() => expect(integrationsBrowser.go).toHaveBeenCalledWith("https://app.eventhub.example/callback?code=abc&state=xyz"));
   });
 
   it("asks no tick when people's details are taken off", async () => {
-    render(<ConsentPage requestId="req_8Kq2" />);
+    render(<ConsentPage params={PARAMS} />);
     fireEvent.click(await screen.findByRole("checkbox", { name: /See people's details/ }));
     expect(screen.queryByRole("checkbox", { name: /Our registration form tells people/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Allow" }));
-    await waitFor(() => expect(sent("POST", /consent/)[0]?.body).toEqual({ decision: "allow", scopes: ["events:read", "events:write", "registrations:read"], attendees_notice_ack: false }));
+    await waitFor(() => expect(sent("POST", /connect/)[0]?.body).toEqual({ ...PARAMS, decision: "allow", scopes: ["events:read", "events:write", "registrations:read"], attendees_disclosure_ack: false }));
   });
 
   it("Cancel goes back to the app with a refusal", async () => {
-    render(<ConsentPage requestId="req_8Kq2" />);
+    render(<ConsentPage params={PARAMS} />);
     fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(sent("POST", /consent/)[0]?.body).toEqual({ decision: "deny", scopes: [], attendees_notice_ack: false }));
+    await waitFor(() => expect(sent("POST", /connect/)[0]?.body).toEqual({ ...PARAMS, decision: "deny", scopes: [], attendees_disclosure_ack: false }));
     await waitFor(() => expect(integrationsBrowser.go).toHaveBeenCalledWith("https://app.eventhub.example/callback?error=access_denied&state=xyz"));
   });
 
-  it("an editor can't allow it, and is told who can", async () => {
-    state.consent = { ...fixture.consent, can_decide: false, cannot_decide_reason: null };
-    render(<ConsentPage requestId="req_8Kq2" />);
-    expect(await screen.findByText(/Only the club's owner or an admin can connect an app/)).toBeInTheDocument();
+  it("an editor is told who can connect it", async () => {
+    state.consentError = refusal(403, "ROLE_FORBIDDEN", "Your role can't open this.");
+    render(<ConsentPage params={PARAMS} />);
+    expect(await screen.findByRole("heading", { name: "Only the club's owner or an admin can connect an app" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
-  it("says a used or old link has run out, and sends a signed-out person to sign in and back", async () => {
-    state.consentError = new ApiError({ status: 410, message: "Gone", errorCode: "CONSENT_EXPIRED" });
-    const a = render(<ConsentPage requestId="req_8Kq2" />);
-    expect(await screen.findByRole("heading", { name: "This link has run out" })).toBeInTheDocument();
+  it("an old or broken request, or a club without API access, offers the way back to the app", async () => {
+    state.consentError = refusal(400, "OAUTH_REQUEST_INVALID", "The code challenge is missing.", "https://app.eventhub.example/callback?error=invalid_request&state=xyz");
+    const a = render(<ConsentPage params={PARAMS} />);
+    expect(await screen.findByRole("heading", { name: "This link doesn't work" })).toBeInTheDocument();
+    expect(screen.getByText(/The code challenge is missing\. Go back to the app/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Go back to the app" }));
+    expect(integrationsBrowser.go).toHaveBeenCalledWith("https://app.eventhub.example/callback?error=invalid_request&state=xyz");
     a.unmount();
 
+    state.consentError = refusal(403, "NOT_ALLOCATED", "API access isn't turned on for this club.", "https://app.eventhub.example/callback?error=access_denied&state=xyz");
+    const b = render(<ConsentPage params={PARAMS} />);
+    expect(await screen.findByRole("heading", { name: "API access isn't on for your club" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Go back to the app" })).toBeInTheDocument();
+    b.unmount();
+
+    // A refusal with nowhere safe to go back to offers none.
+    state.consentError = refusal(400, "OAUTH_REQUEST_INVALID", "That redirect URI isn't registered.", null);
+    render(<ConsentPage params={PARAMS} />);
+    expect(await screen.findByRole("heading", { name: "This link doesn't work" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Go back to the app" })).toBeNull();
+  });
+
+  it("sends a signed-out person to sign in and back, the request and all", async () => {
     state.consentError = new ApiError({ status: 401, message: "Not signed in" });
-    render(<ConsentPage requestId="req_8Kq2" />);
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/login?next=%2Fconnect%2Freq_8Kq2"));
+    render(<ConsentPage params={PARAMS} />);
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/login?next=${encodeURIComponent(schemas.consentPath(PARAMS))}`));
+    expect(schemas.consentPath(PARAMS)).toMatch(/^\/integrations\/connect\?client_id=moa_client_7Hk2pQ&redirect_uri=https%3A%2F%2Fapp\.eventhub\.example%2Fcallback/);
+    // Only the request's own parameters are carried, whatever else is in the address.
+    expect(schemas.oauthParams(new URLSearchParams("client_id=a&state=s&utm_source=x"))).toEqual({ client_id: "a", state: "s" });
   });
 
   it("says when the API can't connect apps yet", async () => {
     state.consentError = notFound();
-    render(<ConsentPage requestId="req_8Kq2" />);
+    render(<ConsentPage params={PARAMS} />);
     expect(await screen.findByRole("heading", { name: "Connecting apps isn't available yet" })).toBeInTheDocument();
   });
 
   it("is marked when the app asks for a test connection, or is already connected", async () => {
-    state.consent = { ...fixture.consent, livemode: false, already: { scopes: ["events:read"], connected_at: "2026-11-01T10:00:00+05:30" } };
-    render(<ConsentPage requestId="req_8Kq2" />);
+    state.consent = { ...fixture.consent, mode: "test", already_connected: true };
+    render(<ConsentPage params={{ ...PARAMS, mode: "test" }} />);
     expect(await screen.findByText(/A test connection: it sees and changes only test events/)).toBeInTheDocument();
     expect(screen.getByText(/EventHub is already connected to your club/)).toBeInTheDocument();
   });
