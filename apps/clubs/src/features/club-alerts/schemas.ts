@@ -18,6 +18,9 @@ import { z } from "zod";
  * mail_message         a conversation in the club's mailbox has unread mail (a name and a count; the Mail permission's people only)
  * mailbox_lapsed       the plan no longer includes the mailbox: closed, its mail readable 30 days
  * mailbox_expired      those 30 days are over: export or delete the mail
+ * social_disconnected  a social account needs reconnecting; its posts are held
+ * social_expiring      a social account's access ends within 7 days
+ * social_failed        a post to a social account failed (its link: the event's Promote tab)
  */
 export const clubAlertSchema = z.object({
   id: z.coerce.number(),
@@ -64,6 +67,9 @@ export const KIND_INFO: Record<string, { label: string; link: string; tone: Aler
   mail_message: { label: "Mail", link: "/mail", tone: "info" },
   mailbox_lapsed: { label: "Club mailbox", link: "/mail/settings", tone: "caution" },
   mailbox_expired: { label: "Club mailbox", link: "/mail/settings", tone: "refuse" },
+  social_disconnected: { label: "Social account", link: "/social", tone: "refuse" },
+  social_expiring: { label: "Social account", link: "/social", tone: "caution" },
+  social_failed: { label: "Social post", link: "/social", tone: "refuse" },
 };
 
 /**

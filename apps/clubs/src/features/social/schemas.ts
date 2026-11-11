@@ -279,8 +279,8 @@ export const previewSchema = z.object({
 export type PostPreview = z.infer<typeof previewSchema>;
 
 export const rewriteSchema = z
-  .union([z.object({ text: z.string() }).passthrough(), z.object({ rewritten: z.string() }).passthrough(), z.string()])
-  .transform((r) => (typeof r === "string" ? r : "text" in r ? r.text : r.rewritten));
+  .union([z.string(), z.object({ text: z.string() }), z.object({ rewritten: z.string() })])
+  .transform((r): string => (typeof r === "string" ? r : "text" in r ? r.text : r.rewritten));
 
 // ─── Share kit ───────────────────────────────────────────────────────────
 
@@ -698,4 +698,51 @@ export function connectErrorText(reason: string | null, platform: Platform | nul
     default:
       return `${name} didn't connect: ${reason.replace(/_/g, " ")}.`;
   }
+}
+
+// ─── Posters: the crop window, and whether an image suits a platform ─────
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+/**
+ * The part of the poster a crop keeps, centred on the focus point and kept
+ * inside the poster: its box as fractions of the poster, and the matching
+ * CSS object-position (0..1) to show the same crop with `object-fit: cover`.
+ */
+export function cropWindow(posterAspect: number, targetAspect: number, focus: { x: number; y: number }) {
+  const fx = clamp01(focus.x);
+  const fy = clamp01(focus.y);
+  if (!(posterAspect > 0) || !(targetAspect > 0)) return { left: 0, top: 0, width: 1, height: 1, position: { x: 0.5, y: 0.5 } };
+  if (targetAspect < posterAspect) {
+    // Narrower than the poster: the full height, part of the width.
+    const width = targetAspect / posterAspect;
+    const left = Math.min(1 - width, Math.max(0, fx - width / 2));
+    return { left, top: 0, width, height: 1, position: { x: width < 1 ? left / (1 - width) : 0.5, y: 0.5 } };
+  }
+  const height = posterAspect / targetAspect;
+  const top = Math.min(1 - height, Math.max(0, fy - height / 2));
+  return { left: 0, top, width: 1, height, position: { x: 0.5, y: height < 1 ? top / (1 - height) : 0.5 } };
+}
+
+/** Width over height each platform accepts for a feed image (Instagram's is the strict one). */
+export const SHAPE_RANGE: Record<Platform, [number, number]> = {
+  instagram: [0.8, 1.91],
+  facebook: [0.5, 3],
+  linkedin: [0.4, 3],
+  linkedin_page: [0.4, 3],
+  x: [0.4, 3],
+};
+
+export const OWN_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
+/** Why an image the club picked would be refused by the platform, or null when it suits. */
+export function imageProblem(platform: Platform, file: { type: string; width: number; height: number }): string | null {
+  if (!(OWN_IMAGE_TYPES as readonly string[]).includes(file.type)) return "Use a JPG, PNG or WebP image.";
+  if (!(file.width > 0 && file.height > 0)) return "That image couldn't be read.";
+  if (file.width < 600 || file.height < 300) return `It's ${file.width} × ${file.height}: too small to look sharp. Use one at least 1080 pixels wide.`;
+  const ratio = file.width / file.height;
+  const [lo, hi] = SHAPE_RANGE[platform];
+  if (ratio < lo || ratio > hi)
+    return platform === "instagram" ? "Instagram needs a 4:5, square or landscape image (up to 1.91:1)." : `${PLATFORM_LABEL[platform]} can't post an image that ${ratio < lo ? "tall" : "wide"}.`;
+  return null;
 }

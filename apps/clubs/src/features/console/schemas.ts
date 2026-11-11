@@ -20,6 +20,8 @@ export const EVENT_TABS = [
   // Shown once the API has ticket types (event-console asks).
   { key: "tickets", label: "Tickets", path: "/tickets" },
   { key: "links", label: "Links", path: "/links" },
+  // Posts to the club's social accounts and the share kit (once the backend has social posting; event-console asks).
+  { key: "promote", label: "Promote", path: "/promote" },
   { key: "finance", label: "Finance", path: "/finance" },
   // Each payment, with refunds (owners and admins; once the backend has club refunds).
   { key: "payments", label: "Payments", path: "/payments" },

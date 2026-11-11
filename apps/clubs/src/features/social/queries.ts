@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
@@ -22,6 +22,7 @@ import {
   fetchSettings,
   fetchShareKit,
   pickPendingChoice,
+  previewPost,
   retryTarget,
   rewriteDraft,
   saveSettings,
@@ -170,6 +171,22 @@ export function useEventPosts(eventId: number, enabled = true) {
     staleTime: 10_000,
     retry: false,
     refetchInterval: (q) => (q.state.data?.posts.some((p) => p.targets.some((t) => t.status === "posting")) ? 5_000 : false),
+  });
+}
+
+/**
+ * The server's rendering of one platform's text (fill-in words filled as
+ * they would be now) and its warnings. Asked for the text the club stopped
+ * typing at; the last answer stays while the next is on its way.
+ */
+export function usePreview(eventId: number, platform: Platform, text: string, variantId: number | null, enabled = true) {
+  return useQuery({
+    queryKey: [...SOCIAL_KEY, "event", eventId, "preview", platform, variantId, text] as const,
+    queryFn: () => previewPost(eventId, { platform, text, variant_id: variantId }),
+    enabled: enabled && eventId > 0 && text.trim().length > 0,
+    staleTime: 60_000,
+    retry: false,
+    placeholderData: keepPreviousData,
   });
 }
 

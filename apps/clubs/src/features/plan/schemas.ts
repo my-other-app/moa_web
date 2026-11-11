@@ -42,6 +42,8 @@ export const GATED_FEATURES = [
   "mailbox",
   "coupons",
   "waitlist",
+  "social_autopost",
+  "social_x",
 ] as const;
 export type GatedFeature = (typeof GATED_FEATURES)[number];
 export type PlanFeature = GatedFeature | (typeof ALWAYS_ON)[number];
@@ -74,6 +76,8 @@ export const FEATURE_LABEL: Record<GatedFeature, string> = {
   mailbox: "A club mailbox",
   coupons: "Discount codes",
   waitlist: "Waiting lists",
+  social_autopost: "Automatic posting to social media",
+  social_x: "Automatic posting to X",
 };
 
 /**
