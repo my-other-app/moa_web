@@ -76,8 +76,8 @@ export const FEATURE_LABEL: Record<GatedFeature, string> = {
   mailbox: "A club mailbox",
   coupons: "Discount codes",
   waitlist: "Waiting lists",
-  social_autopost: "Automatic posting to social media",
-  social_x: "Automatic posting to X",
+  social_autopost: "Automatic posting to Facebook, Instagram and LinkedIn",
+  social_x: "Automatic posting to X (Twitter)",
 };
 
 /**

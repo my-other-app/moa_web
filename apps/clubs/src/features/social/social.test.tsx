@@ -94,7 +94,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         }
         if (path === "/api/v1/clubs/social/events/42/drafts/rewrite") return { text: "A brighter caption for DevFest #DevFest" };
         if (path === "/api/v1/clubs/social/events/42/posts") return { id: 777, name: (body as { name: string }).name, trigger: (body as { trigger: unknown }).trigger, status: (body as { draft: boolean }).draft ? "draft" : "scheduled", targets: [] };
-        if (path === "/api/v1/clubs/social/events/42/posts/campaign") return { posts: [] };
+        if (path === "/api/v1/clubs/social/events/42/posts/campaign") return { posts: [{ id: "a1" }, { id: "a2" }] };
         if (/\/posts\/\d+\/(approve|cancel|schedule)$/.test(path)) return null;
         if (/\/targets\/\d+\/retry$/.test(path)) return { ok: true };
         throw new Error(`unstubbed POST ${path}`);
@@ -430,6 +430,23 @@ describe("the post editor", () => {
     expect(sent("POST", /\/events\/42\/posts$/)).toHaveLength(0);
     fireEvent.click(within(confirm).getByRole("button", { name: "Post now" }));
     await waitFor(() => expect(sent("POST", /\/events\/42\/posts$/)).toHaveLength(1));
+  });
+
+  it("a time already past can't be scheduled (the backend refuses it too)", async () => {
+    await openAnnouncement();
+    fireEvent.change(screen.getByRole("combobox", { name: "When it goes out" }), { target: { value: "at" } });
+    fireEvent.change(screen.getByLabelText("Date and time (India)"), { target: { value: "2020-01-01T10:00" } });
+    expect(screen.getByText("That time has passed. Pick a later one.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Schedule" })).toBeDisabled();
+    // Saving it as a draft is still fine.
+    expect(screen.getByRole("button", { name: "Save draft" })).toBeEnabled();
+  });
+
+  it("a fill-in word that doesn't exist is caught before scheduling", async () => {
+    const box = await openAnnouncement();
+    fireEvent.change(box, { target: { value: "See you at {veneu}" } });
+    expect(screen.getByText("Not a fill-in word: {veneu}")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Schedule" })).toBeDisabled();
   });
 
   it("with approval on, an editor sends for approval", async () => {

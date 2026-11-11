@@ -57,6 +57,7 @@ import {
   fillIn,
   isPlatform,
   postable,
+  reasonText,
   targetChip,
   triggerLabel,
   type FailureAction,
@@ -333,6 +334,7 @@ function PostRow({ eventId, post, accounts, onEdit }: { eventId: number; post: S
             : `Paused: ${post.status_reason.replace(/_/g, " ")}.`}
         </Notice>
       ) : null}
+      {post.status === "cancelled" && reasonText(post.status_reason) ? <p className="text-ink-3 m-0 mt-2 text-[12px]">{reasonText(post.status_reason)}</p> : null}
       {post.status === "needs_approval" ? (
         <p className="text-ink-3 m-0 mt-2 text-[12px]">{role.manage ? "An editor wrote this. Approve it to send it at its time." : "Waiting for an owner or admin to approve it."}</p>
       ) : null}

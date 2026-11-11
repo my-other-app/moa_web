@@ -120,7 +120,7 @@ export function TriggerPicker({ value, onChange, clock, className }: { value: Tr
         ) : when.at ? (
           <>
             Goes out {istLabel(when.at)} IST
-            {when.at.getTime() < now.getTime() ? <span className="text-caution font-medium"> — that time has passed; it goes out at once</span> : null}
+            {when.at.getTime() < now.getTime() - 60_000 ? <span className="text-refuse font-medium"> — that time has passed. Pick a later one.</span> : null}
           </>
         ) : value.mode === "before_reg_close" ? (
           "Set when registrations close under the event's Settings first."

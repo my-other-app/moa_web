@@ -29,7 +29,7 @@ export const PLATFORM_LABEL: Record<Platform, string> = {
 
 /** What connecting needs, in one line (spec: "On the club dashboard"). */
 export const PLATFORM_NEEDS: Record<Platform, string> = {
-  instagram: "A Business or Creator account. A personal one can switch for free in Instagram's settings, in about a minute.",
+  instagram: "A Business or Creator account linked to the club's Facebook Page. A personal one can switch for free in Instagram's settings.",
   facebook: "A Facebook Page you are an admin of. Personal profiles and Groups can't be posted to.",
   linkedin: "Your own LinkedIn profile: posts go out as you. Access lasts 60 days, then you reconnect.",
   linkedin_page: "You must be an admin of the LinkedIn Page.",
@@ -384,10 +384,33 @@ export const WARNING_TEXT: Record<string, string> = {
   ig_hashtags_over_30: "Instagram allows at most 30 hashtags.",
   ig_link_not_clickable: "Links in Instagram captions can't be tapped. Say “link in bio” instead.",
   image_shape: "This image's shape doesn't suit the platform. Pick another size or fit it.",
+  image_missing: "Instagram needs a picture with every post. Add a poster to the event.",
   ig_over_2200: "Over Instagram's 2,200 characters.",
   linkedin_over_3000: "Over LinkedIn's 3,000 characters.",
+  linkedin_page_over_3000: "Over LinkedIn's 3,000 characters.",
+  facebook_over_63206: "Over Facebook's 63,206 characters.",
   empty_text: "Write something to post.",
 };
+
+/**
+ * What the platform (and so the backend, 422 SOCIAL_POST_INVALID) refuses:
+ * scheduling waits until these are fixed. The rest are advice.
+ */
+export const BLOCKING_WARNINGS = new Set([
+  "x_over_280",
+  "ig_over_2200",
+  "linkedin_over_3000",
+  "linkedin_page_over_3000",
+  "facebook_over_63206",
+  "ig_hashtags_over_30",
+  "image_missing",
+  "image_shape",
+  "unknown_fill_in",
+  "empty_text",
+]);
+
+/** The backend's code for a text over the platform's limit. */
+const overCode = (platform: Platform) => (platform === "x" ? "x_over_280" : `${platform === "instagram" ? "ig" : platform}_over_${TEXT_LIMIT[platform]}`);
 
 const linkInBio = (text: string) => text.replace(/\{link\}/g, "link in bio").replace(URL_RE, "link in bio");
 
@@ -397,8 +420,9 @@ export function localWarnings(platform: Platform, template: string, rendered: st
   const stats = textStats(platform, rendered);
   if (!template.trim()) out.push({ code: "empty_text", message: WARNING_TEXT.empty_text! });
   if (platform === "x" && stats.over) out.push({ code: "x_over_280", message: `${stats.chars - stats.limit} over X's 280 characters. X counts every link as 23.` });
-  if (platform === "instagram" && stats.over) out.push({ code: "ig_over_2200", message: WARNING_TEXT.ig_over_2200! });
-  if ((platform === "linkedin" || platform === "linkedin_page") && stats.over) out.push({ code: "linkedin_over_3000", message: WARNING_TEXT.linkedin_over_3000! });
+  else if (stats.over) out.push({ code: overCode(platform), message: WARNING_TEXT[overCode(platform)] ?? `Over ${PLATFORM_LABEL[platform]}'s ${stats.limit.toLocaleString("en-IN")} characters.` });
+  const unknown = [...new Set([...template.matchAll(/\{(\w+)\}/g)].map((m) => m[1]!).filter((w) => !(FILL_INS as readonly string[]).includes(w)))];
+  if (unknown.length) out.push({ code: "unknown_fill_in", message: `Not a fill-in word: ${unknown.map((w) => `{${w}}`).join(", ")}` });
   if (platform === "instagram" && stats.hashtags > IG_MAX_HASHTAGS)
     out.push({ code: "ig_hashtags_over_30", message: `${stats.hashtags} hashtags: Instagram allows at most ${IG_MAX_HASHTAGS}.` });
   if (platform === "instagram" && (/\{link\}/.test(template) || HAS_URL.test(template))) {
@@ -580,6 +604,14 @@ export function targetChip(post: Pick<SocialPost, "status">, t: PostTarget, plat
   }
   switch (t.status) {
     case "scheduled":
+      // An outage being retried: still scheduled, with the error and its next try.
+      if (t.error)
+        return {
+          label: "Retrying",
+          tone: "warning",
+          detail: `${t.error.message?.trim() || `${platformName} didn't answer`}${t.scheduled_for ? ` — trying again ${istLabel(t.scheduled_for)}` : ""}`,
+          actions: ["share_manually"],
+        };
       return { label: "Scheduled", tone: "info", detail: t.scheduled_for ? `Goes out ${istLabel(t.scheduled_for)}` : null, actions: [] };
     case "posting":
       return { label: "Posting", tone: "info", detail: null, actions: [] };
@@ -610,6 +642,30 @@ export const POST_STATUS_LABEL: Record<PostStatus, { label: string; tone: ChipTo
   done: { label: "Done", tone: "success" },
   paused: { label: "Paused", tone: "warning" },
 };
+
+/** Why a post stopped, in words (its `status_reason`). */
+export function reasonText(reason: string | null | undefined): string | null {
+  switch (reason) {
+    case null:
+    case undefined:
+    case "":
+      return null;
+    case "event_changed":
+      return "The event changed — review this post.";
+    case "event_cancelled":
+      return "The event was cancelled, so nothing more goes out.";
+    case "event_unpublished":
+      return "The event was unpublished, so nothing more goes out.";
+    case "event_deleted":
+      return "The event was deleted.";
+    case "cohost_left":
+      return "Your club no longer co-hosts this event.";
+    case "by_club":
+      return "Cancelled by the club.";
+    default:
+      return reason.replace(/_/g, " ");
+  }
+}
 
 /** A post can still be changed: it hasn't gone out, and isn't cancelled. */
 export const editable = (p: Pick<SocialPost, "status">) => p.status === "draft" || p.status === "scheduled" || p.status === "needs_approval" || p.status === "paused";
@@ -685,7 +741,18 @@ export function connectErrorText(reason: string | null, platform: Platform | nul
     case "denied":
     case "access_denied":
     case "cancelled":
+    case "no_code":
       return `You didn't allow MyOtherApp on ${name}, so nothing was connected.`;
+    case "missing_permissions":
+      return `${name} didn't give MyOtherApp every permission it asked for. Connect again and leave them all ticked.`;
+    case "exchange_failed":
+      return `${name} didn't finish the sign-in. Try again in a minute.`;
+    case "no_instagram_business":
+      return "No Instagram Business or Creator account is linked to the Pages you picked. Link it to the club's Facebook Page in Instagram's settings, then connect again.";
+    case "no_accounts":
+      return `No account came back from ${name}. Pick the club's when ${name} asks.`;
+    case "review_pending":
+      return `${name} hasn't approved MyOtherApp yet. It will turn up here once it has.`;
     case "not_admin":
     case "not_page_admin":
       return "Only a Page admin can post as the Page. Ask the Page's admin to connect it.";
@@ -695,6 +762,7 @@ export function connectErrorText(reason: string | null, platform: Platform | nul
     case "not_business":
       return "That Instagram account is personal. Switch it to a free Business or Creator account in Instagram's settings, then connect again.";
     case "expired":
+    case "expired_state":
     case "state":
     case "invalid_state":
       return "The connect link expired. Start again from here.";

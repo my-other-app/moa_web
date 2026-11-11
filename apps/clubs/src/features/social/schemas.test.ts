@@ -18,6 +18,7 @@ import {
   mergeWarnings,
   outOfQuietHours,
   pendingChoicesSchema,
+  reasonText,
   platformsSchema,
   readConnectReturn,
   targetChip,
@@ -137,6 +138,9 @@ describe("coming back from a platform", () => {
     expect(connectErrorText("access_denied", "instagram")).toContain("You didn't allow MyOtherApp on Instagram");
     expect(connectErrorText("personal_account", "instagram")).toContain("Business or Creator");
     expect(connectErrorText("something_new", "x")).toBe("X didn't connect: something new.");
+    // Every reason the backend's callback sends has its own words.
+    for (const r of ["invalid_state", "expired_state", "denied", "no_code", "not_configured", "review_pending", "plan", "exchange_failed", "no_pages", "no_instagram_business", "not_page_admin", "missing_permissions", "no_accounts"])
+      expect(connectErrorText(r, "instagram")).not.toMatch(/didn't connect: /);
     expect(connectErrorText(null, null)).toBe("The account didn't connect. Try again.");
   });
 });
@@ -161,6 +165,10 @@ describe("counters and warnings", () => {
     expect(localWarnings("instagram", " ", " ").map((w) => w.code)).toEqual(["empty_text"]);
     // A link is fine anywhere else.
     expect(localWarnings("facebook", "Register at {link}", "Register at https://a.b")).toEqual([]);
+    // The backend's codes for a text over each limit, and a fill-in word it doesn't know.
+    expect(localWarnings("linkedin_page", "a", "a".repeat(3001)).map((w) => w.code)).toEqual(["linkedin_page_over_3000"]);
+    expect(localWarnings("instagram", "a", "a".repeat(2201)).map((w) => w.code)).toEqual(["ig_over_2200"]);
+    expect(localWarnings("facebook", "See you at {veneu} on {date}", "x")).toEqual([{ code: "unknown_fill_in", message: "Not a fill-in word: {veneu}" }]);
   });
 
   it("adds the server's warnings it doesn't already show, in words", () => {
@@ -237,6 +245,17 @@ describe("each platform's status on a post", () => {
     expect(failed).toMatchObject({ label: "Failed", tone: "destructive", detail: "LinkedIn didn't answer (after 6 tries)", actions: ["retry", "share_manually"] });
     expect(targetChip({ status: "done" }, t({ status: "failed", error: { code: "bad_image", message: "Instagram needs a 4:5 or square image", action: "fix_image" } })).actions).toEqual(["fix_image", "share_manually"]);
     expect(targetChip({ status: "done" }, t({ status: "failed", error: { code: "x", message: null, action: "share_manually" } })).actions).toEqual(["share_manually"]);
+  });
+  it("an outage being retried: still scheduled, with the error and the next try", () => {
+    const chip = targetChip({ status: "scheduled" }, t({ status: "scheduled", error: { code: "platform_down", message: "Instagram didn't answer", action: "retry" }, scheduled_for: "2026-11-20T10:30:00+05:30" }));
+    expect(chip).toMatchObject({ label: "Retrying", tone: "warning", actions: ["share_manually"] });
+    expect(chip.detail).toMatch(/^Instagram didn't answer — trying again Fri, 20 Nov · 10:30/);
+  });
+  it("says why a post stopped", () => {
+    expect(reasonText("event_cancelled")).toBe("The event was cancelled, so nothing more goes out.");
+    expect(reasonText("cohost_left")).toBe("Your club no longer co-hosts this event.");
+    expect(reasonText("something_new")).toBe("something new");
+    expect(reasonText(null)).toBeNull();
   });
 });
 

@@ -35,6 +35,7 @@ import { LockBadge, toastError } from "@/features/plan";
 
 import { useDrafts, usePosters, usePreview, useRewrite, useSavePoster, useSavePost, useSocialAccounts, useSocialRole, useSocialSettings } from "../queries";
 import {
+  BLOCKING_WARNINGS,
   FILL_INS,
   FILL_IN_LABEL,
   IG_MAX_HASHTAGS,
@@ -88,7 +89,7 @@ interface TargetDraft {
 }
 
 /** Warnings that would make the platform refuse the post: scheduling waits until they are gone. */
-const BLOCKING = new Set(["x_over_280", "ig_hashtags_over_30", "ig_over_2200", "linkedin_over_3000", "empty_text"]);
+const BLOCKING = BLOCKING_WARNINGS;
 
 export function PostEditorSheet({ eventId, request, onClose }: { eventId: number; request: EditorRequest | null; onClose: () => void }) {
   return (
@@ -183,7 +184,6 @@ function EditorForm({ eventId, request, accounts, drafts, variants, onClose }: {
   const [posterAspect, setPosterAspect] = React.useState<number | null>(null);
   const [undo, setUndo] = React.useState<Record<string, string>>({});
   const [confirmNow, setConfirmNow] = React.useState(false);
-  const [openedAt] = React.useState(() => Date.now());
   const textRef = React.useRef<HTMLTextAreaElement>(null);
   const posterRef = React.useRef<HTMLDivElement>(null);
   const save = useSavePost(eventId);
@@ -216,7 +216,10 @@ function EditorForm({ eventId, request, accounts, drafts, variants, onClose }: {
   const preview = usePreview(eventId, platform, debounced, variant?.id ?? null);
   const fresh = preview.data && !preview.isPlaceholderData && debounced === current.text ? preview.data : null;
   const rendered = fresh?.text_rendered || fillIn(current.text, values);
-  const stats = textStats(platform, rendered);
+  const local = textStats(platform, rendered);
+  // The server counts as the platform does (wide characters on X count twice); its count wins once it has answered.
+  const serverChars = typeof fresh?.counts?.characters === "number" ? fresh.counts.characters : null;
+  const stats = serverChars === null ? local : { ...local, chars: serverChars, over: serverChars > local.limit };
   const warnings = mergeWarnings(localWarnings(platform, current.text, rendered), fresh?.warnings);
 
   const update = (id: string, patch: Partial<TargetDraft>) => setTargets((ts) => ts.map((t) => (t.account.id === id ? { ...t, ...patch } : t)));
@@ -262,6 +265,9 @@ function EditorForm({ eventId, request, accounts, drafts, variants, onClose }: {
   const approval = Boolean(settings.data?.approval_required) && !role.manage;
   const live = event.status !== "draft";
   const when = triggerTime(trigger, clock);
+  // The backend refuses a time already past (422 TRIGGER_IN_PAST); "when published" on a live event is now, after asking.
+  const [openedAt] = React.useState(() => Date.now());
+  const past = trigger.mode !== "on_publish" && when.at !== null && when.at.getTime() < openedAt - 60_000;
   const busy = save.isPending || savePoster.isPending;
 
   async function submit(schedule: boolean) {
@@ -299,7 +305,7 @@ function EditorForm({ eventId, request, accounts, drafts, variants, onClose }: {
     }
   }
 
-  const goesNow = (trigger.mode === "on_publish" && live) || (trigger.mode === "at" && new Date(trigger.at).getTime() < openedAt);
+  const goesNow = trigger.mode === "on_publish" && live;
   const scheduleLabel = approval ? "Send for approval" : "Schedule";
   const accountName = current.account.name ?? club.data?.name ?? PLATFORM_LABEL[platform];
   const multi = (p: Platform) => targets.filter((t) => t.account.platform === p).length > 1;
@@ -484,6 +490,10 @@ function EditorForm({ eventId, request, accounts, drafts, variants, onClose }: {
             <span className="text-refuse max-w-[260px] text-[12px]" role="status">
               Fix {problems.map((p) => PLATFORM_LABEL[p.target.account.platform]).filter((v, i, a) => a.indexOf(v) === i).join(" and ")} first
             </span>
+          ) : past ? (
+            <span className="text-refuse max-w-[260px] text-[12px]" role="status">
+              That time has passed. Pick a later one.
+            </span>
           ) : null}
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
             Close
@@ -493,7 +503,7 @@ function EditorForm({ eventId, request, accounts, drafts, variants, onClose }: {
               {busy && !save.variables?.schedule ? <Loader2Icon className="size-4 animate-spin" /> : null} Save draft
             </button>
           ) : null}
-          <button type="button" className="btn btn-primary" onClick={() => (goesNow && !approval ? setConfirmNow(true) : void submit(true))} disabled={busy || problems.length > 0}>
+          <button type="button" className="btn btn-primary" onClick={() => (goesNow && !approval ? setConfirmNow(true) : void submit(true))} disabled={busy || problems.length > 0 || past}>
             {busy && save.variables?.schedule ? <Loader2Icon className="size-4 animate-spin" /> : null}
             {request.post && request.post.status !== "draft" && request.post.status !== "paused" ? "Save changes" : scheduleLabel}
           </button>
@@ -505,7 +515,7 @@ function EditorForm({ eventId, request, accounts, drafts, variants, onClose }: {
           <AlertDialogHeader>
             <AlertDialogTitle>Post it now?</AlertDialogTitle>
             <AlertDialogDescription>
-              {trigger.mode === "on_publish" ? "The event is already live, so “when published” means now." : "That time has passed, so it goes out now."} It goes to{" "}
+              The event is already live, so “when published” means now. It goes to{" "}
               {enabled.map((t) => PLATFORM_LABEL[t.account.platform]).join(", ")} as soon as you confirm.
             </AlertDialogDescription>
           </AlertDialogHeader>

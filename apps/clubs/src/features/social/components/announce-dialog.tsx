@@ -9,6 +9,12 @@ import { useAnnounce, useEventPosts, useSocialAccounts, useSocialPlatforms, useS
 import { PLATFORM_LABEL, type SocialAccount } from "../schemas";
 import { PlatformMark } from "./platform-mark";
 
+/** How many posts the campaign made (`{posts:[…]}`); null when the answer doesn't say. */
+function campaignPosts(made: unknown): number | null {
+  const posts = (made as { posts?: unknown } | null)?.posts;
+  return Array.isArray(posts) ? posts.length : null;
+}
+
 /** The address the publish flows land on after publishing: the event, asking "Announce it?". */
 export const ANNOUNCE_PARAM = "announce";
 export const announceHref = (eventId: number) => `/events/${eventId}?${ANNOUNCE_PARAM}=1`;
@@ -83,8 +89,16 @@ export function AnnounceDialog({ eventId, accounts, approval, onClose }: { event
     announce.mutate(
       { platforms: [...new Set(chosen.map((a) => a.platform))], account_ids: chosen.map((a) => a.id) },
       {
-        onSuccess: () => {
-          toast.success(approval ? "Sent for approval. Once an owner or admin approves, the announcement goes out and the reminder follows 2 days before." : "Announced. The reminder goes out 2 days before the event.");
+        onSuccess: (made) => {
+          // The reminder is left out when two days before has already passed.
+          const reminder = campaignPosts(made) !== 1;
+          toast.success(
+            approval
+              ? "Sent for approval. Once an owner or admin approves it, it goes out."
+              : reminder
+                ? "Announced. The reminder goes out 2 days before the event."
+                : "Announced.",
+          );
           onClose(`/events/${eventId}/promote`);
         },
       },
