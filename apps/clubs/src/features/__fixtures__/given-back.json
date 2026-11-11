@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "registration_id": "6f1b2c70-0000-4000-8000-000000000009",
+      "full_name": "Meera Nair",
+      "email": "meera@example.com",
+      "ticket_id": "NEX25AA009",
+      "reason": "Exam moved to that day, sorry!",
+      "cancelled_at": "2026-11-11T14:05:00+00:00",
+      "cancelled_by": "attendee"
+    },
+    {
+      "registration_id": "6f1b2c70-0000-4000-8000-000000000007",
+      "full_name": "Arjun Menon",
+      "email": "arjun@example.com",
+      "ticket_id": "NEX25AA007",
+      "reason": null,
+      "cancelled_at": "2026-11-10T09:30:00+00:00",
+      "cancelled_by": "attendee"
+    }
+  ]
+}

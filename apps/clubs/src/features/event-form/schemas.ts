@@ -195,6 +195,13 @@ export const eventFormSchema = z
      * never sent.
      */
     high_demand_label: z.boolean().optional(),
+    /**
+     * Guests may give a free ticket back by their emails' link, before the
+     * event starts (ticket-self-cancel contract). Undefined when the event's
+     * detail doesn't say (an older server, or a new event, which the server
+     * starts with it on): then never sent.
+     */
+    allow_self_cancel: z.boolean().optional(),
 
     // --- contact
     contact_name: z.string().trim().max(100).optional(),

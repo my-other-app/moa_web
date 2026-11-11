@@ -40,6 +40,8 @@ const detailSchema = z
     requires_approval: z.boolean().nullish(),
     // The "High demand" tag on the public page; absent from an API without it.
     high_demand_label: z.boolean().nullish(),
+    // Guests may give a free ticket back; absent from an API without it.
+    allow_self_cancel: z.boolean().nullish(),
     max_participants: z.coerce.number().nullish(),
     contact_name: z.string().nullish(),
     contact_phone: z.string().nullish(),
@@ -143,6 +145,8 @@ export function eventDetailToFormValues(raw: unknown): EventFormValues {
     requires_approval: d.requires_approval ?? undefined,
     // The same: only what the event said, so a save never switches off a label it never read.
     high_demand_label: d.high_demand_label ?? undefined,
+    // The same: a save never switches off giving tickets back on a server it never heard it from.
+    allow_self_cancel: d.allow_self_cancel ?? undefined,
     max_participants: d.max_participants ?? undefined,
 
     contact_name: d.contact_name ?? "",
