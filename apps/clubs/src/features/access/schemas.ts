@@ -68,6 +68,8 @@ export const capsSchema = z
     cancel_events: z.boolean().optional(),
     /** Confirming or declining registration requests (owner, admin, editor; door staff only read them). */
     decide_requests: z.boolean().optional(),
+    /** The club's speakers: the picker, the list with its contacts (owner, admin, editor; never door staff). */
+    speakers: z.boolean().optional(),
   })
   // A server from before connected assistants does not send the last two: they follow the roles they mirror.
   // One from before clubs' own WhatsApp sends neither of those: there is nothing to open.
@@ -91,6 +93,8 @@ export const capsSchema = z
     exports: c.contacts ?? c.edit_events,
     // A server from before registration requests: deciding follows editing events, as it does there.
     decide_requests: c.decide_requests ?? c.edit_events,
+    // A server from before the speakers directory: they follow editing events, as they do there.
+    speakers: c.speakers ?? c.edit_events,
     /** The server sent `decide_requests`: it has registration requests (the same release). */
     requests_known: c.decide_requests !== undefined,
     /** Either: the WhatsApp section opens at all. */
@@ -164,6 +168,7 @@ export const OWNER_CAN: Caps = {
   cancel_events: true,
   decide_requests: true,
   exports: true,
+  speakers: true,
   // Until the server says who is signed in, nothing is known about what it has.
   refunds_known: false,
   requests_known: false,

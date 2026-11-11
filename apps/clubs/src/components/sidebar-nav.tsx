@@ -10,6 +10,7 @@ import { useInvitationsOnServer } from "@/features/cohosts/queries";
 import { useContactsOnServer } from "@/features/contacts";
 import { useMailSummary, useMailboxOnServer } from "@/features/mailbox/queries";
 import { usePlan } from "@/features/plan";
+import { useSpeakersOnServer } from "@/features/speakers";
 import { useTicketingOnServer } from "@/features/ticketing/queries";
 import { useSummary, useUnreadTitle, useWhatsAppOnServer } from "@/features/whatsapp";
 
@@ -41,7 +42,9 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
   const contacts = useContactsOnServer(Boolean(can.contacts));
   // Co-host invitations: every role reads them; the item counts the ones waiting for an answer.
   const invitations = useInvitationsOnServer();
-  const onServer = { whatsapp, mailbox, ticketing, contacts, cohosts: invitations.on };
+  // The speakers directory, asked only of those who may open it (never door staff).
+  const speakers = useSpeakersOnServer(Boolean(can.speakers));
+  const onServer = { whatsapp, mailbox, ticketing, contacts, cohosts: invitations.on, speakers };
   // What waits unread in the inbox, for those who may read it: on the item and in the tab's title.
   const summary = useSummary(Boolean(can.whatsapp_inbox) && whatsapp === true);
   const unread = summary.data?.unread_total ?? 0;

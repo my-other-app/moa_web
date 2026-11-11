@@ -14,6 +14,7 @@ import {
   MailIcon,
   MessageCircleIcon,
   MessagesSquareIcon,
+  MicIcon,
   PaletteIcon,
   ShieldCheckIcon,
   ShoppingBagIcon,
@@ -47,7 +48,7 @@ export interface NavItem {
    * is known to have its routes (see SidebarNav). The dashboard can then go
    * out ahead of its backend, and the item appears when the backend does.
    */
-  server?: "whatsapp" | "mailbox" | "ticketing" | "contacts" | "cohosts";
+  server?: "whatsapp" | "mailbox" | "ticketing" | "contacts" | "cohosts" | "speakers";
 }
 
 export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
@@ -76,6 +77,8 @@ export const navItems: NavItem[] = [
   // The club's catalogue: items made once and offered on any event, which share their stock.
   { href: "/merchandise", label: "Merchandise", icon: ShoppingBagIcon, needs: "edit_events", feature: "merch" },
   { href: "/followers", label: "Followers", icon: UsersIcon, needs: "edit_events" },
+  // Everyone who has spoken at the club's events, with the club's own contact and notes. Not for door staff -- once the API has it.
+  { href: "/speakers", label: "Speakers", icon: MicIcon, needs: "speakers", server: "speakers" },
   // What close-out kept of past guests, where the club switched it on. Not for door staff -- once the API has it.
   { href: "/contacts", label: "Contacts", icon: ContactIcon, needs: "contacts", server: "contacts" },
   { href: "/threads", label: "Threads", icon: MessagesSquareIcon, needs: "edit_events" },
