@@ -8,14 +8,17 @@ import { cn } from "@moa/ui";
 import { useOpsMe } from "@/features/ops/queries";
 import { useOpenReportCount } from "@/features/reports";
 import { useSpeakersOnServer } from "@/features/speakers";
+import { useTeamworkBadge } from "@/features/teamwork";
 
 import { isActive, visibleNavItems, type NavItem } from "./nav-items";
 
 /** Counts that ask for something to be done, rather than state a fact: they take the brand. */
-const PROMPTS = new Set<NavItem["badge"]>(["pendingClubs", "openReports"]);
+const PROMPTS = new Set<NavItem["badge"]>(["pendingClubs", "openReports", "teamworkCases", "teamworkDue"]);
 
 /** What a count means, where its link says it aloud: "Reports, 3 open". */
-const SPOKEN: Partial<Record<NonNullable<NavItem["badge"]>, string>> = { openReports: "open" };
+const SPOKEN: Partial<Record<NonNullable<NavItem["badge"]>, string>> = { openReports: "open", teamworkCases: "waiting", teamworkDue: "due" };
+
+const countText = (n: number) => (n > 99 ? "99+" : formatNumber(n));
 
 /**
  * The rail's items, grouped: an icon tile and a label, the current one lit
@@ -37,15 +40,20 @@ export function SidebarNav({
 }) {
   const pathname = usePathname();
   const openReports = useOpenReportCount().data ?? 0;
+  // Team work's counts, which double as its probe: null on an API without it, and the group stays out.
+  const teamwork = useTeamworkBadge().data;
+  const due = teamwork ? teamwork.due + teamwork.overdue : 0;
   const counts: Partial<Record<NonNullable<NavItem["badge"]>, string>> = {
     ...badges,
-    ...(openReports > 0 ? { openReports: openReports > 99 ? "99+" : formatNumber(openReports) } : {}),
+    ...(openReports > 0 ? { openReports: countText(openReports) } : {}),
+    ...(teamwork && teamwork.cases > 0 ? { teamworkCases: countText(teamwork.cases) } : {}),
+    ...(due > 0 ? { teamworkDue: countText(due) } : {}),
   };
   const ops = useOpsMe().data;
   // The speakers directory, once the API has it: its list answers the probe.
   const speakers = useSpeakersOnServer() === true;
   const sections: { label: string; items: NavItem[] }[] = [];
-  for (const item of visibleNavItems(ops?.features, { speakers })) {
+  for (const item of visibleNavItems(ops?.features, { speakers, teamwork: Boolean(teamwork) })) {
     if (item.group || sections.length === 0) sections.push({ label: item.group ?? "Menu", items: [] });
     sections[sections.length - 1]!.items.push(item);
   }
