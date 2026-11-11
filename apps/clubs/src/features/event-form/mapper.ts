@@ -342,7 +342,14 @@ export function draftToFormValues(draft: EventDraft, ctx: DraftFillContext): Dra
 
   const speakers = draft.speakers
     .filter((s) => s.name.trim())
-    .map((s) => ({ name: s.name.trim().slice(0, 100), designation: s.designation?.slice(0, 200) ?? "", bio: s.bio?.slice(0, SPEAKER_BIO_MAX) ?? "", link: "" }));
+    .map((s) => ({
+      name: s.name.trim().slice(0, 100),
+      designation: s.designation?.slice(0, 200) ?? "",
+      bio: s.bio?.slice(0, SPEAKER_BIO_MAX) ?? "",
+      link: "",
+      // The club's past speaker of the same name, when the draft found one: the saved row joins that profile.
+      ...(s.speaker_profile_id ? { speaker_profile_id: s.speaker_profile_id } : {}),
+    }));
   merge("speakers", current.speakers ?? [], speakers, (a, b) => words(a.name) === words(b.name));
 
   const mine = mode === "replace" ? [] : (current.additional_details ?? []);
