@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
@@ -55,6 +56,7 @@ export function useSendRequest() {
 
 export function useReply(id: number) {
   const refresh = useRefresh();
+  const router = useRouter();
   return useMutation({
     mutationFn: async ({ message, files }: { message: string; files: File[] }) => {
       const uploaded = files.length ? await uploadFiles(files) : [];
@@ -63,6 +65,8 @@ export function useReply(id: number) {
     onSuccess: async (r) => {
       toast.success(r.new_case && r.number ? `Sent as a new request, #${r.number}` : "Sent");
       await refresh();
+      // The old one was closed (or solved over a week ago): the reply opened a new request; go there.
+      if (r.new_case && r.case_id && r.case_id !== id) router.push(`/help/requests/${r.case_id}`);
     },
     onError: (error: Error) => toast.error(error.message || "Could not send it"),
   });

@@ -114,7 +114,7 @@ export function CasesPage() {
             <PlusIcon /> Log a case
           </Button>
         ) : null}
-        <ExcelExportButton href={casesExportUrl(filters)} stem={`support-cases-${tab}`} disabled={!data || data.total === 0} />
+        {rights.readBodies ? <ExcelExportButton href={casesExportUrl(filters)} stem={`support-cases-${tab}`} disabled={!data || data.total === 0} /> : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <SearchField

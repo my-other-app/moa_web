@@ -7,7 +7,7 @@ import { EmptyState, Input, Label, Skeleton, StatCard, Table, TableBody, TableCe
 import { ExcelExportButton } from "@/components/excel-export-button";
 
 import { reportsExportUrl } from "../api";
-import { useTeamworkReports } from "../queries";
+import { useTeamRights, useTeamworkReports } from "../queries";
 import { hoursLabel, words } from "../schemas";
 
 const STAGES = ["new", "contacted", "meeting", "proposal", "negotiation", "won", "lost"] as const;
@@ -21,6 +21,9 @@ function rowName(row: Record<string, unknown>): string {
   }
   return "—";
 }
+
+/** "38 of 40 on target", when the server counts it. */
+const onTarget = (t: { on_target: number; of: number } | null | undefined) => (t && t.of > 0 ? `${formatNumber(t.on_target)} of ${formatNumber(t.of)} on target` : undefined);
 
 const NAME_KEYS = new Set(["id", "user_id", "name", "label", "topic", "person", "reason", "key"]);
 
@@ -69,6 +72,8 @@ export function TeamworkReportsPage() {
   const [to, setTo] = React.useState(() => isoDay(new Date()));
   const range = { from, to };
   const { data, isPending, isError } = useTeamworkReports(range);
+  // The workbook is for the two teams and the owners (the API refuses anyone else).
+  const rights = useTeamRights();
 
   const reasons: Record<string, unknown>[] = data
     ? Array.isArray(data.leads.won_lost.by_reason)
@@ -89,7 +94,7 @@ export function TeamworkReportsPage() {
           <Input id="report-to" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className="w-[170px]" />
         </div>
         <div className="flex-1" />
-        <ExcelExportButton href={reportsExportUrl(range)} stem={`teamwork-reports-${from}-${to}`} />
+        {rights.readBodies ? <ExcelExportButton href={reportsExportUrl(range)} stem={`teamwork-reports-${from}-${to}`} /> : null}
       </div>
 
       {isPending ? <Skeleton className="h-96 w-full" /> : null}
@@ -99,9 +104,9 @@ export function TeamworkReportsPage() {
           <section className="flex flex-col gap-3">
             <SectionTitle>Support</SectionTitle>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard label="First reply (median)" value={hoursLabel(data.support.first_reply_median_h)} />
-              <StatCard label="Resolution (median)" value={hoursLabel(data.support.resolution_median_h)} />
-              <StatCard label="Solved, they said" value={formatNumber(data.support.survey.yes)} />
+              <StatCard label="First reply (median)" value={hoursLabel(data.support.first_reply_median_h)} caption={onTarget(data.support.first_reply_on_target)} />
+              <StatCard label="Resolution (median)" value={hoursLabel(data.support.resolution_median_h)} caption={onTarget(data.support.resolution_on_target)} />
+              <StatCard label="Solved, they said" value={formatNumber(data.support.survey.yes)} caption={data.support.cases ? `${formatNumber(data.support.cases)} cases, ${formatNumber(data.support.open_now ?? 0)} open now` : undefined} />
               <StatCard label="Not solved, they said" value={formatNumber(data.support.survey.no)} />
             </div>
             <div className="grid gap-4 lg:grid-cols-2">

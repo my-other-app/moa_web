@@ -122,7 +122,7 @@ export function LeadsPage() {
             </Button>
           </>
         ) : null}
-        <ExcelExportButton href={leadsExportUrl(filters)} stem="leads" disabled={!data || data.total === 0} />
+        {rights.readBodies ? <ExcelExportButton href={leadsExportUrl(filters)} stem="leads" disabled={!data || data.total === 0} /> : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <SearchField label="Search leads" placeholder="Organisation, contact or email…" value={q} onChange={setQ} onCommit={(v) => reset(setSearch)(v.trim())} className="w-[260px]" />

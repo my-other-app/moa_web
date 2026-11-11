@@ -574,6 +574,11 @@ export function LeadPage({ leadId }: { leadId: number }) {
           ) : (
             <span className="text-ink-2 text-[13px]">Owner: {lead.owner?.name ?? "nobody"}</span>
           )}
+          {!rights.reassignLeads && lead.can_take && rights.meId !== null ? (
+            <Button size="sm" variant="outline" disabled={update.isPending} onClick={() => update.mutate({ id: lead.id, patch: { owner_id: rights.meId } })}>
+              Take this lead
+            </Button>
+          ) : null}
           {editable ? (
             <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
               <PencilIcon /> Edit

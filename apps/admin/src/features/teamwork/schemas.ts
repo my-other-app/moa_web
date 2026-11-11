@@ -147,6 +147,8 @@ export type MyDay = z.infer<typeof myDaySchema>;
 /** One row of a breakdown: its name and whatever figures the server counts for it. */
 const rowSchema = z.record(z.unknown());
 const countsSchema = z.record(z.coerce.number()).catch({});
+/** "So many of so many on target": the reply and resolution measures. */
+const onTargetSchema = z.object({ on_target: z.coerce.number().catch(0), of: z.coerce.number().catch(0) }).nullish().catch(null);
 
 export const reportsSchema = z.object({
   support: z
@@ -156,6 +158,10 @@ export const reportsSchema = z.object({
       by_person: z.array(rowSchema).catch([]),
       by_topic: z.array(rowSchema).catch([]),
       survey: z.object({ yes: z.coerce.number().catch(0), no: z.coerce.number().catch(0) }).catch({ yes: 0, no: 0 }),
+      cases: z.coerce.number().nullish(),
+      open_now: z.coerce.number().nullish(),
+      first_reply_on_target: onTargetSchema,
+      resolution_on_target: onTargetSchema,
     })
     .catch({ first_reply_median_h: null, resolution_median_h: null, by_person: [], by_topic: [], survey: { yes: 0, no: 0 } }),
   leads: z
@@ -193,6 +199,8 @@ export const topicSchema = z.object({
   assignee_id: id.nullish(),
   assignee: personRefSchema.nullish(),
   default_priority: z.string().catch("normal"),
+  /** A topic deleted while cases still have it is archived, not gone. */
+  active: z.boolean().catch(true),
 });
 export type Topic = z.infer<typeof topicSchema>;
 export const topicsSchema = z.array(topicSchema).catch([]);
@@ -222,8 +230,8 @@ export const helpAnswersSchema = z.array(helpAnswerSchema).catch([]);
 
 /** Why a lead was lost: "no budget", "chose another". The server's word for the text may be label, name or reason. */
 export const lostReasonSchema = z
-  .object({ id, key: z.string().nullish(), label: z.string().nullish(), name: z.string().nullish(), reason: z.string().nullish() })
-  .transform((r) => ({ id: r.id, key: r.key ?? null, label: r.label ?? r.name ?? r.reason ?? r.key ?? `Reason ${r.id}` }));
+  .object({ id, key: z.string().nullish(), label: z.string().nullish(), name: z.string().nullish(), reason: z.string().nullish(), active: z.boolean().catch(true) })
+  .transform((r) => ({ id: r.id, key: r.key ?? null, label: r.label ?? r.name ?? r.reason ?? r.key ?? `Reason ${r.id}`, active: r.active }));
 export type LostReason = z.infer<typeof lostReasonSchema>;
 export const lostReasonsSchema = z.array(lostReasonSchema).catch([]);
 

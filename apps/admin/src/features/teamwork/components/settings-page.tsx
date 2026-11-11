@@ -302,7 +302,7 @@ function TopicsSection({ owner }: { owner: boolean }) {
         What people ask about, and who answers
       </SectionTitle>
       <ul className="m-0 flex list-none flex-col gap-2 p-0">
-        {(topics.data ?? []).map((t) => (
+        {(topics.data ?? []).filter((t) => t.active).map((t) => (
           <li key={t.key} className="border-line-soft bg-surface flex items-center gap-3 rounded-xl border px-3.5 py-2.5">
             <div className="min-w-0 flex-1">
               <p className="m-0 text-[13.5px] font-medium">{t.label}</p>
@@ -505,7 +505,7 @@ function LostReasonsSection({ owner }: { owner: boolean }) {
     <div className="flex flex-col gap-3">
       <SectionTitle>Why leads are lost</SectionTitle>
       <ul className="m-0 flex list-none flex-col gap-2 p-0">
-        {(reasons.data ?? []).map((r) =>
+        {(reasons.data ?? []).filter((r) => r.active).map((r) =>
           editing?.id === r.id ? (
             <li key={r.id} className="flex gap-2">
               <Input aria-label="Reason" value={editing.label} maxLength={80} onChange={(e) => setEditing({ id: r.id, label: e.target.value })} />

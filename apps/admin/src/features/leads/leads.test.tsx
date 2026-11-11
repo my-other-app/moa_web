@@ -66,6 +66,7 @@ beforeEach(() => {
   state.handlers["GET /api/v1/admin/leads/lost-reasons"] = () => [
     { id: 1, key: "no_budget", label: "No budget" },
     { id: 2, key: "timing", label: "Timing" },
+    { id: 3, key: "old", label: "Archived reason", active: false },
   ];
   state.handlers["PATCH /api/v1/admin/leads/5"] = ({ body }) => ({ ...lead(body as Record<string, unknown>), needs_follow_up: true });
   state.handlers["POST /api/v1/admin/follow-ups"] = ({ body }) => ({ id: 20, ...(body as object) });
@@ -110,7 +111,10 @@ describe("the board", () => {
     expect(callsOf(state, "PATCH")).toHaveLength(0);
     const mark = screen.getByRole("button", { name: "Mark lost" });
     expect(mark).toBeDisabled();
-    fireEvent.change(await screen.findByLabelText("Why"), { target: { value: "no_budget" } });
+    const why = await screen.findByLabelText("Why");
+    await within(why).findByRole("option", { name: "No budget" });
+    expect(within(why).queryByRole("option", { name: "Archived reason" })).toBeNull();
+    fireEvent.change(why, { target: { value: "no_budget" } });
     fireEvent.change(screen.getByLabelText("Try again on (optional)"), { target: { value: "2027-03-01" } });
     fireEvent.click(mark);
     await waitFor(() => expect(callsOf(state, "PATCH", "/api/v1/admin/leads/5")[0]?.body).toEqual({ stage: "lost", lost_reason: "no_budget", retry_on: "2027-03-01" }));

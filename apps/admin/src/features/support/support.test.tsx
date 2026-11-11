@@ -94,6 +94,7 @@ describe("the queue", () => {
     expect(link).toHaveAttribute("href", "/teamwork/support/8");
     expect(callsOf(state, "GET", "/api/v1/admin/support/cases")[0]!.query).toMatchObject({ tab: "open", page: 1, page_size: 50 });
     expect(screen.getByRole("tab", { name: /Unassigned\s*3/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Export to Excel/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Resolved\s*40/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Unassigned/ }));
     fireEvent.change(screen.getByLabelText("Topic"), { target: { value: "payments" } });
@@ -106,6 +107,8 @@ describe("the queue", () => {
     render(<CasesPage />);
     expect(await screen.findByText(/not in the Support or Sales team/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Log a case/ })).toBeNull();
+    // The workbook carries what people wrote about: the API refuses it outside the teams (403 TEAM_REQUIRED).
+    expect(screen.queryByRole("button", { name: /Export to Excel/ })).toBeNull();
   });
 
   it("lets a Support member log a case by hand", async () => {

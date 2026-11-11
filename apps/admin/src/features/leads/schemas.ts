@@ -138,6 +138,8 @@ export const leadDetailSchema = leadRowSchema
     linked_records: z.record(z.unknown()).nullish(),
     /** The server's word: the signed-in admin may change this lead. */
     can_edit: z.boolean().nullish(),
+    /** A Sales member may take a lead nobody owns. */
+    can_take: z.boolean().nullish(),
   })
   .transform(({ timeline, activities, linked, linked_records, ...l }) => ({ ...l, timeline: timeline ?? activities ?? [], linked: linked ?? linked_records ?? null }));
 export type LeadDetail = z.infer<typeof leadDetailSchema>;

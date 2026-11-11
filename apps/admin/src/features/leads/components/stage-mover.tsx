@@ -33,7 +33,7 @@ function LostForm({ name, onCancel, onConfirm, pending }: { name: string; onCanc
         <Label htmlFor="lost-reason">Why</Label>
         <NativeSelect id="lost-reason" value={reason} onChange={(e) => setReason(e.target.value)}>
           <option value="">Pick a reason</option>
-          {(reasons.data ?? []).map((r) => (
+          {(reasons.data ?? []).filter((r) => r.active).map((r) => (
             <option key={r.id} value={r.key ?? r.label}>
               {r.label}
             </option>
