@@ -74,6 +74,9 @@ const detailSchema = z
             bio: z.string().nullish(),
             link: z.string().nullish(),
             photo: z.unknown().nullish(),
+            // The speakers directory; absent from an API before it (undefined), null on a row not linked yet.
+            speaker_profile_id: z.coerce.number().nullish(),
+            talk_title: z.string().nullish(),
           })
           .passthrough()
       )
@@ -175,6 +178,9 @@ export function eventDetailToFormValues(raw: unknown): EventFormValues {
       bio: s.bio ?? "",
       link: s.link ?? "",
       photo_url: photoUrlOf(s.photo),
+      // An API with the speakers directory: the row's profile and its talk title (an older one sends neither).
+      ...(s.speaker_profile_id != null ? { speaker_profile_id: s.speaker_profile_id } : {}),
+      ...(s.talk_title !== undefined ? { talk_title: s.talk_title ?? "" } : {}),
     })),
   };
 }

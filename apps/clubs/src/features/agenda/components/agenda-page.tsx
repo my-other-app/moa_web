@@ -47,6 +47,7 @@ import {
   agendaDay,
   agendaTime,
   dayOf,
+  sessionSpeakers,
   type Agenda,
   type AgendaItem,
   type AgendaItemInput,
@@ -99,20 +100,35 @@ const blank = (startsLocal: string): Values => ({
   description: "",
 });
 
+/** One of the event's own speakers, as the agenda picks them. */
+interface EventSpeakerChoice {
+  id: number;
+  name: string;
+}
+
 function BlockForm({
   eventId,
   editing,
   defaultStart,
   onDone,
+  linkable = false,
+  eventSpeakers = [],
 }: {
   eventId: number;
   editing: AgendaItem | null;
   defaultStart: string;
   onDone: () => void;
+  /** The API has the speakers directory: a session's speakers are picked from the event's. */
+  linkable?: boolean;
+  eventSpeakers?: readonly EventSpeakerChoice[];
 }) {
   const create = useCreateAgendaItem(eventId);
   const update = useUpdateAgendaItem(eventId);
   const id = React.useId();
+  const picking = linkable && eventSpeakers.length > 0;
+  const [ids, setIds] = React.useState<number[]>(() => editing?.event_speaker_ids ?? []);
+  // Free text: where there is nothing to pick from, or for an older session typed before the picker.
+  const typed = !picking || Boolean(editing?.speaker?.trim() && !(editing.event_speaker_ids?.length));
   const [v, setV] = React.useState<Values>(() =>
     editing
       ? {
@@ -142,20 +158,24 @@ function BlockForm({
       starts_at: fromLocalInput(v.startsLocal),
       ends_at: v.endsLocal ? fromLocalInput(v.endsLocal) : null,
       title: v.title.trim(),
-      speaker: v.speaker.trim() || null,
+      // Picked speakers with no text: the API writes their names into the text itself, for older clients.
+      speaker: typed ? v.speaker.trim() || null : null,
       location: v.location.trim() || null,
       description: v.description.trim() || null,
+      ...(picking ? { event_speaker_ids: ids } : {}),
     };
     if (editing)
       update.mutate({ id: editing.id, body }, { onSuccess: onDone });
     else
       create.mutate(body, {
         // The next block most often starts where this one ended.
-        onSuccess: () =>
+        onSuccess: () => {
           setV((cur) => ({
             ...blank(cur.startsLocal),
             startsLocal: cur.endsLocal || cur.startsLocal,
-          })),
+          }));
+          setIds([]);
+        },
       });
   };
   return (
@@ -212,20 +232,39 @@ function BlockForm({
             className={field}
           />
         </div>
+        {picking ? (
+          <fieldset className="m-0 border-0 p-0">
+            <legend className={label}>Speakers (from this event)</legend>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              {eventSpeakers.map((s) => (
+                <label key={s.id} className="flex items-center gap-1.5 text-[13px]">
+                  <input
+                    type="checkbox"
+                    checked={ids.includes(s.id)}
+                    onChange={(e) => setIds((cur) => (e.target.checked ? [...cur, s.id] : cur.filter((x) => x !== s.id)))}
+                  />
+                  {s.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${id}-speaker`} className={label}>
-              Speaker (optional)
-            </label>
-            <input
-              id={`${id}-speaker`}
-              value={v.speaker}
-              onChange={set("speaker")}
-              placeholder="Ananya Iyer"
-              maxLength={120}
-              className={field}
-            />
-          </div>
+          {typed ? (
+            <div>
+              <label htmlFor={`${id}-speaker`} className={label}>
+                {picking ? "Speaker as typed (older session)" : "Speaker (optional)"}
+              </label>
+              <input
+                id={`${id}-speaker`}
+                value={v.speaker}
+                onChange={set("speaker")}
+                placeholder="Ananya Iyer"
+                maxLength={120}
+                className={field}
+              />
+            </div>
+          ) : null}
           <div>
             <label htmlFor={`${id}-room`} className={label}>
               Room (optional)
@@ -350,12 +389,12 @@ function BlockRow({
             {item.description}
           </p>
         ) : null}
-        {item.speaker || item.location ? (
+        {sessionSpeakers(item) || item.location ? (
           <div className="text-ink-3 mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
-            {item.speaker ? (
+            {sessionSpeakers(item) ? (
               <span className="flex items-center gap-1">
                 <MicIcon className="size-3.5" aria-hidden="true" />
-                <span className="text-ink-2">{item.speaker}</span>
+                <span className="text-ink-2">{sessionSpeakers(item)}</span>
               </span>
             ) : null}
             {item.location ? (
@@ -503,8 +542,9 @@ function Shape({ agenda }: { agenda: Agenda }) {
     ...items.map((i) => ms(i.ends_at ?? i.starts_at)),
   );
   const days = new Set(items.map((i) => dayOf(i.starts_at, tz))).size;
+  // Each picked speaker once, else the typed text: a session led by two counts both.
   const speakers = new Set(
-    items.map((i) => i.speaker?.trim()).filter((s): s is string => !!s),
+    items.flatMap((i) => (i.speakers?.length ? i.speakers.map((s) => s.name) : [i.speaker?.trim()])).filter((s): s is string => !!s),
   );
   const rooms = [
     ...new Set(
@@ -512,7 +552,7 @@ function Shape({ agenda }: { agenda: Agenda }) {
     ),
   ];
   const parallel = items.filter((i) => i.parallel).length;
-  const bare = items.filter((i) => !i.speaker?.trim()).length;
+  const bare = items.filter((i) => !sessionSpeakers(i)).length;
   const at = (t: number) => {
     const iso = new Date(t).toISOString();
     return days > 1
@@ -561,6 +601,9 @@ export function AgendaPage({ eventId }: { eventId: number }) {
   const [printing, setPrinting] = React.useState(false);
   const [now] = React.useState(() => Date.now());
   const startIso = event.data?.event_datetime;
+  // The speakers directory: an API with it says so on the agenda's sessions or on the event's speakers.
+  const eventSpeakers = (event.data?.speakers ?? []).map((s) => ({ id: s.id, name: s.name }));
+  const linkable = Boolean(agenda.data?.items.some((i) => i.event_speaker_ids !== undefined) || event.data?.speakers?.some((s) => s.speaker_profile_id !== undefined));
   const defaultStart = React.useMemo(
     () =>
       toLocalInput((startIso ? new Date(startIso) : new Date()).toISOString()),
@@ -681,6 +724,8 @@ export function AgendaPage({ eventId }: { eventId: number }) {
                 editing={editing}
                 defaultStart={defaultStart}
                 onDone={() => setEditing(null)}
+                linkable={linkable}
+                eventSpeakers={eventSpeakers}
               />
               <p className="text-ink-3 flex items-start gap-1.5 px-1 text-[11.5px] leading-[1.5]">
                 <CalendarClockIcon

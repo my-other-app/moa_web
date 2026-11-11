@@ -84,6 +84,8 @@ export const questionSchema = z
 
 /** The most a speaker's short bio may run to; the server refuses more. */
 export const SPEAKER_BIO_MAX = 600;
+/** The most a talk's title may run to; the server keeps no more. */
+export const SPEAKER_TALK_TITLE_MAX = 200;
 
 export const speakerSchema = z.object({
   id: z.number().optional(),
@@ -102,6 +104,16 @@ export const speakerSchema = z.object({
   /** Existing photo kept on edit; a newly picked File is held separately. */
   photo_url: z.string().nullish(),
   photoFile: z.instanceof(File).optional(),
+  /**
+   * The speakers directory: the profile this speaker was picked from (the
+   * club's past speakers). Sent so the event's row joins that profile; the
+   * fields above stay this event's own copy.
+   */
+  speaker_profile_id: z.number().int().positive().optional(),
+  /** What they talk about at this event. */
+  talk_title: z.string().trim().max(SPEAKER_TALK_TITLE_MAX, `Keep the talk title to ${SPEAKER_TALK_TITLE_MAX} characters`).optional(),
+  /** The picked profile's photo, shown until the club picks another; the server fills an empty photo from the profile. */
+  profile_photo: z.string().nullish(),
 });
 
 /**

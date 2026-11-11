@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Input, InitialsAvatar, Textarea, cn } from "@moa/ui";
@@ -7,14 +8,15 @@ import { useObjectUrl } from "@moa/ui/hooks";
 import { PICTURE_SPECS, cropToShape } from "@moa/app-kit";
 
 import { AiFilledTag, aiFilledClass, useAiFilled } from "@/features/ai";
+import { SpeakerPicker, primaryLink, useSpeakersOnServer, type Suggestion } from "@/features/speakers";
 import { IMAGE_ACCEPT } from "@/lib/images";
 
-import { SPEAKER_BIO_MAX, type EventFormValues } from "../../schemas";
+import { SPEAKER_BIO_MAX, SPEAKER_TALK_TITLE_MAX, type EventFormValues } from "../../schemas";
 
-/** A speaker's photo: the one just picked, else the one saved, else their initials. */
-function SpeakerPhoto({ file, url, name }: { file?: File | null; url?: string | null; name: string }) {
+/** A speaker's photo: the one just picked, else the one saved, else the picked profile's, else their initials. */
+function SpeakerPhoto({ file, url, profile, name }: { file?: File | null; url?: string | null; profile?: string | null; name: string }) {
   const picked = useObjectUrl(file ?? null);
-  const src = picked ?? url;
+  const src = picked ?? url ?? profile;
   // eslint-disable-next-line @next/next/no-img-element -- a local preview or the API's own small photo
   return src ? <img src={src} alt="" className="size-10 rounded-full object-cover" /> : <InitialsAvatar name={name} size={40} />;
 }
@@ -28,6 +30,24 @@ export function PeopleStep() {
   const form = useFormContext<EventFormValues>();
   const speakers = useFieldArray({ control: form.control, name: "speakers" });
   const ai = useAiFilled();
+  // The speakers directory: with it, "Add a speaker" searches the club's past speakers first (also while
+  // the API is still being asked: the picker offers someone new); on an API without it, a blank row as before.
+  const onServer = useSpeakersOnServer();
+  const directory = onServer === true;
+  const usePicker = onServer !== false;
+  const [picking, setPicking] = React.useState(false);
+  const blank = (name = "") => speakers.append({ name, designation: "", bio: "", link: "", ...(directory ? { talk_title: "" } : {}) });
+  const pick = (s: Suggestion) =>
+    speakers.append({
+      name: s.name,
+      designation: s.headline ?? "",
+      bio: (s.bio ?? "").slice(0, SPEAKER_BIO_MAX),
+      link: primaryLink(s.links),
+      speaker_profile_id: s.profile_id,
+      talk_title: "",
+      profile_photo: s.photo?.medium ?? s.photo?.thumbnail ?? null,
+    });
+  const onEvent = (form.watch("speakers") ?? []).flatMap((s) => (s.speaker_profile_id ? [s.speaker_profile_id] : []));
   // A speaker's photo is square, as the event page shows it: placed in one first when it is not.
   const pickPhoto = async (index: number, input: HTMLInputElement) => {
     const file = input.files?.[0];
@@ -47,10 +67,11 @@ export function PeopleStep() {
             </p>
             <p className="text-ink-3 text-[12px]">Shown on the event page with their photo ({PICTURE_SPECS.photo.label}). Skip it for a members-only night.</p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => speakers.append({ name: "", designation: "", bio: "", link: "" })}>
+          <Button type="button" variant="outline" size="sm" onClick={() => (usePicker ? setPicking(true) : blank())}>
             <PlusIcon /> Add a speaker
           </Button>
         </div>
+        {usePicker ? <SpeakerPicker open={picking} onOpenChange={setPicking} onPick={pick} onNew={blank} exclude={onEvent} /> : null}
         {speakers.fields.length > 0 ? (
           <ul className="mt-3 grid gap-2">
             {speakers.fields.map((item, index) => {
@@ -58,10 +79,13 @@ export function PeopleStep() {
               const photoUrl = form.watch(`speakers.${index}.photo_url`);
               const photoFile = form.watch(`speakers.${index}.photoFile`);
               const bio = form.watch(`speakers.${index}.bio`) ?? "";
+              const profilePhoto = form.watch(`speakers.${index}.profile_photo`);
+              const fromProfile = Boolean(form.watch(`speakers.${index}.speaker_profile_id`));
+              const hasTalkTitle = form.watch(`speakers.${index}.talk_title`) !== undefined;
               return (
                 <li key={item.id} className="border-line-soft bg-sunken grid items-end gap-3 rounded-xl border p-3 sm:grid-cols-[auto_1fr_1fr_auto]">
                   <label className="grid place-items-center" title={`Photo · ${PICTURE_SPECS.photo.label}`}>
-                    <SpeakerPhoto file={photoFile} url={photoUrl} name={name} />
+                    <SpeakerPhoto file={photoFile} url={photoUrl} profile={profilePhoto} name={name} />
                     <input type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={(e) => void pickPhoto(index, e.currentTarget)} aria-label={`Photo for speaker ${index + 1}`} />
                   </label>
                   <FormField
@@ -126,6 +150,22 @@ export function PeopleStep() {
                       </FormItem>
                     )}
                   />
+                  {directory || hasTalkTitle ? (
+                    <FormField
+                      control={form.control}
+                      name={`speakers.${index}.talk_title`}
+                      render={({ field }) => (
+                        <FormItem className="self-start sm:col-span-2 sm:col-start-2">
+                          <FormLabel>Talk title · optional</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value ?? ""} maxLength={SPEAKER_TALK_TITLE_MAX} placeholder="Building rovers on a student budget" />
+                          </FormControl>
+                          {fromProfile ? <FormDescription>From your past speakers: what you change here is this event&apos;s own.</FormDescription> : null}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ) : null}
                 </li>
               );
             })}
