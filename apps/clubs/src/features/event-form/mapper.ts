@@ -74,6 +74,9 @@ const detailSchema = z
             bio: z.string().nullish(),
             link: z.string().nullish(),
             photo: z.unknown().nullish(),
+            // The speakers directory; absent from an API before it (undefined), null on a row not linked yet.
+            speaker_profile_id: z.coerce.number().nullish(),
+            talk_title: z.string().nullish(),
           })
           .passthrough()
       )
@@ -175,6 +178,9 @@ export function eventDetailToFormValues(raw: unknown): EventFormValues {
       bio: s.bio ?? "",
       link: s.link ?? "",
       photo_url: photoUrlOf(s.photo),
+      // An API with the speakers directory: the row's profile and its talk title (an older one sends neither).
+      ...(s.speaker_profile_id != null ? { speaker_profile_id: s.speaker_profile_id } : {}),
+      ...(s.talk_title !== undefined ? { talk_title: s.talk_title ?? "" } : {}),
     })),
   };
 }
@@ -336,7 +342,14 @@ export function draftToFormValues(draft: EventDraft, ctx: DraftFillContext): Dra
 
   const speakers = draft.speakers
     .filter((s) => s.name.trim())
-    .map((s) => ({ name: s.name.trim().slice(0, 100), designation: s.designation?.slice(0, 200) ?? "", bio: s.bio?.slice(0, SPEAKER_BIO_MAX) ?? "", link: "" }));
+    .map((s) => ({
+      name: s.name.trim().slice(0, 100),
+      designation: s.designation?.slice(0, 200) ?? "",
+      bio: s.bio?.slice(0, SPEAKER_BIO_MAX) ?? "",
+      link: "",
+      // The club's past speaker of the same name, when the draft found one: the saved row joins that profile.
+      ...(s.speaker_profile_id ? { speaker_profile_id: s.speaker_profile_id } : {}),
+    }));
   merge("speakers", current.speakers ?? [], speakers, (a, b) => words(a.name) === words(b.name));
 
   const mine = mode === "replace" ? [] : (current.additional_details ?? []);

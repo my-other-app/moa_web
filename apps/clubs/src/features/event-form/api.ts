@@ -124,6 +124,10 @@ export function toEventFormData(values: EventFormParsed, status?: "draft" | "pub
       link: speaker.link || null,
     };
     if (speaker.id !== undefined) base.id = speaker.id;
+    // The speakers directory: the profile it was picked from, and the talk's title when the form
+    // carries one (null clears it; left out, the row keeps its own). An API from before the directory ignores both.
+    if (speaker.speaker_profile_id !== undefined) base.speaker_profile_id = speaker.speaker_profile_id;
+    if (speaker.talk_title !== undefined) base.talk_title = speaker.talk_title || null;
 
     if (speaker.photoFile) {
       base.photo_index = speakerPhotos.length;

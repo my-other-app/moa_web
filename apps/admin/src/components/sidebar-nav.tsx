@@ -7,6 +7,7 @@ import { cn } from "@moa/ui";
 
 import { useOpsMe } from "@/features/ops/queries";
 import { useOpenReportCount } from "@/features/reports";
+import { useSpeakersOnServer } from "@/features/speakers";
 import { useTeamworkBadge } from "@/features/teamwork";
 
 import { isActive, visibleNavItems, type NavItem } from "./nav-items";
@@ -49,8 +50,10 @@ export function SidebarNav({
     ...(due > 0 ? { teamworkDue: countText(due) } : {}),
   };
   const ops = useOpsMe().data;
+  // The speakers directory, once the API has it: its list answers the probe.
+  const speakers = useSpeakersOnServer() === true;
   const sections: { label: string; items: NavItem[] }[] = [];
-  for (const item of visibleNavItems(ops?.features, { teamwork: Boolean(teamwork) })) {
+  for (const item of visibleNavItems(ops?.features, { speakers, teamwork: Boolean(teamwork) })) {
     if (item.group || sections.length === 0) sections.push({ label: item.group ?? "Menu", items: [] });
     sections[sections.length - 1]!.items.push(item);
   }

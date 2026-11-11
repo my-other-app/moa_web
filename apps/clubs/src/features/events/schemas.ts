@@ -170,6 +170,14 @@ export const eventDetailSchema = z
     /** What it is about, for the Overview: its interests, and the topics they fall under (null from a server before topics). */
     interests: z.array(linkedInterestSchema).catch([]).default([]),
     topics: topicRefsField,
+    /**
+     * The event's speakers, for the agenda's speaker picker: `speaker_profile_id`
+     * is present (a number or null) only from an API with the speakers directory.
+     */
+    speakers: z
+      .array(z.object({ id: z.coerce.number(), name: z.string(), speaker_profile_id: z.coerce.number().nullish() }).passthrough())
+      .nullish()
+      .catch(null),
   })
   .passthrough();
 

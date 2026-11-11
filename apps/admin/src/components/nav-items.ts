@@ -20,6 +20,7 @@ import {
   MailXIcon,
   MegaphoneIcon,
   MessageSquareTextIcon,
+  MicIcon,
   ScaleIcon,
   Settings2Icon,
   ShieldCheckIcon,
@@ -97,6 +98,8 @@ export const navItems: NavItem[] = [
   // Topics and the interests under them. The address stays /interests so old links still land.
   { href: "/interests", label: "Topics", icon: TagIcon },
   { href: "/avatars", label: "Avatars", icon: SmileIcon },
+  // Everyone who has spoken at an event, one profile each, once the API has the directory. The rail asks it itself.
+  { href: "/speakers", label: "Speakers", icon: MicIcon, probe: "speakers" },
 
   { href: "/announcements", label: "Announcements", icon: BellIcon, group: "Comms" },
   { href: "/notifications", label: "Notifications", icon: InboxIcon },

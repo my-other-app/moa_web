@@ -150,6 +150,15 @@ export const TokenMenu = ({
         >
           A link to the ticket
         </DropdownMenuItem>
+        {has("cancel_ticket_url") ? (
+          <DropdownMenuItem
+            onSelect={() =>
+              onInsert("Can't come? [Give your ticket back]({{cancel_ticket_url}})")
+            }
+          >
+            A link to give their ticket back
+          </DropdownMenuItem>
+        ) : null}
         {has("status_url") ? (
           <DropdownMenuItem
             onSelect={() => onInsert("[See your registration]({{status_url}})")}

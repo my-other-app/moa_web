@@ -123,6 +123,9 @@ const REQUEST_TOKEN_STAGES = new Map(REQUEST_TOKENS.map((t) => [t.key, t.stages]
 /** The tokens an email knows beyond the ticket's (the client's check; the server holds request tokens to their stages). */
 export const EMAIL_TOKEN_KEYS: ReadonlySet<string> = new Set([
   "ticket_url",
+  // "Give your ticket back" (ticket-self-cancel-contract.md): free tickets, before the event starts.
+  // Offered where the server's token list has it, beside ticket_url.
+  "cancel_ticket_url",
   "certificate_url",
   "organiser_email",
   "event_start",

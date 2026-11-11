@@ -194,6 +194,13 @@ describe("a draft onto the form (draftToFormValues)", () => {
     expect(patch.speakers!.map((s) => s.name)).toEqual(["Dr. A. Kumar"]);
   });
 
+  it("joins a drafted speaker to the club's past speaker of the same name, when the draft found one", () => {
+    const found = draftToFormValues(draft({ speakers: [{ name: "Dr. A. Kumar", designation: "IIT-M", bio: "", speaker_profile_id: 7 }] }), ctx());
+    expect(found.patch.speakers![0]).toMatchObject({ name: "Dr. A. Kumar", speaker_profile_id: 7 });
+    const none = draftToFormValues(draft(), ctx());
+    expect(none.patch.speakers![0]).not.toHaveProperty("speaker_profile_id");
+  });
+
   it("does not switch on paid entry the plan lacks, and says so", () => {
     const { patch, notes } = draftToFormValues(draft(), ctx({ feeLocked: true }));
     expect(patch).not.toHaveProperty("has_fee");

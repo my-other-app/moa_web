@@ -126,7 +126,8 @@ export const eventDraftSchema = z.object({
     .catch([])
     .default([]),
   speakers: z
-    .array(z.object({ name: z.string(), designation: text, bio: text }))
+    // speaker_profile_id: the club's past speaker of the very same name (the speakers directory); null or absent otherwise.
+    .array(z.object({ name: z.string(), designation: text, bio: text, speaker_profile_id: z.number().int().positive().nullish().catch(null) }))
     .catch([])
     .default([]),
   questions: z

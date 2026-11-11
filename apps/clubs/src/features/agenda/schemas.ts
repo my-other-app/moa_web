@@ -14,8 +14,24 @@ export const agendaItemSchema = z.object({
   sort_order: z.number(),
   /** Two blocks are parallel when their times overlap. */
   parallel: z.boolean(),
+  /**
+   * The speakers directory: the session's speakers, picked from the event's
+   * own speakers. Absent (undefined) from an API before it; `speaker` stays
+   * the free text older sessions were typed with.
+   */
+  event_speaker_ids: z.array(z.coerce.number()).optional(),
+  speakers: z
+    .array(z.object({ event_speaker_id: z.coerce.number(), name: z.string(), photo_thumbnail: z.string().nullish(), profile_slug: z.string().nullish() }))
+    .optional(),
 });
 export type AgendaItem = z.infer<typeof agendaItemSchema>;
+
+/** Who leads a session, as the list says it: the picked speakers' names, else the typed text. */
+export function sessionSpeakers(item: Pick<AgendaItem, "speaker" | "speakers">): string | null {
+  const picked = (item.speakers ?? []).map((s) => s.name).filter(Boolean);
+  if (picked.length > 0) return picked.join(", ");
+  return item.speaker?.trim() || null;
+}
 
 export const agendaSchema = z.object({
   items: z.array(agendaItemSchema),
@@ -32,6 +48,8 @@ export interface AgendaItemInput {
   description: string | null;
   speaker: string | null;
   location: string | null;
+  /** Sent only to an API with the speakers directory: the event's speakers who lead it (`[]` clears them). */
+  event_speaker_ids?: number[];
 }
 
 /** A time as the agenda prints it, in the event's zone. */
