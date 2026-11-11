@@ -40,6 +40,7 @@ export {
   teamRights,
   words,
   type FollowUp,
+  type FollowUpKind,
   type LeadType,
   type LostReason,
   type PersonRef,
