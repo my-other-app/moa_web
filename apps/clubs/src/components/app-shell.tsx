@@ -35,6 +35,8 @@ import { AwaitingApproval, useClubNotVerified } from "./awaiting-approval";
 import { Breadcrumbs } from "./breadcrumbs";
 import { GateCard } from "./gate-card";
 import { MaintenanceBanner } from "./maintenance-banner";
+import { useRememberPage } from "@/features/help";
+
 import { SidebarNav } from "./sidebar-nav";
 
 /**
@@ -166,6 +168,8 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
   const clubName = user.full_name || user.username || "My Other App";
   // Approval taken back while signed in: every call is now 403 CLUB_NOT_VERIFIED.
   const notVerified = useClubNotVerified();
+  // The page the club is on, for a Help request sent from here.
+  useRememberPage();
 
   // <main> is the scroller, not the window, so a new page is put back at the top here.
   const mainRef = React.useRef<HTMLElement>(null);

@@ -10,6 +10,7 @@ import {
   CreditCardIcon,
   HandshakeIcon,
   LayoutDashboardIcon,
+  LifeBuoyIcon,
   LinkIcon,
   MegaphoneIcon,
   MailIcon,
@@ -48,7 +49,7 @@ export interface NavItem {
    * is known to have its routes (see SidebarNav). The dashboard can then go
    * out ahead of its backend, and the item appears when the backend does.
    */
-  server?: "whatsapp" | "mailbox" | "ticketing" | "contacts" | "cohosts" | "social";
+  server?: "whatsapp" | "mailbox" | "ticketing" | "contacts" | "cohosts" | "social" | "help";
 }
 
 export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
@@ -105,6 +106,8 @@ export const navItems: NavItem[] = [
   // `money`, as with Finance); only the owner changes it.
   { href: "/payments", label: "Payments", icon: BanknoteIcon, group: "manage", needs: "money" },
   { href: "/profile", label: "Club profile", icon: BuildingIcon, group: "manage", needs: "club_profile" },
+  // MyOtherApp's answers and a line to its Support team: every role, every plan -- once the API has the desk.
+  { href: "/help", label: "Help", icon: LifeBuoyIcon, group: "manage", server: "help" },
 ];
 
 export function isActive(pathname: string, item: NavItem): boolean {
