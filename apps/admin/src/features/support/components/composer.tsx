@@ -22,6 +22,7 @@ function PreviewDialog({ preview, onClose, onSend, sending }: { preview: ReplyPr
           <DialogDescription>
             {preview?.to ? `To ${preview.to}` : "To the person who wrote in"}
             {preview?.subject ? ` · ${preview.subject}` : ""}
+            {preview?.willPush ? " · they also get a push in the app" : ""}
           </DialogDescription>
         </DialogHeader>
         {doc ? (
@@ -49,11 +50,13 @@ function PreviewDialog({ preview, onClose, onSend, sending }: { preview: ReplyPr
  * internal note they never see. Every reply is previewed before it goes:
  * the box only offers "Preview reply", and Send waits in the preview.
  */
-export function Composer({ caseId, notDelivered }: { caseId: number; notDelivered: boolean }) {
+export function Composer({ caseId, notDelivered, canReply = true }: { caseId: number; notDelivered: boolean; canReply?: boolean }) {
   const replies = useSavedReplies();
   const preview = usePreviewReply(caseId);
   const post = usePostMessage(caseId);
-  const [mode, setMode] = React.useState<Mode>("reply_out");
+  const [chosen, setMode] = React.useState<Mode>(canReply ? "reply_out" : "note");
+  // A Support member may note any case, and answer only their own.
+  const mode: Mode = canReply ? chosen : "note";
   const [body, setBody] = React.useState("");
   const [savedId, setSavedId] = React.useState<number | undefined>(undefined);
   const [shown, setShown] = React.useState<ReplyPreview | null>(null);
@@ -69,15 +72,19 @@ export function Composer({ caseId, notDelivered }: { caseId: number; notDelivere
   return (
     <section className="border-line-soft bg-surface flex flex-col gap-3 rounded-2xl border p-4" aria-label="Reply">
       <div className="flex flex-wrap items-center gap-2">
-        <Segmented
-          label="Reply or note"
-          value={mode}
-          options={[
-            { value: "reply_out", label: "Reply" },
-            { value: "note", label: "Internal note" },
-          ]}
-          onChange={setMode}
-        />
+        {canReply ? (
+          <Segmented
+            label="Reply or note"
+            value={mode}
+            options={[
+              { value: "reply_out", label: "Reply" },
+              { value: "note", label: "Internal note" },
+            ]}
+            onChange={setMode}
+          />
+        ) : (
+          <span className="text-ink-2 text-[13px] font-medium">Internal note</span>
+        )}
         {replies.data && replies.data.length > 0 ? (
           <NativeSelect
             aria-label="Insert a saved reply"

@@ -11,7 +11,7 @@ import { FollowUpDialog, LEAD_TYPES, LEAD_TYPE_LABEL, NextFollowUpDialog, follow
 
 import type { ContactInput } from "../api";
 import { useDeleteContact, useLead, useLeads, useLogActivity, useMergeLead, useSaveContact, useUpdateLead, useUploadLeadFile } from "../queries";
-import { ACTIVITY_KINDS, ACTIVITY_LABEL, STAGES, STAGE_LABEL, activityLabel, sourceLabel, stageLabel, type Contact, type LeadDetail } from "../schemas";
+import { ACTIVITY_KINDS, ACTIVITY_LABEL, STAGES, STAGE_LABEL, activityLabel, fileHref, sourceLabel, stageLabel, type Contact, type LeadDetail } from "../schemas";
 import { useStageMover } from "./stage-mover";
 
 function Panel({ title, action, children, className }: { title: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
@@ -353,7 +353,7 @@ function Timeline({ lead, editable }: { lead: LeadDetail; editable: boolean }) {
                 {" · "}
                 {formatDateTime(a.occurred_at)}
                 {a.author_name ? ` · ${a.author_name}` : ""}
-                {a.contact?.name ? ` · with ${a.contact.name}` : ""}
+                {(a.contact?.name ?? lead.contacts.find((c) => c.id === a.contact_id)?.name) ? ` · with ${a.contact?.name ?? lead.contacts.find((c) => c.id === a.contact_id)?.name}` : ""}
               </span>
             </p>
             {a.body ? <p className="m-0 mt-0.5 text-[13px] whitespace-pre-wrap [overflow-wrap:anywhere]">{a.body}</p> : null}
@@ -393,8 +393,8 @@ function Files({ lead, editable }: { lead: LeadDetail; editable: boolean }) {
         {lead.files.map((f) => (
           <li key={f.id} className="flex items-center gap-2 text-[13px]">
             <PaperclipIcon className="text-ink-3 size-3.5" aria-hidden="true" />
-            {f.url && (f.url.startsWith("https://") || f.url.startsWith("/")) ? (
-              <a href={f.url} target="_blank" rel="noreferrer" className="flex-1 truncate hover:underline">
+            {fileHref(f.url) ? (
+              <a href={fileHref(f.url)!} target="_blank" rel="noreferrer" className="flex-1 truncate hover:underline">
                 {f.name}
               </a>
             ) : (
@@ -414,9 +414,12 @@ function Linked({ linked }: { linked: Record<string, unknown> | null }) {
     const rows = (Array.isArray(value) ? value : value && typeof value === "object" ? [value] : []) as Record<string, unknown>[];
     const items = rows
       .map((r) => {
-        const name = [r.name, r.title, r.label, r.plan_name].find((v) => typeof v === "string") as string | undefined;
+        const name = [r.name, r.title, r.label, r.event_name, r.club_name, r.plan_name].find((v) => typeof v === "string") as string | undefined;
         const path = [r.path, r.admin_path].find((v) => typeof v === "string") as string | undefined;
-        const sub = [r.status, r.subtitle, r.date, r.starts_at].filter((v) => typeof v === "string").join(" · ");
+        const plan = r.subscription && typeof r.subscription === "object" ? (r.subscription as Record<string, unknown>) : null;
+        const sub = [r.kind, r.status, r.subtitle, plan ? [plan.plan_name, plan.status].filter((v) => typeof v === "string").join(", ") : null, typeof r.event_datetime === "string" ? formatDate(r.event_datetime) : null]
+          .filter((v) => typeof v === "string" && v)
+          .join(" · ");
         return name ? { name, sub, path: path && path.startsWith("/") && !path.startsWith("//") ? path : null } : null;
       })
       .filter((x): x is { name: string; sub: string; path: string | null } => x !== null);
@@ -520,7 +523,7 @@ export function LeadPage({ leadId }: { leadId: number }) {
   if (isPending) return <Skeleton className="h-[480px] w-full" />;
   if (isError || !lead) return <EmptyState tone="muted" title="This lead could not be opened" description={error instanceof Error ? error.message : undefined} />;
 
-  const editable = rights.workLead(lead.owner?.id);
+  const editable = lead.can_edit ?? rights.workLead(lead.owner?.id);
   const sales = membersOf(teams.data, "sales");
   const lostReason = reasons.data?.find((r) => r.key === lead.lost_reason || r.label === lead.lost_reason)?.label ?? lead.lost_reason;
   return (

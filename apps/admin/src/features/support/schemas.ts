@@ -72,7 +72,19 @@ export const casePageSchema = z.object({
 });
 export type CasePage = z.infer<typeof casePageSchema>;
 
-export const attachmentSchema = z.object({ name: z.string().catch("file"), url: z.string().nullish(), size: z.coerce.number().nullish() });
+export const attachmentSchema = z.object({ name: z.string().nullish().transform((v) => v ?? "file"), url: z.string().nullish(), size: z.coerce.number().nullish() });
+
+/**
+ * Where an attachment opens: an API path goes through the gateway (the
+ * session cookie goes with it), a signed https link as it is, anything else
+ * not at all.
+ */
+export function attachmentHref(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("/api/v1/")) return `/api/gateway${url}`;
+  if (url.startsWith("https://")) return url;
+  return null;
+}
 
 export const MESSAGE_KINDS = ["reply_in", "reply_out", "note", "system"] as const;
 
@@ -85,8 +97,9 @@ export const messageSchema = z.object({
   author_name: z.string().nullish(),
   created_at: z.string().nullish(),
   attachments: z.array(attachmentSchema).catch([]),
-  /** delivered, bounced… for a reply that went by email. */
-  delivery: z.string().nullish(),
+  /** sending, sent, failed, bounced, complained: for a reply that went by email. */
+  delivery_status: z.string().nullish(),
+  delivery_error: z.string().nullish(),
 });
 export type CaseMessage = z.infer<typeof messageSchema>;
 
@@ -120,9 +133,15 @@ export const caseDetailSchema = caseRowSchema.extend({
   messages: z.array(messageSchema).catch([]),
   links: caseLinksSchema,
   panel: panelSchema,
-  survey: z.object({ solved: z.boolean().nullish(), comment: z.string().nullish() }).nullish(),
-  merged_into: z.object({ id, number: id.nullish() }).nullish(),
+  survey: z.object({ solved: z.boolean().nullish(), comment: z.string().nullish(), answered_at: z.string().nullish() }).nullish(),
+  merged_into_id: id.nullish(),
+  parent_case_id: id.nullish(),
   lead_id: id.nullish(),
+  /** The server's own word on the signed-in admin: read the words, work the case, take it. */
+  reads_bodies: z.boolean().nullish(),
+  can_work: z.boolean().nullish(),
+  can_take: z.boolean().nullish(),
+  purged_at: z.string().nullish(),
 });
 export type CaseDetail = z.infer<typeof caseDetailSchema>;
 
@@ -130,6 +149,7 @@ export type CaseDetail = z.infer<typeof caseDetailSchema>;
 export const previewSchema = z
   .object({
     subject: z.string().nullish(),
+    will_push: z.boolean().nullish(),
     html: z.string().nullish(),
     body_html: z.string().nullish(),
     text: z.string().nullish(),
@@ -137,11 +157,12 @@ export const previewSchema = z
     to: z.union([z.string(), z.array(z.string())]).nullish(),
   })
   .passthrough()
-  .transform((p) => ({ subject: p.subject ?? null, html: p.html ?? p.body_html ?? null, text: p.text ?? p.body_text ?? null, to: Array.isArray(p.to) ? p.to.join(", ") : (p.to ?? null) }));
+  .transform((p) => ({ subject: p.subject ?? null, html: p.html ?? p.body_html ?? null, text: p.text ?? p.body_text ?? null, to: Array.isArray(p.to) ? p.to.join(", ") : (p.to ?? null), willPush: Boolean(p.will_push) }));
 export type ReplyPreview = z.infer<typeof previewSchema>;
 
 /** The panel's sections in the order a support person reads them, with their headings. */
 export const PANEL_SECTIONS: { key: string; label: string }[] = [
+  { key: "club", label: "The club" },
   { key: "registrations", label: "Registrations and tickets" },
   { key: "tickets", label: "Tickets" },
   { key: "payments", label: "Payments" },
@@ -152,15 +173,35 @@ export const PANEL_SECTIONS: { key: string; label: string }[] = [
 
 /** The rows of one panel section, read leniently; anything without a name is skipped. */
 export function panelItems(panel: Record<string, unknown> | null | undefined, key: string): PanelItem[] {
-  const raw = panel?.[key];
-  if (!Array.isArray(raw)) return [];
+  const value = panel?.[key];
+  const raw = Array.isArray(value) ? value : value && typeof value === "object" ? [value] : [];
   return raw.flatMap((r) => {
     const parsed = panelItemSchema.safeParse(r);
     return parsed.success ? [parsed.data] : [];
   });
 }
 
-export const itemName = (i: PanelItem) => i.title ?? i.name ?? i.label ?? (i.id !== null && i.id !== undefined ? `#${i.id}` : "—");
+const str = (v: unknown) => (typeof v === "string" && v ? v : null);
+
+/** A panel row's name: its title, the event, the receipt or the Razorpay id, whatever it has. */
+export const itemName = (i: PanelItem) =>
+  i.title ?? i.name ?? i.label ?? str(i.event_name) ?? str(i.receipt) ?? str(i.razorpay_payment_id) ?? str(i.reason) ?? (i.id !== null && i.id !== undefined ? `#${i.id}` : "—");
+
+/** A panel row's amount in rupees: amount, the paid amount, or paise. */
+export function itemAmount(i: PanelItem): number | null {
+  if (typeof i.amount === "number") return i.amount;
+  if (typeof i.paid_amount === "number" && i.paid_amount > 0) return i.paid_amount;
+  if (typeof i.amount_paise === "number") return i.amount_paise / 100;
+  return null;
+}
+
+/** A panel row's status, in the words the row carries it. */
+export function itemStatus(i: PanelItem): string | null {
+  if (i.status) return i.status;
+  if (i.ticket_revoked === true) return "ticket_revoked";
+  if (i.attended === true) return "attended";
+  return str(i.payment_status) ?? str(i.role) ?? str(i.kind);
+}
 
 /** Only the portal's own pages: a path the API gives must start with one slash, never a scheme or "//". */
 export function safePath(path: string | null | undefined): string | null {

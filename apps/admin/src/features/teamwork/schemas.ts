@@ -88,8 +88,22 @@ export const followUpSchema = z.object({
   case_id: id.nullish(),
   lead: z.object({ id, name: text }).nullish(),
   case: z.object({ id, number: id.nullish(), subject: text }).nullish(),
+  /** My day's flat form of the same: the lead's name, the case's number and subject. */
+  lead_name: z.string().nullish(),
+  case_number: id.nullish(),
+  case_subject: z.string().nullish(),
 });
 export type FollowUp = z.infer<typeof followUpSchema>;
+
+/** What a follow-up is about, whichever form the server sent. */
+export function followUpAbout(f: FollowUp): { lead: { id: number; name: string } | null; case: { id: number; number: number | null; subject: string } | null } {
+  const leadId = f.lead?.id ?? f.lead_id ?? null;
+  const caseId = f.case?.id ?? f.case_id ?? null;
+  return {
+    lead: leadId ? { id: leadId, name: f.lead?.name || f.lead_name || `Lead ${leadId}` } : null,
+    case: caseId ? { id: caseId, number: f.case?.number ?? f.case_number ?? null, subject: f.case?.subject || f.case_subject || "" } : null,
+  };
+}
 
 /** What PATCH /follow-ups/{id} answers: the follow-up, and whether its lead now has none open. */
 export const followUpDoneSchema = z

@@ -28,6 +28,7 @@ export {
   PRIORITY_LABEL,
   TEAM_KEYS,
   TEAM_LABEL,
+  followUpAbout,
   followUpLabel,
   followUpSchema,
   hoursLabel,

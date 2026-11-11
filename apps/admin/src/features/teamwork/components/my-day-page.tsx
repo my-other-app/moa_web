@@ -7,7 +7,7 @@ import { SectionTitle, formatDateTime, formatNumber } from "@moa/app-kit";
 import { Button, Chip, EmptyState, Skeleton, StatusBadge, cn } from "@moa/ui";
 
 import { useCompleteFollowUp, useMyDay, useTeamRights, useTeams } from "../queries";
-import { followUpLabel, membersOf, priorityLabel, type CaseLite, type FollowUp } from "../schemas";
+import { followUpAbout, followUpLabel, membersOf, priorityLabel, type CaseLite, type FollowUp } from "../schemas";
 import { AwaySwitch } from "./away-switch";
 import { NextFollowUpDialog } from "./follow-up-dialog";
 
@@ -15,14 +15,13 @@ const CASE_STATUS: Record<string, string> = { new: "New", open: "Open", waiting:
 
 /** What a follow-up is about: its lead or its case, as a link. */
 function About({ f }: { f: FollowUp }) {
-  const leadId = f.lead?.id ?? f.lead_id;
-  const caseId = f.case?.id ?? f.case_id;
-  if (leadId) return <Link href={`/teamwork/leads/${leadId}`} className="text-ink-2 hover:text-ink underline-offset-2 hover:underline">{f.lead?.name || `Lead ${leadId}`}</Link>;
-  if (caseId)
+  const about = followUpAbout(f);
+  if (about.lead) return <Link href={`/teamwork/leads/${about.lead.id}`} className="text-ink-2 hover:text-ink underline-offset-2 hover:underline">{about.lead.name}</Link>;
+  if (about.case)
     return (
-      <Link href={`/teamwork/support/${caseId}`} className="text-ink-2 hover:text-ink underline-offset-2 hover:underline">
-        {f.case?.number ? `#${f.case.number}` : `Case ${caseId}`}
-        {f.case?.subject ? ` · ${f.case.subject}` : ""}
+      <Link href={`/teamwork/support/${about.case.id}`} className="text-ink-2 hover:text-ink underline-offset-2 hover:underline">
+        {about.case.number ? `#${about.case.number}` : `Case ${about.case.id}`}
+        {about.case.subject ? ` · ${about.case.subject}` : ""}
       </Link>
     );
   return null;
@@ -121,7 +120,7 @@ export function MyDayPage() {
       <NextFollowUpDialog
         open={next !== null}
         onOpenChange={(open) => (open ? null : setNext(null))}
-        leadId={next?.lead?.id ?? next?.lead_id ?? undefined}
+        leadId={next ? (followUpAbout(next).lead?.id ?? undefined) : undefined}
         owners={rights.owner ? sales : undefined}
       />
     </div>

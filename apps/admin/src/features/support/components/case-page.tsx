@@ -168,6 +168,12 @@ function ToLeadDialog({ c, open, onOpenChange }: { c: CaseDetail; open: boolean;
   );
 }
 
+type Rights = ReturnType<typeof useTeamRights>;
+
+/** Whether the signed-in admin works this case: the server's word when it gives one, else the rights table. */
+const canWork = (c: CaseDetail, rights: Rights) => c.can_work ?? rights.workCase(c.assignee?.id);
+const canTake = (c: CaseDetail, rights: Rights) => c.can_take ?? (!c.assignee && rights.support);
+
 /** The case's facts and the controls the signed-in admin may use on them. */
 function Sidebar({ c }: { c: CaseDetail }) {
   const rights = useTeamRights();
@@ -175,7 +181,7 @@ function Sidebar({ c }: { c: CaseDetail }) {
   const topics = usePublicTopics();
   const update = useUpdateCase(c.id);
   const take = useTakeCase(c.id);
-  const work = rights.workCase(c.assignee?.id);
+  const work = canWork(c, rights);
   const support = membersOf(teams.data, "support");
   return (
     <section className="border-line-soft bg-surface flex flex-col gap-3.5 rounded-2xl border p-4" aria-label="Case details">
@@ -193,7 +199,7 @@ function Sidebar({ c }: { c: CaseDetail }) {
         ) : (
           <span className="text-[13px]">{c.assignee?.name ?? "Unassigned"}</span>
         )}
-        {!c.assignee && rights.takeCases ? (
+        {canTake(c, rights) ? (
           <Button size="sm" variant="outline" className="self-start" disabled={take.isPending} onClick={() => take.mutate()}>
             {take.isPending ? <Loader2Icon className="animate-spin" /> : <HandIcon />}
             Take it
@@ -251,7 +257,7 @@ function Sidebar({ c }: { c: CaseDetail }) {
           {c.overdue ? <span className="text-refuse font-medium"> · overdue</span> : null}
         </span>
       </Field>
-      {c.survey ? (
+      {c.survey && (c.survey.answered_at || (c.survey.solved !== null && c.survey.solved !== undefined)) ? (
         <Field label="Did we solve it?">
           <span className="text-[13px]">
             {c.survey.solved ? "Yes" : "No"}
@@ -278,7 +284,9 @@ export function CasePage({ caseId }: { caseId: number }) {
   if (isPending) return <Skeleton className="h-[480px] w-full" />;
   if (isError || !c) return <EmptyState tone="muted" title="This case could not be opened" description={error instanceof Error ? error.message : undefined} />;
 
-  const work = rights.workCase(c.assignee?.id);
+  const work = canWork(c, rights);
+  // A Support member notes any case; only the one it is assigned to (or an owner) answers it.
+  const note = work || rights.support;
   return (
     <div className="flex flex-col gap-4">
       <Link href="/teamwork/support" className="text-ink-3 hover:text-ink inline-flex items-center gap-1 text-[12.5px]">
@@ -320,16 +328,26 @@ export function CasePage({ caseId }: { caseId: number }) {
           ) : null}
         </div>
       </header>
-      {c.merged_into ? (
+      {c.merged_into_id ? (
         <Notice tone="neutral" tag="Merged">
-          Merged into <Link href={`/teamwork/support/${c.merged_into.id}`}>#{c.merged_into.number ?? c.merged_into.id}</Link>.
+          Merged into <Link href={`/teamwork/support/${c.merged_into_id}`} className="underline">another case</Link>.
+        </Notice>
+      ) : null}
+      {c.parent_case_id ? (
+        <p className="text-ink-3 m-0 text-[12.5px]">
+          Follows <Link href={`/teamwork/support/${c.parent_case_id}`} className="underline">an earlier case</Link> they wrote on after it closed.
+        </p>
+      ) : null}
+      {c.purged_at ? (
+        <Notice tone="neutral" tag="Retention">
+          This case&apos;s messages were deleted after the retention period; its counts stay for the reports.
         </Notice>
       ) : null}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-4">
           <Thread messages={c.messages} />
-          {work && c.status !== "closed" ? <Composer caseId={c.id} notDelivered={c.flags.includes("not_delivered")} /> : null}
-          {!rights.isPending && !work && rights.readBodies && !c.assignee && rights.takeCases ? <p className="text-ink-3 m-0 text-[12.5px]">Take the case to answer it.</p> : null}
+          {note && !c.purged_at ? <Composer key={String(work)} caseId={c.id} canReply={work} notDelivered={c.flags.includes("not_delivered")} /> : null}
+          {!rights.isPending && !work && canTake(c, rights) ? <p className="text-ink-3 m-0 text-[12.5px]">Take the case to answer it.</p> : null}
         </div>
         <div className="flex flex-col gap-4">
           <Sidebar c={c} />

@@ -5,7 +5,7 @@ import { LockIcon, PaperclipIcon } from "lucide-react";
 import { formatDateTime } from "@moa/app-kit";
 import { cn } from "@moa/ui";
 
-import { FRAME_SANDBOX, safePath, srcdocFor, type CaseMessage } from "../schemas";
+import { FRAME_SANDBOX, attachmentHref, srcdocFor, type CaseMessage } from "../schemas";
 
 /** An inbound email's own HTML, in a sandbox with no remote images; the plain text is the default. */
 function MailFrame({ html }: { html: string }) {
@@ -38,7 +38,13 @@ function Message({ m }: { m: CaseMessage }) {
           {m.author_name ?? (m.kind === "reply_in" ? "Them" : "The team")}
         </span>
         <span className="text-ink-3">{formatDateTime(m.created_at)}</span>
-        {m.delivery === "bounced" || m.delivery === "not_delivered" ? <span className="text-refuse font-medium">Not delivered</span> : null}
+        {m.delivery_status === "bounced" || m.delivery_status === "complained" || m.delivery_status === "failed" ? (
+          <span className="text-refuse font-medium" title={m.delivery_error ?? undefined}>
+            Not delivered
+          </span>
+        ) : m.delivery_status === "sending" ? (
+          <span className="text-ink-3">Sending…</span>
+        ) : null}
         {m.body_html && m.body_text !== null && m.body_text !== undefined ? (
           <button type="button" className="text-brand ml-auto text-[12px]" onClick={() => setFormatted((f) => !f)}>
             {formatted ? "Plain text" : "As sent"}
@@ -55,7 +61,7 @@ function Message({ m }: { m: CaseMessage }) {
       {m.attachments.length > 0 ? (
         <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
           {m.attachments.map((a, i) => {
-            const href = a.url && (a.url.startsWith("https://") || safePath(a.url)) ? a.url : null;
+            const href = attachmentHref(a.url);
             return (
               <li key={`${a.name}-${i}`}>
                 {href ? (

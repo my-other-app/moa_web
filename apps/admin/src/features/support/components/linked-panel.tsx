@@ -7,9 +7,9 @@ import { DefinitionRows, StatusBadge } from "@moa/ui";
 
 import { words } from "@/features/teamwork";
 
-import { PANEL_SECTIONS, itemName, linkTargets, panelItems, safePath, type CaseLinks, type PanelItem } from "../schemas";
+import { PANEL_SECTIONS, itemAmount, itemName, itemStatus, linkTargets, panelItems, safePath, type CaseLinks, type PanelItem } from "../schemas";
 
-const KNOWN = new Set(["account", ...PANEL_SECTIONS.map((s) => s.key)]);
+const KNOWN = new Set(["account", "matched_by", ...PANEL_SECTIONS.map((s) => s.key)]);
 
 function OpenLink({ path, label }: { path: string | null | undefined; label: string }) {
   const href = safePath(path);
@@ -24,15 +24,17 @@ function OpenLink({ path, label }: { path: string | null | undefined; label: str
 function Item({ item }: { item: PanelItem }) {
   const name = itemName(item);
   const when = item.at ?? item.created_at;
+  const amount = itemAmount(item);
+  const status = itemStatus(item);
   return (
     <li className="flex items-start gap-2 py-1.5">
       <div className="min-w-0 flex-1">
         <p className="m-0 truncate text-[13px]">{name}</p>
         <p className="text-ink-3 m-0 truncate text-[12px]">
-          {[item.subtitle, item.amount !== null && item.amount !== undefined ? formatCurrency(item.amount) : null, when ? formatDate(when) : null].filter(Boolean).join(" · ")}
+          {[item.subtitle, amount !== null ? formatCurrency(amount) : null, when ? formatDate(when) : null].filter(Boolean).join(" · ")}
         </p>
       </div>
-      {item.status ? <StatusBadge label={words(item.status)} /> : null}
+      {status ? <StatusBadge label={words(status)} /> : null}
       <OpenLink path={item.path ?? item.admin_path} label={name} />
     </li>
   );
@@ -55,7 +57,7 @@ function Section({ label, items }: { label: string; items: PanelItem[] }) {
 /** The person's account at a glance: plain facts as rows, its page as a link. */
 function Account({ account }: { account: Record<string, unknown> }) {
   const rows = Object.entries(account)
-    .filter(([k, v]) => !["path", "admin_path", "id"].includes(k) && (typeof v === "string" || typeof v === "number" || typeof v === "boolean" || (Array.isArray(v) && v.every((x) => typeof x === "string"))))
+    .filter(([k, v]) => !["path", "admin_path", "id", "created_at"].includes(k) && (typeof v === "string" || typeof v === "number" || typeof v === "boolean" || (Array.isArray(v) && v.every((x) => typeof x === "string"))))
     .map(([k, v]) => ({ k: words(k), v: typeof v === "boolean" ? (v ? "Yes" : "No") : Array.isArray(v) ? v.join(", ") || "—" : String(v) }));
   const path = typeof account.path === "string" ? account.path : typeof account.admin_path === "string" ? account.admin_path : null;
   return (

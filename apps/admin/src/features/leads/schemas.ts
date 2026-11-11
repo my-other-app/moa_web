@@ -136,9 +136,19 @@ export const leadDetailSchema = leadRowSchema
     follow_ups: z.array(followUpRowSchema).catch([]),
     linked: z.record(z.unknown()).nullish(),
     linked_records: z.record(z.unknown()).nullish(),
+    /** The server's word: the signed-in admin may change this lead. */
+    can_edit: z.boolean().nullish(),
   })
   .transform(({ timeline, activities, linked, linked_records, ...l }) => ({ ...l, timeline: timeline ?? activities ?? [], linked: linked ?? linked_records ?? null }));
 export type LeadDetail = z.infer<typeof leadDetailSchema>;
+
+/** Where a lead's file opens: an API path through the gateway (the cookie goes with it), a signed https link as it is. */
+export function fileHref(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("/api/v1/")) return `/api/gateway${url}`;
+  if (url.startsWith("https://")) return url;
+  return null;
+}
 
 /** PATCH /leads/{id}: the lead, and whether a stage move left it with no open follow-up. */
 export const leadPatchResultSchema = z
