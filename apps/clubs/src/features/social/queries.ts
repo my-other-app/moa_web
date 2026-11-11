@@ -60,13 +60,15 @@ export interface SocialRole {
   manage: boolean;
   /** Draft, edit and schedule posts. */
   post: boolean;
+  /** The server has said who is signed in (until then the dashboard assumes the owner). */
+  known: boolean;
 }
 
 export function useSocialRole(): SocialRole {
   const access = useAccess();
   const see = Boolean(access.can.edit_events);
   const manage = see && (access.role === "owner" || access.role === "admin");
-  return { see, manage, post: see };
+  return { see, manage, post: see, known: access.known };
 }
 
 /**
@@ -114,12 +116,15 @@ export function useSaveSocialSettings() {
   });
 }
 
+/** Leaving the dashboard for a platform's sign-in (a seam, so tests can watch it without a navigation). */
+export const browser = { go: (url: string) => window.location.assign(url) };
+
 /** Sends the browser to the platform's sign-in; it comes back to `returnTo` with `?social=…`. */
 export function useConnect() {
   return useMutation({
     mutationFn: async ({ platform, returnTo }: { platform: Platform; returnTo: string }) => {
       const { authorize_url } = await startConnect(platform, returnTo);
-      window.location.assign(authorize_url);
+      browser.go(authorize_url);
       return authorize_url;
     },
     onError: toastError,

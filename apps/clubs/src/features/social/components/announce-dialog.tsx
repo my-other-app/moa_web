@@ -35,7 +35,9 @@ export function AnnouncePrompt({ eventId }: { eventId: number }) {
   const pathname = usePathname();
   const wanted = params.get(ANNOUNCE_PARAM) === "1";
   const role = useSocialRole();
-  const platforms = useSocialPlatforms(wanted && role.post);
+  // Asked once the server has said who is signed in: door staff are never asked.
+  const ask = wanted && role.known && role.post;
+  const platforms = useSocialPlatforms(ask);
   const on = platforms.data != null;
   const accounts = useSocialAccounts(wanted && on);
   const posts = useEventPosts(eventId, wanted && on);
@@ -44,8 +46,8 @@ export function AnnouncePrompt({ eventId }: { eventId: number }) {
 
   const available = React.useMemo(() => new Set((platforms.data ?? []).filter((p) => p.available).map((p) => p.platform as string)), [platforms.data]);
   const offer = announceable(accounts.data ?? [], available);
-  const settled = !wanted || !role.post || platforms.data === null || platforms.isError || accounts.isError || posts.isError || (accounts.data !== undefined && posts.data !== undefined);
-  const show = wanted && !dismissed && role.post && on && offer.length > 0 && posts.data !== undefined && posts.data.posts.length === 0;
+  const settled = !wanted || (role.known && !role.post) || platforms.data === null || platforms.isError || accounts.isError || posts.isError || (accounts.data !== undefined && posts.data !== undefined);
+  const show = ask && !dismissed && on && offer.length > 0 && posts.data !== undefined && posts.data.posts.length === 0;
 
   // Nothing to ask (no accounts, posts already made, a role that can't post, an older API): take the flag off the address.
   React.useEffect(() => {

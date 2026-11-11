@@ -674,7 +674,7 @@ export function connectErrorText(reason: string | null, platform: Platform | nul
   switch (reason) {
     case null:
     case "":
-      return `${name} didn't connect. Try again.`;
+      return `${platform ? name : "The account"} didn't connect. Try again.`;
     case "denied":
     case "access_denied":
     case "cancelled":
