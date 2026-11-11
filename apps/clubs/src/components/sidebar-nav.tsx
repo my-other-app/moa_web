@@ -8,6 +8,7 @@ import { cn } from "@moa/ui";
 import { useAccess } from "@/features/access";
 import { useInvitationsOnServer } from "@/features/cohosts/queries";
 import { useContactsOnServer } from "@/features/contacts";
+import { useHelpOnServer, useRequests } from "@/features/help";
 import { useMailSummary, useMailboxOnServer } from "@/features/mailbox/queries";
 import { usePlan } from "@/features/plan";
 import { useTicketingOnServer } from "@/features/ticketing/queries";
@@ -41,7 +42,10 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
   const contacts = useContactsOnServer(Boolean(can.contacts));
   // Co-host invitations: every role reads them; the item counts the ones waiting for an answer.
   const invitations = useInvitationsOnServer();
-  const onServer = { whatsapp, mailbox, ticketing, contacts, cohosts: invitations.on };
+  // Help: once the API has the desk; the item counts requests with a reply not yet read.
+  const help = useHelpOnServer();
+  const helpUnread = useRequests(help === true).data?.filter((r) => r.unread).length ?? 0;
+  const onServer = { whatsapp, mailbox, ticketing, contacts, cohosts: invitations.on, help };
   // What waits unread in the inbox, for those who may read it: on the item and in the tab's title.
   const summary = useSummary(Boolean(can.whatsapp_inbox) && whatsapp === true);
   const unread = summary.data?.unread_total ?? 0;
@@ -67,9 +71,9 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
             {section.items.map((item) => {
               const on = isActive(pathname, item);
               const lock = item.feature ? plan.featureLock(item.feature) : null;
-              const count = item.server === "whatsapp" ? unread : item.server === "mailbox" ? mailUnread : item.server === "cohosts" ? invitations.pending : 0;
-              // What the count is of: unread messages, or invitations waiting for an answer.
-              const what = item.server === "cohosts" ? "waiting" : "unread";
+              const count = item.server === "whatsapp" ? unread : item.server === "mailbox" ? mailUnread : item.server === "cohosts" ? invitations.pending : item.server === "help" ? helpUnread : 0;
+              // What the count is of: unread messages, invitations waiting for an answer, or replies from MyOtherApp.
+              const what = item.server === "cohosts" ? "waiting" : item.server === "help" ? "new replies" : "unread";
               const hint = lock
                 ? `${item.label} · part of ${lock.requiredPlanName ?? "a bigger plan"} and up`
                 : count
