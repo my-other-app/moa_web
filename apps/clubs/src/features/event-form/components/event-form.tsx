@@ -18,6 +18,7 @@ import { AskAfterSaveDialog, AskPanel, FormImpactDialog, impactHasNews, impactTo
 import { useMyClub } from "@/features/club";
 import { EventPartnersSection } from "@/features/event-partners";
 import { LimitMeter, isPlanLockError, lockCopy, useLimitGate } from "@/features/plan";
+import { announceHref } from "@/features/social";
 
 import { useCreateEvent, usePublishEvent, useUpdateEvent } from "../queries";
 import { readiness, spanLabel } from "../readiness";
@@ -331,7 +332,8 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
     if (mode === "create") {
       try {
         const made = await create.mutateAsync({ values: parsed, status: intent });
-        router.push(intent === "draft" ? "/events?scope=draft" : `/events/${made.id}`);
+        // Published: the event's page asks "Announce it?" when the club has connected social accounts.
+        router.push(intent === "draft" ? "/events?scope=draft" : announceHref(made.id));
         router.refresh();
       } catch (error) {
         refused(error);
@@ -374,7 +376,7 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
     void form.handleSubmit(onSubmit, onInvalid)();
   };
 
-  const actionProps: ActionsProps = { mode, isSaving, intent, canDraft: Boolean(values.name?.trim()), publishable: ready.publishable, isDirty, isDraft, publishing: publish.isPending, submitAs, onPublish: () => publish.mutate(undefined, { onSuccess: () => router.push(`/events/${eventId}`) }) };
+  const actionProps: ActionsProps = { mode, isSaving, intent, canDraft: Boolean(values.name?.trim()), publishable: ready.publishable, isDirty, isDraft, publishing: publish.isPending, submitAs, onPublish: () => publish.mutate(undefined, { onSuccess: () => router.push(eventId ? announceHref(eventId) : "/events") }) };
 
   // Sponsors and partners hang on a saved event; on an older server, an edit leaves them out.
   const steps = STEPS.filter((s) => s.id !== "sponsors" || mode === "create" || context?.partnersSupported === true);

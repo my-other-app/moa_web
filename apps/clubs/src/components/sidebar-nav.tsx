@@ -11,6 +11,7 @@ import { useContactsOnServer } from "@/features/contacts";
 import { useHelpOnServer, useRequests } from "@/features/help";
 import { useMailSummary, useMailboxOnServer } from "@/features/mailbox/queries";
 import { usePlan } from "@/features/plan";
+import { useSocialOnServer } from "@/features/social";
 import { useTicketingOnServer } from "@/features/ticketing/queries";
 import { useSummary, useUnreadTitle, useWhatsAppOnServer } from "@/features/whatsapp";
 
@@ -42,10 +43,12 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
   const contacts = useContactsOnServer(Boolean(can.contacts));
   // Co-host invitations: every role reads them; the item counts the ones waiting for an answer.
   const invitations = useInvitationsOnServer();
+  // Social accounts, for those who may post: asked once, shared with the Promote tab and the publish step.
+  const social = useSocialOnServer(Boolean(can.edit_events));
   // Help: once the API has the desk; the item counts requests with a reply not yet read.
   const help = useHelpOnServer();
   const helpUnread = useRequests(help === true).data?.filter((r) => r.unread).length ?? 0;
-  const onServer = { whatsapp, mailbox, ticketing, contacts, cohosts: invitations.on, help };
+  const onServer = { whatsapp, mailbox, ticketing, contacts, cohosts: invitations.on, social, help };
   // What waits unread in the inbox, for those who may read it: on the item and in the tab's title.
   const summary = useSummary(Boolean(can.whatsapp_inbox) && whatsapp === true);
   const unread = summary.data?.unread_total ?? 0;

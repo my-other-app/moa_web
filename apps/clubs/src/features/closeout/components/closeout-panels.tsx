@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { DownloadIcon, FileTextIcon, LockIcon } from "lucide-react";
 import { formatDateTime, formatNumber } from "@moa/app-kit";
 import {
@@ -16,6 +17,7 @@ import {
 
 import { openPdf } from "@/features/idcards";
 import { LockBadge, useFeatureGate } from "@/features/plan";
+import { announceHref } from "@/features/social";
 
 import { reportPdfUrl } from "../api";
 import {
@@ -36,6 +38,14 @@ export function StatusPanel({
   s: CloseoutSettings;
 }) {
   const update = useUpdateCloseoutSettings(eventId);
+  const router = useRouter();
+  // A draft published from here asks "Announce it?" like the event form's Publish does.
+  const choose = (key: CloseoutSettings["statuses"][number]["key"]) =>
+    update.mutate({ status: key }, {
+      onSuccess: () => {
+        if (s.status === "draft" && key === "published") router.push(announceHref(eventId));
+      },
+    });
   return (
     <FigurePanel className="p-4">
       <CardLabel
@@ -69,7 +79,7 @@ export function StatusPanel({
             key={o.key}
             checked={s.status === o.key}
             disabled={s.status === "cancelled"}
-            onClick={() => update.mutate({ status: o.key })}
+            onClick={() => choose(o.key)}
             title={o.label}
             hint={o.note}
             tone={o.key === "draft" ? "caution" : "brand"}

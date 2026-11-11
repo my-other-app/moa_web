@@ -30,6 +30,7 @@ import {
 
 import { InvitationsCard } from "@/features/cohosts";
 import { MessageUsageCard } from "@/features/message-usage";
+import { socialAttentionHref, useSocialAttention } from "@/features/social";
 import { WhatsAppOverviewCard } from "@/features/whatsapp";
 
 import { fetchClubOverview } from "../api";
@@ -593,6 +594,8 @@ export function ClubDashboardV2() {
   });
   const pulse = useClubDashboard();
   const club = useMyClub();
+  // Social accounts to reconnect, access about to end, posts that failed.
+  const social = useSocialAttention();
 
   if (overview.isError) {
     return (
@@ -611,6 +614,7 @@ export function ClubDashboardV2() {
   // One list of decisions: the pulse's, then the finished events nobody marked attendance for.
   const attention: AttentionItem[] = [
     ...(d?.attention ?? []),
+    ...social,
     // Registrations under review, per event.
     ...pendingRequestItems(o, d?.attention ?? []),
     ...o.needs_attention.map((e) => ({
@@ -622,9 +626,10 @@ export function ClubDashboardV2() {
     })),
   ].slice(0, 6);
   const hrefFor = (item: AttentionItem) =>
-    item.kind === "NO_ATTENDANCE" && item.event_id !== null
+    socialAttentionHref(item) ??
+    (item.kind === "NO_ATTENDANCE" && item.event_id !== null
       ? `/events/${item.event_id}/attendees`
-      : attentionPath(item);
+      : attentionPath(item));
 
   const doors =
     live.length === 0
