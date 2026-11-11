@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, BriefcaseIcon, EyeIcon, EyeOffIcon, Loader2Icon, MailIcon, Undo2Icon, UserXIcon } from "lucide-react";
+import { ArrowLeftIcon, BriefcaseIcon, EyeIcon, EyeOffIcon, Loader2Icon, MailIcon, PencilIcon, Undo2Icon, UserXIcon } from "lucide-react";
 import { PersonAvatar, SectionTitle, formatDate, formatDateTime } from "@moa/app-kit";
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, Input, Label, Notice, Skeleton, StatusBadge, cn } from "@moa/ui";
 
@@ -12,6 +12,7 @@ import { ConfirmAction } from "@/features/ops";
 import { useHideSpeaker, useInviteSpeaker, useRemoveOnRequest, useSpeaker, useUnhideSpeaker, useUnmergeSpeaker } from "../queries";
 import { LINK_LABEL, STATUS_LABEL, STATUS_TONE, historyLabel, makeLeadHref, orgFromHeadline, safeLink, type SpeakerDetail } from "../schemas";
 import { useTeamworkProbe } from "../teamwork-probe";
+import { EditSpeakerDialog, SpeakerPhotoButton } from "./edit-speaker";
 
 function Panel({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
   return (
@@ -62,9 +63,9 @@ function InviteDialog({ speaker, onOpenChange }: { speaker: SpeakerDetail; onOpe
 /**
  * One speaker: the profile, every talk with its event and club, each club's
  * contact (email and phone; a club's notes stay its own), the history, and
- * what an admin does with it — hide, remove on request, invite to claim,
- * take back a merge, and "Make a lead" for Sales from the organisation in
- * the headline.
+ * what an admin does with it — edit the profile and its photo, hide, remove
+ * on request, invite to claim, take back a merge, and "Make a lead" for
+ * Sales from the organisation in the headline.
  */
 export function SpeakerPage({ speakerId }: { speakerId: number }) {
   const { data: s, isPending, isError, error } = useSpeaker(speakerId);
@@ -76,6 +77,7 @@ export function SpeakerPage({ speakerId }: { speakerId: number }) {
   const unmerge = useUnmergeSpeaker();
   const [removing, setRemoving] = React.useState(false);
   const [inviting, setInviting] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
 
   if (isPending) return <Skeleton className="h-[480px] w-full" />;
   if (isError || !s) return <EmptyState tone="muted" title="This speaker could not be opened" description={error instanceof Error ? error.message : undefined} />;
@@ -91,7 +93,10 @@ export function SpeakerPage({ speakerId }: { speakerId: number }) {
         <ArrowLeftIcon className="size-3.5" /> Speakers
       </Link>
       <header className="flex flex-wrap items-start gap-4">
-        <PersonAvatar name={s.name} photo={s.photo?.medium ?? s.photo?.thumbnail ?? null} size="medium" className="size-16" />
+        <div className="flex flex-col items-center gap-1">
+          <PersonAvatar name={s.name} photo={s.photo?.medium ?? s.photo?.thumbnail ?? null} size="medium" className="size-16" />
+          {canChange && !merged ? <SpeakerPhotoButton speaker={s} /> : null}
+        </div>
         <div className="min-w-0 flex-1">
           <h1 className="m-0 text-[26px] leading-tight tracking-[-0.01em]">{s.name}</h1>
           {s.headline ? <p className="text-ink-2 m-0 mt-0.5 text-[14px]">{s.headline}</p> : null}
@@ -110,6 +115,11 @@ export function SpeakerPage({ speakerId }: { speakerId: number }) {
               <Link href={makeLeadHref(s.headline)} title={org ? `A sponsor lead for ${org}` : "A lead for Sales"}>
                 <BriefcaseIcon /> Make a lead
               </Link>
+            </Button>
+          ) : null}
+          {canChange && !merged ? (
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+              <PencilIcon /> Edit profile
             </Button>
           ) : null}
           {canChange && !merged && !s.claimed && s.status === "active" ? (
@@ -271,6 +281,7 @@ export function SpeakerPage({ speakerId }: { speakerId: number }) {
             onConfirm={() => remove.mutate(s.id, { onSuccess: () => setRemoving(false) })}
           />
           {inviting ? <InviteDialog speaker={s} onOpenChange={setInviting} /> : null}
+          {editing ? <EditSpeakerDialog speaker={s} onOpenChange={setEditing} /> : null}
         </>
       ) : null}
     </div>

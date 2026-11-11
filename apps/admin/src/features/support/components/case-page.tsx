@@ -3,10 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, BriefcaseIcon, GitMergeIcon, HandIcon, Loader2Icon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowUpRightIcon, BriefcaseIcon, GitMergeIcon, HandIcon, Loader2Icon, XIcon } from "lucide-react";
 import { formatDateTime } from "@moa/app-kit";
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, Input, Label, NativeSelect, Notice, Skeleton, StatusBadge } from "@moa/ui";
 
+import { DuplicateLeadError, stageLabel } from "@/features/leads";
 import { LEAD_TYPES, LEAD_TYPE_LABEL, PRIORITIES, PRIORITY_LABEL, memberLabel, membersOf, priorityLabel, usePublicTopics, useTeamRights, useTeams } from "@/features/teamwork";
 
 import { useCase, useCaseToLead, useCases, useMergeCase, useTakeCase, useUpdateCase } from "../queries";
@@ -123,12 +124,37 @@ function MergeDialog({ c, open, onOpenChange }: { c: CaseDetail; open: boolean; 
   );
 }
 
+/**
+ * "Turn into a lead": Sales gets the case's sender as a lead, the case
+ * linked. One that looks like a lead already there (the same name, or the
+ * same email domain) is not made: the dialog lists the leads it may repeat,
+ * each to open, and "Create anyway" makes it all the same (`force`).
+ */
 function ToLeadDialog({ c, open, onOpenChange }: { c: CaseDetail; open: boolean; onOpenChange: (open: boolean) => void }) {
   const router = useRouter();
   const toLead = useCaseToLead(c.id);
   const [type, setType] = React.useState<string>(c.requester.kind === "club" ? "club" : "sponsor");
+  const [matches, setMatches] = React.useState<DuplicateLeadError["matches"] | null>(null);
+  const close = (next: boolean) => {
+    if (!next) setMatches(null);
+    onOpenChange(next);
+  };
+  const make = (force: boolean) =>
+    toLead.mutate(
+      { type, force },
+      {
+        onSuccess: (lead) => {
+          close(false);
+          router.push(`/teamwork/leads/${lead.id}`);
+        },
+        onError: (error) => {
+          if (error instanceof DuplicateLeadError) setMatches(error.matches);
+        },
+      }
+    );
+  const only = matches?.length === 1 ? matches[0] : null;
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Turn into a lead</DialogTitle>
@@ -144,24 +170,47 @@ function ToLeadDialog({ c, open, onOpenChange }: { c: CaseDetail; open: boolean;
             ))}
           </NativeSelect>
         </div>
+        {matches ? (
+          <Notice tone="caution" tag="Already here?">
+            <p className="m-0">This looks like {matches.length === 1 ? "a lead" : "leads"} Sales already has (the same name, or the same email domain):</p>
+            <ul className="m-0 mt-1 list-disc pl-5">
+              {matches.map((m) => (
+                <li key={m.id}>
+                  <Link href={`/teamwork/leads/${m.id}`} className="underline underline-offset-2" onClick={() => close(false)}>
+                    {m.name}
+                  </Link>
+                  {m.city ? ` · ${m.city}` : ""}
+                  {m.stage ? ` · ${stageLabel(m.stage)}` : ""}
+                </li>
+              ))}
+            </ul>
+            <p className="m-0 mt-1.5">Open it instead, or create a new lead anyway.</p>
+          </Notice>
+        ) : null}
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" onClick={() => close(false)}>
             Cancel
           </Button>
-          <Button
-            disabled={toLead.isPending}
-            onClick={() =>
-              toLead.mutate(type, {
-                onSuccess: (lead) => {
-                  onOpenChange(false);
-                  router.push(`/teamwork/leads/${lead.id}`);
-                },
-              })
-            }
-          >
-            {toLead.isPending ? <Loader2Icon className="animate-spin" /> : <BriefcaseIcon />}
-            Open lead
-          </Button>
+          {matches ? (
+            <>
+              {only ? (
+                <Button variant="outline" asChild>
+                  <Link href={`/teamwork/leads/${only.id}`} onClick={() => close(false)}>
+                    <ArrowUpRightIcon /> Open the existing lead
+                  </Link>
+                </Button>
+              ) : null}
+              <Button disabled={toLead.isPending} onClick={() => make(true)}>
+                {toLead.isPending ? <Loader2Icon className="animate-spin" /> : <BriefcaseIcon />}
+                Create anyway
+              </Button>
+            </>
+          ) : (
+            <Button disabled={toLead.isPending} onClick={() => make(false)}>
+              {toLead.isPending ? <Loader2Icon className="animate-spin" /> : <BriefcaseIcon />}
+              Open lead
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -75,6 +75,24 @@ export type CasePage = z.infer<typeof casePageSchema>;
 export const attachmentSchema = z.object({ name: z.string().nullish().transform((v) => v ?? "file"), url: z.string().nullish(), size: z.coerce.number().nullish() });
 
 /**
+ * Files sent with a reply or a note (support-leads contract, Changes): each
+ * uploaded first, one a call, to POST /admin/support/cases/{id}/attachments
+ * (multipart `file`, any kind, 10 MB at most), which answers its `key`; the
+ * keys then go in the message's `attachments`. A key works for a day, once,
+ * and only for the admin who uploaded it. Ten files a message at most.
+ */
+export const REPLY_FILE_MAX_BYTES = 10 * 1024 * 1024;
+export const REPLY_FILES_MAX = 10;
+export const uploadedFileSchema = z.object({ key: z.string().min(1), name: z.string().nullish(), size: z.coerce.number().nullish() });
+
+/** "2.4 MB", "830 KB": a file's size as the reply box shows it. */
+export function fileSize(bytes: number | null | undefined): string {
+  if (!bytes || bytes < 0) return "";
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+/**
  * Where an attachment opens: an API path goes through the gateway (the
  * session cookie goes with it), a signed https link as it is, anything else
  * not at all.

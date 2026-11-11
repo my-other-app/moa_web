@@ -21,6 +21,7 @@ import { z } from "zod";
  * social_disconnected  a social account needs reconnecting; its posts are held
  * social_expiring      a social account's access ends within 7 days
  * social_failed        a post to a social account failed (its link: the event's Promote tab)
+ * ticket_cancelled     a guest gave their free ticket back by their email's link (its link: the event's list)
  */
 export const clubAlertSchema = z.object({
   id: z.coerce.number(),
@@ -70,6 +71,7 @@ export const KIND_INFO: Record<string, { label: string; link: string; tone: Aler
   social_disconnected: { label: "Social account", link: "/settings/social", tone: "refuse" },
   social_expiring: { label: "Social account", link: "/settings/social", tone: "caution" },
   social_failed: { label: "Social post", link: "/settings/social", tone: "refuse" },
+  ticket_cancelled: { label: "Ticket given back", link: "/events", tone: "info" },
 };
 
 /**

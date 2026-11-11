@@ -26,6 +26,9 @@ export const clubRefSchema = z.object({ id, name: text, slug: z.string().nullish
 export const linksSchema = z.record(z.string().nullish()).catch({});
 
 export const LINK_LABEL: Record<string, string> = { website: "Website", linkedin: "LinkedIn", x: "X", github: "GitHub", other: "Link" };
+/** The links a profile keeps, one of each (the API's LINK_KINDS). */
+export const LINK_KINDS = ["website", "linkedin", "x", "github", "other"] as const;
+export type LinkKind = (typeof LINK_KINDS)[number];
 
 export const speakerRowSchema = z.object({
   id,
@@ -194,4 +197,73 @@ export function makeLeadHref(headline: string | null | undefined): string {
 /** Only web links: a profile's link that is not http(s) is not offered. */
 export function safeLink(url: string | null | undefined): string | null {
   return url && /^https?:\/\//i.test(url) ? url : null;
+}
+
+/** What PATCH /admin/speakers/{id} takes (speakers/schemas.py ProfilePatch): each at most this long. */
+export const PROFILE_MAX = { name: 100, headline: 200, bio: 600, city: 100, link: 500, topics: 10 } as const;
+
+/**
+ * A profile change: fields left out stay as they are; an empty one clears
+ * it (the name cannot be cleared); `links` replaces every link (a kind left
+ * out is removed); `topics` are topic ids from the topic tree.
+ */
+export interface SpeakerPatch {
+  name?: string;
+  headline?: string | null;
+  bio?: string | null;
+  city?: string | null;
+  links?: Partial<Record<LinkKind, string>>;
+  topics?: number[];
+}
+
+/** The edit form's values: plain text for every field, one box per link kind. */
+export interface ProfileDraft {
+  name: string;
+  headline: string;
+  bio: string;
+  city: string;
+  links: Record<LinkKind, string>;
+  topics: number[];
+}
+
+export function draftOf(s: Pick<SpeakerDetail, "name" | "headline" | "bio" | "city" | "links" | "topics">): ProfileDraft {
+  const links = Object.fromEntries(LINK_KINDS.map((k) => [k, s.links[k] ?? ""])) as Record<LinkKind, string>;
+  return { name: s.name, headline: s.headline ?? "", bio: s.bio ?? "", city: s.city ?? "", links, topics: s.topics.map((t) => t.id) };
+}
+
+/** What is wrong with a draft, field by field, in the API's own limits; empty when it can be saved. */
+export function draftProblems(d: ProfileDraft): Partial<Record<"name" | "headline" | "bio" | "city" | "topics" | LinkKind, string>> {
+  const out: Partial<Record<"name" | "headline" | "bio" | "city" | "topics" | LinkKind, string>> = {};
+  if (!d.name.trim()) out.name = "A speaker needs a name.";
+  for (const f of ["name", "headline", "bio", "city"] as const) {
+    if (!out[f] && d[f].trim().length > PROFILE_MAX[f]) out[f] = `At most ${PROFILE_MAX[f]} characters.`;
+  }
+  for (const k of LINK_KINDS) {
+    const v = d.links[k].trim();
+    if (!v) continue;
+    if (!/^https?:\/\/[^\s/]+\S*$/i.test(v)) out[k] = "A web address starting with https://";
+    else if (v.length > PROFILE_MAX.link) out[k] = `At most ${PROFILE_MAX.link} characters.`;
+  }
+  if (d.topics.length > PROFILE_MAX.topics) out.topics = `At most ${PROFILE_MAX.topics} topics.`;
+  return out;
+}
+
+/**
+ * Only what changed, so a save never rewrites what the admin didn't touch
+ * (and never re-sends a topic the tree no longer has). Empty text clears.
+ */
+export function speakerPatch(before: ProfileDraft, after: ProfileDraft): SpeakerPatch {
+  const patch: SpeakerPatch = {};
+  const name = after.name.trim();
+  if (name !== before.name.trim()) patch.name = name;
+  for (const f of ["headline", "bio", "city"] as const) {
+    const v = after[f].trim();
+    if (v !== before[f].trim()) patch[f] = v || null;
+  }
+  const links = (d: ProfileDraft) => Object.fromEntries(LINK_KINDS.flatMap((k) => (d.links[k].trim() ? [[k, d.links[k].trim()]] : [])));
+  const was = links(before);
+  const now = links(after);
+  if (JSON.stringify(was) !== JSON.stringify(now)) patch.links = now;
+  if (before.topics.join(",") !== after.topics.join(",")) patch.topics = [...after.topics];
+  return patch;
 }

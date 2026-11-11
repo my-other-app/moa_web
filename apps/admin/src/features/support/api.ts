@@ -1,10 +1,12 @@
+import { ApiError } from "@moa/api";
 import { api } from "@moa/app-kit";
 import { z } from "zod";
 
 import { gatewayUrl } from "@/components/excel-export-button";
+import { DuplicateLeadError, readMatches } from "@/features/leads";
 import { ADMIN } from "@/features/teamwork";
 
-import { caseDetailSchema, casePageSchema, messageSchema, previewSchema, type CaseTab } from "./schemas";
+import { caseDetailSchema, casePageSchema, messageSchema, previewSchema, uploadedFileSchema, type CaseTab } from "./schemas";
 
 const BASE = `${ADMIN}/support/cases`;
 
@@ -58,6 +60,26 @@ export interface MessageInput {
   kind: "reply_out" | "note";
   body: string;
   saved_reply_id?: number | undefined;
+  /** The keys of the files uploaded for it (uploadReplyFile); left out when there are none. */
+  attachments?: string[] | undefined;
+}
+
+export interface UploadedFile {
+  key: string;
+  name: string;
+  size: number;
+}
+
+/**
+ * One file for a reply or a note, uploaded before it is sent: its key goes
+ * in the message's `attachments`. Any kind, 10 MB at most (413
+ * FILE_TOO_LARGE); only for someone who may answer the case.
+ */
+export async function uploadReplyFile(id: number, file: File): Promise<UploadedFile> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const raw = uploadedFileSchema.parse(await api.post<unknown>(`${BASE}/${id}/attachments`, fd));
+  return { key: raw.key, name: raw.name || file.name, size: raw.size ?? file.size };
 }
 
 /** The email a reply would send, rendered, sent to nobody (`preview_only`). */
@@ -89,7 +111,34 @@ export async function mergeCase(id: number, intoId: number) {
   return api.post<unknown>(`${BASE}/${id}/merge`, { into_id: intoId });
 }
 
-/** The case's sender as a lead for Sales (a club, a sponsor…): the lead answers. */
-export async function caseToLead(id: number, type: string) {
-  return createdSchema.parse(await api.post<unknown>(`${BASE}/${id}/to-lead`, { type }));
+/**
+ * The case's sender as a lead for Sales (a club, a sponsor…): the lead
+ * answers. One that looks like a lead already there is refused (409
+ * DUPLICATE_LEAD) with the leads it may repeat, a DuplicateLeadError here,
+ * until sent again with `force`. A case that is a lead already answers 409
+ * ALREADY_A_LEAD (`errors.lead_id`), an ApiError as it is.
+ */
+export async function caseToLead(id: number, type: string, force = false) {
+  let refusal: Promise<unknown> | null = null;
+  try {
+    const raw = await api.post<unknown>(`${BASE}/${id}/to-lead`, force ? { type, force: true } : { type }, {
+      onResponse: (response) => {
+        if (response.status === 409) refusal = response.clone().json().catch(() => null);
+      },
+    });
+    return createdSchema.parse(raw);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409 && error.errorCode !== "ALREADY_A_LEAD") {
+      const matches = readMatches(await refusal) ?? readMatches({ errors: error.fieldErrors });
+      if (matches) throw new DuplicateLeadError(matches, error.message);
+    }
+    throw error;
+  }
+}
+
+/** The lead a refused "Turn into a lead" says the case already is (409 ALREADY_A_LEAD), or null. */
+export function existingLeadOf(error: unknown): number | null {
+  if (!(error instanceof ApiError) || error.errorCode !== "ALREADY_A_LEAD") return null;
+  const id = Number((error.fieldErrors as Record<string, unknown> | null)?.lead_id);
+  return Number.isInteger(id) && id > 0 ? id : null;
 }

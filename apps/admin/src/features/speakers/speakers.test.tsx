@@ -128,7 +128,8 @@ describe("a profile", () => {
     state.role = "support";
     render(<SpeakerPage speakerId={7} />);
     await screen.findByRole("link", { name: "DevFest 2026" });
-    for (const name of [/Hide/, /Remove on request/, /Invite to claim/]) expect(screen.queryByRole("button", { name })).toBeNull();
+    for (const name of [/Hide/, /Remove on request/, /Invite to claim/, /Edit profile/]) expect(screen.queryByRole("button", { name })).toBeNull();
+    expect(screen.queryByLabelText(/photo/)).toBeNull();
   });
 
   it("offers Unmerge on a merged profile", async () => {
@@ -178,6 +179,77 @@ describe("a profile", () => {
     expect(orgFromHeadline("Founder, Brew & Co")).toBe("Brew & Co");
     expect(orgFromHeadline("Independent researcher")).toBe("");
     expect(makeLeadHref(null)).toBe("/teamwork/leads?new=1&type=sponsor&source=speaker");
+  });
+});
+
+describe("editing a profile", () => {
+  const TREE = [
+    { id: 2, name: "Tech", slug: "tech", interests: [] },
+    { id: 3, name: "Design", slug: "design", interests: [] },
+  ];
+  const open = async () => {
+    state.handlers["GET /api/v1/interests/list"] = () => TREE;
+    render(<SpeakerPage speakerId={7} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Edit profile/ }));
+    return screen.findByRole("dialog", { name: "Edit Ananya Iyer" });
+  };
+
+  it("opens filled in, and sends only what changed: an emptied field clears, links go as a set", async () => {
+    state.handlers["PATCH /api/v1/admin/speakers/7"] = ({ body }) => detail(body as Record<string, unknown>);
+    const dialog = await open();
+    expect(within(dialog).getByLabelText("Name")).toHaveValue("Ananya Iyer");
+    expect(within(dialog).getByLabelText("LinkedIn")).toHaveValue("https://linkedin.com/in/ananya");
+    const save = within(dialog).getByRole("button", { name: "Save profile" });
+    // Nothing changed yet: nothing to save.
+    expect(save).toBeDisabled();
+    fireEvent.change(within(dialog).getByLabelText("Headline"), { target: { value: "Professor · IIT-M" } });
+    fireEvent.change(within(dialog).getByLabelText("City"), { target: { value: " " } });
+    fireEvent.change(within(dialog).getByLabelText("Website"), { target: { value: "https://ananya.dev" } });
+    fireEvent.click(await within(dialog).findByRole("button", { name: "Design" }));
+    fireEvent.click(save);
+    await waitFor(() => expect(callsOf(state, "PATCH", "/api/v1/admin/speakers/7")).toHaveLength(1));
+    expect(callsOf(state, "PATCH", "/api/v1/admin/speakers/7")[0]!.body).toEqual({
+      headline: "Professor · IIT-M",
+      city: null,
+      links: { website: "https://ananya.dev", linkedin: "https://linkedin.com/in/ananya" },
+      topics: [2, 3],
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit Ananya Iyer" })).toBeNull());
+  });
+
+  it("refuses a link that isn't a web address and an empty name before anything is sent", async () => {
+    const dialog = await open();
+    fireEvent.change(within(dialog).getByLabelText("GitHub"), { target: { value: "github.com/ananya" } });
+    expect(within(dialog).getByText("A web address starting with https://")).toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: "" } });
+    expect(within(dialog).getByText("A speaker needs a name.")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Save profile" })).toBeDisabled();
+    expect(callsOf(state, "PATCH")).toHaveLength(0);
+  });
+
+  it("says a claimed profile is the speaker's own to keep", async () => {
+    state.handlers["GET /api/v1/admin/speakers/7"] = () => detail({ claimed: true });
+    const dialog = await open();
+    expect(within(dialog).getByText(/keeps this profile up to date themselves/)).toBeInTheDocument();
+  });
+
+  it("uploads a new photo as soon as it is picked", async () => {
+    state.handlers["PUT /api/v1/admin/speakers/7/photo"] = () => ({ id: 7, photo: { thumbnail: "https://cdn.test/s/7.thumbnail.png", medium: "https://cdn.test/s/7.medium.png" } });
+    render(<SpeakerPage speakerId={7} />);
+    const input = await screen.findByLabelText("Add a photo of Ananya Iyer");
+    const file = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], "ananya.png", { type: "image/png" });
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(callsOf(state, "PUT", "/api/v1/admin/speakers/7/photo")).toHaveLength(1));
+    const sent = callsOf(state, "PUT", "/api/v1/admin/speakers/7/photo")[0]!.body as FormData;
+    expect((sent.get("photo") as File).name).toBe("ananya.png");
+  });
+
+  it("offers neither on a merged profile", async () => {
+    state.handlers["GET /api/v1/admin/speakers/7"] = () => detail({ status: "merged", merged_into: { id: 9, slug: "a", name: "Ananya I." } });
+    render(<SpeakerPage speakerId={7} />);
+    await screen.findByRole("link", { name: "Ananya I." });
+    expect(screen.queryByRole("button", { name: /Edit profile/ })).toBeNull();
+    expect(screen.queryByLabelText(/photo/)).toBeNull();
   });
 });
 

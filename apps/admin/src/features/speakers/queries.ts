@@ -3,7 +3,22 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
-import { dismissDuplicate, fetchDuplicates, fetchSpeaker, fetchSpeakers, hideSpeaker, inviteSpeaker, mergeSpeakers, removeOnRequest, unhideSpeaker, unmergeSpeaker, type SpeakerQuery } from "./api";
+import {
+  dismissDuplicate,
+  fetchDuplicates,
+  fetchSpeaker,
+  fetchSpeakers,
+  hideSpeaker,
+  inviteSpeaker,
+  mergeSpeakers,
+  removeOnRequest,
+  setSpeakerPhoto,
+  unhideSpeaker,
+  unmergeSpeaker,
+  updateSpeaker,
+  type SpeakerQuery,
+} from "./api";
+import type { SpeakerPatch } from "./schemas";
 
 export const SPEAKERS_KEY = ["admin", "speakers"] as const;
 
@@ -46,3 +61,5 @@ export const useUnmergeSpeaker = () => useAct((id: number) => unmergeSpeaker(id)
 export const useInviteSpeaker = () => useAct(({ id, email }: { id: number; email: string }) => inviteSpeaker(id, email), "Invite sent", "Could not send the invite");
 export const useMergeSpeakers = () => useAct(({ keepId, mergeId }: { keepId: number; mergeId: number }) => mergeSpeakers(keepId, mergeId), "Merged into one profile", "Could not merge them");
 export const useDismissDuplicate = () => useAct((id: number) => dismissDuplicate(id), "Kept apart: two different people", "Could not dismiss the pair");
+export const useUpdateSpeaker = () => useAct(({ id, patch }: { id: number; patch: SpeakerPatch }) => updateSpeaker(id, patch), "Profile saved", "Could not save the profile");
+export const useSpeakerPhoto = () => useAct(({ id, photo }: { id: number; photo: File }) => setSpeakerPhoto(id, photo), "Photo changed", "Could not change the photo");

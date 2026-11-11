@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { ApiError } from "@moa/api";
 
 import type { FakeState } from "@/test/fake-api";
 
@@ -24,6 +25,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 const { render } = await import("@/test/render");
 const { freshState, callsOf } = await import("@/test/fake-api");
 const { CasesPage, CasePage } = await import("./index");
+const { toast } = await import("@moa/ui");
 
 const TEAMS = [
   { key: "support", members: [{ user_id: 2, name: "Sam", email: "sam@x.in", admin_role: "support", away: false }] },
@@ -201,5 +203,134 @@ describe("a case", () => {
     render(<CasePage caseId={8} />);
     fireEvent.change(await screen.findByLabelText("Assignee"), { target: { value: "" } });
     await waitFor(() => expect(callsOf(state, "PATCH", "/api/v1/admin/support/cases/8")[0]?.body).toEqual({ assignee_id: null }));
+  });
+});
+
+describe("files with a reply", () => {
+  const file = (name: string, bytes: number, type = "application/pdf") => new File([new Uint8Array(bytes)], name, { type });
+  const uploads = () => callsOf(state, "POST", "/api/v1/admin/support/cases/8/attachments");
+  const posts = () => callsOf(state, "POST", "/api/v1/admin/support/cases/8/messages");
+
+  beforeEach(() => {
+    let n = 0;
+    state.handlers["POST /api/v1/admin/support/cases/8/attachments"] = ({ body }) => {
+      const f = (body as FormData).get("file") as File;
+      n += 1;
+      return { key: `k${n}`, name: f.name, size: f.size };
+    };
+    state.handlers["POST /api/v1/admin/support/cases/8/messages"] = ({ body }) =>
+      (body as { preview_only?: boolean }).preview_only
+        ? { preview: true, to: "riya@x.in", subject: "[#1042] Refund not received", text: "Here is the receipt.", html: "<p>Here is the receipt.</p>", will_push: false }
+        : { id: 3, kind: "reply_out", body_text: "Here is the receipt.", author_name: "Asha", created_at: "2026-11-11T10:00:00Z", attachments: [] };
+  });
+
+  it("uploads each file as it is picked, lists it, and sends the keys with the reply from its preview", async () => {
+    render(<CasePage caseId={8} />);
+    const box = await screen.findByRole("region", { name: "Reply" });
+    fireEvent.change(within(box).getByLabelText("Attach files"), { target: { files: [file("receipt.pdf", 2048), file("refund.png", 4096, "image/png")] } });
+    await waitFor(() => expect(uploads()).toHaveLength(2));
+    expect(((uploads()[0]!.body as FormData).get("file") as File).name).toBe("receipt.pdf");
+    const attached = await within(box).findByRole("list", { name: "Attached files" });
+    await within(attached).findByText("refund.png");
+    expect(within(attached).getByText("receipt.pdf")).toBeInTheDocument();
+    // Taken off again before anything is sent.
+    fireEvent.click(within(attached).getByRole("button", { name: "Remove refund.png" }));
+    expect(within(attached).queryByText("refund.png")).toBeNull();
+
+    fireEvent.change(within(box).getByLabelText("Reply"), { target: { value: "Here is the receipt." } });
+    fireEvent.click(within(box).getByRole("button", { name: /Preview reply/ }));
+    expect(await screen.findByText(/With 1 file: receipt.pdf/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Send reply/ }));
+    await waitFor(() => expect(posts()).toHaveLength(2));
+    expect(posts()[1]!.body).toEqual({ kind: "reply_out", body: "Here is the receipt.", attachments: ["k1"] });
+    // Sent: the box is empty again, files and all.
+    await waitFor(() => expect(within(box).queryByRole("list", { name: "Attached files" })).toBeNull());
+  });
+
+  it("sends files with a note too", async () => {
+    render(<CasePage caseId={8} />);
+    const box = await screen.findByRole("region", { name: "Reply" });
+    fireEvent.click(within(box).getByRole("radio", { name: "Internal note" }));
+    fireEvent.change(within(box).getByLabelText("Attach files"), { target: { files: [file("call-log.txt", 100, "text/plain")] } });
+    await within(box).findByText("call-log.txt");
+    fireEvent.change(within(box).getByLabelText("Internal note"), { target: { value: "Called her back." } });
+    fireEvent.click(within(box).getByRole("button", { name: /Add note/ }));
+    await waitFor(() => expect(posts()[0]?.body).toEqual({ kind: "note", body: "Called her back.", attachments: ["k1"] }));
+  });
+
+  it("refuses a file over 10 MB before uploading it", async () => {
+    const said = vi.spyOn(toast, "error");
+    render(<CasePage caseId={8} />);
+    const box = await screen.findByRole("region", { name: "Reply" });
+    fireEvent.change(within(box).getByLabelText("Attach files"), { target: { files: [file("video.mov", 10 * 1024 * 1024 + 1, "video/quicktime")] } });
+    expect(said).toHaveBeenCalledWith(expect.stringContaining("each file can be 10 MB at most"));
+    expect(uploads()).toHaveLength(0);
+    said.mockRestore();
+  });
+
+  it("offers no files to a Support member who may only note someone else's case", async () => {
+    me.id = 2;
+    state.role = "support";
+    state.handlers["GET /api/v1/admin/support/cases/8"] = () => detail({ assignee: { id: 5, name: "Other" }, can_work: false, can_take: false });
+    render(<CasePage caseId={8} />);
+    const box = await screen.findByRole("region", { name: "Reply" });
+    expect(within(box).getByRole("button", { name: /Add note/ })).toBeInTheDocument();
+    expect(within(box).queryByLabelText("Attach files")).toBeNull();
+  });
+});
+
+describe("turning a case into a lead", () => {
+  const duplicate = () =>
+    new ApiError({
+      status: 409,
+      message: "This looks like a lead we already have.",
+      errorCode: "DUPLICATE_LEAD",
+      fieldErrors: { matches: [{ id: 12, name: "Riya Foods", city: "Kochi", stage: "meeting", type: "sponsor" }] } as unknown as Record<string, string[]>,
+    });
+  const toLead = () => callsOf(state, "POST", "/api/v1/admin/support/cases/8/to-lead");
+
+  it("opens the lead when there is none like it", async () => {
+    state.handlers["POST /api/v1/admin/support/cases/8/to-lead"] = () => ({ id: 30, name: "Riya" });
+    render(<CasePage caseId={8} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Turn into a lead/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Turn into a lead" });
+    fireEvent.click(within(dialog).getByRole("button", { name: /Open lead/ }));
+    await waitFor(() => expect(toLead()).toHaveLength(1));
+    expect(toLead()[0]!.body).toEqual({ type: "sponsor" });
+  });
+
+  it("shows the lead it may repeat, to open, and creates it anyway only when asked", async () => {
+    state.handlers["POST /api/v1/admin/support/cases/8/to-lead"] = ({ body }) => {
+      if (!(body as { force?: boolean }).force) throw duplicate();
+      return { id: 31, name: "Riya" };
+    };
+    render(<CasePage caseId={8} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Turn into a lead/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Turn into a lead" });
+    fireEvent.click(within(dialog).getByRole("button", { name: /Open lead/ }));
+    expect(await within(dialog).findByText(/Sales already has/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("link", { name: "Riya Foods" })).toHaveAttribute("href", "/teamwork/leads/12");
+    expect(within(dialog).getByRole("link", { name: /Open the existing lead/ })).toHaveAttribute("href", "/teamwork/leads/12");
+    expect(within(dialog).getByRole("link", { name: "Riya Foods" }).closest("li")).toHaveTextContent("Riya Foods · Kochi · Meeting");
+    expect(toLead()).toHaveLength(1);
+    fireEvent.click(within(dialog).getByRole("button", { name: /Create anyway/ }));
+    await waitFor(() => expect(toLead()).toHaveLength(2));
+    expect(toLead()[1]!.body).toEqual({ type: "sponsor", force: true });
+  });
+
+  it("says so, and reads the case again, when it is a lead already", async () => {
+    const said = vi.spyOn(toast, "error");
+    state.handlers["POST /api/v1/admin/support/cases/8/to-lead"] = () => {
+      throw new ApiError({ status: 409, message: "This case is a lead already.", errorCode: "ALREADY_A_LEAD", fieldErrors: { lead_id: 12 } as unknown as Record<string, string[]> });
+    };
+    render(<CasePage caseId={8} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Turn into a lead/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Turn into a lead" });
+    const reads = callsOf(state, "GET", "/api/v1/admin/support/cases/8").length;
+    fireEvent.click(within(dialog).getByRole("button", { name: /Open lead/ }));
+    await waitFor(() => expect(said).toHaveBeenCalledWith("This case is a lead already."));
+    await waitFor(() => expect(callsOf(state, "GET", "/api/v1/admin/support/cases/8").length).toBeGreaterThan(reads));
+    expect(within(dialog).queryByRole("button", { name: /Create anyway/ })).toBeNull();
+    said.mockRestore();
   });
 });

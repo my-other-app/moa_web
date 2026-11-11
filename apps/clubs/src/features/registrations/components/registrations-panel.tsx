@@ -45,6 +45,7 @@ import { useEventSummary } from "@/features/console";
 import { DeliveryBar, TicketCell } from "@/features/deliveries";
 import { useEventDetail } from "@/features/events";
 import { cardPdfUrl, openPdf } from "@/features/idcards";
+import { GivenBackPanel } from "@/features/ticket-cancel";
 
 import { exportUrl } from "../api";
 import { useEventAnalytics, useImports, useMarkAttendance, useMissingCount, useRegistrations, useSetRegistrationRole } from "../queries";
@@ -624,6 +625,9 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
           ) : null}
         </FigurePanel>
       </div>
+
+      {/* Who gave their ticket back by their email's link: off the list, so shown here. */}
+      <GivenBackPanel eventId={eventId} canExport={Boolean(can.exports)} selfCancelOff={event.data?.allow_self_cancel === false} />
 
       {imports.data && imports.data.length > 0 ? (
         <ImportRecord imports={imports.data} openId={openImport} onToggle={(id) => setOpenImport(openImport === id ? null : id)} />

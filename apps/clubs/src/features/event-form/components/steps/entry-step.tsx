@@ -11,6 +11,7 @@ import { PaymentsToNote } from "@/features/payments";
 import { LockBadge, openUpgrade, useEventPlan, type PlanLock } from "@/features/plan";
 // The component, not the feature's surface: the requests page imports events, which imports this form.
 import { ApprovalField, HighDemandField } from "@/features/requests/approval-field";
+import { SelfCancelField } from "@/features/ticket-cancel";
 import { TicketTypesField } from "@/features/ticketing";
 
 import type { EventFormValues } from "../../schemas";
@@ -156,6 +157,8 @@ export function EntryStep({ eventId }: { eventId?: number } = {}) {
       <ApprovalField eventId={eventId} />
       {/* The "High demand" tag on the public page, once the event's detail carries it. */}
       <HighDemandField />
+      {/* Guests giving a free ticket back by their emails' link, once the event's detail carries it. */}
+      <SelfCancelField />
 
       <div className="grid gap-3 lg:grid-cols-2">
         {several ? null : (
