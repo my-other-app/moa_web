@@ -2,7 +2,7 @@ import { api } from "@moa/app-kit";
 
 import { nullIfAhead } from "@/lib/ahead-of-api";
 
-import { duplicatesSchema, speakerDetailSchema, speakerPageSchema } from "./schemas";
+import { duplicatesSchema, photoSchema, speakerDetailSchema, speakerPageSchema, type SpeakerPatch } from "./schemas";
 
 const BASE = "/api/v1/admin/speakers";
 
@@ -39,6 +39,23 @@ export function speakersExportUrl(query: Omit<SpeakerQuery, "page" | "pageSize">
 
 export async function fetchSpeaker(id: number) {
   return speakerDetailSchema.parse(await api.get<unknown>(`${BASE}/${id}`));
+}
+
+/**
+ * Changes a profile: only the fields sent change, an empty one clears it
+ * (never the name), and `links` replaces the whole set. Its event copies
+ * stay as the clubs published them. Answers the profile.
+ */
+export async function updateSpeaker(id: number, patch: SpeakerPatch) {
+  return speakerDetailSchema.parse(await api.patch<unknown>(`${BASE}/${id}`, patch));
+}
+
+/** A new photo (multipart `photo`), saved at once: its sizes are made by the API. */
+export async function setSpeakerPhoto(id: number, photo: File) {
+  const fd = new FormData();
+  fd.append("photo", photo);
+  const raw = await api.put<unknown>(`${BASE}/${id}/photo`, fd);
+  return { photo: photoSchema.parse((raw as { photo?: unknown } | null)?.photo ?? null) ?? null };
 }
 
 export const hideSpeaker = (id: number) => api.post<unknown>(`${BASE}/${id}/hide`);

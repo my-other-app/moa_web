@@ -158,7 +158,8 @@ export const leadPatchResultSchema = z
   .passthrough()
   .transform((r) => ({ needsFollowUp: r.needs_follow_up }));
 
-export const duplicateMatchSchema = z.object({ id, name: z.string(), city: z.string().nullish() });
+/** A lead the new one may repeat, as the 409 lists it (leads/service.py match_out). */
+export const duplicateMatchSchema = z.object({ id, name: z.string(), city: z.string().nullish(), stage: z.string().nullish(), type: z.string().nullish() });
 export type DuplicateMatch = z.infer<typeof duplicateMatchSchema>;
 
 /** The leads a new one may repeat: refused with 409 DUPLICATE_LEAD until sent again with `force`. */

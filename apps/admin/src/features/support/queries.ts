@@ -3,9 +3,26 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
+import { DuplicateLeadError } from "@/features/leads";
 import { TEAMWORK_KEY } from "@/features/teamwork";
 
-import { caseToLead, fetchCase, fetchCases, logCase, mergeCase, postMessage, previewReply, takeCase, updateCase, type CasePatch, type CaseQuery, type LogCaseInput, type MessageInput } from "./api";
+import {
+  caseToLead,
+  existingLeadOf,
+  fetchCase,
+  fetchCases,
+  logCase,
+  mergeCase,
+  postMessage,
+  previewReply,
+  takeCase,
+  updateCase,
+  uploadReplyFile,
+  type CasePatch,
+  type CaseQuery,
+  type LogCaseInput,
+  type MessageInput,
+} from "./api";
 
 export const CASES_KEY = [...TEAMWORK_KEY, "cases"] as const;
 
@@ -54,6 +71,11 @@ export function usePreviewReply(id: number) {
   return useMutation({ mutationFn: (input: MessageInput) => previewReply(id, input), onError: failed("Could not preview the reply") });
 }
 
+/** A file for the reply box: uploaded at once, its key kept until the reply or note goes. */
+export function useUploadReplyFile(id: number) {
+  return useMutation({ mutationFn: (file: File) => uploadReplyFile(id, file), onError: failed("Could not attach the file") });
+}
+
 export function usePostMessage(id: number) {
   const refresh = useRefresh();
   return useMutation({
@@ -90,14 +112,23 @@ export function useMergeCase(id: number) {
   });
 }
 
+/**
+ * A likely duplicate is not a failure to shout about: the dialog shows the
+ * leads it may repeat and asks. A case that turned out to be a lead already
+ * is said, and the case is read again so its lead shows.
+ */
 export function useCaseToLead(id: number) {
   const refresh = useRefresh();
   return useMutation({
-    mutationFn: (type: string) => caseToLead(id, type),
+    mutationFn: ({ type, force = false }: { type: string; force?: boolean }) => caseToLead(id, type, force),
     onSuccess: async () => {
       toast.success("Lead opened for Sales");
       await refresh();
     },
-    onError: failed("Could not open the lead"),
+    onError: async (error: Error) => {
+      if (error instanceof DuplicateLeadError) return;
+      toast.error(error.message || "Could not open the lead");
+      if (existingLeadOf(error) !== null) await refresh();
+    },
   });
 }
