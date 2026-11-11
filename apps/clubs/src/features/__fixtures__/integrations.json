@@ -1,0 +1,180 @@
+{
+  "status": {
+    "allocated": true,
+    "can_manage": true,
+    "rate_tier": "standard",
+    "rate_limit": { "read_per_min": 600, "write_per_min": 120 },
+    "max_keys": 5,
+    "keys_active": 2,
+    "apps_connected": 1
+  },
+  "keys": {
+    "items": [
+      {
+        "id": "k1",
+        "name": "College ERP",
+        "prefix": "moa_live_Qx7p",
+        "mode": "live",
+        "scopes": ["events:read", "registrations:read", "registrations:write", "attendees:read", "checkins:write"],
+        "expires_at": null,
+        "ip_allowlist": ["203.0.113.10"],
+        "created_at": "2026-11-01T10:00:00+05:30",
+        "created_by": { "name": "Asha Nair", "email": "asha@gdgtvm.in", "role": "admin" },
+        "last_used_at": "2026-11-11T18:20:00+05:30",
+        "last_used_ip": "203.0.113.10",
+        "revoked_at": null
+      },
+      {
+        "id": "k2",
+        "name": "Website sync (test)",
+        "prefix": "moa_test_8fKd",
+        "mode": "test",
+        "scopes": ["events:read", "club:read"],
+        "expires_at": "2099-12-31T23:59:59+05:30",
+        "ip_allowlist": [],
+        "created_at": "2026-11-05T09:00:00+05:30",
+        "created_by": null,
+        "last_used_at": null,
+        "last_used_ip": null,
+        "revoked_at": null
+      },
+      {
+        "id": "k3",
+        "name": "Old sheet script",
+        "prefix": "moa_live_a1B2",
+        "mode": "live",
+        "scopes": ["registrations:read"],
+        "expires_at": null,
+        "ip_allowlist": [],
+        "created_at": "2026-09-01T09:00:00+05:30",
+        "created_by": { "name": null, "email": null, "role": "owner" },
+        "last_used_at": "2026-09-30T09:00:00+05:30",
+        "last_used_ip": null,
+        "revoked_at": "2026-10-01T09:00:00+05:30"
+      }
+    ]
+  },
+  "created": {
+    "key": {
+      "id": "k9",
+      "name": "Gate scanner",
+      "prefix": "moa_live_Zz9Y",
+      "mode": "live",
+      "scopes": ["checkins:write", "attendees:read"],
+      "expires_at": null,
+      "ip_allowlist": [],
+      "created_at": "2026-11-12T10:00:00+05:30",
+      "created_by": { "name": "Asha Nair", "email": "asha@gdgtvm.in", "role": "admin" },
+      "last_used_at": null,
+      "last_used_ip": null,
+      "revoked_at": null
+    },
+    "secret": "moa_live_Zz9YtQm4W1nVb7kR2cX8pL0sD5fG3hJ6aE9uIoQw"
+  },
+  "webhooks": {
+    "items": [
+      {
+        "id": "w1",
+        "url": "https://erp.example.edu/moa/webhooks",
+        "description": "ERP registrations",
+        "events": ["*"],
+        "include_own_changes": false,
+        "enabled": true,
+        "disabled_reason": null,
+        "partner_app": null,
+        "created_at": "2026-11-02T10:00:00+05:30",
+        "last_delivery_at": "2026-11-11T18:21:00+05:30",
+        "last_response_status": 200,
+        "failing_since": null
+      },
+      {
+        "id": "w2",
+        "url": "https://hooks.eventhub.example/moa/club-5",
+        "description": null,
+        "events": ["registration.created", "checkin.created"],
+        "include_own_changes": false,
+        "enabled": true,
+        "disabled_reason": null,
+        "partner_app": { "id": "p1", "name": "EventHub" },
+        "created_at": "2026-11-03T10:00:00+05:30",
+        "last_delivery_at": "2026-11-11T08:00:00+05:30",
+        "last_response_status": 503,
+        "failing_since": "2026-11-10T08:00:00+05:30"
+      }
+    ]
+  },
+  "endpoint_created": {
+    "endpoint": {
+      "id": "w9",
+      "url": "https://sheet.example.org/hook",
+      "description": null,
+      "events": ["registration.created"],
+      "include_own_changes": true,
+      "enabled": true,
+      "disabled_reason": null,
+      "partner_app": null,
+      "created_at": "2026-11-12T10:00:00+05:30",
+      "last_delivery_at": null,
+      "last_response_status": null,
+      "failing_since": null
+    },
+    "secret": "whsec_6gT1pR9wQ2zXc4vB8nM0kL3jH5fD7sA1"
+  },
+  "deliveries": {
+    "items": [
+      {
+        "id": "d2",
+        "event_id": "evt_01JCK2",
+        "type": "registration.created",
+        "status": "failed",
+        "attempts": 7,
+        "response_status": 500,
+        "error": null,
+        "duration_ms": 812,
+        "created_at": "2026-11-10T09:00:00+05:30",
+        "last_attempt_at": "2026-11-11T09:00:00+05:30",
+        "next_attempt_at": null,
+        "test": false
+      },
+      {
+        "id": "d1",
+        "event_id": "evt_01JCK1",
+        "type": "checkin.created",
+        "status": "succeeded",
+        "attempts": 1,
+        "response_status": 200,
+        "error": null,
+        "duration_ms": 140,
+        "created_at": "2026-11-09T09:00:00+05:30",
+        "last_attempt_at": "2026-11-09T09:00:00+05:30",
+        "next_attempt_at": null,
+        "test": false
+      }
+    ],
+    "next_cursor": null
+  },
+  "apps": {
+    "items": [
+      {
+        "id": "c1",
+        "partner": { "id": "p1", "name": "EventHub", "logo_url": null, "website": "https://www.eventhub.example" },
+        "scopes": ["events:read", "events:write", "registrations:write"],
+        "connected_by": { "name": "Asha Nair", "email": "asha@gdgtvm.in", "role": "admin" },
+        "connected_at": "2026-11-03T10:00:00+05:30",
+        "last_used_at": "2026-11-11T08:00:00+05:30"
+      }
+    ]
+  },
+  "consent": {
+    "id": "req_8Kq2",
+    "partner": { "id": "p1", "name": "EventHub", "logo_url": null, "website": "https://www.eventhub.example" },
+    "club": { "id": 5, "name": "GDG Trivandrum", "slug": "gdg-trivandrum", "logo": null },
+    "scopes": ["events:read", "events:write", "registrations:read", "attendees:read"],
+    "already": null,
+    "redirect_host": "app.eventhub.example",
+    "livemode": true,
+    "can_decide": true,
+    "cannot_decide_reason": null,
+    "expires_at": "2099-11-12T10:10:00+05:30"
+  }
+}

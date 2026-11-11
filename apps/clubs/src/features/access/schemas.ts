@@ -70,6 +70,8 @@ export const capsSchema = z
     decide_requests: z.boolean().optional(),
     /** The club's speakers: the picker, the list with its contacts (owner, admin, editor; never door staff). */
     speakers: z.boolean().optional(),
+    /** The club's API keys, webhooks and connected partner apps (owner and admin). */
+    integrations: z.boolean().optional(),
   })
   // A server from before connected assistants does not send the last two: they follow the roles they mirror.
   // One from before clubs' own WhatsApp sends neither of those: there is nothing to open.
@@ -95,6 +97,8 @@ export const capsSchema = z
     decide_requests: c.decide_requests ?? c.edit_events,
     // A server from before the speakers directory: they follow editing events, as they do there.
     speakers: c.speakers ?? c.edit_events,
+    // A server from before integrations: they follow seeing the team, as the owner and admins do.
+    integrations: c.integrations ?? c.see_access,
     /** The server sent `decide_requests`: it has registration requests (the same release). */
     requests_known: c.decide_requests !== undefined,
     /** Either: the WhatsApp section opens at all. */
@@ -169,6 +173,7 @@ export const OWNER_CAN: Caps = {
   decide_requests: true,
   exports: true,
   speakers: true,
+  integrations: true,
   // Until the server says who is signed in, nothing is known about what it has.
   refunds_known: false,
   requests_known: false,

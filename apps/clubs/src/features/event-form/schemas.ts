@@ -202,6 +202,13 @@ export const eventFormSchema = z
      * starts with it on): then never sent.
      */
     allow_self_cancel: z.boolean().optional(),
+    /**
+     * A paid event accepts registrations from the API marked as paid outside
+     * MyOtherApp (integrations contract, decision 5). Undefined when the
+     * event's detail doesn't say (an older server, or a new event, which
+     * the server starts with it off): then never sent.
+     */
+    external_payments_allowed: z.boolean().optional(),
 
     // --- contact
     contact_name: z.string().trim().max(100).optional(),

@@ -11,6 +11,8 @@ import { PaymentsToNote } from "@/features/payments";
 import { LockBadge, openUpgrade, useEventPlan, type PlanLock } from "@/features/plan";
 // The component, not the feature's surface: the requests page imports events, which imports this form.
 import { ApprovalField, HighDemandField } from "@/features/requests/approval-field";
+// The component, not the feature's surface: integrations' consent page has no place in the event form.
+import { ExternalPaymentsField } from "@/features/integrations/external-payments-field";
 import { SelfCancelField } from "@/features/ticket-cancel";
 import { TicketTypesField } from "@/features/ticketing";
 
@@ -201,6 +203,9 @@ export function EntryStep({ eventId }: { eventId?: number } = {}) {
         </Offer>
         <Offer name="swag_enabled" icon={<GiftIcon className="size-4" />} title="Swag to hand out" hint="Free things, counted out at the door by who gets what. Adds a Swag tab." lock={plan.featureLock("swag")} />
       </div>
+
+      {/* Registrations paid outside MyOtherApp, from the club's own system: a paid event of a club with API access, once the detail carries it. */}
+      <ExternalPaymentsField />
     </div>
   );
 }
