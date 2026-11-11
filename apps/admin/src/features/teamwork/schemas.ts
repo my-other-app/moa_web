@@ -55,6 +55,12 @@ export const badgeSchema = z.object({
 });
 export type TeamworkBadge = z.infer<typeof badgeSchema>;
 
+/** What a lead is: who it is, and what winning it means (a club signs up, a brand sponsors, a hall hosts…). */
+export const LEAD_TYPES = ["club", "sponsor", "venue", "vendor", "other"] as const;
+export type LeadType = (typeof LEAD_TYPES)[number];
+export const LEAD_TYPE_LABEL: Record<LeadType, string> = { club: "Club", sponsor: "Sponsor", venue: "Venue partner", vendor: "Vendor", other: "Other" };
+export const leadTypeLabel = (t: string) => (LEAD_TYPE_LABEL as Record<string, string>)[t] ?? words(t);
+
 // --- follow-ups ----------------------------------------------------------------------------------
 
 export const FOLLOW_UP_KINDS = ["call", "meeting", "email", "whatsapp", "visit", "other"] as const;
@@ -186,21 +192,24 @@ export const savedReplySchema = z.object({ id, title: z.string(), body: text, to
 export type SavedReply = z.infer<typeof savedReplySchema>;
 export const savedRepliesSchema = z.array(savedReplySchema).catch([]);
 
-export const helpAnswerSchema = z.object({
-  id,
-  topic: z.string().nullish(),
-  question: z.string(),
-  answer: text,
-  published: z.boolean().catch(true),
-  order: z.coerce.number().catch(0),
-});
+export const helpAnswerSchema = z
+  .object({
+    id,
+    topic: z.string().nullish(),
+    question: z.string(),
+    answer: text,
+    published: z.boolean().catch(true),
+    order: z.coerce.number().nullish(),
+    position: z.coerce.number().nullish(),
+  })
+  .transform(({ position, ...a }) => ({ ...a, order: a.order ?? position ?? 0 }));
 export type HelpAnswer = z.infer<typeof helpAnswerSchema>;
 export const helpAnswersSchema = z.array(helpAnswerSchema).catch([]);
 
 /** Why a lead was lost: "no budget", "chose another". The server's word for the text may be label, name or reason. */
 export const lostReasonSchema = z
-  .object({ id, label: z.string().nullish(), name: z.string().nullish(), reason: z.string().nullish() })
-  .transform((r) => ({ id: r.id, label: r.label ?? r.name ?? r.reason ?? `Reason ${r.id}` }));
+  .object({ id, key: z.string().nullish(), label: z.string().nullish(), name: z.string().nullish(), reason: z.string().nullish() })
+  .transform((r) => ({ id: r.id, key: r.key ?? null, label: r.label ?? r.name ?? r.reason ?? r.key ?? `Reason ${r.id}` }));
 export type LostReason = z.infer<typeof lostReasonSchema>;
 export const lostReasonsSchema = z.array(lostReasonSchema).catch([]);
 
@@ -223,7 +232,8 @@ export const workingHoursSchema = z
   .passthrough();
 export type WorkingHours = z.infer<typeof workingHoursSchema>;
 
-export const DEFAULT_WORKING_HOURS: WorkingHours = { days: ["mon", "tue", "wed", "thu", "fri", "sat"], start: "09:30", end: "18:30", timezone: "Asia/Kolkata" };
+/** The API's own default: Python weekdays, Monday 0. */
+export const DEFAULT_WORKING_HOURS: WorkingHours = { days: [0, 1, 2, 3, 4, 5], start: "09:30", end: "18:30", timezone: "Asia/Kolkata" };
 
 export const deskSettingsSchema = z.object({
   working_hours: z.unknown().optional(),

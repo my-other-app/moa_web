@@ -20,6 +20,9 @@ export {
 export { ADMIN, BADGE_PATH, fetchBadge, fetchTeams } from "./api";
 export {
   FOLLOW_UP_KINDS,
+  LEAD_TYPES,
+  LEAD_TYPE_LABEL,
+  leadTypeLabel,
   FOLLOW_UP_LABEL,
   PRIORITIES,
   PRIORITY_LABEL,
@@ -37,6 +40,7 @@ export {
   teamRights,
   words,
   type FollowUp,
+  type LeadType,
   type LostReason,
   type PersonRef,
   type Priority,
