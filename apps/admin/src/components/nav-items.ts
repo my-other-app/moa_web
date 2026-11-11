@@ -3,6 +3,7 @@ import {
   BanknoteIcon,
   BarChart3Icon,
   BellIcon,
+  BlocksIcon,
   BriefcaseIcon,
   BuildingIcon,
   CalendarDaysIcon,
@@ -65,7 +66,7 @@ export interface NavItem {
 }
 
 /** The features the rail asks about themselves. */
-export type Probe = "teamwork" | "speakers";
+export type Probe = "teamwork" | "speakers" | "integrations";
 
 /**
  * The v2 rail: eighteen destinations in five groups, and the operator
@@ -83,6 +84,8 @@ export const navItems: NavItem[] = [
   // Club websites on domains of their own. Not under /clubs: that prefix would light Clubs too.
   { href: "/club-domains", label: "Club domains", icon: GlobeIcon },
   { href: "/organizations", label: "Organisations", icon: GraduationCapIcon },
+  // The public API: clubs given access, partner apps, webhook health -- once the API has integrations. The rail asks it itself.
+  { href: "/integrations", label: "Integrations", icon: BlocksIcon, probe: "integrations" },
   { href: "/events", label: "Events", icon: CalendarDaysIcon, badge: "events" },
 
   { href: "/payments", label: "Payments", icon: CreditCardIcon, group: "Money" },

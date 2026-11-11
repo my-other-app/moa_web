@@ -1,0 +1,126 @@
+{
+  "allocations": {
+    "items": [
+      {
+        "club": { "id": 5, "name": "GDG Trivandrum", "slug": "gdg-trivandrum" },
+        "allocated": true,
+        "rate_tier": "standard",
+        "max_keys": 5,
+        "notes": "Syncs with the college ERP",
+        "allocated_at": "2026-11-01T10:00:00+05:30",
+        "allocated_by": { "name": "Mohammed", "email": "admin@myotherapp.in" },
+        "revoked_at": null,
+        "keys_active": 2,
+        "apps_connected": 1,
+        "endpoints": 2,
+        "requests_30d": 18234,
+        "errors_30d": 112,
+        "last_used_at": "2026-11-11T18:20:00+05:30"
+      },
+      {
+        "club": { "id": 8, "name": "Quiz Society", "slug": "quiz" },
+        "allocated": false,
+        "rate_tier": "high",
+        "max_keys": 10,
+        "notes": null,
+        "allocated_at": "2026-10-01T10:00:00+05:30",
+        "allocated_by": null,
+        "revoked_at": "2026-10-20T10:00:00+05:30",
+        "keys_active": 0,
+        "apps_connected": 0,
+        "endpoints": 0,
+        "requests_30d": 0,
+        "errors_30d": 0,
+        "last_used_at": null
+      }
+    ],
+    "total": 2
+  },
+  "partner_apps": {
+    "items": [
+      {
+        "id": "p1",
+        "name": "EventHub",
+        "client_id": "moa_client_7Hk2pQ",
+        "logo_url": null,
+        "website": "https://www.eventhub.example",
+        "redirect_uris": ["https://app.eventhub.example/oauth/myotherapp"],
+        "allowed_scopes": ["events:read", "events:write", "registrations:write", "attendees:read"],
+        "status": "active",
+        "created_at": "2026-11-02T10:00:00+05:30",
+        "suspended_at": null,
+        "clubs_connected": 3,
+        "last_used_at": "2026-11-11T08:00:00+05:30"
+      },
+      {
+        "id": "p2",
+        "name": "CampusOS",
+        "client_id": "moa_client_Zz81aa",
+        "logo_url": null,
+        "website": null,
+        "redirect_uris": ["https://campusos.example/cb"],
+        "allowed_scopes": ["clubs:create", "club:read"],
+        "status": "suspended",
+        "created_at": "2026-10-02T10:00:00+05:30",
+        "suspended_at": "2026-11-05T10:00:00+05:30",
+        "clubs_connected": 0,
+        "last_used_at": null
+      }
+    ],
+    "total": 2
+  },
+  "partner_created": {
+    "app": {
+      "id": "p9",
+      "name": "Sheet Sync",
+      "client_id": "moa_client_Nw9LxT",
+      "logo_url": null,
+      "website": "https://sheetsync.example",
+      "redirect_uris": ["https://sheetsync.example/oauth", "com.sheetsync.app:/oauth"],
+      "allowed_scopes": ["events:read", "registrations:read"],
+      "status": "active",
+      "created_at": "2026-11-12T10:00:00+05:30",
+      "suspended_at": null,
+      "clubs_connected": 0,
+      "last_used_at": null
+    },
+    "client_secret": "moa_cs_4Hq7TzR1wL9nB2vX6mK8pJ3dF5gS0aYe"
+  },
+  "partner_clubs": {
+    "items": [
+      {
+        "club": { "id": 5, "name": "GDG Trivandrum", "slug": "gdg-trivandrum" },
+        "scopes": ["events:read", "events:write"],
+        "connected_at": "2026-11-03T10:00:00+05:30",
+        "connected_by": { "name": "Asha Nair", "email": "asha@gdgtvm.in" },
+        "last_used_at": "2026-11-11T08:00:00+05:30"
+      }
+    ]
+  },
+  "health": {
+    "totals": { "delivered": 4210, "failed": 38, "pending": 4 },
+    "days": [
+      { "date": "2026-11-06", "delivered": 500, "failed": 2 },
+      { "date": "2026-11-07", "delivered": 610, "failed": 0 },
+      { "date": "2026-11-08", "delivered": 580, "failed": 4 },
+      { "date": "2026-11-09", "delivered": 700, "failed": 10 },
+      { "date": "2026-11-10", "delivered": 640, "failed": 12 },
+      { "date": "2026-11-11", "delivered": 690, "failed": 8 },
+      { "date": "2026-11-12", "delivered": 490, "failed": 2 }
+    ],
+    "endpoints": { "active": 14, "failing": 1, "disabled": 1 },
+    "failing": [
+      {
+        "endpoint_id": "w2",
+        "url": "https://hooks.eventhub.example/moa/club-5",
+        "club": { "id": 5, "name": "GDG Trivandrum" },
+        "partner_app": { "id": "p1", "name": "EventHub" },
+        "enabled": true,
+        "failing_since": "2026-11-10T08:00:00+05:30",
+        "consecutive_failures": 31,
+        "last_response_status": 503,
+        "last_error": null
+      }
+    ]
+  }
+}
