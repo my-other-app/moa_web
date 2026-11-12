@@ -8,10 +8,10 @@ import * as React from "react";
 
 import { fitImage } from "@/lib/images";
 
-import { previewPresetHtml, previewPresetPng, uploadLayoutImage } from "../api";
+import { type ArtworkField, previewPresetHtml, previewPresetPng } from "../api";
 import type { DesignerConfig } from "../config";
-import { choiceFor, hasPhotoQuestion, presetProblems, questionFields, tidyChoice } from "../presets";
-import { useResetLayout, useSavePreset } from "../queries";
+import { bindableSlots, choiceFor, defaultIdOf, hasPhotoQuestion, presetProblems, questionFields, tidyChoice, usesBuiltIn } from "../presets";
+import { useArtwork, useResetLayout, useSaveArtwork, useSavePreset } from "../queries";
 import { AUDIENCES, type Audience, type DesignInfo, type DesignScope, type LayerDesign, type PresetChoice } from "../schemas";
 import { PreviewDialog, ResetDialog } from "./dialogs";
 import { OptionsPanel } from "./options-panel";
@@ -23,11 +23,20 @@ const errorCopy = (err: unknown) => (err instanceof Error && err.message ? err.m
 /** How long the preview waits after the last change before asking the server again. */
 const PREVIEW_DELAY_MS = 300;
 
-/** The server's field errors, keyed the way the panel keys its own ("options.title", "bindings.zone", "accent"). */
-const serverProblems = (err: unknown) => {
+/**
+ * The server's field errors, keyed the way the panel keys its own
+ * ("options.title", "bindings.zone", "accent"). A refused preset answers
+ * `errors: {fields: {path: message}}`; other refusals a flat map of lists.
+ */
+export const serverProblems = (err: unknown) => {
   const out = new Map<string, string>();
-  if (err instanceof ApiError && err.fieldErrors)
-    for (const [k, msgs] of Object.entries(err.fieldErrors)) if (msgs[0]) out.set(k.replace(/^body\./, ""), msgs[0]);
+  if (!(err instanceof ApiError) || !err.fieldErrors) return out;
+  const raw = err.fieldErrors as Record<string, unknown>;
+  const byField = raw.fields && typeof raw.fields === "object" && !Array.isArray(raw.fields) ? (raw.fields as Record<string, unknown>) : raw;
+  for (const [k, v] of Object.entries(byField)) {
+    const message = typeof v === "string" ? v : Array.isArray(v) && typeof v[0] === "string" ? v[0] : null;
+    if (message) out.set(k.replace(/^body\./, ""), message);
+  }
   return out;
 };
 
@@ -64,6 +73,8 @@ const Provenance = ({
   onReset: () => void;
 }) => {
   const noun = config.noun;
+  // A club's design saved as a ready design has no row of the canvas's kind behind isOwn; one that differs from the built-in is its own.
+  const owns = design.isOwn || (scope.kind === "club" && design.active === "preset" && !usesBuiltIn(design));
   const reset = (label: string) => (
     <Button size="sm" variant="secondary" onClick={onReset}>
       <RotateCcwIcon /> {label}
@@ -76,7 +87,7 @@ const Provenance = ({
   const using = inUse ? "" : ` ${name} is not in use until you save it.`;
 
   if (scope.kind === "club") {
-    if (design.isOwn) {
+    if (owns) {
       tag = "Club design";
       body = `Your club's ${noun} design. Every event without its own uses it.${using}`;
       action = reset("Back to the built-in design");
@@ -90,7 +101,7 @@ const Provenance = ({
       tag = "This event";
       body = `This event's own ${noun} design. Changes to your club's design no longer reach it.${using}`;
       action = reset("Use the club's design");
-    } else if (design.fromStarter) {
+    } else if (usesBuiltIn(design)) {
       tone = "accent";
       tag = "Built in";
       body = `Nothing is picked for this event or your club yet, so ${noun}s use ${defaultName}. Saving sets the design for this event only.${using}`;
@@ -147,27 +158,28 @@ export const PresetEditor = ({
   const kind = config.kind;
   const save = useSavePreset(scope, kind, audience);
   const reset = useResetLayout(scope, kind, audience);
-  const fields = React.useMemo(() => questionFields(design.tokens), [design.tokens]);
+  const fields = React.useMemo(() => questionFields(design), [design]);
+  const slots = React.useMemo(() => bindableSlots(info, design.bindable), [info, design.bindable]);
   const scopeName = AUDIENCES.find((a) => a.value === audience)?.label ?? "Everyone";
   const Noun = config.noun[0]!.toUpperCase() + config.noun.slice(1);
   const subject = scope.kind === "club" ? `Your club's ${config.noun} design` : `${Noun} for ${scopeName.toLowerCase()}`;
-  const defaultName = design.catalogue.find((d) => d.id === design.defaultPreset)?.name ?? "the built-in design";
+  const defaultName = design.catalogue.find((d) => d.id === defaultIdOf(design))?.name ?? "the built-in design";
+  const owns = design.isOwn || (scope.kind === "club" && design.active === "preset" && !usesBuiltIn(design));
 
   // Opened on the saved settings when this is the design in use, else on the design's own defaults.
   const [start] = React.useState<PresetChoice>(() => choiceFor(info, design.preset));
   const [saved, setSaved] = React.useState<string | null>(() =>
-    design.active === "preset" && design.preset?.id === info.id ? JSON.stringify(tidyChoice(choiceFor(info, design.preset))) : null
+    design.active === "preset" && design.preset?.id === info.id ? JSON.stringify(tidyChoice(choiceFor(info, design.preset), info)) : null
   );
   const [choice, setChoice] = React.useState<PresetChoice>(start);
   const [fromServer, setFromServer] = React.useState<Map<string, string>>(() => new Map());
-  const [urls, setUrls] = React.useState<Record<string, string>>({});
   const [dialog, setDialog] = React.useState<"preview" | "reset" | null>(null);
   const [png, setPng] = React.useState<Blob | null>(null);
   const [pngBusy, setPngBusy] = React.useState<string | null>(null);
 
-  const current = JSON.stringify(tidyChoice(choice));
+  const current = JSON.stringify(tidyChoice(choice, info));
   const inUse = saved !== null;
-  const changed = current !== JSON.stringify(tidyChoice(start));
+  const changed = current !== JSON.stringify(tidyChoice(start, info));
   const needsSave = !inUse || current !== saved;
   React.useEffect(() => {
     dirtyRef.current = changed && needsSave;
@@ -183,7 +195,7 @@ export const PresetEditor = ({
     return () => window.removeEventListener("beforeunload", warn);
   }, [changed, needsSave]);
 
-  const problems = React.useMemo(() => presetProblems(info, choice, fields), [info, choice, fields]);
+  const problems = React.useMemo(() => presetProblems(info, choice, fields, design.bindable), [info, choice, fields, design.bindable]);
   const problemMap = React.useMemo(() => {
     const m = new Map(fromServer);
     for (const p of problems) if (!m.has(p.path)) m.set(p.path, p.message);
@@ -196,43 +208,55 @@ export const PresetEditor = ({
   };
 
   // ─── The live preview: the server fills the design, the browser draws it ───
+  // A picture uploaded changes the document without changing the settings: the preview asks again.
+  const [pictures, setPictures] = React.useState(0);
+  const requestKey = `${pictures}:${current}`;
   const [shown, setShown] = React.useState<{ key: string; html: string } | null>(null);
   const [failed, setFailed] = React.useState<{ key: string; message: string } | null>(null);
   const blocked = problems.length > 0;
   React.useEffect(() => {
     if (blocked) return;
     const ctrl = new AbortController();
+    const key = `${pictures}:${current}`;
     const timer = setTimeout(() => {
       previewPresetHtml(scope, kind, audience, JSON.parse(current) as PresetChoice, null, ctrl.signal)
-        .then((html) => setShown({ key: current, html }))
+        .then((html) => setShown({ key, html }))
         .catch((err: unknown) => {
-          if (!ctrl.signal.aborted) setFailed({ key: current, message: errorCopy(err) });
+          if (!ctrl.signal.aborted) setFailed({ key, message: errorCopy(err) });
         });
     }, PREVIEW_DELAY_MS);
     return () => {
       clearTimeout(timer);
       ctrl.abort();
     };
-  }, [blocked, current, scope, kind, audience]);
-  const previewError = failed?.key === current ? failed.message : null;
-  const updating = !blocked && !previewError && shown?.key !== current;
+  }, [blocked, current, pictures, scope, kind, audience]);
+  const previewError = failed?.key === requestKey ? failed.message : null;
+  const updating = !blocked && !previewError && shown?.key !== requestKey;
 
-  const imageUrl = (key: string) => urls[key] ?? design.imageUrls[key] ?? null;
-  const upload = async (picked: File) => {
-    let file: File;
-    try {
-      file = await fitImage(picked, "image");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "That image is too big to send");
-      return null;
+  // A certificate's logo and signatures: the event's artwork, stored on upload.
+  const withPictures = kind === "certificate" && scope.kind === "event";
+  const artwork = useArtwork(scope, kind, audience, withPictures);
+  const saveArtwork = useSaveArtwork(scope, kind, audience);
+  const [pictureBusy, setPictureBusy] = React.useState<ArtworkField | null>(null);
+  const savePicture = async (field: ArtworkField, picked: File | null) => {
+    let file: File | null = null;
+    if (picked) {
+      try {
+        file = await fitImage(picked, "image");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "That image is too big to send");
+        return;
+      }
     }
+    setPictureBusy(field);
     try {
-      const res = await uploadLayoutImage(scope, kind, file, "image");
-      setUrls((u) => ({ ...u, [res.key]: res.url }));
-      return res;
+      await saveArtwork.mutateAsync({ field, file });
+      setPictures((n) => n + 1);
+      toast.success(file ? "Picture saved" : "Picture removed", { description: "It is on this event's certificates from now on." });
     } catch (err) {
       toast.error(errorCopy(err));
-      return null;
+    } finally {
+      setPictureBusy(null);
     }
   };
 
@@ -310,7 +334,7 @@ export const PresetEditor = ({
         ? save.isError
           ? "error"
           : "dirty"
-        : design.isOwn
+        : owns
           ? "saved"
           : "clean";
   const saveDetail = {
@@ -324,7 +348,7 @@ export const PresetEditor = ({
         ? `${info.name}, the built-in design; save to make it your club's`
         : audience !== "event_default"
           ? "Following the event's design"
-          : design.fromStarter
+          : usesBuiltIn(design)
             ? `${info.name}, the built-in design`
             : "Following your club's design",
   }[saveState];
@@ -417,8 +441,9 @@ export const PresetEditor = ({
             onChange={change}
             problems={problemMap}
             fields={fields}
-            imageUrl={imageUrl}
-            onUpload={upload}
+            slots={slots}
+            artwork={withPictures ? { urls: artwork.data, busy: pictureBusy, onSave: (f, file) => void savePicture(f, file) } : null}
+            clubScope={scope.kind === "club"}
             photoHint={photoHint}
           />
         </div>

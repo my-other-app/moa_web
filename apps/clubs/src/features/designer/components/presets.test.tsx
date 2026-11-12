@@ -3,8 +3,11 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import { render } from "@/test/render";
 
+import { ApiError } from "@moa/api";
+
 import { layerDesignSchema, type DesignKind, type DesignScope, type LayerDesign } from "../schemas";
 import { DesignerPage } from "./designer-page";
+import { serverProblems } from "./preset-editor";
 
 /**
  * The ready designs, rendered: the gallery before the canvas, a design's
@@ -17,6 +20,8 @@ const state: { designs: Partial<Record<DesignKind, LayerDesign>> } = { designs: 
 const savePreset = vi.fn();
 const saveLayout = vi.fn();
 const reset = vi.fn();
+const clearPreset = vi.fn();
+const saveArtwork = vi.fn();
 const previewHtml = vi.fn(async (..._args: unknown[]) => "<!doctype html><p>Filled by the server</p>");
 
 vi.mock("../queries", () => ({
@@ -24,11 +29,18 @@ vi.mock("../queries", () => ({
   useSaveLayout: () => ({ mutateAsync: saveLayout, isPending: false, isError: false, error: null }),
   useSavePreset: () => ({ mutateAsync: savePreset, isPending: false, isError: false, error: null }),
   useResetLayout: () => ({ mutateAsync: reset, isPending: false }),
+  useResetPreset: () => ({ mutateAsync: clearPreset, isPending: false }),
+  useArtwork: () => ({ data: { logo: "https://cdn.example/logo.png", signature_1: null, signature_2: null } }),
+  useSaveArtwork: () => ({ mutateAsync: saveArtwork, isPending: false }),
 }));
 vi.mock("../api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api")>()),
   previewPresetHtml: (...args: unknown[]) => previewHtml(...args),
   previewPresetPng: vi.fn(async () => new Blob(["png"], { type: "image/png" })),
+}));
+vi.mock("@/lib/images", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/images")>()),
+  fitImage: async (f: File) => f,
 }));
 vi.mock("@/features/events", () => ({
   useEventDetail: (id: number) => ({ data: id ? { id, name: "Hack Night" } : undefined }),
@@ -80,20 +92,27 @@ const CATALOGUE: Record<"ticket" | "badge" | "certificate", unknown[]> = {
       kind: "certificate",
       page: { width_px: 1123, height_px: 794, width_mm: 297, height_mm: 210 },
       accent: { default: "#D90429", suggestions: ["#D90429", "#1F3BD8"], contrast_note: null },
-      tokens: [{ name: "recipient_name", required: true }, { name: "grade", required: false }],
+      tokens: [{ name: "recipient_name", required: true }, { name: "grade", required: false }, { name: "logo_src", required: false }, { name: "signature_src", required: false }],
       options: [
         { key: "title", label: "Title", type: "text", default: "Certificate", required: true, max_length: 20 },
         { key: "signatory_name", label: "Signatory", type: "text", group: "signatories", default: "" },
       ],
     },
+    // As the backend's catalogue sends it (DesignInfo.to_dict): maps of tokens and options.
     {
       id: "certificate/02-midnight-deco",
-      name: "Midnight Deco",
       kind: "certificate",
+      name: "Midnight Deco",
+      colour: "colour",
       page: { width_px: 1123, height_px: 794, width_mm: 297, height_mm: 210 },
-      accent: { default: "#E0BC6A", suggestions: ["#E0BC6A", "#D9D9DE"] },
-      tokens: [{ name: "grade", required: false }],
-      options: [{ key: "title", label: "Title", type: "text", default: "Certificate", required: true }],
+      accent: { default: "#E0BC6A", suggestions: ["#E0BC6A", "#D9D9DE"], against: ["#0D111C"], min_contrast: 3, note: "" },
+      tokens: { recipient_name: "required", grade: "optional" },
+      bindable: ["grade"],
+      options: {
+        wording: { type: "choice", choices: ["participation", "achievement"], default: "achievement", label: "Wording" },
+        text: { type: "text", slots: ["title", "statement"], max_length: 200, label: "Your own words for a line" },
+      },
+      preview: "certificate/02-midnight-deco.png",
     },
   ],
   badge: [
@@ -130,6 +149,14 @@ const CATALOGUE: Record<"ticket" | "badge" | "certificate", unknown[]> = {
   ],
 };
 const DEFAULTS = { ticket: "ticket/03-daylight-boarding-pass", certificate: "certificate/07-swiss-minimal", badge: "badge/06-thermal-mono" } as const;
+const preset = (id: string) => ({ id, options: {}, bindings: {}, accent: null });
+
+/** What B's GET .../layout says of the bindable fields (app/api/doc_presets/values.py bindable). */
+const BINDABLE = {
+  ticket: [{ token: "tagline", auto: "Hidden: events have no subtitle" }, { token: "gate", auto: "Hidden: no seating" }, { token: "event_name", auto: null }],
+  certificate: [{ token: "grade", auto: "The competition placing, if any" }, { token: "logo_src", auto: null, image: true }, { token: "signature_src", auto: null, image: true }],
+  badge: [{ token: "zone", auto: null }, { token: "organization", auto: "The guest's organisation, from their app profile" }, { token: "job_title", auto: "Hidden unless you bind it" }, { token: "photo_url", auto: "The form's photo answer", image: true }],
+};
 
 const LAYERS = [
   {
@@ -175,7 +202,19 @@ const design = (kind: DesignKind, over: Partial<Record<string, unknown>> = {}) =
     sampleValues: { attendee_name: "Asha Rao" },
     ...(kind === "agenda"
       ? {}
-      : { active: "preset", preset: { id: DEFAULTS[kind], options: {}, bindings: {}, accent: null }, catalogue: CATALOGUE[kind], defaultPreset: DEFAULTS[kind] }),
+      : {
+          active: "preset",
+          preset: preset(DEFAULTS[kind]),
+          presetDefault: preset(DEFAULTS[kind]),
+          catalogue: CATALOGUE[kind],
+          bindable: BINDABLE[kind],
+          hasLayout: false,
+          questions: [
+            { key: "designation", label: "Designation", type: "text", token: "field.designation" },
+            { key: "headshot", label: "Headshot", type: "image", token: "field.headshot" },
+          ],
+          hasPhotoQuestion: false,
+        }),
     ...over,
   });
 
@@ -275,11 +314,19 @@ describe("a design's settings", () => {
     await pick(/Midnight Deco/);
     expect(within(saveBar()).getByRole("status")).toHaveTextContent("Not saved yet · Midnight Deco is not in use until you save it");
     const settings = screen.getByRole("region", { name: "Settings" });
+    const wording = within(settings).getByLabelText("Wording");
+    expect(within(wording).getAllByRole("option").map((o) => o.textContent)).toEqual(["Participation", "Achievement"]);
+    fireEvent.change(wording, { target: { value: "participation" } });
     fireEvent.change(within(settings).getByLabelText("Title"), { target: { value: "Certificate of Merit" } });
     fireEvent.click(within(settings).getByRole("radio", { name: "#D9D9DE" }));
     fireEvent.click(within(saveBar()).getByRole("button", { name: /Save design/ }));
     await waitFor(() =>
-      expect(savePreset).toHaveBeenCalledWith({ id: "certificate/02-midnight-deco", options: { title: "Certificate of Merit" }, bindings: {}, accent: "#d9d9de" })
+      expect(savePreset).toHaveBeenCalledWith({
+        id: "certificate/02-midnight-deco",
+        options: { wording: "participation", text: { title: "Certificate of Merit" } },
+        bindings: {},
+        accent: "#d9d9de",
+      })
     );
   });
 
@@ -302,6 +349,20 @@ describe("a design's settings", () => {
     expect(savePreset).not.toHaveBeenCalled();
   });
 
+  it("shows the server's refusal next to the field it names", async () => {
+    savePreset.mockRejectedValue(
+      new ApiError({ message: "This design's settings need attention.", status: 422, fieldErrors: { fields: { "options.text.title": "At most 200 characters." } } as never })
+    );
+    open();
+    await tab("Certificate");
+    await pick(/Midnight Deco/);
+    fireEvent.click(within(saveBar()).getByRole("button", { name: /Save design/ }));
+    expect(await within(screen.getByRole("region", { name: "Settings" })).findByText("At most 200 characters.")).toBeInTheDocument();
+    expect(serverProblems(new ApiError({ message: "x", status: 422, fieldErrors: { "body.accent": ["A hex colour like #1db9a0."] } }))).toEqual(
+      new Map([["accent", "A hex colour like #1db9a0."]])
+    );
+  });
+
   it("warns when the colour is hard to see on the design", async () => {
     open();
     await tab("Certificate");
@@ -318,12 +379,16 @@ describe("a design's settings", () => {
     await pick(/Thermal Mono/);
     const fields = within(screen.getByRole("region", { name: "Settings" })).getByRole("list", { name: "Fields" });
     expect(within(fields).getAllByRole("listitem")).toHaveLength(2);
-    expect(within(fields).getAllByText(/^Automatic: hidden/)).toHaveLength(2);
+    expect(within(fields).getByText("Left off: there is nothing to fill it with.")).toBeInTheDocument();
+    expect(within(fields).getByText("The guest's organisation, from their app profile.")).toBeInTheDocument();
 
     fireEvent.change(within(fields).getByLabelText("Zone"), { target: { value: "text" } });
     fireEvent.change(within(fields).getByLabelText("Zone text"), { target: { value: "Hall B" } });
-    fireEvent.change(within(fields).getByLabelText("Organization"), { target: { value: "field" } });
-    expect(within(fields).getByLabelText("Organization question")).toHaveValue("field.designation");
+    fireEvent.change(within(fields).getByLabelText("Organisation"), { target: { value: "field" } });
+    const question = within(fields).getByLabelText("Organisation question");
+    expect(question).toHaveValue("designation");
+    // A photo answer is never printed as text.
+    expect(within(question).queryByRole("option", { name: "Headshot" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("switch", { name: "Lanyard slot" }));
 
     fireEvent.click(within(saveBar()).getByRole("button", { name: /Save design/ }));
@@ -331,7 +396,7 @@ describe("a design's settings", () => {
       expect(savePreset).toHaveBeenCalledWith({
         id: "badge/06-thermal-mono",
         options: { lanyard: false },
-        bindings: { zone: { source: "text", value: "Hall B" }, organization: { source: "field", value: "field.designation" } },
+        bindings: { zone: { source: "text", value: "Hall B" }, organization: { source: "field", value: "designation" } },
         accent: null,
       })
     );
@@ -350,11 +415,61 @@ describe("a design's settings", () => {
   });
 
   it("says nothing of photos when the form has a photo question", async () => {
-    state.designs.badge = design("badge", { photoQuestion: true });
+    state.designs.badge = design("badge", { hasPhotoQuestion: true });
     open();
     await tab("ID card");
     await pick(/Ticket Stub/);
     await screen.findByRole("region", { name: "Settings" });
     expect(screen.queryByText(/photos come from each guest's app profile/)).not.toBeInTheDocument();
+  });
+});
+
+describe("a certificate's pictures", () => {
+  it("uploads the logo and signature as the event's artwork, at once", async () => {
+    saveArtwork.mockResolvedValue({ logo: null, signature_1: "https://cdn.example/sig.png", signature_2: null });
+    open();
+    await tab("Certificate");
+    await pick(/Swiss Minimal/);
+    const pictures = within(screen.getByRole("region", { name: "Settings" }));
+    expect(pictures.getByRole("button", { name: /Replace logo/ })).toBeInTheDocument();
+    const sig = new File([new Uint8Array([137, 80, 78, 71])], "sig.png", { type: "image/png" });
+    fireEvent.change(pictures.getByLabelText("Signature file"), { target: { files: [sig] } });
+    await waitFor(() => expect(saveArtwork).toHaveBeenCalledWith({ field: "signature_1", file: sig }));
+    fireEvent.click(pictures.getByRole("button", { name: "Remove the logo" }));
+    await waitFor(() => expect(saveArtwork).toHaveBeenCalledWith({ field: "logo", file: null }));
+    // Pictures are never bound: the design refuses it.
+    expect(within(pictures.getByRole("list", { name: "Fields" })).queryByLabelText("Logo")).not.toBeInTheDocument();
+  });
+
+  it("says where the pictures come from on the club's templates", async () => {
+    open({ kind: "club" });
+    await tab("Certificate");
+    await pick(/Swiss Minimal/);
+    expect(screen.getByText(/Your club's logo is used\. Signatures are uploaded on each event's certificate design\./)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Signature file")).not.toBeInTheDocument();
+  });
+});
+
+describe("where the design comes from", () => {
+  it("says the club's own ready design is the club's, and the built-in one is built in", async () => {
+    state.designs.ticket = design("ticket", { preset: { id: "ticket/02-midnight-arcade", options: {}, bindings: {}, accent: null } });
+    open({ kind: "club" });
+    await pick(/Midnight Arcade/);
+    expect(screen.getByText(/Your club's ticket design\. Every event without its own uses it\./)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Back to the built-in design/ })).toBeInTheDocument();
+  });
+
+  it("says an event with nothing picked uses the built-in design", async () => {
+    open();
+    await pick(/Daylight Boarding Pass/);
+    expect(screen.getByText(/Nothing is picked for this event or your club yet, so tickets use Daylight Boarding Pass/)).toBeInTheDocument();
+  });
+
+  it("puts a canvas saved here back in use, as it is", async () => {
+    state.designs.ticket = design("ticket", { isOwn: true, hasLayout: true, fromStarter: false });
+    open();
+    await pick(/Custom design/);
+    fireEvent.click(await screen.findByRole("button", { name: /Use this design/ }));
+    await waitFor(() => expect(clearPreset).toHaveBeenCalled());
   });
 });

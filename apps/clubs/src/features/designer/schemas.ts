@@ -94,6 +94,8 @@ export const designOptionSchema = camel(
     maxLength: z.number().nullish(),
     required: z.boolean().default(false),
     choices: z.array(z.union([z.string(), z.object({ value: z.string(), label: z.string() })])).nullish(),
+    /** Lines of the design's wording a club may write in its own words: the option's value maps a line to its words. */
+    slots: z.array(z.string()).nullish(),
   }),
   { name: "key", help: "hint", note: "hint", description: "hint", max: "maxLength", maxChars: "maxLength", values: "choices", options: "choices" }
 );
@@ -116,14 +118,24 @@ export const designSlotSchema = z.preprocess(
 );
 export type DesignSlot = z.infer<typeof designSlotSchema>;
 
-/** The manifest's flat accent (`accent_default`, `accent_suggestions`), folded into one object. */
-const foldAccent = (v: unknown) => {
+const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+/**
+ * A manifest entry, read the ways it comes: the designer's packages, the
+ * backend's catalogue (tokens as {token: "required"|"optional"}, options as
+ * {name: spec}, `colour: "mono"`), and a flat accent (`accent_default`,
+ * `accent_suggestions`) folded into one object.
+ */
+const normaliseDesign = (v: unknown) => {
   const o = camelKeys(v);
-  if (!o || typeof o !== "object") return o;
-  const r = { ...(o as Record<string, unknown>) };
+  if (!isMap(o)) return o;
+  const r = { ...o };
   // The other names the manifest gives these: a certificate's "title", the preview image's path.
   if (r.name === undefined && typeof r.title === "string") r.name = r.title;
   if (r.previewUrl === undefined && typeof r.preview === "string") r.previewUrl = r.preview;
+  if (r.mono === undefined && typeof r.colour === "string") r.mono = r.colour === "mono";
+  if (isMap(r.tokens)) r.tokens = Object.entries(r.tokens).map(([key, need]) => ({ key, required: need === "required" || need === true }));
+  if (isMap(r.options)) r.options = Object.entries(r.options).map(([key, spec]) => ({ ...(isMap(spec) ? spec : {}), key }));
   if (r.accent !== undefined || !("accentDefault" in r)) return r;
   const { accentDefault, accentSuggestions, accentAgainst, accentNote, ...rest } = r;
   return {
@@ -133,7 +145,7 @@ const foldAccent = (v: unknown) => {
 };
 
 export const designInfoSchema = z.preprocess(
-  foldAccent,
+  normaliseDesign,
   z.object({
     /** "<kind>/<file id>", e.g. "badge/06-thermal-mono". */
     id: z.string(),
@@ -156,8 +168,10 @@ export const designInfoSchema = z.preprocess(
       z.object({
         default: z.string(),
         suggestions: z.array(z.string()).default([]),
-        /** The colour the accent sits on or under, for the contrast check. */
-        against: z.string().nullish(),
+        /** The colours the accent sits on or under, for the contrast check. */
+        against: z.preprocess((v) => (typeof v === "string" ? [v] : v), z.array(z.string())).nullish(),
+        /** Below this contrast with any of them, the club is warned (it may still save). */
+        minContrast: z.number().nullish(),
         note: z.string().nullish(),
       }),
       { contrastNote: "note", contrastWith: "against", on: "against" }
@@ -208,13 +222,29 @@ export const layerDesignSchema = z.object({
    */
   active: z.enum(["preset", "custom"]).default("custom"),
   preset: presetChoiceSchema.nullish(),
+  /** The ready design, as it would be saved, used when nothing is saved anywhere (D7). */
+  presetDefault: presetChoiceSchema.nullish(),
   catalogue: z.array(designInfoSchema).default([]),
-  /** The ready design used when nothing is saved anywhere (D7). */
-  defaultPreset: z.string().nullish(),
-  /** The event's sign-up form asks for a photo; unknown on a backend that does not say. */
-  photoQuestion: z.boolean().nullish(),
+  /**
+   * Every field of this kind a binding can name, and what "automatic" fills
+   * it with (null: the backend does not say). A picture can only be hidden.
+   */
+  bindable: z.array(z.object({ token: z.string(), auto: z.string().nullish(), image: z.boolean().default(false) })).default([]),
+  /** A custom canvas is saved, so Custom design opens on it. */
+  hasLayout: z.boolean().nullish(),
+  /** The sign-up form's questions; `token` is what a binding to one names (field.<slug>). */
+  questions: z.array(z.object({ key: z.string().nullish(), label: z.string().nullish(), type: z.string().nullish(), token: z.string() })).default([]),
+  /** The sign-up form has a photo question; unknown on a backend that does not say. */
+  hasPhotoQuestion: z.boolean().nullish(),
 });
 export type LayerDesign = z.infer<typeof layerDesignSchema>;
+
+/** What GET /events/{id}/designs/{kind} answers: the stored design's config, with its pictures' addresses. */
+export const storedDesignSchema = z.object({
+  config: z.record(z.unknown()).default({}),
+  source: z.string().nullish(),
+  is_own: z.boolean().default(false),
+});
 
 export const uploadedImageSchema = z.object({
   key: z.string(),

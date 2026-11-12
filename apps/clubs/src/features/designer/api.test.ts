@@ -17,6 +17,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     if (path.endsWith("/layout/images")) return { key: "base/events/42/layout/template-abc.png", url: "https://bucket/t.png?signed", width: 1560, height: 690 };
     if (path.includes("/starters/")) return { canvas: CANVAS, layers: LAYERS, page: PAGE };
     if (path.endsWith("/preset/preview")) return { html: "<!doctype html><p>filled</p>" };
+    if (path.endsWith("/designs/certificate") || path.endsWith("/artwork"))
+      return { config: { logo_url: "https://cdn/logo.png?signed", signature_1_url: null, signature_1_key: null }, source: "event_default", is_own: true };
     return DESIGN;
   };
   return {
@@ -53,7 +55,7 @@ const DESIGN = {
   sampleValues: { attendee_name: "Ananya Iyer" },
 };
 
-const { fetchLayout, fetchStarter, previewPresetHtml, previewPresetPng, resetDesign, resetPreset, saveLayout, savePreset, uploadLayoutImage } = await import("./api");
+const { fetchArtwork, saveArtwork, fetchLayout, fetchStarter, previewPresetHtml, previewPresetPng, resetDesign, resetPreset, saveLayout, savePreset, uploadLayoutImage } = await import("./api");
 const EVENT = { kind: "event", eventId: 42 } as const;
 const CLUB = { kind: "club" } as const;
 
@@ -166,5 +168,23 @@ describe("the ready designs", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("a certificate's pictures", () => {
+  it("reads them from the stored design for the audience", async () => {
+    const art = await fetchArtwork(42, "certificate", "speaker");
+    expect(calls[0]).toMatchObject({ method: "GET", path: "/api/v1/events/42/designs/certificate", options: { query: { audience: "speaker" } } });
+    expect(art).toEqual({ logo: "https://cdn/logo.png?signed", signature_1: null, signature_2: null });
+  });
+
+  it("uploads one as multipart, or removes it with its remove flag", async () => {
+    const file = new File([new Uint8Array([137, 80, 78, 71])], "sig.png", { type: "image/png" });
+    await saveArtwork(42, "certificate", "event_default", "signature_1", file);
+    expect(calls[0]).toMatchObject({ method: "PUT", path: "/api/v1/events/42/designs/certificate/artwork", options: { query: { audience: "event_default" } } });
+    expect((calls[0]!.body as FormData).get("signature_1")).toBe(file);
+    await saveArtwork(42, "certificate", "event_default", "logo", null);
+    expect((calls[1]!.body as FormData).get("remove_logo")).toBe("true");
+    expect((calls[1]!.body as FormData).get("logo")).toBeNull();
   });
 });

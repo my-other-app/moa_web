@@ -1,12 +1,13 @@
 "use client";
 
 import { badgeStarter } from "@moa/layout";
-import { Button, EmptyState, Skeleton } from "@moa/ui";
+import { Button, EmptyState, Skeleton, toast } from "@moa/ui";
 import { PencilRulerIcon, RotateCcwIcon } from "lucide-react";
 import * as React from "react";
 
 import { DESIGNERS, designSamples } from "../config";
-import { useLayout } from "../queries";
+import { defaultIdOf } from "../presets";
+import { useLayout, useResetPreset } from "../queries";
 import { type Audience, type DesignKind, type DesignScope, type LayerDesign } from "../schemas";
 import { LayoutThumb, LeaveDialog, type StageLook } from "./dialogs";
 import { Gallery } from "./gallery";
@@ -49,14 +50,14 @@ const GalleryView = ({
     imageUrl: (l) => (l.source === "org_logo" ? (design.brand.logoUrl ?? null) : l.imageKey ? (design.imageUrls[l.imageKey] ?? null) : null),
     fontsReady,
   };
-  const hasCanvas = !design.fromStarter && design.layers.length > 0;
-  const inUse = design.active === "custom" ? "custom" : (design.preset?.id ?? design.defaultPreset ?? "");
+  const hasCanvas = (design.hasLayout ?? !design.fromStarter) && design.layers.length > 0;
+  const inUse = design.active === "custom" ? "custom" : (design.preset?.id ?? defaultIdOf(design) ?? "");
   return (
     <Gallery
       config={DESIGNERS[kind]}
       catalogue={design.catalogue}
       inUse={inUse}
-      defaultId={design.defaultPreset ?? null}
+      defaultId={defaultIdOf(design)}
       customThumb={
         hasCanvas ? (
           <LayoutThumb layout={{ canvas: design.canvas, layers: design.layers, page: design.page }} look={look} box={THUMB_BOX} className={thumbClass} />
@@ -87,6 +88,7 @@ export const DesignTab = ({ scope, kind, dirtyRef }: { scope: DesignScope; kind:
   // A switch that would lose unsaved work waits here until the person says so.
   const [pending, setPending] = React.useState<{ audience?: Audience; view?: View } | null>(null);
   const design = useLayout(scope, kind, audience);
+  const clearPreset = useResetPreset(scope, kind, audience);
 
   const apply = (next: { audience?: Audience; view?: View }) => {
     dirtyRef.current = false;
@@ -114,6 +116,16 @@ export const DesignTab = ({ scope, kind, dirtyRef }: { scope: DesignScope; kind:
   const canvasOnly = !config.gallery || (d !== undefined && d.catalogue.length === 0);
   if (canvasOnly || view.mode === "custom") {
     const inUse = d?.active === "preset" ? (d.catalogue.find((x) => x.id === d.preset?.id)?.name ?? null) : null;
+    // A canvas saved here already: it can be put back in use without editing it (DELETE .../preset keeps the layout).
+    const canvasSaved = !!d && d.active === "preset" && !!d.hasLayout && d.isOwn;
+    const useCanvas = async () => {
+      try {
+        await clearPreset.mutateAsync();
+        toast.success(`The custom ${config.noun} is in use`);
+      } catch (err) {
+        toast.error(errorCopy(err));
+      }
+    };
     return (
       <>
         <LayerDesignerPage
@@ -126,6 +138,8 @@ export const DesignTab = ({ scope, kind, dirtyRef }: { scope: DesignScope; kind:
           onBack={canvasOnly ? undefined : toGallery}
           startWith={view.mode === "custom" ? (view.starter ?? null) : null}
           presetInUse={canvasOnly ? null : inUse}
+          onUseCanvas={!canvasOnly && canvasSaved ? useCanvas : undefined}
+          usingCanvas={clearPreset.isPending}
         />
         {leave}
       </>

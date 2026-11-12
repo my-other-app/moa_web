@@ -6,23 +6,25 @@ import * as React from "react";
 
 import { IMAGE_ACCEPT } from "@/lib/images";
 
+import type { Artwork, ArtworkField } from "../api";
 import {
   accentAgainst,
   accentContrast,
-  bindableSlots,
   bindingOf,
   choicesOf,
   contrastRatio,
   isHex,
   MAX_FIXED_TEXT,
-  MIN_ACCENT_CONTRAST,
+  minContrastOf,
   OPTION_GROUPS,
   optionGroup,
   optionKind,
   type QuestionField,
+  sentence,
+  type Slot,
   slotLabel,
 } from "../presets";
-import type { Binding, BindingSource, DesignInfo, DesignOption, DesignSlot, PresetChoice } from "../schemas";
+import type { Binding, BindingSource, DesignInfo, DesignOption, PresetChoice } from "../schemas";
 import { Busy, Section } from "./fields";
 import { ui } from "./kit";
 
@@ -30,7 +32,8 @@ import { ui } from "./kit";
  * A ready design's settings, one short section each: its colour, its
  * wording, who signs it, its pictures, how it prints, and where each
  * optional field comes from. Every change is a new draft the preview
- * follows; nothing is saved from here.
+ * follows; nothing is saved from here -- except a picture, which is the
+ * design's artwork and is stored when it is uploaded.
  */
 
 type Patch = (fn: (c: PresetChoice) => PresetChoice) => void;
@@ -55,16 +58,17 @@ const AccentField = ({ design, value, onChange, problem }: { design: DesignInfo;
     setDraft(value ?? "");
   }
   const ratio = accentContrast(design, value);
-  const against = accentAgainst(design);
-  const low = ratio !== null && ratio < MIN_ACCENT_CONTRAST;
+  const against = accentAgainst(design)[0];
+  const low = ratio !== null && ratio < minContrastOf(design);
   // A light page wants a darker accent, a dark one a lighter accent.
   const better = against && contrastRatio(against, "#FFFFFF") > contrastRatio(against, "#000000") ? "lighter" : "darker";
-  const custom = isHex(value) && !accent.suggestions.some((s) => s.toUpperCase() === value.toUpperCase());
+  const same = (a: string, b: string | null | undefined) => isHex(b) && a.toUpperCase() === b.toUpperCase();
+  const custom = isHex(value) && !accent.suggestions.some((s) => same(s, value));
   return (
     <Section title="Colour">
       <div role="radiogroup" aria-label="Accent colour" className="flex flex-wrap items-center gap-2">
         {accent.suggestions.map((s) => {
-          const on = isHex(value) && s.toUpperCase() === value.toUpperCase();
+          const on = same(s, value);
           return (
             <button
               key={s}
@@ -93,7 +97,7 @@ const AccentField = ({ design, value, onChange, problem }: { design: DesignInfo;
           <input
             type="color"
             aria-label="Custom colour"
-            value={isHex(value) ? value : accent.default}
+            value={isHex(value) ? value.toLowerCase() : accent.default.toLowerCase()}
             onChange={(e) => onChange(e.target.value.toUpperCase())}
             className="absolute inset-0 size-full cursor-pointer opacity-0"
           />
@@ -128,89 +132,45 @@ const AccentField = ({ design, value, onChange, problem }: { design: DesignInfo;
 
 // ─── Options ────────────────────────────────────────────────────────────
 
-const ImageOption = ({
-  option,
-  value,
-  url,
-  onUpload,
-  onClear,
-  problem,
-}: {
-  option: DesignOption;
-  value: unknown;
-  url: string | null;
-  onUpload: (file: File) => Promise<void>;
-  onClear: () => void;
-  problem?: string;
-}) => {
-  const input = React.useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = React.useState(false);
-  const id = fieldId(`options.${option.key}`);
+/** The design's lines in the club's own words: one field a line, empty for the wording above. */
+const LinesField = ({ option, value, onChange, problems }: { option: DesignOption; value: unknown; onChange: (v: unknown) => void; problems: Map<string, string> }) => {
+  const lines = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const max = option.maxLength ?? 200;
   return (
-    <div className="min-w-0">
-      <span className={ui.label} id={`${id}-label`}>
-        {option.label}
-      </span>
-      <div className="flex items-center gap-2">
-        <span className="border-line bg-sunken grid h-12 w-20 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] border">
-          {url ? (
-            // eslint-disable-next-line @next/next/no-img-element -- an upload shown back as it is
-            <img src={url} alt="" className="max-h-full max-w-full object-contain" />
-          ) : (
-            <span className="text-ink-3 text-[10.5px]">{value ? "Uploaded" : "None"}</span>
-          )}
-        </span>
-        <Button size="sm" variant="secondary" disabled={busy} aria-describedby={`${id}-label`} onClick={() => input.current?.click()}>
-          {busy ? <Busy on /> : <ImagePlusIcon />} {value ? "Replace" : "Upload"}
-        </Button>
-        {value ? (
-          <Button size="sm" variant="ghost" aria-label={`Remove ${option.label.toLowerCase()}`} onClick={onClear}>
-            <Trash2Icon />
-          </Button>
-        ) : null}
-        <input
-          ref={input}
-          type="file"
-          accept={IMAGE_ACCEPT}
-          aria-label={`${option.label} file`}
-          className="hidden"
-          onChange={async (e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (!f) return;
-            setBusy(true);
-            try {
-              await onUpload(f);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        />
-      </div>
-      {option.hint ? <p className={cn(ui.note, "m-0 mt-1")}>{option.hint}</p> : null}
-      <Problem id={`${id}-problem`} message={problem} />
-    </div>
+    <fieldset className="m-0 flex min-w-0 flex-col gap-2.5 border-0 p-0">
+      <legend className={cn(ui.label, "mb-0")}>Your own words</legend>
+      <p className={cn(ui.note, "-mt-1 m-0")}>Leave a line empty to keep the wording above.</p>
+      {(option.slots ?? []).map((slot) => {
+        const id = fieldId(`options.${option.key}.${slot}`);
+        const problem = problems.get(`options.${option.key}.${slot}`);
+        const text = typeof lines[slot] === "string" ? (lines[slot] as string) : "";
+        return (
+          <div key={slot} className="min-w-0">
+            <div className="flex items-baseline justify-between gap-2">
+              <label htmlFor={id} className="text-ink-2 mb-1 block text-[12px] font-medium">
+                {slotLabel({ key: slot })}
+              </label>
+              {text ? <span className={cn("font-mono text-[10.5px] tabular-nums", text.length > max ? "text-refuse" : "text-ink-3")}>{text.length}/{max}</span> : null}
+            </div>
+            <Textarea
+              id={id}
+              rows={slot === "statement" ? 3 : 1}
+              value={text}
+              aria-invalid={!!problem}
+              onChange={(e) => onChange({ ...lines, [slot]: e.target.value })}
+            />
+            <Problem id={`${id}-problem`} message={problem} />
+          </div>
+        );
+      })}
+    </fieldset>
   );
 };
 
-const OptionField = ({
-  option,
-  value,
-  onChange,
-  problem,
-  image,
-}: {
-  option: DesignOption;
-  value: unknown;
-  onChange: (v: unknown) => void;
-  problem?: string;
-  image: { url: string | null; upload: (f: File) => Promise<void> };
-}) => {
+const OptionField = ({ option, value, onChange, problem }: { option: DesignOption; value: unknown; onChange: (v: unknown) => void; problem?: string }) => {
   const kind = optionKind(option);
   const id = fieldId(`options.${option.key}`);
   const described = problem ? `${id}-problem` : option.hint ? `${id}-hint` : undefined;
-  if (kind === "image")
-    return <ImageOption option={option} value={value} url={image.url} onUpload={image.upload} onClear={() => onChange(null)} problem={problem} />;
   if (kind === "toggle")
     return (
       <div className="flex items-start justify-between gap-3">
@@ -264,6 +224,92 @@ const OptionField = ({
   );
 };
 
+// ─── Pictures ───────────────────────────────────────────────────────────
+
+/** The pictures a certificate can carry, by the field its design prints them in. */
+const PICTURES: { token: string; field: ArtworkField; label: string; hint: string }[] = [
+  { token: "logo_src", field: "logo", label: "Logo", hint: "Your club's logo unless you upload another." },
+  { token: "signature_src", field: "signature_1", label: "Signature", hint: "A scan on a plain or clear background. Without one the line is left to sign by hand." },
+  { token: "second_signature_src", field: "signature_2", label: "Second signature", hint: "For the second signatory." },
+];
+
+export interface ArtworkProps {
+  urls: Artwork | undefined;
+  /** Which picture is uploading now. */
+  busy: ArtworkField | null;
+  onSave: (field: ArtworkField, file: File | null) => void;
+}
+
+const Picture = ({ label, hint, url, busy, onPick, onRemove }: { label: string; hint: string; url: string | null; busy: boolean; onPick: (f: File) => void; onRemove: () => void }) => {
+  const input = React.useRef<HTMLInputElement>(null);
+  return (
+    <div className="min-w-0">
+      <span className={ui.label}>{label}</span>
+      <div className="flex items-center gap-2">
+        <span className="border-line bg-sunken grid h-12 w-20 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] border">
+          {url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- an upload shown back as it is
+            <img src={url} alt="" className="max-h-full max-w-full object-contain" />
+          ) : (
+            <span className="text-ink-3 text-[10.5px]">None</span>
+          )}
+        </span>
+        <Button size="sm" variant="secondary" disabled={busy} onClick={() => input.current?.click()}>
+          {busy ? <Busy on /> : <ImagePlusIcon />} {url ? "Replace" : "Upload"}
+          <span className="sr-only"> {label.toLowerCase()}</span>
+        </Button>
+        {url ? (
+          <Button size="sm" variant="ghost" disabled={busy} aria-label={`Remove the ${label.toLowerCase()}`} onClick={onRemove}>
+            <Trash2Icon />
+          </Button>
+        ) : null}
+        <input
+          ref={input}
+          type="file"
+          accept={IMAGE_ACCEPT}
+          aria-label={`${label} file`}
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) onPick(f);
+          }}
+        />
+      </div>
+      <p className={cn(ui.note, "m-0 mt-1")}>{hint}</p>
+    </div>
+  );
+};
+
+/** A certificate's logo and signatures: the event's artwork, stored as soon as it is uploaded. */
+const PicturesSection = ({ design, artwork, clubScope }: { design: DesignInfo; artwork: ArtworkProps | null; clubScope: boolean }) => {
+  const tokens = new Set(design.tokens.map((t) => t.key));
+  const shown = PICTURES.filter((p) => tokens.has(p.token));
+  if (!shown.length) return null;
+  return (
+    <Section title="Pictures">
+      {clubScope || !artwork ? (
+        <p className={cn(ui.note, "m-0")}>Your club&apos;s logo is used. Signatures are uploaded on each event&apos;s certificate design.</p>
+      ) : (
+        <>
+          {shown.map((p) => (
+            <Picture
+              key={p.field}
+              label={p.label}
+              hint={p.hint}
+              url={artwork.urls?.[p.field] ?? null}
+              busy={artwork.busy === p.field}
+              onPick={(f) => artwork.onSave(p.field, f)}
+              onRemove={() => artwork.onSave(p.field, null)}
+            />
+          ))}
+          <p className={cn(ui.note, "m-0")}>Pictures are saved for this event as soon as they upload.</p>
+        </>
+      )}
+    </Section>
+  );
+};
+
 // ─── Fields ─────────────────────────────────────────────────────────────
 
 const SOURCES: { value: BindingSource; label: string }[] = [
@@ -273,27 +319,15 @@ const SOURCES: { value: BindingSource; label: string }[] = [
   { value: "hidden", label: "Hide" },
 ];
 
-const BindingRow = ({
-  slot,
-  binding,
-  fields,
-  onChange,
-  problem,
-}: {
-  slot: DesignSlot;
-  binding: Binding;
-  fields: QuestionField[];
-  onChange: (b: Binding) => void;
-  problem?: string;
-}) => {
-  const label = slotLabel(slot);
+const BindingRow = ({ slot, binding, fields, onChange, problem }: { slot: Slot; binding: Binding; fields: QuestionField[]; onChange: (b: Binding) => void; problem?: string }) => {
   const id = fieldId(`bindings.${slot.key}`);
-  const autoNote = slot.auto ? `Automatic: ${slot.auto}.` : "Automatic: hidden, as we have nothing to fill it with.";
+  // A picture can only be left as it is or hidden.
+  const sources = slot.image ? SOURCES.filter((s) => s.value === "auto" || s.value === "hidden") : SOURCES;
   return (
     <li className="flex flex-col gap-1.5 py-2.5 first:pt-0 last:pb-0">
       <div className="flex items-center justify-between gap-3">
         <label htmlFor={`${id}-source`} className="text-ink min-w-0 truncate text-[13px] font-medium">
-          {label}
+          {slot.label}
         </label>
         <NativeSelect
           id={`${id}-source`}
@@ -305,7 +339,7 @@ const BindingRow = ({
             onChange(source === "field" ? { source, value: fields[0]?.key ?? null } : source === "text" ? { source, value: "" } : { source });
           }}
         >
-          {SOURCES.map((s) => (
+          {sources.map((s) => (
             <option key={s.value} value={s.value} disabled={s.value === "field" && !fields.length}>
               {s.value === "field" && !fields.length ? "Sign-up question (none yet)" : s.label}
             </option>
@@ -314,7 +348,7 @@ const BindingRow = ({
       </div>
       {binding.source === "text" ? (
         <Input
-          aria-label={`${label} text`}
+          aria-label={`${slot.label} text`}
           className="input-sm"
           value={binding.value ?? ""}
           maxLength={MAX_FIXED_TEXT + 20}
@@ -322,13 +356,7 @@ const BindingRow = ({
           onChange={(e) => onChange({ source: "text", value: e.target.value })}
         />
       ) : binding.source === "field" ? (
-        <NativeSelect
-          aria-label={`${label} question`}
-          size="sm"
-          value={binding.value ?? ""}
-          aria-invalid={!!problem}
-          onChange={(e) => onChange({ source: "field", value: e.target.value })}
-        >
+        <NativeSelect aria-label={`${slot.label} question`} size="sm" value={binding.value ?? ""} aria-invalid={!!problem} onChange={(e) => onChange({ source: "field", value: e.target.value })}>
           <option value="">Pick a question</option>
           {fields.map((f) => (
             <option key={f.key} value={f.key}>
@@ -337,7 +365,7 @@ const BindingRow = ({
           ))}
         </NativeSelect>
       ) : binding.source === "auto" ? (
-        <p className={cn(ui.note, "m-0")}>{autoNote}</p>
+        <p className={cn(ui.note, "m-0")}>{slot.auto ? sentence(slot.auto) : "Left off: there is nothing to fill it with."}</p>
       ) : (
         <p className={cn(ui.note, "m-0")}>Not shown.</p>
       )}
@@ -348,23 +376,21 @@ const BindingRow = ({
 
 /** Where each optional field of the design comes from. */
 export const BindingsEditor = ({
-  design,
+  slots,
   choice,
   fields,
   onChange,
   problems,
 }: {
-  design: DesignInfo;
+  slots: Slot[];
   choice: PresetChoice;
   fields: QuestionField[];
   onChange: (key: string, b: Binding) => void;
   problems: Map<string, string>;
-}) => {
-  const slots = bindableSlots(design);
-  if (!slots.length) return null;
-  return (
+}) =>
+  slots.length ? (
     <Section title="Fields">
-      <p className={cn(ui.note, "-mt-1.5 m-0")}>Where each optional field comes from. A field with nothing to show is left off, never printed empty.</p>
+      <p className={cn(ui.note, "m-0 -mt-1.5")}>Where each optional field comes from. A field with nothing to show is left off, never printed empty.</p>
       <ul aria-label="Fields" className="divide-line-soft m-0 list-none divide-y p-0">
         {slots.map((slot) => (
           <BindingRow
@@ -378,8 +404,7 @@ export const BindingsEditor = ({
         ))}
       </ul>
     </Section>
-  );
-};
+  ) : null;
 
 // ─── The panel ──────────────────────────────────────────────────────────
 
@@ -389,8 +414,9 @@ export const OptionsPanel = ({
   onChange,
   problems,
   fields,
-  imageUrl,
-  onUpload,
+  slots,
+  artwork,
+  clubScope,
   photoHint,
 }: {
   design: DesignInfo;
@@ -398,15 +424,19 @@ export const OptionsPanel = ({
   onChange: Patch;
   problems: Map<string, string>;
   fields: QuestionField[];
-  /** An uploaded picture's address, by the key an option holds. */
-  imageUrl: (key: string) => string | null;
-  /** Upload a picture for an option; the key it answers is what the option saves. */
-  onUpload: (file: File) => Promise<{ key: string; url: string } | null>;
+  /** The optional fields the club can bind. */
+  slots: Slot[];
+  /** A certificate's pictures, on an event; null elsewhere. */
+  artwork: ArtworkProps | null;
+  clubScope: boolean;
   /** Said above the settings on a photo badge when the form asks for no photo. */
   photoHint?: React.ReactNode;
 }) => {
   const setOption = (key: string, v: unknown) => onChange((c) => ({ ...c, options: { ...c.options, [key]: v } }));
-  const groups = OPTION_GROUPS.map((g) => ({ ...g, options: design.options.filter((o) => optionGroup(o) === g.key) })).filter((g) => g.options.length);
+  // Pictures are the design's artwork (below), never an option.
+  const groups = OPTION_GROUPS.map((g) => ({ ...g, options: design.options.filter((o) => optionKind(o) !== "image" && optionGroup(o) === g.key) })).filter(
+    (g) => g.options.length
+  );
   return (
     <FigurePanel role="region" aria-label="Settings" className="p-0">
       <div className="px-4 pt-4 pb-3.5">
@@ -419,29 +449,18 @@ export const OptionsPanel = ({
       ) : null}
       {groups.map((g) => (
         <Section key={g.key} title={g.title}>
-          {g.options.map((o) => {
-            const v = choice.options[o.key];
-            return (
-              <OptionField
-                key={o.key}
-                option={o}
-                value={v}
-                onChange={(next) => setOption(o.key, next)}
-                problem={problems.get(`options.${o.key}`)}
-                image={{
-                  url: typeof v === "string" && v ? imageUrl(v) : null,
-                  upload: async (f) => {
-                    const res = await onUpload(f);
-                    if (res) setOption(o.key, res.key);
-                  },
-                }}
-              />
-            );
-          })}
+          {g.options.map((o) =>
+            optionKind(o) === "lines" ? (
+              <LinesField key={o.key} option={o} value={choice.options[o.key]} onChange={(next) => setOption(o.key, next)} problems={problems} />
+            ) : (
+              <OptionField key={o.key} option={o} value={choice.options[o.key]} onChange={(next) => setOption(o.key, next)} problem={problems.get(`options.${o.key}`)} />
+            )
+          )}
         </Section>
       ))}
+      {design.kind === "certificate" ? <PicturesSection design={design} artwork={artwork} clubScope={clubScope} /> : null}
       <BindingsEditor
-        design={design}
+        slots={slots}
         choice={choice}
         fields={fields}
         problems={problems}

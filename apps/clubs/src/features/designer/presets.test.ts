@@ -4,6 +4,9 @@ import {
   accentContrast,
   bindableSlots,
   choiceFor,
+  choicesOf,
+  minContrastOf,
+  questionFields,
   contrastRatio,
   filterDesigns,
   freshChoice,
@@ -54,7 +57,28 @@ const MONO = parse({
 const STUB = parse({ id: "badge/01-ticket-stub", name: "Ticket Stub", kind: "badge", page: { width: 384, height: 576 }, has_photo: true, accent_default: "#FF8A3D", accent_suggestions: ["#FF8A3D"] });
 const BIG = parse({ id: "badge/04-big-name", name: "Big Name", kind: "badge", page: { width_px: 384, height_px: 576 }, has_photo: false, accent: { default: "#FFD83A", suggestions: [] } });
 
-const FIELDS = [{ key: "field.designation", label: "Designation" }];
+const FIELDS = [{ key: "designation", label: "Designation" }];
+
+/** A certificate as the backend's catalogue sends it (app/core/doc_designs, DesignInfo.to_dict). */
+const CORE = parse({
+  id: "certificate/02-midnight-deco",
+  kind: "certificate",
+  name: "Midnight Deco",
+  use: "Excellence awards",
+  has_photo: false,
+  colour: "colour",
+  page: { width_px: 1123, height_px: 794, width_mm: 297, height_mm: 210 },
+  accent: { default: "#E0BC6A", suggestions: ["#E0BC6A", "#D9D9DE"], against: ["#0D111C", "#141B2D"], min_contrast: 4.5, note: "A light colour on the dark page." },
+  tokens: { recipient_name: "required", grade: "optional", logo_src: "optional", qr_code_src: "required" },
+  bindable: ["grade", "logo_src"],
+  options: {
+    wording: { type: "choice", choices: ["participation", "achievement"], default: "achievement", label: "Wording" },
+    text: { type: "text", slots: ["title", "statement"], max_length: 200, label: "Your own words for a line" },
+  },
+  preview: "certificate/02-midnight-deco.png",
+  version: "abc123",
+});
+const THERMAL = parse({ id: "badge/06-thermal-mono", kind: "badge", name: "Thermal Mono", colour: "mono", page: { width_px: 384, height_px: 576, width_mm: 101.6, height_mm: 152.4 }, accent: null, tokens: {}, options: { lanyard: { type: "bool", default: true, label: "Lanyard slot" } } });
 
 describe("the catalogue, as the backend sends it", () => {
   it("reads snake_case manifests, bare token names and the flat accent", () => {
@@ -84,6 +108,40 @@ describe("the catalogue, as the backend sends it", () => {
     expect(d.catalogue).toEqual([]);
   });
 
+  it("reads the backend's catalogue: token and option maps, mono, the accent's colours and threshold", () => {
+    expect(CORE.tokens).toEqual([
+      { key: "recipient_name", required: true },
+      { key: "grade", required: false },
+      { key: "logo_src", required: false },
+      { key: "qr_code_src", required: true },
+    ]);
+    expect(CORE.options.map((o) => [o.key, o.type])).toEqual([["wording", "choice"], ["text", "text"]]);
+    expect(CORE.options[1]).toMatchObject({ slots: ["title", "statement"], maxLength: 200 });
+    expect(CORE.accent).toMatchObject({ against: ["#0D111C", "#141B2D"], minContrast: 4.5 });
+    expect(THERMAL.mono).toBe(true);
+    expect(filterDesigns([CORE, THERMAL], "all", "mono").map((d) => d.name)).toEqual(["Thermal Mono"]);
+    // A path inside the backend's package is no address for the browser.
+    expect(thumbnailOf(CORE)).toBe("/designs/certificate/02-midnight-deco.webp");
+  });
+
+  it("starts the wording on the design's own, the lines unwritten, and sends only the lines written", () => {
+    const c = freshChoice(CORE);
+    expect(c.options).toEqual({ wording: "achievement" });
+    expect(choicesOf(CORE.options[0]!)).toEqual([{ value: "participation", label: "Participation" }, { value: "achievement", label: "Achievement" }]);
+    const written = { ...c, options: { ...c.options, text: { title: "  Award  ", statement: "" }, stale: 1 } };
+    expect(tidyChoice(written, CORE).options).toEqual({ wording: "achievement", text: { title: "Award" } });
+    expect(tidyChoice({ ...c, options: { ...c.options, text: { title: " " } } }, CORE).options).toEqual({ wording: "achievement" });
+    const long = { ...c, options: { ...c.options, text: { statement: "x".repeat(201) } } };
+    expect(presetProblems(CORE, long, FIELDS)).toEqual([{ path: "options.text.statement", message: "Statement is 201 characters; keep it to 200." }]);
+  });
+
+  it("warns against every colour the accent sits on, at the design's own threshold", () => {
+    expect(accentContrast(CORE, "#E0BC6A")!).toBeGreaterThan(4.5);
+    expect(accentContrast(CORE, "#5A4A2A")!).toBeLessThan(4.5);
+    expect(minContrastOf(CORE)).toBe(4.5);
+    expect(minContrastOf(SWISS)).toBe(MIN_ACCENT_CONTRAST);
+  });
+
   it("uses the shipped WebP unless the catalogue gives an address the browser can load", () => {
     expect(thumbnailOf(SWISS)).toBe("/designs/certificate/07-swiss-minimal.webp");
     expect(thumbnailOf({ ...SWISS, previewUrl: "https://api.example/static/doc-designs/07.png" })).toBe("https://api.example/static/doc-designs/07.png");
@@ -99,7 +157,7 @@ describe("a fresh pick", () => {
   it("starts from the design's defaults, every field automatic, its own accent", () => {
     expect(freshChoice(SWISS)).toEqual({
       id: "certificate/07-swiss-minimal",
-      options: { title: "Certificate", statement: "for taking part", signatory_name: "", signature: "", lanyard: true },
+      options: { title: "Certificate", statement: "for taking part", signatory_name: "", lanyard: true },
       bindings: {},
       accent: "#D90429",
     });
@@ -117,8 +175,27 @@ describe("a fresh pick", () => {
     expect(optionGroup({ key: "logo", label: "Logo", type: "image", required: false })).toBe("pictures");
   });
 
-  it("lets a club bind only the optional fields no option already sets", () => {
+  it("lets a club bind only the optional fields no option already sets, never a picture", () => {
     expect(bindableSlots(SWISS).map((t) => t.key)).toEqual(["grade", "issue_city"]);
+    const bindable = [
+      { token: "grade", auto: "The competition placing, if any", image: false },
+      { token: "issue_city", auto: null, image: false },
+      { token: "logo_src", auto: null, image: true },
+    ];
+    expect(bindableSlots(SWISS, bindable)).toEqual([
+      { key: "grade", label: "Grade", auto: "The competition placing, if any", image: false },
+      { key: "issue_city", label: "City", auto: "the event's city", image: false },
+    ]);
+    expect(bindableSlots(CORE).map((t) => t.key)).toEqual(["grade"]);
+  });
+
+  it("binds a question by its slug, and never to a photo answer", () => {
+    const questions = [
+      { key: "designation", label: "Designation", type: "text", token: "field.designation" },
+      { key: "headshot", label: "Headshot", type: "image", token: "field.headshot" },
+    ];
+    expect(questionFields({ questions, tokens: [] })).toEqual([{ key: "designation", label: "Designation" }]);
+    expect(questionFields({ questions: [], tokens: [{ key: "field.t_shirt", group: "Guest fields", label: "T-shirt", sample: "" }] })).toEqual([{ key: "t_shirt", label: "T-shirt" }]);
   });
 });
 
@@ -143,12 +220,12 @@ describe("what stops a save", () => {
   });
 
   it("refuses a fixed text left empty and a question not picked", () => {
-    const bad = { ...ok, bindings: { grade: { source: "text" as const, value: " " }, issue_city: { source: "field" as const, value: "field.gone" } } };
+    const bad = { ...ok, bindings: { grade: { source: "text" as const, value: " " }, issue_city: { source: "field" as const, value: "gone" } } };
     expect(presetProblems(SWISS, bad, FIELDS)).toEqual([
       { path: "bindings.grade", message: "Type the text for grade, or pick another source." },
-      { path: "bindings.issue_city", message: "Pick the question that fills issue city." },
+      { path: "bindings.issue_city", message: "Pick the question that fills city." },
     ]);
-    const good = { ...ok, bindings: { grade: { source: "text" as const, value: "Distinction" }, issue_city: { source: "field" as const, value: "field.designation" } } };
+    const good = { ...ok, bindings: { grade: { source: "text" as const, value: "Distinction" }, issue_city: { source: "field" as const, value: "designation" } } };
     expect(presetProblems(SWISS, good, FIELDS)).toEqual([]);
   });
 

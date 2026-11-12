@@ -17,11 +17,16 @@ import { DesignerPage } from "./designer-page";
 const state: { design: LayerDesign; saving: boolean } = { design: null as unknown as LayerDesign, saving: false };
 const save = vi.fn();
 const reset = vi.fn();
+const clearPreset = vi.fn();
+const saveArtwork = vi.fn();
 
 vi.mock("../queries", () => ({
   useLayout: () => ({ data: state.design, isError: false, error: null, refetch: vi.fn(async () => ({})) }),
   useSaveLayout: () => ({ mutateAsync: save, isPending: state.saving, isError: false, error: null }),
   useResetLayout: () => ({ mutateAsync: reset, isPending: false }),
+  useResetPreset: () => ({ mutateAsync: clearPreset, isPending: false }),
+  useArtwork: () => ({ data: undefined }),
+  useSaveArtwork: () => ({ mutateAsync: saveArtwork, isPending: false }),
 }));
 vi.mock("@/features/events", () => ({
   useEventDetail: (id: number) => ({ data: id ? { id, name: "Hack Night" } : undefined }),

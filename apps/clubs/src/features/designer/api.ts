@@ -12,6 +12,7 @@ import {
   type DesignKind,
   type DesignScope,
   type PresetChoice,
+  storedDesignSchema,
 } from "./schemas";
 
 const base = (scope: DesignScope, kind: DesignKind) =>
@@ -126,3 +127,32 @@ export async function previewPresetHtml(
 /** The same settings rendered exactly as issued, as a PNG. */
 export const previewPresetPng = (scope: DesignScope, kind: DesignKind, audience: Audience, choice: PresetChoice, ticketId: string | null): Promise<Blob> =>
   postForImage(`${presetBase(scope, kind)}/preview?format=png&audience=${audience}`, { ...presetBody(choice), ticket_id: ticketId });
+
+// ─── A certificate's pictures ───────────────────────────────────────────
+
+/** The pictures a certificate design prints: its logo and two signatures, as the stored design names them. */
+export const ARTWORK_FIELDS = ["logo", "signature_1", "signature_2"] as const;
+export type ArtworkField = (typeof ARTWORK_FIELDS)[number];
+export type Artwork = Record<ArtworkField, string | null>;
+
+const artworkOf = (config: Record<string, unknown>): Artwork =>
+  Object.fromEntries(ARTWORK_FIELDS.map((f) => [f, typeof config[`${f}_url`] === "string" && config[`${f}_url`] ? (config[`${f}_url`] as string) : null])) as Artwork;
+
+/** The event's certificate pictures for this audience, as the design in use holds them (links last an hour). */
+export async function fetchArtwork(eventId: number, kind: DesignKind, audience: Audience): Promise<Artwork> {
+  const raw = await api.get<unknown>(`/api/v1/events/${eventId}/designs/${kind}`, { query: { audience } });
+  return artworkOf(storedDesignSchema.parse(raw).config);
+}
+
+/**
+ * Upload one picture, or remove it with `null`. Saved at once, on the
+ * event's own copy of the design (made first if the event followed the
+ * club's), so it reaches the documents without pressing save.
+ */
+export async function saveArtwork(eventId: number, kind: DesignKind, audience: Audience, field: ArtworkField, file: File | null): Promise<Artwork> {
+  const fd = new FormData();
+  if (file) fd.append(field, file);
+  else fd.append(`remove_${field}`, "true");
+  const raw = await api.put<unknown>(`/api/v1/events/${eventId}/designs/${kind}/artwork`, fd, { query: { audience } });
+  return artworkOf(storedDesignSchema.parse(raw).config);
+}

@@ -80,6 +80,8 @@ export const LayerDesignerPage = ({
   onBack,
   startWith,
   presetInUse,
+  onUseCanvas,
+  usingCanvas,
 }: {
   scope: DesignScope;
   kind: DesignKind;
@@ -90,6 +92,9 @@ export const LayerDesignerPage = ({
   startWith?: string | null;
   /** The name of the ready design this kind uses now, if it uses one: saving the canvas replaces it. */
   presetInUse?: string | null;
+  /** Put the canvas already saved here back in use, as it is. */
+  onUseCanvas?: () => Promise<void>;
+  usingCanvas?: boolean;
 }) => {
   const config = DESIGNERS[kind];
   // The club's designer has no event: the hook stays quiet for 0.
@@ -132,6 +137,8 @@ export const LayerDesignerPage = ({
       picker={left}
       startWith={nonce === 0 ? (startWith ?? null) : null}
       presetInUse={presetInUse ?? null}
+      onUseCanvas={onUseCanvas}
+      usingCanvas={!!usingCanvas}
       onSaved={() => void design.refetch()}
       onDiscard={() => setNonce((n) => n + 1)}
       onReset={async () => {
@@ -157,13 +164,15 @@ interface EditorProps {
   /** A starter to open on instead of the saved design, unsaved. */
   startWith: string | null;
   presetInUse: string | null;
+  onUseCanvas?: () => Promise<void>;
+  usingCanvas: boolean;
   onSaved: () => void;
   onDiscard: () => void;
   onReset: () => Promise<void>;
   dirtyRef: React.MutableRefObject<boolean>;
 }
 
-const Editor = ({ config, scope, eventId, design, audience, picker, startWith, presetInUse, onSaved, onDiscard, onReset, dirtyRef }: EditorProps) => {
+const Editor = ({ config, scope, eventId, design, audience, picker, startWith, presetInUse, onUseCanvas, usingCanvas, onSaved, onDiscard, onReset, dirtyRef }: EditorProps) => {
   const save = useSaveLayout(scope, config.kind, audience);
   const reset = useResetLayout(scope, config.kind, audience);
   const saved = React.useMemo<Layout>(() => ({ canvas: design.canvas, layers: design.layers, page: design.page }), [design]);
@@ -175,7 +184,8 @@ const Editor = ({ config, scope, eventId, design, audience, picker, startWith, p
   const [version, setVersion] = React.useState(design.version);
   const [fromStarter, setFromStarter] = React.useState(design.fromStarter);
   // Saving the canvas makes it the design in use; until then a ready design may be.
-  const [replacing, setReplacing] = React.useState(presetInUse);
+  const [savedHere, setSavedHere] = React.useState(false);
+  const replacing = savedHere ? null : presetInUse;
   const history = useLayoutHistory(initial);
   const { layout, set, undo, redo, seal } = history;
   const [selected, setSelected] = React.useState<string | null>(null);
@@ -694,7 +704,7 @@ const Editor = ({ config, scope, eventId, design, audience, picker, startWith, p
       set(next);
       setVersion(res.version);
       setFromStarter(false);
-      setReplacing(null);
+      setSavedHere(true);
       dirtyRef.current = false;
       onSaved();
     } catch (err) {
@@ -880,7 +890,17 @@ const Editor = ({ config, scope, eventId, design, audience, picker, startWith, p
         }
       />
       {replacing ? (
-        <Notice tone="caution" tag="Not in use">
+        <Notice
+          tone="caution"
+          tag="Not in use"
+          action={
+            onUseCanvas && !dirty ? (
+              <Button size="sm" variant="secondary" disabled={usingCanvas} onClick={() => void onUseCanvas()}>
+                {usingCanvas ? <Loader2Icon className="animate-spin" /> : null} Use this design
+              </Button>
+            ) : null
+          }
+        >
           {Noun}s use the {replacing} design now. Saving this canvas makes it the {config.noun} design instead.
         </Notice>
       ) : null}
