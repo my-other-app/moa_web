@@ -15,7 +15,7 @@ import { errorText, isLapsedError, isPermissionError, isPrivateError, threadsOf,
 import { FOLDER_LABEL, PERMISSION_MESSAGE, PRIVATE_MESSAGE, type Folder, type MailMessage } from "../schemas";
 import { ClubMail } from "./club-mail";
 import { Composer, type ComposeTarget } from "./composer";
-import { LapseNotice, MailHeader, MailUnavailable, MailUpgradeNotice, NoAccessPanel } from "./shared";
+import { LapseNotice, MailHeader, MailUnavailable, MailUpgradeNotice, NoAccessPanel, ReservedNotice } from "./shared";
 import { ThreadView } from "./thread-view";
 
 function LiveMark({ mode }: { mode: StreamMode }) {
@@ -56,7 +56,7 @@ function Mailbox({ readFile }: { readFile?: FetchFile }) {
   const answer = (mode: ComposeMode, original?: MailMessage | null, ownAddresses: string[] = []) =>
     setCompose({ key: Date.now(), target: { mode, original: original ?? null, ownAddresses } });
 
-  const usable = Boolean(mb?.on_server && mb.available && mb.can_mail && mb.set_up && mb.state !== "expired");
+  const usable = Boolean(mb?.on_server && mb.available && mb.can_mail && mb.set_up && mb.state !== "expired" && mb.state !== "reserved");
   const canSend = Boolean(mb && mb.plan_allows && mb.state === "open");
   const onScreen = React.useRef<ReadonlySet<number>>(new Set());
   const applyRefresh = useApplyMailRefresh();
@@ -108,7 +108,9 @@ function Mailbox({ readFile }: { readFile?: FetchFile }) {
         <>
           {!mb.plan_allows && mb.state === "open" ? <MailUpgradeNotice upgrade={mb.upgrade} /> : null}
           <LapseNotice mailbox={mb} />
-          {!mb.set_up ? (
+          {mb.state === "reserved" ? (
+            <ReservedNotice mailbox={mb} />
+          ) : !mb.set_up ? (
             <EmptyState
               tone="muted"
               icon={<InboxIcon />}

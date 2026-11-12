@@ -741,3 +741,57 @@ describe("the composer on its own", () => {
     expect((calls.find((c) => c.path === "/api/v1/clubs/mailbox/messages")!.body as FormData).get("include_signature")).toBe("false");
   });
 });
+
+// ─── A reserved address ──────────────────────────────────────────────────
+
+describe("a reserved address (every club has one; its plan has no mailbox)", () => {
+  const RESERVED = {
+    ...MAILBOX,
+    plan_allows: false,
+    upgrade: UPGRADE,
+    state: "reserved",
+    address: "gdgcloudtrivandrum@myotherapp.in",
+    handle: "gdgcloudtrivandrum",
+    automatic: true,
+    credits_left: null,
+  };
+
+  it("reads the state and whether the address was given from the name", () => {
+    expect(mailboxSchema.parse(RESERVED)).toMatchObject({ state: "reserved", automatic: true });
+    expect(mailboxSchema.parse({ ...MAILBOX, automatic: "yes" }).automatic).toBe(false);
+  });
+
+  it("says on Mail that the address is ready, with the upgrade, and asks for no mail", async () => {
+    state.mailbox = RESERVED;
+    render(<MailboxPage readFile={readFile} />);
+    expect(await screen.findByText(/Your address/)).toHaveTextContent("Your address gdgcloudtrivandrum@myotherapp.in is ready.");
+    expect(screen.getByRole("link", { name: "Upgrade to Pro" })).toHaveAttribute("href", "/billing");
+    expect(screen.queryByText(/A club mailbox is part of/)).toBeNull();
+    expect(screen.queryByText(/no longer includes the mailbox/)).toBeNull();
+    expect(screen.queryByRole("region", { name: "Mailbox" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /New mail/ })).toBeNull();
+    await act(async () => {});
+    expect(calls.some((c) => c.path.endsWith("/threads"))).toBe(false);
+  });
+
+  it("shows the address in Mail settings, changeable only once the plan has the mailbox", async () => {
+    state.mailbox = RESERVED;
+    render(<MailSettingsPage />);
+    const card = await screen.findByRole("region", { name: "The address" });
+    expect(within(card).getByText("gdgcloudtrivandrum@myotherapp.in")).toBeInTheDocument();
+    expect(within(card).getByText(/Given from the club's name. On a plan with the mailbox, it can be changed once straight away./)).toBeInTheDocument();
+    expect(within(card).queryByRole("form")).toBeNull();
+    expect(screen.getByRole("link", { name: "Upgrade to Pro" })).toBeInTheDocument();
+    expect(screen.queryByText(/no longer includes the mailbox/)).toBeNull();
+    expect(screen.queryByRole("form", { name: "Sending and keeping" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "All of the mail" })).toBeNull();
+  });
+
+  it("lets a club on Pro change its automatic address once straight away", async () => {
+    state.mailbox = { ...MAILBOX, automatic: true, next_change_at: null };
+    render(<MailSettingsPage />);
+    const card = await screen.findByRole("region", { name: "The address" });
+    expect(within(card).getByText(/You can change it once straight away; after that, once a month./)).toBeInTheDocument();
+    expect(within(card).getByRole("form", { name: "Change the address" })).toBeInTheDocument();
+  });
+});

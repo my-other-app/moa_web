@@ -76,6 +76,7 @@ import { ClubCreditsPanel, ClubMessagesPanel } from "@/features/messages";
 import { ClubPlanPanel } from "@/features/subscriptions";
 import { ClubWhatsAppCard } from "@/features/club-whatsapp";
 import { ClubMailboxCard } from "@/features/club-mailbox";
+import { WebAddressCard } from "@/features/web-address";
 import { ConfirmAction } from "@/features/ops";
 import { useOpsFeature } from "@/features/ops/queries";
 import { useCan } from "@/hooks/use-can";
@@ -477,6 +478,9 @@ export function ClubDetail({ clubId }: { clubId: number }) {
 
         {/* Its own WhatsApp number, if any: status and quality, never a message. */}
         {club ? <ClubWhatsAppCard clubId={club.id} /> : null}
+
+        {/* Its slug: the public page and site, the old ones that redirect, a change when the club asks. */}
+        {club ? <WebAddressCard kind="club" id={club.id} slug={club.slug} aliases={club.slug_aliases} /> : null}
 
         {/* Its mailbox, if any: the address, open or closed, counts -- never a mail. */}
         {club ? <ClubMailboxCard clubId={club.id} /> : null}

@@ -34,7 +34,7 @@ import { useMailNotify } from "../alerts";
 import { EXPORT_HREF, checkHandle } from "../api";
 import { errorText, useMailbox, useSaveAddress, useSaveSettings, useSaveSignature, useWipeMail } from "../queries";
 import { PRIVATE_MESSAGE, handleProblem, type HandleCheck, type Mailbox } from "../schemas";
-import { LapseNotice, MailHeader, MailUnavailable, MailUpgradeNotice, NoAccessPanel } from "./shared";
+import { LapseNotice, MailHeader, MailUnavailable, MailUpgradeNotice, NoAccessPanel, ReservedNotice } from "./shared";
 
 async function copy(text: string) {
   try {
@@ -325,6 +325,7 @@ export function MailSettingsPage({ checkHandleFn }: { checkHandleFn?: (h: string
               {PRIVATE_MESSAGE}
             </Notice>
           ) : null}
+          {mb.state === "reserved" ? <ReservedNotice mailbox={mb} /> : null}
           {!mb.plan_allows && mb.state === "open" ? <MailUpgradeNotice upgrade={mb.upgrade} /> : null}
           <LapseNotice mailbox={mb} />
           {!mb.can_manage && !mb.can_mail ? (
@@ -355,13 +356,23 @@ export function MailSettingsPage({ checkHandleFn }: { checkHandleFn?: (h: string
                       ))}
                     </ul>
                   ) : null}
+                  {mb.set_up && mb.automatic ? (
+                    <p className="text-ink-3 m-0 text-[12.5px]">
+                      Given from the club&apos;s name.
+                      {mb.state === "reserved"
+                        ? " On a plan with the mailbox, it can be changed once straight away."
+                        : mb.can_manage && mb.plan_allows && !mb.next_change_at
+                          ? " You can change it once straight away; after that, once a month."
+                          : ""}
+                    </p>
+                  ) : null}
                   {mb.can_manage && mb.plan_allows && mb.state === "open" ? (
                     <AddressForm mb={mb} check={checkHandleFn} />
                   ) : !mb.set_up && !mb.can_manage ? (
                     <p className="text-ink-3 m-0 text-[12.5px]">The club&apos;s owner or an admin picks the address.</p>
                   ) : null}
                 </FigurePanel>
-                {mb.set_up && mb.can_manage ? (
+                {mb.set_up && mb.can_manage && mb.state !== "reserved" ? (
                   <FigurePanel className="p-4" role="region" aria-label="Sending and keeping">
                     <CardLabel>Sending and keeping</CardLabel>
                     <div className="mt-2">
@@ -374,7 +385,7 @@ export function MailSettingsPage({ checkHandleFn }: { checkHandleFn?: (h: string
                     <SignatureForm mb={mb} />
                   </FigurePanel>
                 ) : null}
-                {mb.set_up && mb.is_owner ? (
+                {mb.set_up && mb.is_owner && mb.state !== "reserved" ? (
                   <FigurePanel className="p-4" role="region" aria-label="All of the mail">
                     <CardLabel>All of the mail</CardLabel>
                     <div className="mt-2">

@@ -42,6 +42,8 @@ export const adminClubDetailSchema = z.object({
   id: z.coerce.number(),
   name: z.string(),
   slug: z.string().nullish(),
+  /** Its old slugs, which still redirect to it; none from a server before slug changes. */
+  slug_aliases: z.array(z.string()).catch([]).default([]),
   logo: imageFieldSchema,
   location_name: z.string().nullish(),
   location_link: z.string().nullish(),

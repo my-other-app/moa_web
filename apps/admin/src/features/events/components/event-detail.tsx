@@ -57,6 +57,7 @@ import { enter, hoverLift, pressable, stagger } from "@moa/ui/motion";
 
 import { ArrivalCurveCard, EventAnalyticsPanels, RequestFunnelCard, hasRequestFigures } from "@moa/app-kit";
 
+import { WebAddressCard } from "@/features/web-address";
 import { useCan } from "@/hooks/use-can";
 
 import { eventExportUrl } from "../api";
@@ -488,6 +489,9 @@ export function EventDetail({ eventId }: { eventId: number }) {
         <EventCohostsCard eventId={eventId} />
 
         {event ? <EventPartnersCard sponsors={event.sponsors} partners={event.partners} /> : null}
+
+        {/* Its slug: the public page, the old ones that redirect, a change when the club asks. */}
+        {event ? <WebAddressCard kind="event" id={event.id} slug={event.slug} aliases={event.slug_aliases} /> : null}
 
         <Tabs defaultValue="registrations">
           <TabsList>
