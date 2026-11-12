@@ -37,6 +37,7 @@ export default defineConfig({
       { find: "@moa/ui/images", replacement: at("../../packages/ui/src/lib/images.ts") },
       { find: "@moa/ui", replacement: at("../../packages/ui/src/ui/index.ts") },
       { find: "@moa/app-kit", replacement: at("../../packages/app-kit/src/index.ts") },
+      { find: "@moa/mail-ui", replacement: at("../../packages/mail-ui/src/index.ts") },
       { find: "@moa/api", replacement: at("../../packages/api/src/index.ts") },
       { find: "@", replacement: at("./src") },
     ],

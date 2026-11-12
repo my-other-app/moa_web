@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@moa/ui";
 
-import { navItems } from "./nav-items";
+import { isUnder, navItems } from "./nav-items";
 
 /**
  * The trail in the top bar, read from the path: the rail's label for the
@@ -17,7 +17,7 @@ const PAGE: Record<string, string> = { new: "New", duplicates: "Merge queue" };
 export function Breadcrumbs() {
   const pathname = usePathname();
   const parts = pathname.split("/").filter(Boolean);
-  const first = navItems.find((n) => (n.exact ? pathname === n.href : pathname.startsWith(n.href) && n.href !== "/"));
+  const first = navItems.find((n) => (n.exact ? pathname === n.href : isUnder(pathname, n.href) && n.href !== "/"));
   const crumbs: { label: string; href?: string }[] = [];
   if (!first || first.href === "/") {
     crumbs.push({ label: "Overview" });
