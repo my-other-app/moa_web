@@ -1,14 +1,16 @@
 import { api } from "@moa/app-kit";
 import { GATEWAY_PREFIX } from "@moa/auth";
-import type { PageSpec, TicketCanvas, TicketLayer } from "@moa/layout";
+import type { LayoutV2, PageSpec, TicketCanvas, TicketLayer } from "@moa/layout";
 
 import { z } from "zod";
 
 import {
+  boardDesignSchema,
   layerDesignSchema,
   starterSchema,
   uploadedImageSchema,
   type Audience,
+  type BoardKind,
   type DesignKind,
   type DesignScope,
   type PresetChoice,
@@ -156,3 +158,29 @@ export async function saveArtwork(eventId: number, kind: DesignKind, audience: A
   const raw = await api.put<unknown>(`/api/v1/events/${eventId}/designs/${kind}/artwork`, fd, { query: { audience } });
   return artworkOf(storedDesignSchema.parse(raw).config);
 }
+
+// ─── Layout v2: the board ───────────────────────────────────────────────
+
+/** The design as the board edits it: v2, converted on the server when it was saved as v1 or as a preset. */
+export async function fetchBoard(scope: DesignScope, kind: BoardKind, audience: Audience) {
+  const raw = await api.get<unknown>(`${base(scope, kind)}/layout`, { query: { audience } });
+  return boardDesignSchema.parse(raw);
+}
+
+/** A starter's layout, copied for this design (copy-on-use): nothing is saved until the board saves. */
+export async function fetchStarterLayout(scope: DesignScope, kind: BoardKind, id: string): Promise<unknown> {
+  // Ids may hold a slash ("ticket/03-daylight-boarding-pass"): each part is encoded, the slash kept.
+  const path = id.split("/").map(encodeURIComponent).join("/");
+  const raw = await api.post<unknown>(`${base(scope, kind)}/layout/starters/${path}`, {});
+  return raw && typeof raw === "object" && "layout" in raw ? (raw as { layout: unknown }).layout : raw;
+}
+
+/** Save the board's design: v2, which clears any preset saved before. Forks the design onto the event on first save. */
+export async function saveBoard(scope: DesignScope, kind: BoardKind, audience: Audience, layout: LayoutV2) {
+  const raw = await api.put<unknown>(`${base(scope, kind)}/layout`, layout, { query: { audience } });
+  return boardDesignSchema.parse(raw);
+}
+
+/** The unsaved design drawn exactly as issued, as a PNG: for the sample guest, or a registration by its ticket. */
+export const previewBoard = (scope: DesignScope, kind: BoardKind, audience: Audience, layout: LayoutV2, ticketId: string | null): Promise<Blob> =>
+  postForImage(`${base(scope, kind)}/layout/preview?format=png&audience=${audience}`, { layout, ticket_id: ticketId });

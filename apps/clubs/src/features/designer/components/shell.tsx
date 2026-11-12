@@ -81,6 +81,8 @@ export const Provenance = ({
   dirty,
   onReset,
   onLayouts,
+  starterText,
+  layoutsLabel,
 }: {
   scope: DesignScope;
   audience: Audience;
@@ -92,22 +94,27 @@ export const Provenance = ({
   dirty: boolean;
   onReset: () => void;
   onLayouts: () => void;
+  /** What an unsaved design opens on, in words, when it is not one of the kind's layouts: "the Daylight Boarding Pass design". */
+  starterText?: string;
+  /** The button that goes to the designs to start from; shown where the kind has layouts, or when this is given. */
+  layoutsLabel?: string;
 }) => {
   const noun = config.noun;
   // What an unsaved design opens on: the kind's first layout, or a blank canvas where it has none.
   const firstLayout = Object.values(config.starters)[0]?.label;
-  const starter = firstLayout ? `the ${firstLayout} layout` : "a blank canvas";
+  const starter = starterText ?? (firstLayout ? `the ${firstLayout} layout` : "a blank canvas");
   const v = version > 0 ? ` · version ${version}` : "";
   const reset = (label: string) => (
     <Button size="sm" variant="secondary" onClick={onReset}>
       <RotateCcwIcon /> {label}
     </Button>
   );
-  const layouts = config.starter ? (
-    <Button size="sm" variant="secondary" onClick={onLayouts}>
-      <LayoutTemplateIcon /> Choose a layout
-    </Button>
-  ) : null;
+  const layouts =
+    config.starter || layoutsLabel ? (
+      <Button size="sm" variant="secondary" onClick={onLayouts}>
+        <LayoutTemplateIcon /> {layoutsLabel ?? "Choose a layout"}
+      </Button>
+    ) : null;
   let tone: NoticeTone = "neutral";
   let tag: string;
   let body: React.ReactNode;

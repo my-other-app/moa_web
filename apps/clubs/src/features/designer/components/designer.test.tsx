@@ -8,10 +8,10 @@ import { DesignerPage } from "./designer-page";
 
 /**
  * The designer's chrome, rendered: what is being designed and for whom,
+ * then the programme's canvas editor (which keeps the layer designer):
  * where the design comes from, what is selected, the layer row's controls,
- * and whether the design is saved -- the things a person reads before they
- * touch the stage. The stage itself is drawn by the same component as
- * before and is not asserted here.
+ * and whether the design is saved. Tickets, ID cards and certificates are
+ * on the board, tested in board/board.test.tsx.
  */
 
 const state: { design: LayerDesign; saving: boolean } = { design: null as unknown as LayerDesign, saving: false };
@@ -23,6 +23,10 @@ const clearPreset = vi.fn();
 const saveArtwork = vi.fn();
 
 vi.mock("../queries", () => ({
+  // The board's design: the header tests open on the ticket's gallery.
+  useBoard: () => ({ data: undefined, isError: false, error: null, refetch: vi.fn(async () => ({})) }),
+  useStarterLayout: () => ({ data: undefined, isError: false, error: null, refetch: vi.fn() }),
+  useSaveBoard: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false, error: null }),
   useLayout: () => ({ data: state.design, isError: false, error: null, refetch: vi.fn(async () => ({})) }),
   useSaveLayout: () => ({ mutateAsync: save, isPending: state.saving, isError: false, error: null }),
   useResetLayout: () => ({ mutateAsync: reset, isPending: false }),
@@ -79,7 +83,7 @@ const LAYERS = [
 const design = (over: Partial<Record<string, unknown>> = {}) =>
   layerDesignSchema.parse({
     eventId: 42,
-    kind: "ticket",
+    kind: "agenda",
     audience: "event_default",
     canvas: { width: 1560, height: 690, background: "#FFFFFF", templateKey: null, templatePreprinted: false, area: null },
     layers: LAYERS,
@@ -90,12 +94,18 @@ const design = (over: Partial<Record<string, unknown>> = {}) =>
     brand: { orgName: "Code Club", primary: "#0F8A73", secondary: "#141614", logoUrl: null },
     starters: {},
     tokens: [{ key: "attendee_name", group: "Guest", label: "Name", sample: "Asha Rao" }],
-    qrRequired: true,
+    qrRequired: false,
     sampleValues: { attendee_name: "Asha Rao" },
     ...over,
   });
 
 const open = (scope: DesignScope) => render(<DesignerPage scope={scope} />);
+/** The programme's tab, where the canvas editor still is. */
+const openProgramme = async (scope: DesignScope) => {
+  const r = open(scope);
+  fireEvent.click(await screen.findByRole("tab", { name: "Programme" }));
+  return r;
+};
 const EVENT: DesignScope = { kind: "event", eventId: 42 };
 const saveBar = () => screen.getByRole("region", { name: "Save" });
 
@@ -130,23 +140,23 @@ describe("the designer's header", () => {
 
 describe("where the design comes from", () => {
   it("says an event follows the club's template, and links to it", async () => {
-    open(EVENT);
-    expect(await screen.findByText(/uses your club's ticket template/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Edit the template" })).toHaveAttribute("href", "/templates?kind=ticket");
+    await openProgramme(EVENT);
+    expect(await screen.findByText(/uses your club's programme template/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Edit the template" })).toHaveAttribute("href", "/templates?kind=agenda");
   });
 
   it("offers the club a way back to the built-in layout once it has its own", async () => {
     state.design = design({ isOwn: true, version: 3 });
-    open({ kind: "club" });
-    expect(await screen.findByText(/Your club's ticket template · version 3\. Every new event starts from it/)).toBeInTheDocument();
+    await openProgramme({ kind: "club" });
+    expect(await screen.findByText(/Your club's programme template · version 3\. Every new event starts from it/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Back to the built-in layout/ }));
-    expect(await screen.findByRole("dialog", { name: "Go back to the built-in ticket?" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Go back to the built-in programme?" })).toBeInTheDocument();
   });
 });
 
 describe("the save state", () => {
   it("is always in view: no changes while following the template", async () => {
-    open(EVENT);
+    await openProgramme(EVENT);
     await screen.findByRole("heading", { name: "Designs" });
     expect(within(saveBar()).getByRole("status")).toHaveTextContent("No changes · Following your club's template");
     expect(within(saveBar()).getByRole("button", { name: /Save design/ })).toBeDisabled();
@@ -154,45 +164,42 @@ describe("the save state", () => {
 
   it("says saved, with the version, for a design of its own", async () => {
     state.design = design({ isOwn: true, version: 4 });
-    open(EVENT);
+    await openProgramme(EVENT);
     await screen.findByRole("heading", { name: "Designs" });
-    expect(within(saveBar()).getByRole("status")).toHaveTextContent(/Saved · Ticket for everyone · version 4/);
+    expect(within(saveBar()).getByRole("status")).toHaveTextContent(/Saved · Programme for everyone · version 4/);
     expect(within(saveBar()).getByRole("button", { name: /Saved/ })).toBeDisabled();
   });
 
   it("turns to unsaved changes after an edit, with discard beside save", async () => {
-    open(EVENT);
+    await openProgramme(EVENT);
     fireEvent.click(await screen.findByRole("button", { name: "Hide Guest name" }));
-    expect(within(saveBar()).getByRole("status")).toHaveTextContent(/Unsaved changes · Ticket for everyone/);
+    expect(within(saveBar()).getByRole("status")).toHaveTextContent(/Unsaved changes · Programme for everyone/);
     expect(within(saveBar()).getByRole("button", { name: /Save design/ })).toBeEnabled();
     expect(within(saveBar()).getByRole("button", { name: "Discard" })).toBeInTheDocument();
   });
 
   it("asks before switching kind with unsaved changes", async () => {
-    open(EVENT);
+    await openProgramme(EVENT);
     fireEvent.click(await screen.findByRole("button", { name: "Lock Guest name in place" }));
     fireEvent.click(screen.getByRole("tab", { name: "ID card" }));
     const dialog = await screen.findByRole("dialog", { name: "Leave this design?" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Keep editing" }));
-    expect(screen.getByRole("tab", { name: "Ticket" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Programme" })).toHaveAttribute("aria-selected", "true");
   });
 });
 
 describe("layers and properties", () => {
   it("lists the layers front first, with the kit's eye, lock and row actions", async () => {
-    open(EVENT);
+    await openProgramme(EVENT);
     const panel = await screen.findByRole("region", { name: "Layers" });
     const rows = within(panel).getAllByRole("button", { pressed: false }).filter((b) => b.getAttribute("role") === "button");
     expect(rows.map((r) => r.querySelector(".font-medium")?.textContent)).toEqual(["QR code", "Guest name", "Brand band"]);
     expect(within(panel).getByRole("button", { name: "Hide Guest name" })).toHaveAttribute("data-slot", "icon-toggle");
     expect(within(panel).getByRole("button", { name: "Delete Guest name" })).toHaveAttribute("data-slot", "icon-button");
-    // The QR is what the gate scans: it can be neither hidden nor deleted.
-    expect(within(panel).getByRole("button", { name: "Every ticket needs its QR code" })).toBeDisabled();
-    expect(within(panel).getByRole("button", { name: "QR code" })).toBeDisabled();
   });
 
   it("shows the canvas until a layer is picked, then that layer's properties", async () => {
-    open(EVENT);
+    await openProgramme(EVENT);
     expect(await screen.findByRole("region", { name: "Canvas" })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole("region", { name: "Layers" })).getByText("Guest name"));
     const props = screen.getByRole("region", { name: "Properties" });
@@ -204,7 +211,7 @@ describe("layers and properties", () => {
   });
 
   it("offers a colour as fixed or following the brand", async () => {
-    open(EVENT);
+    await openProgramme(EVENT);
     fireEvent.click(within(await screen.findByRole("region", { name: "Layers" })).getByText("Brand band"));
     const fill = screen.getByRole("combobox", { name: "Fill" });
     expect(fill).toHaveValue("brand.primary");
@@ -213,28 +220,17 @@ describe("layers and properties", () => {
 });
 
 describe("layouts", () => {
-  it("offers the ID card one layout, the CR80 card, and replaces the design only once it is picked", async () => {
-    open(EVENT);
-    fireEvent.click(await screen.findByRole("tab", { name: "ID card" }));
+  it("offers the programme's layouts, and replaces the design only once one is picked", async () => {
+    await openProgramme(EVENT);
     fireEvent.click(await screen.findByRole("button", { name: /Layouts/ }));
     const dialog = await screen.findByRole("dialog", { name: "Start from a layout" });
     const choices = within(dialog).getAllByRole("radio");
-    expect(choices).toHaveLength(1);
-    expect(choices[0]).toHaveTextContent(/Card \(CR80\)/);
+    expect(choices.map((c) => c.textContent)).toEqual([expect.stringMatching(/Kiosk screen/), expect.stringMatching(/Screen, light/), expect.stringMatching(/Kiosk portrait/), expect.stringMatching(/Printed programme/)]);
     const replace = within(dialog).getByRole("button", { name: "Replace the design" });
     expect(replace).toBeDisabled();
     fireEvent.click(choices[0]!);
     expect(replace).toBeEnabled();
     fireEvent.click(replace);
     expect(within(saveBar()).getByRole("status")).toHaveTextContent(/Unsaved changes/);
-  });
-
-  it("has no layouts for tickets or certificates any more: their canvas starts blank", async () => {
-    open(EVENT);
-    await screen.findByRole("region", { name: "Layers" });
-    expect(screen.queryByRole("button", { name: /Layouts/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: "Certificate" }));
-    await screen.findByRole("region", { name: "Layers" });
-    expect(screen.queryByRole("button", { name: /Layouts/ })).not.toBeInTheDocument();
   });
 });
