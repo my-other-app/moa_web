@@ -103,9 +103,35 @@ export function MailUpgradeNotice({ upgrade, className }: { upgrade: Upgrade | n
   );
 }
 
+/**
+ * The club has its address (given from its name), but its plan has no
+ * mailbox: the address is ready and waits for the upgrade. Nothing is kept
+ * until then, so there is nothing to read, export or delete.
+ */
+export function ReservedNotice({ mailbox, className }: { mailbox: Mailbox; className?: string }) {
+  const plan = mailbox.upgrade?.required_plan_name || "Pro";
+  return (
+    <Notice
+      tone="accent"
+      tag="Plan"
+      className={className}
+      action={
+        <Link href={UPGRADE_PATH} className="btn btn-primary btn-sm">
+          Upgrade to {plan}
+        </Link>
+      }
+    >
+      <strong className="font-semibold">
+        Your address {mailbox.address ? <span className="break-all">{mailbox.address}</span> : "on myotherapp.in"} is ready.
+      </strong>{" "}
+      Upgrade to {plan} to receive mail here and answer it from the dashboard. Until then, mail sent to it isn&apos;t kept.
+    </Notice>
+  );
+}
+
 /** The plan dropped the mailbox: closed, readable until a date, then export or delete. */
 export function LapseNotice({ mailbox }: { mailbox: Mailbox }) {
-  if (mailbox.state === "open") return null;
+  if (mailbox.state === "open" || mailbox.state === "reserved") return null;
   if (mailbox.state === "expired") {
     return (
       <Notice

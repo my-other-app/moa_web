@@ -14,7 +14,7 @@ import { MAIL_STREAM_URL, type ComposeMode, type FetchFile } from "../api";
 import { errorText, isLapsedError, isPermissionError, isPrivateError, threadsOf, useApplyMailRefresh, useMailbox, useThreads } from "../queries";
 import { FOLDERS, FOLDER_LABEL, PERMISSION_MESSAGE, PRIVATE_MESSAGE, initialsOf, type Folder, type MailMessage, type MailThread } from "../schemas";
 import { Composer, type ComposeTarget } from "./composer";
-import { LapseNotice, MailHeader, MailUnavailable, MailUpgradeNotice, NoAccessPanel } from "./shared";
+import { LapseNotice, MailHeader, MailUnavailable, MailUpgradeNotice, NoAccessPanel, ReservedNotice } from "./shared";
 import { ThreadView } from "./thread-view";
 
 function useDebounced<T>(value: T, ms = 300): T {
@@ -104,7 +104,7 @@ export function MailboxPage({ readFile }: { readFile?: FetchFile } = {}) {
   const answer = (mode: ComposeMode, original?: MailMessage | null, ownAddresses: string[] = []) =>
     setCompose({ key: Date.now(), target: { mode, original: original ?? null, ownAddresses } });
 
-  const usable = Boolean(mb?.on_server && mb.available && mb.can_mail && mb.set_up && mb.state !== "expired");
+  const usable = Boolean(mb?.on_server && mb.available && mb.can_mail && mb.set_up && mb.state !== "expired" && mb.state !== "reserved");
   const canSend = Boolean(mb && mb.plan_allows && mb.state === "open");
   const onScreen = React.useRef<ReadonlySet<number>>(new Set());
   const applyRefresh = useApplyMailRefresh();
@@ -158,7 +158,9 @@ export function MailboxPage({ readFile }: { readFile?: FetchFile } = {}) {
         <>
           {!mb.plan_allows && mb.state === "open" ? <MailUpgradeNotice upgrade={mb.upgrade} /> : null}
           <LapseNotice mailbox={mb} />
-          {!mb.set_up ? (
+          {mb.state === "reserved" ? (
+            <ReservedNotice mailbox={mb} />
+          ) : !mb.set_up ? (
             <EmptyState
               tone="muted"
               icon={<InboxIcon />}

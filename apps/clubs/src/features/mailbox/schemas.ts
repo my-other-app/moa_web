@@ -25,7 +25,12 @@ export const upgradeSchema = z
   .catch(null);
 export type Upgrade = z.infer<typeof upgradeSchema>;
 
-export const STATES = ["open", "lapsed", "expired"] as const;
+/**
+ * open; lapsed (the plan dropped it: readable 30 days); expired (export or
+ * delete); reserved (every club gets its address from its name, but on a
+ * plan without the mailbox no mail is kept: the address waits for Pro).
+ */
+export const STATES = ["open", "lapsed", "expired", "reserved"] as const;
 export type MailboxState = (typeof STATES)[number];
 
 /** GET /clubs/mailbox: whether it is open here, the address, what the plan allows, what the viewer may do. Never a mail. */
@@ -40,6 +45,8 @@ export const mailboxSchema = z.object({
   set_up: z.boolean().catch(false),
   address: str,
   handle: str,
+  /** Given from the club's name rather than picked (the first change from it is free). */
+  automatic: z.boolean().catch(false),
   previous: z.array(z.object({ address: z.string(), forward_until: when })).catch([]),
   display_name: str,
   signature: str,
