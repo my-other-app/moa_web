@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { buildBody } from "./build";
+import { BASE_CSS, FIT_SCRIPT } from "./fit";
 import { type DocKind, parseLayoutV2 } from "./schema";
 import { normalise } from "./test-utils";
 
@@ -34,6 +35,13 @@ interface Case {
 
 const files = readdirSync(DIR).filter((f) => f.endsWith(".json")).sort();
 const cases = files.map((f) => ({ file: f, c: JSON.parse(readFileSync(join(DIR, f), "utf8")) as Case }));
+
+describe("the page's runtime", () => {
+  it("is the backend's fit script and base styles, verbatim (__fixtures__/runtime/ is copied from app/core/doc_designs/)", () => {
+    expect(FIT_SCRIPT).toBe(readFileSync(join(DIR, "runtime/fit.js"), "utf8").replace(/\n$/, ""));
+    expect(BASE_CSS).toBe(readFileSync(join(DIR, "runtime/base.css"), "utf8").replace(/\n$/, ""));
+  });
+});
 
 describe("the conformance fixtures", () => {
   it("are here", () => {

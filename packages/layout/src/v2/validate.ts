@@ -18,7 +18,7 @@ import { canonicalV2, parseV2, showIfNames } from "./tokens";
  * qr_missing, qr_extra, duplicate_id, unknown_token, unknown_font, font_face,
  * template, svg_unsafe, image_missing, photo_preprinted, qr_hidden, qr_small,
  * qr_outside, accent_missing; warnings: off_canvas, empty_text, invisible,
- * svg_cleaned, qr_small (under 15 mm), qr_square, font_slanted.
+ * svg_cleaned, qr_small (under 12 mm), qr_square, font_slanted.
  */
 
 export interface ProblemV2 {
@@ -39,7 +39,7 @@ export interface ValidateOptions {
 export const QR_KINDS: readonly string[] = ["ticket", "badge"];
 /** A QR smaller than this on paper is refused; smaller than WARN_QR_MM, warned. */
 export const MIN_QR_MM = 10;
-export const WARN_QR_MM = 15;
+export const WARN_QR_MM = 12;
 
 const p = (code: string, field: string, message: string, level: "error" | "warning" = "error", layer?: string | null): ProblemV2 => {
   const out: ProblemV2 = { code, field, message, level };
@@ -216,7 +216,7 @@ export const layoutProblemsV2 = (lay: LayoutV2, kind: DocKind | string = "ticket
           if (s.family || s.weight || s.style)
             out.push(...fontProblems(fonts, s.family || layer.font.family, s.weight || layer.font.weight, s.style || layer.font.style, `${where}.spans.${j}`, name, lid));
         });
-        if (!layer.text.trim()) out.push(p("empty_text", `${where}.text`, `${name}: this text says nothing.`, "warning", lid));
+        if (!layer.text.trim() && !layer.hidden) out.push(p("empty_text", `${where}.text`, `${name}: this text says nothing.`, "warning", lid));
         break;
       }
       case "shape":

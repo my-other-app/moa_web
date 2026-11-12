@@ -1,6 +1,7 @@
 import { FONT_METRICS, fontFileOf, fontWeightOf, type TicketFont } from "../fonts";
 import { TicketLayoutFields, ticketArea } from "../ticket-layout";
 import { TICKET_TOKENS } from "../ticket-tokens";
+import { num } from "./css";
 import { DOC_FONTS, findFont, nearestFace, V1_FONT_FAMILY } from "./fonts";
 import { LayoutV2, pyRound, V2_LIMITS } from "./schema";
 import { DESIGN_TOKENS } from "./tokens";
@@ -150,7 +151,11 @@ export const fromV1 = (v1Layout: unknown): LayoutV2 => {
           ...base, x: X(l.x), y: Y(l.y), width: S(l.width), height: S(l.height), opacity: l.opacity, fill: solid(l.fill), radius: S(l.radius),
         };
         if (l.stroke && l.strokeWidth > 0) shape.stroke = { color: l.stroke, width: S(l.strokeWidth) };
-        if (l.path) Object.assign(shape, { shape: "path", path: scaleV1Path(l.path, S(l.width) / 1000, S(l.height) / 1000) });
+        if (l.path) {
+          // Scaled as v1 scales it, then each number as the page writes numbers.
+          const scaled = scaleV1Path(l.path, S(l.width) / 1000, S(l.height) / 1000);
+          Object.assign(shape, { shape: "path", path: scaled.replace(/-?\d+(?:\.\d+)?(?:e-?\d+)?/g, (m) => num(Number(m))) });
+        }
         else shape.shape = "rect";
         layers.push(shape);
         break;

@@ -74,6 +74,7 @@ describe("a v2 layout's meaning", () => {
       "Name: An {% if %} is never closed with {% endif %}.",
     ]);
     expect(validate(minimal([qr(), textRaw({ text: " " })]))).toEqual([{ code: "empty_text", field: "layers.1.text", message: "Name: this text says nothing.", level: "warning", layer: "t1" }]);
+    expect(validate(minimal([qr(), textRaw({ text: " ", hidden: true })]))).toEqual([]);
   });
 
   it("warns of a shape with nothing to draw", () => {
@@ -106,11 +107,12 @@ describe("a v2 layout's meaning", () => {
   it("keeps the QR printed, large enough, square and on the page", () => {
     expect(validate(minimal([qr({ hidden: true })]))).toEqual([{ code: "qr_hidden", field: "layers.0.hidden", message: "QR code: the QR code is always printed.", level: "error", layer: "qr" }]);
     expect(codes(minimal([qr({ showIf: "seat" })]))).toEqual(["qr_hidden"]);
-    // 384 px is 101.6 mm: 3.78 px a mm. 30 px is 8 mm; 45 px, 12 mm.
+    // 384 px is 101.6 mm: 3.78 px a mm. 30 px is 8 mm; 40 px, 11 mm.
     expect(validate(minimal([qr({ width: 30, height: 30 })]))).toEqual([
       { code: "qr_small", field: "layers.0.width", message: "QR code: 8 mm on paper; at least 10 mm, or phones struggle to read it.", level: "error", layer: "qr" },
     ]);
-    expect(validate(minimal([qr({ width: 45, height: 45 })]))).toEqual([{ code: "qr_small", field: "layers.0.width", message: "QR code: 12 mm on paper; 15 mm or more scans best.", level: "warning", layer: "qr" }]);
+    expect(validate(minimal([qr({ width: 40, height: 40 })]))).toEqual([{ code: "qr_small", field: "layers.0.width", message: "QR code: 11 mm on paper; 12 mm or more scans best.", level: "warning", layer: "qr" }]);
+    expect(validate(minimal([qr({ width: 46, height: 46 })]))).toEqual([]);
     expect(validate(minimal([qr({ height: 130 })]))).toEqual([{ code: "qr_square", field: "layers.0.height", message: "QR code: a QR code is square.", level: "warning", layer: "qr" }]);
     expect(validate(minimal([qr({ x: 300 })]))).toEqual([{ code: "qr_outside", field: "layers.0.x", message: "QR code: the whole QR code must be on the page.", level: "error", layer: "qr" }]);
   });
