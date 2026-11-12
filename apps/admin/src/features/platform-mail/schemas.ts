@@ -19,13 +19,15 @@ export const mailAddressSchema = z
   .transform((a) => ({ address: a.address.toLowerCase(), mailbox: (a.mailbox || a.address.split("@")[0] || "").toLowerCase(), unread: a.unread }));
 export type MailAddress = z.infer<typeof mailAddressSchema>;
 
-/** GET /admin/mail: the addresses and what is unread, in each and in all. */
+/** GET /admin/mail: the addresses, what is unread in each and in all, and whether this admin may delete (owners). */
 export const mailOverviewSchema = z.object({
   addresses: z.array(z.unknown()).catch([]).transform((items) => items.flatMap((x) => {
     const parsed = mailAddressSchema.safeParse(x);
     return parsed.success && parsed.data.mailbox ? [parsed.data] : [];
   })),
   unread_total: count,
+  /** Null from a server that doesn't say: the role decides then. */
+  can_delete: z.boolean().nullish().default(null).catch(null),
 });
 export type MailOverview = z.infer<typeof mailOverviewSchema>;
 
@@ -40,6 +42,6 @@ export const PLATFORM_ERROR_TEXT: Record<string, string> = {
   INSUFFICIENT_ADMIN_ROLE: "Mail is for admins with the owner or support role.",
   MAILBOX_RATE_LIMITED: "The platform's mailboxes have sent as much as they may for now. Try again later.",
   PLATFORM_MAIL_RATE_LIMITED: "The platform's mailboxes have sent as much as they may for now. Try again later.",
-  FROM_MAILBOX_INVALID: "Pick one of the platform's addresses under From.",
   INVALID_MAILBOX: "Pick one of the platform's addresses under From.",
+  PLATFORM_MAIL_OFF: "Sending from the platform's addresses is switched off on this server. Mail can still be read.",
 };

@@ -101,13 +101,15 @@ export function PlatformMailPage({ readFile }: { readFile?: FetchFile } = {}) {
   if (overview.isError || !overview.data) return <Calm icon={<ServerOffIcon />} title="Could not load Mail" body="Try reloading the page." />;
   return (
     <MailProvider config={PLATFORM_MAIL}>
-      <Inbox addresses={overview.data.addresses} total={overview.data.unread_total} readFile={readFile} />
+      <Inbox addresses={overview.data.addresses} total={overview.data.unread_total} canDelete={overview.data.can_delete} readFile={readFile} />
     </MailProvider>
   );
 }
 
-function Inbox({ addresses, total, readFile }: { addresses: MailAddress[]; total: number; readFile?: FetchFile }) {
-  const canDelete = useCan("destroy");
+function Inbox({ addresses, total, canDelete: allowed, readFile }: { addresses: MailAddress[]; total: number; canDelete: boolean | null; readFile?: FetchFile }) {
+  // The API says whether this admin may delete (owners); an older answer leaves it to the role.
+  const owner = useCan("destroy");
+  const canDelete = allowed ?? owner;
   const [mailbox, setMailbox] = React.useState<string | null>(null);
   const [folder, setFolder] = React.useState<Folder>("inbox");
   const [search, setSearch] = React.useState("");

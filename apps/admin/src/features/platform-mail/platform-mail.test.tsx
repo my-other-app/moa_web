@@ -109,8 +109,9 @@ const posted = () => callsOf(state, "POST", SEND)[0]?.body as FormData | undefin
 describe("reading the API", () => {
   it("reads each address's local part, from the address when the API leaves it out, and drops what it can't read", () => {
     const o = mailOverviewSchema.parse({ addresses: [{ address: "Info@MyOtherApp.in", unread: "3" }, { mailbox: "x" }, "junk"], unread_total: "3" });
-    expect(o).toEqual({ addresses: [{ address: "info@myotherapp.in", mailbox: "info", unread: 3 }], unread_total: 3 });
-    expect(mailOverviewSchema.parse({})).toEqual({ addresses: [], unread_total: 0 });
+    expect(o).toEqual({ addresses: [{ address: "info@myotherapp.in", mailbox: "info", unread: 3 }], unread_total: 3, can_delete: null });
+    expect(mailOverviewSchema.parse({})).toEqual({ addresses: [], unread_total: 0, can_delete: null });
+    expect(mailOverviewSchema.parse({ can_delete: true }).can_delete).toBe(true);
   });
 
   it("asks a folder's page by page and page size (and the window), for one mailbox or all", () => {
@@ -259,8 +260,16 @@ describe("the inbox", () => {
     await waitFor(() => expect(callsOf(state, "DELETE", `${LIST}/7`)).toHaveLength(1));
   });
 
-  it("keeps Delete from support", async () => {
+  it("keeps Delete from support, as the API says (or the role, where it doesn't)", async () => {
     state.role = "support";
+    const region = await openKeys();
+    const actions = await within(region).findByRole("group", { name: "Conversation actions" });
+    expect(within(actions).getByRole("button", { name: /Archive/ })).toBeInTheDocument();
+    expect(within(actions).queryByRole("button", { name: /Delete/ })).toBeNull();
+  });
+
+  it("follows the API's can_delete over the role", async () => {
+    state.handlers["GET /api/v1/admin/mail"] = () => ({ ...OVERVIEW, can_delete: false });
     const region = await openKeys();
     const actions = await within(region).findByRole("group", { name: "Conversation actions" });
     expect(within(actions).getByRole("button", { name: /Archive/ })).toBeInTheDocument();
@@ -315,9 +324,13 @@ describe("writing", () => {
     await waitFor(() => expect(screen.queryByRole("form", { name: "New mail" })).toBeNull());
   });
 
-  it("says a refusal in words", async () => {
+  it.each([
+    ["RECIPIENT_SUPPRESSED", 422, /bounced or marked mail as spam before/],
+    ["PLATFORM_MAIL_RATE_LIMITED", 429, /have sent as much as they may for now/],
+    ["PLATFORM_MAIL_OFF", 404, /switched off on this server/],
+  ])("says %s in words", async (code, status, words) => {
     state.handlers[`POST ${SEND}`] = () => {
-      throw refusal(422, "", "RECIPIENT_SUPPRESSED");
+      throw refusal(status, "", code);
     };
     render(<PlatformMailPage />);
     fireEvent.click(await screen.findByRole("button", { name: /New mail/ }));
@@ -325,6 +338,6 @@ describe("writing", () => {
     fireEvent.change(within(form).getByLabelText("To"), { target: { value: "gone@x.in" } });
     fireEvent.change(within(form).getByLabelText("Message"), { target: { value: "Hi" } });
     fireEvent.click(within(form).getByRole("button", { name: /Send/ }));
-    expect(await within(form).findByText(/bounced or marked mail as spam before/)).toBeInTheDocument();
+    expect(await within(form).findByText(words)).toBeInTheDocument();
   });
 });
