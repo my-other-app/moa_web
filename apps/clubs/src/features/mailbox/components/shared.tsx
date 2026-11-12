@@ -98,7 +98,7 @@ export function MailUpgradeNotice({ upgrade, className }: { upgrade: Upgrade | n
       }
     >
       <strong className="font-semibold">A club mailbox {plan ? `is part of ${plan} and Enterprise.` : "isn't on your plan."}</strong> Get an address like
-      yourclub@mail.myotherapp.in, read what people send it here and answer from the dashboard.
+      yourclub@myotherapp.in, read what people send it here and answer from the dashboard.
     </Notice>
   );
 }

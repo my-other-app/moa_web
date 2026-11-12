@@ -21,11 +21,11 @@ const DAY = 24 * 60 * MIN;
 
 const MAILBOX = {
   available: true,
-  domain: "mail.myotherapp.in",
+  domain: "myotherapp.in",
   plan_allows: true,
   upgrade: null,
   set_up: true,
-  address: "robotics@mail.myotherapp.in",
+  address: "robotics@myotherapp.in",
   handle: "robotics",
   previous: [],
   display_name: null,
@@ -72,7 +72,7 @@ const INBOUND = {
   status: "received",
   from_address: "ananya@example.com",
   from_name: "Ananya Iyer",
-  to: ["robotics@mail.myotherapp.in"],
+  to: ["robotics@myotherapp.in"],
   cc: ["bala@example.com"],
   bcc: [],
   reply_to: null,
@@ -83,7 +83,7 @@ const INBOUND = {
   snippet: "Is there parking near Hall B?",
   unread: true,
   spam: false,
-  delivered_to: "robotics@mail.myotherapp.in",
+  delivered_to: "robotics@myotherapp.in",
   sent_at: ago(10 * MIN),
   created_at: ago(10 * MIN),
   sent_by: null,
@@ -95,7 +95,7 @@ const FAILED = {
   id: 502,
   direction: "out",
   status: "failed",
-  from_address: "robotics@mail.myotherapp.in",
+  from_address: "robotics@myotherapp.in",
   from_name: "Robotics",
   to: ["ananya@example.com"],
   cc: [],
@@ -150,7 +150,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       }),
       put: vi.fn(async (path: string, body: unknown) => {
         calls.push({ method: "PUT", path, body });
-        if (path === "/api/v1/clubs/mailbox/address") return { ...MAILBOX, set_up: true, handle: (body as { handle: string }).handle, address: `${(body as { handle: string }).handle}@mail.myotherapp.in` };
+        if (path === "/api/v1/clubs/mailbox/address") return { ...MAILBOX, set_up: true, handle: (body as { handle: string }).handle, address: `${(body as { handle: string }).handle}@myotherapp.in` };
         if (path === "/api/v1/clubs/mailbox/signature") return { ...MAILBOX, signature: (body as { signature: string }).signature };
         const w = /^\/api\/v1\/clubs\/access\/(\d+)\/mail$/.exec(path);
         if (w) return { ...(state.members[0] as object), mail: (body as { allowed: boolean }).allowed };
@@ -224,9 +224,9 @@ beforeEach(() => {
     mailbox: MAILBOX,
     summary: { unread_total: 3, unread_threads: 2, spam_unread: 1, archive_unread: 0 },
     threads: { items: [PARKING], total: 1, counts: { unread_total: 3, unread_threads: 2, spam_unread: 1, archive_unread: 0 } },
-    thread: { 21: { thread: PARKING, messages: [INBOUND, FAILED], own_addresses: ["robotics@mail.myotherapp.in", "robo@mail.myotherapp.in"] } },
+    thread: { 21: { thread: PARKING, messages: [INBOUND, FAILED], own_addresses: ["robotics@myotherapp.in", "robo@myotherapp.in"] } },
     send: (body: unknown) => ({ ...FAILED, id: 600, status: "sent", error: null, text: (body as FormData).get("text") }),
-    handle: (h: string) => ({ handle: h, address: `${h}@mail.myotherapp.in`, available: h !== "taken", code: h === "taken" ? "HANDLE_TAKEN" : null, message: h === "taken" ? "That address is taken. Pick another." : null }),
+    handle: (h: string) => ({ handle: h, address: `${h}@myotherapp.in`, available: h !== "taken", code: h === "taken" ? "HANDLE_TAKEN" : null, message: h === "taken" ? "That address is taken. Pick another." : null }),
     members: [],
   });
 });
@@ -502,7 +502,7 @@ describe("writing mail", () => {
   const inbound = messageSchema.parse(INBOUND);
 
   it("answers the sender, everyone but the club on reply-all, and nobody yet on a forward", () => {
-    const own = ["robotics@mail.myotherapp.in"];
+    const own = ["robotics@myotherapp.in"];
     expect(defaultRecipients({ mode: "reply", original: inbound, ownAddresses: own })).toEqual({ to: ["ananya@example.com"], cc: [] });
     expect(defaultRecipients({ mode: "reply_all", original: inbound, ownAddresses: own })).toEqual({ to: ["ananya@example.com"], cc: ["bala@example.com"] });
     expect(defaultRecipients({ mode: "reply", original: { ...inbound, reply_to: "desk@example.com" }, ownAddresses: own }).to).toEqual(["desk@example.com"]);
@@ -615,17 +615,17 @@ describe("Mail settings", () => {
     expect(await within(form).findByText("That address is taken. Pick another.")).toBeInTheDocument();
     expect(within(form).getByRole("button", { name: /Set up the mailbox/ })).toBeDisabled();
     fireEvent.change(input, { target: { value: "Robotics" } });
-    expect(await within(form).findByText("robotics@mail.myotherapp.in is free.")).toBeInTheDocument();
+    expect(await within(form).findByText("robotics@myotherapp.in is free.")).toBeInTheDocument();
     fireEvent.click(within(form).getByRole("button", { name: /Set up the mailbox/ }));
     await waitFor(() => expect(calls).toContainEqual({ method: "PUT", path: "/api/v1/clubs/mailbox/address", body: { handle: "robotics" } }));
   });
 
   it("says when the address can change next, and where the old ones still forward", async () => {
-    state.mailbox = { ...MAILBOX, next_change_at: ahead(20 * DAY), previous: [{ address: "robo@mail.myotherapp.in", forward_until: ahead(80 * DAY) }] };
+    state.mailbox = { ...MAILBOX, next_change_at: ahead(20 * DAY), previous: [{ address: "robo@myotherapp.in", forward_until: ahead(80 * DAY) }] };
     render(<MailSettingsPage />);
     const card = await screen.findByRole("region", { name: "The address" });
-    expect(within(card).getByText("robotics@mail.myotherapp.in")).toBeInTheDocument();
-    expect(within(card).getByText(/robo@mail.myotherapp.in still forwards here until/)).toBeInTheDocument();
+    expect(within(card).getByText("robotics@myotherapp.in")).toBeInTheDocument();
+    expect(within(card).getByText(/robo@myotherapp.in still forwards here until/)).toBeInTheDocument();
     expect(within(card).getByText(/can change once a month. The next change can be made on/)).toBeInTheDocument();
     expect(within(card).queryByRole("form")).toBeNull();
   });

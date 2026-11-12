@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * The club's mailbox, as the backend answers it (app/api/club_mailbox):
- * one address on the platform's domain, `<handle>@mail.myotherapp.in`, its
+ * one address on the platform's domain, `<handle>@myotherapp.in`, its
  * mail received into the dashboard, answered and written from it.
  *
  * Everything here reads what it can and turns the rest into its empty form
@@ -34,7 +34,7 @@ export const mailboxSchema = z.object({
   on_server: z.boolean().catch(true).default(true),
   /** The feature switch on that server (APP_CLUB_MAILBOX). */
   available: z.boolean().catch(false),
-  domain: z.string().catch("mail.myotherapp.in"),
+  domain: z.string().catch("myotherapp.in"),
   plan_allows: z.boolean().catch(true),
   upgrade: upgradeSchema,
   set_up: z.boolean().catch(false),
