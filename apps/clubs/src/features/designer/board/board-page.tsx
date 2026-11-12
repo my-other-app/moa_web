@@ -54,9 +54,9 @@ const Failed = ({ bar, title, err, onRetry }: { bar: React.ReactNode; title: str
 );
 
 /** The layout a design opens on, or the error that stops it. */
-const opened = (raw: unknown, accent?: string): { layout: LayoutV2 } | { error: unknown } => {
+const opened = (raw: unknown): { layout: LayoutV2 } | { error: unknown } => {
   try {
-    return { layout: readLayout(raw, accent) };
+    return { layout: readLayout(raw) };
   } catch (error) {
     return { error };
   }

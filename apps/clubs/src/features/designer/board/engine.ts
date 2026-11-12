@@ -136,7 +136,7 @@ export type LayoutCheck = ReturnType<typeof checkLayout>;
  * the way the server converts it (fonts mapped, boxes scaled), so a design
  * saved before the board opens on the board.
  */
-export const readLayout = (raw: unknown, accent?: string): LayoutV2 => (isV2Layout(raw) ? parseLayoutV2(raw) : fromV1(raw, accent ? { accent } : {}));
+export const readLayout = (raw: unknown): LayoutV2 => (isV2Layout(raw) ? parseLayoutV2(raw) : fromV1(raw));
 
 /** What the stage fills a design with: the server's sample values over the catalogue's samples. */
 export const boardValues = (d: Pick<BoardDesign, "values" | "sampleValues">) => designSamples({ ...d.sampleValues, ...(d.values ?? {}) });
