@@ -354,7 +354,7 @@ export const PresetEditor = ({
   }[saveState];
 
   const photoHint =
-    kind === "badge" && info.hasPhoto && !hasPhotoQuestion(design) ? (
+    kind === "badge" && info.hasPhoto && (scope.kind === "club" || !hasPhotoQuestion(design)) ? (
       <Notice
         tone="neutral"
         tag="Photos"
@@ -366,7 +366,9 @@ export const PresetEditor = ({
           ) : null
         }
       >
-        The sign-up form asks for no photo, so photos come from each guest&apos;s app profile. Anyone without one gets their initials.
+        {scope.kind === "event"
+          ? "The sign-up form asks for no photo, so photos come from each guest's app profile. Anyone without one gets their initials."
+          : "Photos come from each guest's app profile, or from a photo question on the event's form. Anyone without one gets their initials."}
       </Notice>
     ) : null;
 
