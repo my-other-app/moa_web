@@ -92,8 +92,8 @@ const byField = z.union([z.string(), personSchema]).nullable().optional().catch(
 
 export function byName(v: string | { name?: string | null; email?: string | null } | null | undefined): string | null {
   if (!v) return null;
-  if (typeof v === "string") return v === "The club's own account" ? "the club account" : v;
-  return v.name ?? v.email ?? null;
+  const name = typeof v === "string" ? v : (v.name ?? v.email ?? null);
+  return name === "The club's own account" ? "the club account" : name;
 }
 
 const scopeRef = z.union([z.string(), z.object({ key: z.string() }).passthrough()]).transform((v) => (typeof v === "string" ? v : v.key));
@@ -406,4 +406,117 @@ export type WebhookHealth = z.infer<typeof webhookHealthSchema>;
 /** What the endpoint last said, in words. */
 export function answeredText(e: Pick<FailingEndpoint, "last_error">): string {
   return e.last_error ? e.last_error.replace(/\.$/, "") : "no answer";
+}
+
+// ─── Developer docs links ────────────────────────────────────────────────
+
+/**
+ * The docs' guides, reference, spec and Postman file are private
+ * (feature-register/private-dev-docs-contract.md): they open through a
+ * signed link. An admin who may manage content makes one for themselves
+ * (7 days) or for a partner app's developers (30 days); a club's owner or
+ * admin makes theirs in the club dashboard. Every link is listed here, and
+ * any that still works can be revoked. The link carries its token, so the
+ * server gives it once; the list never has it.
+ */
+export const DOCS_SHARE_DAYS = 30;
+export const DOCS_LABEL_MAX = 80;
+
+/** What someone sharing a link is told, word for word. */
+export const DOCS_SHARE_WARNING = `Anyone with this link can read the docs until it expires (${DOCS_SHARE_DAYS} days) or you revoke it.`;
+
+export const DOCS_KINDS = ["club", "partner_app", "admin"] as const;
+export type DocsKind = (typeof DOCS_KINDS)[number];
+
+export const DOCS_KIND_FILTERS = [
+  { value: "club", label: "Clubs" },
+  { value: "partner_app", label: "Partner apps" },
+  { value: "admin", label: "Admins" },
+];
+
+export const DOCS_STATUS_FILTERS = [
+  { value: "active", label: "Working" },
+  { value: "expired", label: "Expired" },
+  { value: "revoked", label: "Revoked" },
+];
+
+const ref = (id: z.ZodTypeAny) => z.object({ id, name: z.string().nullable().optional().catch(null) }).nullable().optional().catch(null);
+
+export const docsLinkSchema = z.object({
+  id: z.coerce.string(),
+  label: z.string().nullable().optional().catch(null),
+  kind: z.string().catch("admin"),
+  /** "self" (the maker's own) or "share" (a club's developer, a partner app's). */
+  purpose: z.string().nullable().optional().catch(null),
+  status: z.enum(["active", "expired", "revoked"]).nullable().optional().catch(null),
+  club: ref(z.coerce.number()),
+  partner_app: ref(z.coerce.string()),
+  created_by: byField,
+  created_at: z.string().nullable().optional().catch(null),
+  expires_at: z.string().nullable().optional().catch(null),
+  last_used_at: z.string().nullable().optional().catch(null),
+  use_count: z.number().catch(0),
+  revoked_at: z.string().nullable().optional().catch(null),
+});
+export type DocsLink = z.infer<typeof docsLinkSchema>;
+
+/** `{links: [...]}`, newest first. */
+export const docsLinksSchema = z
+  .object({ links: z.array(docsLinkSchema).optional(), items: z.array(docsLinkSchema).optional() })
+  .transform((r) => r.links ?? r.items ?? []);
+
+/** Only a web address is opened or copied. */
+export function safeDocsUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A new link: its row, and `url`, the link itself with its token, which the server never sends again. */
+export const docsLinkCreatedSchema = z
+  .object({ link: docsLinkSchema, url: z.string().min(1) })
+  .transform((r, ctx) => {
+    const url = safeDocsUrl(r.url);
+    if (!url) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "The docs link isn't a web address." });
+      return z.NEVER;
+    }
+    return { link: r.link, url };
+  });
+export type DocsLinkCreated = z.infer<typeof docsLinkCreatedSchema>;
+
+export type DocsLinkBody = { purpose: "self" } | { partner_app_id: string; label?: string };
+
+/** The body for a partner app's link: a label only when one is given, trimmed and within its length. */
+export function appDocsLinkBody(appId: string, label = ""): DocsLinkBody {
+  const text = label.trim().slice(0, DOCS_LABEL_MAX);
+  return text ? { partner_app_id: appId, label: text } : { partner_app_id: appId };
+}
+
+export type DocsStatus = "active" | "expired" | "revoked";
+
+/** Working, expired or revoked: revoked and expired as the server said, or by the dates now. */
+export function docsLinkStatus(l: Pick<DocsLink, "status" | "revoked_at" | "expires_at">, now: Date = new Date()): DocsStatus {
+  if (l.revoked_at || l.status === "revoked") return "revoked";
+  if (l.status === "expired" || (l.expires_at && new Date(l.expires_at) <= now)) return "expired";
+  return "active";
+}
+
+export const DOCS_STATUS_LABEL: Record<DocsStatus, string> = { active: "Working", expired: "Expired", revoked: "Revoked" };
+
+/** Whose link it is: "GDG Trivandrum", "EventHub (partner app)", "Admin". */
+export function docsLinkFor(l: Pick<DocsLink, "kind" | "club" | "partner_app">): string {
+  if (l.kind === "club") return l.club?.name ?? (l.club ? `Club ${l.club.id}` : "A club");
+  if (l.kind === "partner_app") return `${l.partner_app?.name ?? "A partner app"} (partner app)`;
+  return "Admin";
+}
+
+/** What a link is called: its label, or what it was made for. */
+export function docsLinkName(l: Pick<DocsLink, "label" | "purpose" | "kind">): string {
+  if (l.label?.trim()) return l.label.trim();
+  if (l.kind === "partner_app") return "For the app's developers";
+  return l.purpose === "share" ? "Shared link" : "Opened from the dashboard";
 }

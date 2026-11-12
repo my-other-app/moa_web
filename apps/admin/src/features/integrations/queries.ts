@@ -4,30 +4,36 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { toast } from "@moa/ui";
 
 import {
+  createDocsLink,
   createPartnerApp,
   disconnectPartnerClub,
   fetchAllocations,
+  fetchAppDocsLinks,
   fetchClubDetail,
+  fetchDocsLinks,
   fetchPartnerApp,
   fetchPartnerApps,
   fetchPlatformUsage,
   fetchWebhookHealth,
   resumePartnerApp,
   revokeClubKey,
+  revokeDocsLink,
   rotatePartnerSecret,
   saveAllocation,
   setEndpointEnabled,
   suspendPartnerApp,
   updatePartnerApp,
   type AllocationQuery,
+  type DocsLinkQuery,
   type PartnerQuery,
 } from "./api";
-import type { AllocationBody, PartnerAppBody } from "./schemas";
+import { appDocsLinkBody, docsLinkName, type AllocationBody, type DocsLink, type PartnerAppBody } from "./schemas";
 
 export const INTEGRATIONS_KEY = ["admin", "integrations"] as const;
 const CLUBS_KEY = [...INTEGRATIONS_KEY, "clubs"] as const;
 const PARTNERS_KEY = [...INTEGRATIONS_KEY, "partner-apps"] as const;
 const HEALTH_KEY = [...INTEGRATIONS_KEY, "webhooks", "health"] as const;
+const DOCS_KEY = [...INTEGRATIONS_KEY, "docs-links"] as const;
 
 const fail = (fallback: string) => (error: Error) => toast.error(error.message || fallback);
 
@@ -164,5 +170,94 @@ export function useSetEndpointEnabled() {
       await refresh(HEALTH_KEY);
     },
     onError: fail("Could not change it"),
+  });
+}
+
+// ─── Developer docs links ────────────────────────────────────────────────
+
+export function useDocsLinks(query: DocsLinkQuery, enabled = true) {
+  return useQuery({ queryKey: [...DOCS_KEY, "list", query], queryFn: () => fetchDocsLinks(query), enabled, placeholderData: keepPreviousData, retry: false });
+}
+
+/**
+ * True once the API is known to have docs links and this admin may make
+ * them; false when it hasn't (or the read is refused); undefined while asking.
+ * Asked only for a role that may manage content: the server refuses the rest.
+ */
+export function useDocsOnServer(enabled: boolean): boolean | undefined {
+  const q = useQuery({ queryKey: [...DOCS_KEY, "probe"], queryFn: () => fetchDocsLinks({ offset: 0, limit: 1 }), enabled, staleTime: 5 * 60_000, retry: false });
+  if (!enabled) return false;
+  if (q.data) return true;
+  if (q.data === null || q.isError) return false;
+  return undefined;
+}
+
+export function useAppDocsLinks(appId: string | null) {
+  return useQuery({ queryKey: [...DOCS_KEY, "app", appId], queryFn: () => fetchAppDocsLinks(appId!), enabled: appId !== null, staleTime: 15_000, retry: false });
+}
+
+/** A tab for the docs, opened in the click itself and sent on once the link is made. */
+export interface DocsTab {
+  go: (url: string) => void;
+  close: () => void;
+}
+
+/**
+ * Opening the docs in a new tab (a seam, so tests can watch it without a
+ * window). The tab opens in the click, before the link is made, so a popup
+ * blocker lets it through; it is cut off from this page, then sent to the
+ * link. If no tab could be opened, this page goes to the docs instead.
+ */
+export const docsTab = {
+  open(): DocsTab {
+    const w = window.open("", "_blank");
+    if (w) w.opener = null;
+    return {
+      go: (url) => {
+        if (w && !w.closed) w.location.replace(url);
+        else window.location.assign(url);
+      },
+      close: () => {
+        if (w && !w.closed) w.close();
+      },
+    };
+  },
+};
+
+/** "Open developer docs": the admin's own link (7 days), opened in the tab made for it. */
+export function useOpenDocs() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (_tab: DocsTab) => createDocsLink({ purpose: "self" }),
+    onSuccess: async (made, tab) => {
+      tab.go(made.url);
+      await refresh(DOCS_KEY);
+    },
+    onError: (error: Error, tab) => {
+      tab.close();
+      toast.error(error.message || "Could not open the docs");
+    },
+  });
+}
+
+/** A 30-day link for a partner app's developers, given back once to the caller. */
+export function useMakeAppDocsLink(appId: string) {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (label: string) => createDocsLink(appDocsLinkBody(appId, label)),
+    onSuccess: () => refresh(DOCS_KEY),
+    onError: fail("Could not make the link"),
+  });
+}
+
+export function useRevokeDocsLink() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (link: DocsLink) => revokeDocsLink(link.id),
+    onSuccess: async (_r, link) => {
+      toast.success(`“${docsLinkName(link)}” revoked. It stops working within 5 minutes.`);
+      await refresh(DOCS_KEY);
+    },
+    onError: fail("Could not revoke it"),
   });
 }
