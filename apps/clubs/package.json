@@ -16,6 +16,7 @@
     "@moa/app-kit": "*",
     "@moa/auth": "*",
     "@moa/layout": "*",
+    "@moa/mail-ui": "*",
     "@moa/observability": "*",
     "@moa/questions": "*",
     "@moa/ui": "*",

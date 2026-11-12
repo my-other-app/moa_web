@@ -1,41 +1,11 @@
 "use client";
 
-import { useCallback } from "react";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, isRouteMissing, nullIfRouteMissing } from "@moa/api";
+import { threadsOf, useApplyMailRefresh, useThreads as useMailThreads } from "@moa/mail-ui";
 
-import type { RefreshPlan } from "@/features/whatsapp/stream";
-
-import {
-  deleteThread,
-  fetchMailbox,
-  fetchSummary,
-  fetchThread,
-  fetchThreads,
-  markThreadRead,
-  markThreadUnread,
-  moveThread,
-  retryMail,
-  saveAddress,
-  saveSettings,
-  saveSignature,
-  sendMail,
-  wipeMail,
-  type Outgoing,
-} from "./api";
-import {
-  ERROR_TEXT,
-  MAILBOX_PERMISSION,
-  MAILBOX_PRIVATE,
-  PERMISSION_MESSAGE,
-  PRIVATE_MESSAGE,
-  mailboxSchema,
-  type Folder,
-  type Mailbox,
-  type MailThread,
-  type ThreadDetail,
-  type ThreadList,
-} from "./schemas";
+import { fetchMailbox, fetchSummary, saveAddress, saveSettings, saveSignature, wipeMail } from "./api";
+import { ERROR_TEXT, MAILBOX_PERMISSION, MAILBOX_PRIVATE, PERMISSION_MESSAGE, PRIVATE_MESSAGE, mailboxSchema, type Folder, type Mailbox } from "./schemas";
 
 export const MAIL_KEY = ["mailbox"] as const;
 export const MAILBOX_KEY = [...MAIL_KEY, "status"] as const;
@@ -91,119 +61,25 @@ export function useMailSummary(enabled = true) {
   });
 }
 
-export const THREADS_PAGE = 30;
-
+/**
+ * A folder's conversations (the mailbox screens' own hook, @moa/mail-ui,
+ * asking /clubs/mailbox/threads: see ClubMail). Pages by offset.
+ */
 export function useThreads(folder: Folder, q: string, unread: boolean, poll: number | false, enabled = true) {
-  return useInfiniteQuery({
-    queryKey: [...THREADS_KEY, folder, q, unread],
-    queryFn: ({ pageParam }) => fetchThreads({ folder, q, unread, offset: pageParam, limit: THREADS_PAGE }),
-    initialPageParam: 0,
-    getNextPageParam: (last, pages) => {
-      const loaded = pages.reduce((n, p) => n + p.items.length, 0);
-      return last.items.length > 0 && loaded < last.total ? loaded : undefined;
-    },
-    staleTime: 5_000,
-    refetchInterval: poll,
-    retry: false,
-    enabled,
-  });
+  return useMailThreads({ folder, q, unread }, poll, enabled);
 }
 
-/** The pages as one list, each thread once. */
-export function threadsOf(data: InfiniteData<ThreadList> | undefined): MailThread[] {
-  const seen = new Set<number>();
-  const out: MailThread[] = [];
-  for (const page of data?.pages ?? []) {
-    for (const t of page.items) {
-      if (seen.has(t.id)) continue;
-      seen.add(t.id);
-      out.push(t);
-    }
-  }
-  return out;
-}
+/** The pages as one list; what the stream's changes ask for read again (both need ClubMail around them). */
+export { threadsOf, useApplyMailRefresh };
 
-export function useThread(threadId: number | null, poll: number | false) {
-  return useQuery({
-    queryKey: [...THREAD_KEY, threadId],
-    queryFn: () => fetchThread(threadId!),
-    enabled: threadId !== null,
-    staleTime: 3_000,
-    refetchInterval: poll,
-    retry: false,
-  });
-}
-
-/** Everything the mailbox shows again: after a send, a move, a change the stream pushed. */
-export function useRefreshMail() {
+/** Everything the mailbox shows again (after deleting all of it): no screen of it is open then. */
+function useRefreshMail() {
   const queryClient = useQueryClient();
-  return useCallback(
-    (threadId?: number | null) => {
-      void queryClient.invalidateQueries({ queryKey: THREADS_KEY });
-      void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY });
-      if (threadId === undefined || threadId === null) void queryClient.invalidateQueries({ queryKey: THREAD_KEY });
-      else void queryClient.invalidateQueries({ queryKey: [...THREAD_KEY, threadId] });
-    },
-    [queryClient],
-  );
-}
-
-/** What the stream's changes ask for (planRefresh): only those are read again. */
-export function useApplyMailRefresh() {
-  const queryClient = useQueryClient();
-  return useCallback(
-    (plan: RefreshPlan) => {
-      if (plan.list) {
-        void queryClient.invalidateQueries({ queryKey: THREADS_KEY });
-        void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY });
-      }
-      if (plan.threads === "all") void queryClient.invalidateQueries({ queryKey: THREAD_KEY });
-      else for (const id of plan.threads) void queryClient.invalidateQueries({ queryKey: [...THREAD_KEY, id] });
-    },
-    [queryClient],
-  );
-}
-
-/** The thread's row as it now is (its counts, its folder), where the open thread shows it too. */
-function useSettleThread() {
-  const queryClient = useQueryClient();
-  return (t: MailThread) => {
-    queryClient.setQueryData<ThreadDetail>([...THREAD_KEY, t.id], (d) => (d ? { ...d, thread: t } : d));
-    // The folder's list, the unread counts (the nav's) and the bell's notice for it.
+  return () => {
     void queryClient.invalidateQueries({ queryKey: THREADS_KEY });
     void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY });
-    void queryClient.invalidateQueries({ queryKey: ["club-alerts"] });
+    void queryClient.invalidateQueries({ queryKey: THREAD_KEY });
   };
-}
-
-export function useMarkRead() {
-  const settle = useSettleThread();
-  return useMutation({ mutationFn: (threadId: number) => markThreadRead(threadId), onSuccess: settle });
-}
-
-export function useMarkUnread() {
-  const settle = useSettleThread();
-  return useMutation({ mutationFn: (threadId: number) => markThreadUnread(threadId), onSuccess: settle });
-}
-
-export function useMoveThread() {
-  const settle = useSettleThread();
-  return useMutation({ mutationFn: ({ id, folder }: { id: number; folder: "inbox" | "archive" | "spam" }) => moveThread(id, folder), onSuccess: settle });
-}
-
-export function useDeleteThread() {
-  const refresh = useRefreshMail();
-  return useMutation({ mutationFn: (threadId: number) => deleteThread(threadId), onSuccess: () => refresh() });
-}
-
-export function useSendMail() {
-  const refresh = useRefreshMail();
-  return useMutation({ mutationFn: (o: Outgoing) => sendMail(o), onSuccess: (m) => refresh(m.thread_id) });
-}
-
-export function useRetryMail() {
-  const refresh = useRefreshMail();
-  return useMutation({ mutationFn: (messageId: number) => retryMail(messageId), onSuccess: (m) => refresh(m.thread_id) });
 }
 
 function useSettleMailbox() {

@@ -3,8 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { InboxIcon, Loader2Icon, PaperclipIcon, PenSquareIcon, RadioIcon } from "lucide-react";
-import { formatTime, relativeTime } from "@moa/app-kit";
+import { InboxIcon, Loader2Icon, PenSquareIcon, RadioIcon } from "lucide-react";
+import { FolderNav, ThreadRow, useDebounced } from "@moa/mail-ui";
 import { Chip, EmptyState, FigurePanel, SearchField, Skeleton, cn } from "@moa/ui";
 
 import { RESYNC, planRefresh, pollEvery, useCoalesced, useInboxStream, type StreamChange, type StreamMode } from "@/features/whatsapp/stream";
@@ -12,59 +12,11 @@ import { RESYNC, planRefresh, pollEvery, useCoalesced, useInboxStream, type Stre
 import { useNewMailNotifier } from "../alerts";
 import { MAIL_STREAM_URL, type ComposeMode, type FetchFile } from "../api";
 import { errorText, isLapsedError, isPermissionError, isPrivateError, threadsOf, useApplyMailRefresh, useMailbox, useThreads } from "../queries";
-import { FOLDERS, FOLDER_LABEL, PERMISSION_MESSAGE, PRIVATE_MESSAGE, initialsOf, type Folder, type MailMessage, type MailThread } from "../schemas";
+import { FOLDER_LABEL, PERMISSION_MESSAGE, PRIVATE_MESSAGE, type Folder, type MailMessage } from "../schemas";
+import { ClubMail } from "./club-mail";
 import { Composer, type ComposeTarget } from "./composer";
 import { LapseNotice, MailHeader, MailUnavailable, MailUpgradeNotice, NoAccessPanel } from "./shared";
 import { ThreadView } from "./thread-view";
-
-function useDebounced<T>(value: T, ms = 300): T {
-  const [v, setV] = React.useState(value);
-  React.useEffect(() => {
-    const t = setTimeout(() => setV(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return v;
-}
-
-function ThreadRow({ t, active, onPick, now, folder }: { t: MailThread; active: boolean; onPick: () => void; now: Date; folder: Folder }) {
-  const at = folder === "sent" ? (t.last_outbound_at ?? t.last_message_at) : t.last_message_at;
-  const who = folder === "sent" ? (t.participants.length ? `To ${t.participants.slice(0, 2).join(", ")}${t.participants.length > 2 ? ` +${t.participants.length - 2}` : ""}` : "To —") : t.last_from || "Someone";
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onPick}
-        aria-current={active || undefined}
-        className={cn("border-line-soft hover:bg-sunken flex w-full items-start gap-2.5 border-b px-3 py-2.5 text-left transition-colors", active && "bg-sunken")}
-      >
-        <span aria-hidden="true" className="bg-brand-soft text-brand mt-0.5 grid size-8 shrink-0 place-items-center rounded-full font-mono text-[11px] font-semibold">
-          {initialsOf(t.last_from || t.participants[0] || "?")}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className={cn("text-ink min-w-0 flex-1 truncate text-[13.5px]", t.unread_count > 0 ? "font-semibold" : "font-medium")}>{who}</span>
-            {at ? (
-              <time className="text-ink-3 shrink-0 text-[11px]" dateTime={at}>
-                {now.getTime() - new Date(at).getTime() < 86_400_000 ? formatTime(at) : relativeTime(at, now)}
-              </time>
-            ) : null}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className={cn("min-w-0 flex-1 truncate text-[12.5px]", t.unread_count > 0 ? "text-ink font-medium" : "text-ink-2")}>{t.subject || "(no subject)"}</span>
-            {t.has_attachments ? <PaperclipIcon className="text-ink-3 size-3 shrink-0" aria-label="Has files" /> : null}
-            {t.unread_count > 0 ? (
-              <span className="bg-brand text-brand-foreground shrink-0 rounded-full px-1.5 font-mono text-[10.5px] font-semibold tabular-nums">
-                {t.unread_count}
-                <span className="sr-only"> unread</span>
-              </span>
-            ) : null}
-          </span>
-          <span className="text-ink-3 block truncate text-[12px]">{t.snippet}</span>
-        </span>
-      </button>
-    </li>
-  );
-}
 
 function LiveMark({ mode }: { mode: StreamMode }) {
   return (
@@ -84,7 +36,7 @@ function LiveMark({ mode }: { mode: StreamMode }) {
  * (403 MAILBOX_PERMISSION otherwise; MAILBOX_PRIVATE for an admin acting as
  * the club). `readFile` stands in for the gateway in tests.
  */
-export function MailboxPage({ readFile }: { readFile?: FetchFile } = {}) {
+function Mailbox({ readFile }: { readFile?: FetchFile }) {
   const status = useMailbox();
   const mb = status.data;
   const [folder, setFolder] = React.useState<Folder>("inbox");
@@ -121,8 +73,6 @@ export function MailboxPage({ readFile }: { readFile?: FetchFile } = {}) {
 
   if (mb && (!mb.on_server || !mb.available)) return <MailUnavailable />;
   const forbidden = (status.isError && (isPermissionError(status.error) || isPrivateError(status.error))) || (list.isError && (isPermissionError(list.error) || isPrivateError(list.error)));
-
-  const folderCount = (f: Folder) => (f === "inbox" ? counts?.unread_total : f === "spam" ? counts?.spam_unread : f === "archive" ? counts?.archive_unread : 0) ?? 0;
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -178,31 +128,15 @@ export function MailboxPage({ readFile }: { readFile?: FetchFile } = {}) {
               aria-label="Mailbox"
               className={cn("grid min-h-[460px] grid-rows-[minmax(0,1fr)] overflow-hidden p-0 lg:grid-cols-[150px_320px_minmax(0,1fr)]", "h-[calc(100dvh-17rem)] sm:h-[calc(100dvh-15rem)]")}
             >
-              <nav aria-label="Folders" className={cn("border-line-soft flex gap-1 overflow-x-auto border-b p-2 lg:flex-col lg:border-r lg:border-b-0", openId !== null && "hidden lg:flex")}>
-                {FOLDERS.map((f) => {
-                  const n = folderCount(f);
-                  return (
-                    <button
-                      key={f}
-                      type="button"
-                      aria-current={folder === f || undefined}
-                      onClick={() => {
-                        setFolder(f);
-                        setOpenId(null);
-                      }}
-                      className={cn("flex shrink-0 items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px]", folder === f ? "bg-brand-soft text-brand font-semibold" : "text-ink-2 hover:bg-sunken")}
-                    >
-                      {FOLDER_LABEL[f]}
-                      {n ? (
-                        <span className="font-mono text-[11px] tabular-nums">
-                          {n}
-                          <span className="sr-only"> unread</span>
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </nav>
+              <FolderNav
+                folder={folder}
+                counts={counts}
+                onPick={(f) => {
+                  setFolder(f);
+                  setOpenId(null);
+                }}
+                className={cn(openId !== null && "hidden lg:flex")}
+              />
               <section className={cn("border-line-soft flex min-h-0 flex-col lg:border-r", openId !== null && "hidden lg:flex")} aria-label="Conversations">
                 <div className="flex flex-col gap-2 p-3">
                   <SearchField value={search} onChange={setSearch} label="Search mail" placeholder="Subject, sender or words" size="sm" />
@@ -285,5 +219,14 @@ export function MailboxPage({ readFile }: { readFile?: FetchFile } = {}) {
         />
       ) : null}
     </div>
+  );
+}
+
+/** Mail, its screens asking the club's own mailbox (ClubMail). */
+export function MailboxPage({ readFile }: { readFile?: FetchFile } = {}) {
+  return (
+    <ClubMail>
+      <Mailbox readFile={readFile} />
+    </ClubMail>
   );
 }

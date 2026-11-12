@@ -13,6 +13,7 @@
  */
 @source "../../../../packages/ui/src";
 @source "../../../../packages/app-kit/src";
+@source "../../../../packages/mail-ui/src";
 
 @layer base {
   * {
