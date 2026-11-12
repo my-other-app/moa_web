@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { ApiError } from "@moa/api";
 import { toast } from "@moa/ui";
 
 import clubInfoFixture from "../__fixtures__/club-info.json";
@@ -129,13 +130,21 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
           if (img) img.alt = (body.alt as string | null) ?? "";
           return clone(img);
         }
-        // As the API applies it: order and hidden replace, titles and slots merge (null clears), accent sets.
-        const { layout: lp, ...rest } = body as { layout?: { order?: string[]; hidden?: string[]; titles?: Record<string, string | null>; slots?: Record<string, number | null>; accent?: string | null } };
-        const stored = server.site.layout as { order: string[]; hidden: string[]; titles: Record<string, string>; slots: Record<string, number>; accent: string | null } | undefined;
+        // As the API applies it: order and hidden replace, titles and slots merge (null clears), accent and join_text set (null or "" clears).
+        type LP = { order?: string[]; hidden?: string[]; titles?: Record<string, string | null>; slots?: Record<string, number | null>; accent?: string | null; join_text?: string | null };
+        const { layout: lp, ...rest } = body as { layout?: LP };
+        const stored = server.site.layout as { order: string[]; hidden: string[]; titles: Record<string, string>; slots: Record<string, number>; accent: string | null; join_text?: string | null } | undefined;
+        if (lp?.join_text && lp.join_text.length > 240) {
+          throw new ApiError({ message: "The join text is at most 240 characters.", status: 422, errorCode: "SITE_JOIN_TEXT_TOO_LONG", fieldErrors: { join_text: ["too long"] } });
+        }
         let layout = stored;
         if (lp && stored) {
           const merge = <T,>(a: Record<string, T>, b: Record<string, T | null> = {}) => Object.fromEntries(Object.entries({ ...a, ...b }).filter(([, v]) => v !== null && v !== "")) as Record<string, T>;
-          layout = { order: lp.order ?? stored.order, hidden: lp.hidden ?? stored.hidden, titles: merge(stored.titles, lp.titles), slots: merge(stored.slots, lp.slots), accent: "accent" in lp ? (lp.accent ?? null) : stored.accent };
+          layout = {
+            order: lp.order ?? stored.order, hidden: lp.hidden ?? stored.hidden, titles: merge(stored.titles, lp.titles), slots: merge(stored.slots, lp.slots),
+            accent: "accent" in lp ? (lp.accent ?? null) : stored.accent,
+            join_text: "join_text" in lp ? lp.join_text || null : (stored.join_text ?? null),
+          };
         }
         server.site = { ...server.site, ...rest, ...(layout ? { layout } : {}), stale: true, adjusted: null };
         return clone(server.site);
@@ -335,6 +344,8 @@ describe("the website page: sections", () => {
     const sent = lastCall("PATCH", "/clubs/site")?.body as { template?: string; layout: { titles: Body } };
     expect(sent.template).toBeUndefined();
     expect(sent.layout.titles).toEqual({ team: "Who we are" });
+    // The Join line was not touched: it is not sent.
+    expect(sent.layout).not.toHaveProperty("join_text");
     // Saved: the draft is the site again, and a title cleared later goes as null (the API merges titles).
     await waitFor(() => expect(screen.queryByRole("button", { name: /Save draft/ })).not.toBeInTheDocument());
     expect(screen.getByLabelText("Team title")).toHaveValue("Who we are");
@@ -351,6 +362,65 @@ describe("the website page: sections", () => {
     expect(screen.getByText("Profile column")).toBeInTheDocument();
     expect(screen.getByText("Fixed at the side")).toBeInTheDocument();
     expect(sectionOrder()).toEqual(["upcoming", "team"]);
+  });
+});
+
+describe("the website page: the Join section's text", () => {
+  it("sets it: counted, previewed, marked unpublished and saved", async () => {
+    render(<SitePage />);
+    await screen.findByText(/Live · updated/);
+    openTab(/Text and colour/);
+    const field = screen.getByLabelText("Join section text");
+    expect(field).toHaveAttribute("placeholder", "Joining is free. Follow us to hear about every event first.");
+    expect(field).toHaveAttribute("maxLength", "240");
+    expect(screen.getByText(/Shown in the Join section of every template/)).toBeInTheDocument();
+    expect(screen.getByText("0/240")).toBeInTheDocument();
+    // A space typed at the end stays while typing; what is sent is trimmed.
+    fireEvent.change(field, { target: { value: "Come build with us " } });
+    expect(field).toHaveValue("Come build with us ");
+    expect(screen.getByText("19/240")).toBeInTheDocument();
+    expect(screen.getByTestId("unpublished")).toBeInTheDocument();
+    await waitFor(() => expect(lastCall("POST", "/preview")).toMatchObject({ body: { layout: { join_text: "Come build with us" } } }), { timeout: 3000 });
+    fireEvent.click(screen.getByRole("button", { name: /Save draft/ }));
+    await waitFor(() => expect(lastCall("PATCH", "/clubs/site")).toMatchObject({ body: { layout: { join_text: "Come build with us" } } }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Save draft/ })).not.toBeInTheDocument());
+    expect(screen.getByLabelText("Join section text")).toHaveValue("Come build with us");
+  });
+
+  it("clears it back to the default with null", async () => {
+    server.site = v2Site({ layout: { order: ["about", "upcoming", "past", "photos", "team"], hidden: [], titles: {}, slots: {}, accent: null, join_text: "Members only on Fridays." } });
+    render(<SitePage />);
+    await screen.findByText(/Live · updated/);
+    openTab(/Text and colour/);
+    const field = screen.getByLabelText("Join section text");
+    expect(field).toHaveValue("Members only on Fridays.");
+    fireEvent.change(field, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save draft/ }));
+    await waitFor(() => expect(((lastCall("PATCH", "/clubs/site")?.body as Body)?.layout as Body)?.join_text).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Save draft/ })).not.toBeInTheDocument());
+    expect(screen.getByLabelText("Join section text")).toHaveValue("");
+    expect((server.site.layout as Body).join_text).toBeNull();
+  });
+
+  it("says a line the API finds too long under the field, and keeps the draft", async () => {
+    render(<SitePage />);
+    await screen.findByText(/Live · updated/);
+    openTab(/Text and colour/);
+    // Pasted past the field's own cap (the API checks too).
+    fireEvent.change(screen.getByLabelText("Join section text"), { target: { value: "x".repeat(241) } });
+    expect(screen.getByText("241/240")).toHaveClass("text-refuse");
+    // Saved from another tab: the editor comes back to the field.
+    openTab(/Sections/);
+    fireEvent.click(screen.getByRole("button", { name: /Publish changes/ }));
+    const refusal = "The join text is at most 240 characters.";
+    expect(await screen.findByText(refusal, { selector: "p" })).toHaveAttribute("role", "alert");
+    expect(screen.getByLabelText("Join section text")).toHaveAttribute("aria-invalid", "true");
+    expect(lastCall("POST", "/publish")).toBeUndefined();
+    expect(screen.getByRole("button", { name: /Save draft/ })).toBeInTheDocument();
+    // Edited: the refusal goes.
+    fireEvent.change(screen.getByLabelText("Join section text"), { target: { value: "Short and sweet." } });
+    expect(screen.queryByText(refusal, { selector: "p" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Join section text")).not.toHaveAttribute("aria-invalid");
   });
 });
 
@@ -485,6 +555,7 @@ describe("the website page ahead of its backend", () => {
     openTab(/Text/);
     fireEvent.change(screen.getByLabelText("Headline"), { target: { value: "Make things that think" } });
     expect(screen.queryByRole("radiogroup", { name: "Accent colour" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Join section text")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Publish changes/ }));
     await waitFor(() =>
       expect(lastCall("PATCH", "/clubs/site")).toMatchObject({ body: { headline: "Make things that think", sections: expect.objectContaining({ past: false, team: true }) } }),

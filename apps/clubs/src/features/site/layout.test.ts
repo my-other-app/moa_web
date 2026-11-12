@@ -21,7 +21,7 @@ const classic = templateSchema.parse({
 const editorial = templateSchema.parse({ key: "editorial", name: "Editorial", sections: [{ key: "speakers", label: "Speakers" }, { key: "about", label: "About" }], slots: [{ key: "hero.cover", label: "Cover", size: { w: 1200, h: 600 } }] });
 
 const img = (id: number, position: number, used_in: string[] = []): SiteImage => ({ id, url: `u${id}`, srcset: null, alt: null, width: null, height: null, position, used_in });
-const L = (over: Partial<Layout> = {}): Layout => ({ order: [], hidden: [], titles: {}, slots: {}, accent: null, ...over });
+const L = (over: Partial<Layout> = {}): Layout => ({ order: [], hidden: [], titles: {}, slots: {}, accent: null, join_text: null, ...over });
 
 describe("the layout, as a template keeps it", () => {
   it("drops unknown sections, appends missing ones in default order, and keeps only what may be hidden", () => {
@@ -63,6 +63,19 @@ describe("the layout, as a template keeps it", () => {
     const saved = L({ order: ["a"], titles: { about: "Hello", past: "Before" }, slots: { "hero.cover": 1, "photos.1": 2 } });
     const now = L({ order: ["a"], titles: { past: "Earlier" }, slots: { "photos.1": 3 }, accent: "#112233" });
     expect(layoutPatch(saved, now)).toEqual({ order: ["a"], hidden: [], titles: { past: "Earlier", about: null }, slots: { "photos.1": 3, "hero.cover": null }, accent: "#112233" });
+  });
+
+  it("trims the Join line, and sends it only when it changed (null: back to the default)", () => {
+    expect(layoutFor(classic, L({ join_text: "  Come build with us.  " })).join_text).toBe("Come build with us.");
+    expect(layoutFor(classic, L({ join_text: "   " })).join_text).toBeNull();
+    // One line, as the API keeps it: a typed line break or double space is one space.
+    expect(layoutFor(classic, L({ join_text: "Come\n\nbuild  with us" })).join_text).toBe("Come build with us");
+    const saved = L({ join_text: "Members only" });
+    expect(layoutPatch(saved, L({ join_text: "Members only" }))).not.toHaveProperty("join_text");
+    expect(layoutPatch(saved, L({ join_text: "Everyone welcome" })).join_text).toBe("Everyone welcome");
+    expect(layoutPatch(saved, L()).join_text).toBeNull();
+    expect(sameLayout(saved, L())).toBe(false);
+    expect(mergeLayout(L(), classic, L({ join_text: "Hi " })).join_text).toBe("Hi ");
   });
 
   it("moves an item, clamped to the list", () => {
@@ -110,7 +123,8 @@ describe("the site as either server sends it", () => {
   it("reads sizes in either shape, a template accent, and a layout's nulls", () => {
     expect(editorial.slots?.[0]?.size).toEqual([1200, 600]);
     expect(templateSchema.parse({ key: "k", name: "K", accent: { default: "#112233", vars: ["--accent"] } }).accent).toBe("#112233");
-    expect(layoutSchema.parse({ order: ["a"], hidden: [], titles: {}, slots: { "hero.cover": null, "photos.1": 4 }, accent: "red" })).toEqual({ order: ["a"], hidden: [], titles: {}, slots: { "photos.1": 4 }, accent: null });
+    expect(layoutSchema.parse({ order: ["a"], hidden: [], titles: {}, slots: { "hero.cover": null, "photos.1": 4 }, accent: "red" })).toEqual({ order: ["a"], hidden: [], titles: {}, slots: { "photos.1": 4 }, accent: null, join_text: null });
+    expect(layoutSchema.parse({ order: [], hidden: [], titles: {}, slots: {}, accent: null, join_text: "Come along" }).join_text).toBe("Come along");
   });
 
   it("reads a server before v2 without a layout", () => {

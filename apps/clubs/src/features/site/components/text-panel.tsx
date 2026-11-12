@@ -2,13 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CardLabel, ChoiceCard, FigurePanel } from "@moa/ui";
+import { CardLabel, ChoiceCard, FigurePanel, Textarea, cn } from "@moa/ui";
 
-import { HEADLINE_MAX, SUBLINE_MAX } from "../schemas";
+import { HEADLINE_MAX, JOIN_TEXT_DEFAULT, JOIN_TEXT_MAX, SUBLINE_MAX } from "../schemas";
 
 /**
- * The hero's two lines, and (v2) the accent: the template's own colour, or
- * the club's brand colour from Club profile in its place.
+ * The hero's two lines, and (v2) the Join section's line and the accent:
+ * the template's own colour, or the club's brand colour from Club profile
+ * in its place.
  */
 function Swatch({ hex }: { hex: string | null | undefined }) {
   if (!hex) return null;
@@ -26,6 +27,9 @@ export function TextPanel({
   templateAccent,
   brand,
   onAccent,
+  joinText,
+  onJoinText,
+  joinError,
 }: {
   headline: string;
   subline: string;
@@ -38,6 +42,11 @@ export function TextPanel({
   templateAccent?: string | null;
   brand?: string | null;
   onAccent?: (hex: string | null) => void;
+  /** v2 only: the Join section's line as typed; undefined hides the field. */
+  joinText?: string;
+  onJoinText?: (v: string) => void;
+  /** The API's refusal of it, said under the field. */
+  joinError?: string | null;
 }) {
   const usable = brand && /^#[0-9a-fA-F]{6}$/.test(brand) ? brand : null;
   return (
@@ -59,6 +68,37 @@ export function TextPanel({
         maxLength={SUBLINE_MAX}
       />
       <p className="text-ink-3 mt-2 text-[11.5px]">Left empty, the headline is your tagline and the subline the first line of your about.</p>
+
+      {onJoinText && joinText !== undefined ? (
+        <div className="mt-5 grid gap-1.5">
+          <label htmlFor="site-join-text" className="eyebrow block">
+            Join section text
+          </label>
+          <Textarea
+            id="site-join-text"
+            rows={3}
+            maxLength={JOIN_TEXT_MAX}
+            value={joinText}
+            placeholder={JOIN_TEXT_DEFAULT}
+            onChange={(e) => onJoinText(e.target.value)}
+            aria-invalid={joinError ? true : undefined}
+            aria-describedby="site-join-text-hint"
+          />
+          <div className="flex items-start justify-between gap-3">
+            <p id="site-join-text-hint" className="text-ink-3 text-[11.5px]">
+              Shown in the Join section of every template, as one line. Left empty, the words in grey show.
+            </p>
+            <span className={cn("shrink-0 text-[11px] tabular-nums", joinText.length > JOIN_TEXT_MAX ? "text-refuse" : "text-ink-3")}>
+              {joinText.length}/{JOIN_TEXT_MAX}
+            </span>
+          </div>
+          {joinError ? (
+            <p className="text-refuse text-[11.5px]" role="alert">
+              {joinError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {onAccent && accent !== undefined ? (
         <>
