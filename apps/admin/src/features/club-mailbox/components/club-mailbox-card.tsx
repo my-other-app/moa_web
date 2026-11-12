@@ -8,7 +8,7 @@ import { useClubMailbox } from "../queries";
 import { STATE_TEXT } from "../schemas";
 
 /**
- * The club's mailbox (<handle>@mail.myotherapp.in): its address, whether it
+ * The club's mailbox (<handle>@myotherapp.in): its address, whether it
  * is open, and counts. What its mail says is the club's alone: nothing of a
  * mail is here, nor in the endpoint behind it. Not shown at all against a
  * backend from before club mailboxes (its route answers a bare 404).

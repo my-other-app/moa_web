@@ -68,7 +68,7 @@ const NEW: Record<string, unknown> = {
   "/api/v1/clubs/messages/history": { items: [] },
   "/api/v1/clubs/alerts": { items: [], unread: 0 },
   "/api/v1/clubs/mailbox": {
-    available: true, domain: "mail.myotherapp.in", plan_allows: true, set_up: true, address: "circuit@mail.myotherapp.in",
+    available: true, domain: "myotherapp.in", plan_allows: true, set_up: true, address: "circuit@myotherapp.in",
     state: "open", can_manage: true, can_mail: true, is_owner: true,
   },
   "/api/v1/clubs/mailbox/summary": { unread_total: 0, unread_threads: 0, spam_unread: 0, archive_unread: 0 },

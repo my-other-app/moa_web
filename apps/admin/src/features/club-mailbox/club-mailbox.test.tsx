@@ -40,7 +40,7 @@ const OPEN = {
   available: true,
   plan_allows: true,
   set_up: true,
-  address: "circuit@mail.myotherapp.in",
+  address: "circuit@myotherapp.in",
   state: "open",
   lapsed_at: null,
   created_at: "2026-10-01T08:00:00Z",
@@ -76,7 +76,7 @@ describe("a club's mailbox, for an admin", () => {
   it("shows the address, that it is open, and counts -- no mail", async () => {
     render(<ClubMailboxCard clubId={5} />);
     const card = await screen.findByRole("region", { name: "Mailbox" });
-    expect(await within(card).findByText("circuit@mail.myotherapp.in")).toBeInTheDocument();
+    expect(await within(card).findByText("circuit@myotherapp.in")).toBeInTheDocument();
     expect(within(card).getByText("Open")).toBeInTheDocument();
     expect(within(card).getByText("42")).toBeInTheDocument();
     expect(within(card).getByText(/3 in Spam/)).toBeInTheDocument();
