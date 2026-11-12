@@ -87,7 +87,7 @@ describe("fromV1, field by field", () => {
     expect(v2.canvas).toMatchObject({ width: 2000, height: 800, background: { type: "solid", color: "#F7F7F4" } });
     expect(v2.layers[0]).toMatchObject({ id: "template", kind: "image", source: "upload", imageKey: "tpl/abc.png", x: -100, y: -50, width: 2400, height: 1000, preprinted: true, locked: false, fit: "cover" });
     expect(v2.layers[1]).toMatchObject({ id: "qr", x: 1600, y: 250 });
-    expect(v2.layers[2]).toMatchObject({ shape: "path", path: "M0.0 0.0 L200.0 0.0 L100.0 100.0 Z", x: 0, y: 0, stroke: { color: "#000000", width: 3, dash: null } });
+    expect(v2.layers[2]).toMatchObject({ shape: "path", path: "M0 0 L200 0 L100 100 Z", x: 0, y: 0, stroke: { color: "#000000", width: 3, dash: null } });
   });
 
   it("scales a canvas outside 300 to 3000 px into it", () => {
