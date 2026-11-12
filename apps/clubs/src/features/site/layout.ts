@@ -1,4 +1,4 @@
-import { GALLERY_PREFIX, SECTION_WORDS, TITLE_MAX, type Layout, type Site, type SiteImage, type SiteTemplate, type SlotMeta } from "./schemas";
+import { GALLERY_PREFIX, SECTION_WORDS, TITLE_MAX, type Layout, type LayoutPatch, type Site, type SiteImage, type SiteTemplate, type SlotMeta } from "./schemas";
 
 /*
  * The site's layout, worked out the way the server keeps it (the contract's
@@ -60,6 +60,19 @@ export function mergeLayout(union: Layout, template: SiteTemplate | undefined, n
     slots: { ...keep(union.slots, ownSlots), ...next.slots },
     accent: next.accent,
   };
+}
+
+/**
+ * `now` as a PATCH body against `saved` (both as the template keeps them):
+ * the server merges titles and slots by key, so one cleared since is sent
+ * as null.
+ */
+export function layoutPatch(saved: Layout, now: Layout): LayoutPatch {
+  const titles: Record<string, string | null> = { ...now.titles };
+  for (const k of Object.keys(saved.titles)) if (!(k in now.titles)) titles[k] = null;
+  const slots: Record<string, number | null> = { ...now.slots };
+  for (const k of Object.keys(saved.slots)) if (!(k in now.slots)) slots[k] = null;
+  return { order: now.order, hidden: now.hidden, titles, slots, accent: now.accent };
 }
 
 /** Two layouts that make the same page (keys in any order). */
@@ -144,13 +157,17 @@ export function slotFills(template: SiteTemplate | undefined, layout: Layout, im
 }
 
 /**
- * Where a photo is chosen for, in words ("Cover photo", "Photo 2"): the
- * draft's slots for this template, and the saved ones the server named
- * (another template's included), each once.
+ * Where each photo shows on the page, in words ("Cover photo", "Photo 2"):
+ * chosen for a place or filling the gallery, by the draft's layout.
  */
-export function usedIn(image: SiteImage, template: SiteTemplate | undefined, layout: Layout): string[] {
-  const keys = [...Object.entries(layout.slots).filter(([, id]) => id === image.id).map(([k]) => k), ...(image.used_in ?? [])];
-  return [...new Set(keys.map((k) => slotLabel(template, k)))];
+export function placesByImage(template: SiteTemplate | undefined, layout: Layout, images: readonly SiteImage[]): Map<number, string[]> {
+  const fills = slotFills(template, layout, images);
+  const out = new Map<number, string[]>();
+  for (const s of template?.slots ?? []) {
+    const id = fills[s.key]?.image?.id;
+    if (id !== undefined) out.set(id, [...(out.get(id) ?? []), s.label]);
+  }
+  return out;
 }
 
 /** "Cover photo", "Cover photo and Photo 2", "A, B and C". */

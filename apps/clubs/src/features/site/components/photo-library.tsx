@@ -22,7 +22,7 @@ import {
 
 import { IMAGE_ACCEPT } from "@/lib/images";
 
-import { listWords, moved, usedIn } from "../layout";
+import { listWords, moved, placesByImage } from "../layout";
 import { useDeleteImage, useImageAlt, useOrderImages } from "../queries";
 import { ALT_MAX, type Layout, type SiteImage, type SiteTemplate } from "../schemas";
 import { useDragReorder } from "../use-drag-reorder";
@@ -142,7 +142,8 @@ export function PhotoLibrary({
   const pick = (files: FileList | null) => {
     if (files?.length) queue.add(Array.from(files));
   };
-  const doomedWhere = doomed ? usedIn(doomed, template, layout) : [];
+  const places = placesByImage(template, layout, images);
+  const doomedWhere = doomed ? (places.get(doomed.id) ?? []) : [];
 
   return (
     <FigurePanel className="p-4">
@@ -187,7 +188,7 @@ export function PhotoLibrary({
       {images.length ? (
         <ol className="mt-3 grid grid-cols-2 gap-2" aria-label="Photos in order">
           {images.map((img, i) => {
-            const where = usedIn(img, template, layout);
+            const where = places.get(img.id) ?? [];
             const item = drag.itemProps(i);
             return (
               <li
@@ -201,8 +202,12 @@ export function PhotoLibrary({
                 )}
               >
                 <div {...drag.handleProps(i)} className="relative cursor-grab overflow-hidden rounded-lg active:cursor-grabbing" title="Drag to move">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- the library's own small variant, as kept */}
-                  <img src={img.url} srcSet={img.srcset ?? undefined} sizes="200px" alt={img.alt ?? ""} className="bg-sunken aspect-[4/3] w-full object-cover" draggable={false} />
+                  {img.url ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- the library's own small variant, as kept
+                    <img src={img.url} srcSet={img.srcset ?? undefined} sizes="200px" alt={img.alt ?? ""} className="bg-sunken aspect-[4/3] w-full object-cover" draggable={false} />
+                  ) : (
+                    <span className="bg-sunken block aspect-[4/3] w-full" />
+                  )}
                   <span className="absolute top-1 left-1 rounded-md bg-black/60 px-1.5 font-mono text-[10.5px] text-white tabular-nums">{i + 1}</span>
                   {where.length ? <span className="bg-brand text-brand-foreground absolute right-1 bottom-1 max-w-[90%] truncate rounded-md px-1.5 text-[10.5px]">{listWords(where)}</span> : null}
                 </div>
@@ -234,8 +239,8 @@ export function PhotoLibrary({
             <AlertDialogTitle>Delete this photo?</AlertDialogTitle>
             <AlertDialogDescription>
               {doomedWhere.length
-                ? `It is used in ${listWords(doomedWhere)}. Those places go empty (gallery places fill from the library), and a published page changes with them.`
-                : "It isn't chosen for any place on the page. It leaves the library for good."}
+                ? `It shows on the page as ${listWords(doomedWhere)}. A place chosen for it goes empty; the gallery fills from the rest of the library. A published page changes at once.`
+                : "It isn't on the page. It leaves the library for good."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -49,7 +49,12 @@ export function usePatchSite() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (patch: SitePatch) => patchSite(patch),
-    onSuccess: (data) => queryClient.setQueryData(KEY, data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(KEY, data);
+      // What the server's layout check changed in what was sent (the editor sends what fits, so rarely anything).
+      const left = Object.values(data.adjusted ?? {}).flat();
+      if (left.length) toast.info(`Adjusted to fit the template: ${[...new Set(left)].join(", ")}`);
+    },
     onError: toastError,
   });
 }
@@ -84,6 +89,7 @@ function useRefreshSite() {
 
 export function useImageAlt() {
   const setImages = useSetImages();
+  const refresh = useRefreshSite();
   return useMutation({
     mutationFn: ({ id, alt }: { id: number; alt: string | null }) => patchSiteImage(id, { alt }),
     onMutate: ({ id, alt }) => setImages((list) => list.map((i) => (i.id === id ? { ...i, alt } : i))),
@@ -92,6 +98,8 @@ export function useImageAlt() {
       toast.success("Alt text saved");
     },
     onError: toastError,
+    // Whether the live page is behind now.
+    onSettled: refresh,
   });
 }
 

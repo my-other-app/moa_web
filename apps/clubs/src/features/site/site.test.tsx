@@ -38,14 +38,14 @@ const slot = (key: string, label: string, size: [number, number], sec: string) =
 const TEMPLATES = [
   {
     key: "classic", name: "Classic", blurb: "Profile page with cover, events and team", layout: "single",
-    fixed_top: ["nav", "hero"], fixed_side: [], fixed_bottom: ["footer"],
+    fixed: { top: ["nav", "hero"], side: [], bottom: ["footer"] },
     sections: [section("about", "About", "About us"), section("upcoming", "Upcoming events", "Upcoming", false), section("past", "Past events", "Past events"), section("photos", "Photos", "Photos"), section("team", "Team", "The team")],
     slots: [slot("hero.cover", "Cover photo", [1440, 300], "hero"), slot("about.image", "About image", [720, 480], "about"), slot("photos.1", "Photo 1", [720, 480], "photos"), slot("photos.2", "Photo 2", [720, 480], "photos")],
     thumb_url: thumb("classic"), thumb_mobile_url: thumb("classic", "-mobile"), accent: { default: "#2B4BFF", vars: ["--accent"] },
   },
   {
     key: "editorial", name: "Editorial", blurb: "A magazine's front page", layout: "single",
-    fixed_top: ["nav", "hero"], fixed_side: [], fixed_bottom: ["footer"],
+    fixed: { top: ["nav", "hero"], side: [], bottom: ["footer"] },
     sections: [section("upcoming", "Upcoming events", "The calendar", false), section("about", "About", "About"), section("speakers", "Speakers", "Speakers"), section("past", "Past events", "The archive")],
     slots: [slot("hero.cover", "Cover photo", [1200, 600], "hero"), slot("photos.1", "Photo 1", [600, 400], "photos")],
     thumb_url: thumb("editorial"), thumb_mobile_url: thumb("editorial", "-mobile"), accent: "#C8102E",
@@ -70,8 +70,11 @@ function v2Site(over: Body = {}): Body {
     published_at: "2026-10-02T09:00:00Z", stale: false, url: "https://circuit-society.myotherapp.in", slug: "circuit-society", tracking: null,
     templates: TEMPLATES,
     layout: { order: ["about", "upcoming", "past", "photos", "team"], hidden: [], titles: {}, slots: { "about.image": 11 }, accent: null },
-    images: [image(11, "Members at the workbench", 0, ["about.image"]), image(12, "Hack night crowd", 1), image(13, "", 2)],
+    images: [image(11, "Members at the workbench", 0, ["about.image"]), image(12, "Hack night crowd", 1, ["photos.1"]), image(13, "", 2, ["photos.2"])],
     limits: { images: 20, image_mb: 10 },
+    club_colour: "#1db9a0",
+    sections: { about: true, upcoming: true, past: true, photos: true, team: true },
+    available: { about: true, upcoming: true, past: false, photos: true, team: true },
     ...over,
   };
 }
@@ -101,7 +104,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
         if (path.endsWith("/clubs/site")) return clone(server.site);
-        if (path.endsWith("/clubs/info")) return { ...clubInfoFixture, brand_primary: "#1db9a0" };
+        if (path.endsWith("/clubs/info")) return { ...clubInfoFixture, brand_primary: "#123456" };
         if (path.endsWith("/clubs/site/domain")) return { available: true, entitled: true, default_host: "circuit-society.myotherapp.in", domain: null };
         if (path.includes("/clubs/site/analytics")) {
           if (!analytics.on) throw new Error("Not Found");
@@ -126,7 +129,15 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
           if (img) img.alt = (body.alt as string | null) ?? "";
           return clone(img);
         }
-        server.site = { ...server.site, ...body, stale: true };
+        // As the API applies it: order and hidden replace, titles and slots merge (null clears), accent sets.
+        const { layout: lp, ...rest } = body as { layout?: { order?: string[]; hidden?: string[]; titles?: Record<string, string | null>; slots?: Record<string, number | null>; accent?: string | null } };
+        const stored = server.site.layout as { order: string[]; hidden: string[]; titles: Record<string, string>; slots: Record<string, number>; accent: string | null } | undefined;
+        let layout = stored;
+        if (lp && stored) {
+          const merge = <T,>(a: Record<string, T>, b: Record<string, T | null> = {}) => Object.fromEntries(Object.entries({ ...a, ...b }).filter(([, v]) => v !== null && v !== "")) as Record<string, T>;
+          layout = { order: lp.order ?? stored.order, hidden: lp.hidden ?? stored.hidden, titles: merge(stored.titles, lp.titles), slots: merge(stored.slots, lp.slots), accent: "accent" in lp ? (lp.accent ?? null) : stored.accent };
+        }
+        server.site = { ...server.site, ...rest, ...(layout ? { layout } : {}), stale: true, adjusted: null };
         return clone(server.site);
       }),
       put: vi.fn(async (path: string, body: { ids: number[] }) => {
@@ -319,9 +330,17 @@ describe("the website page: sections", () => {
     expect(screen.getByTestId("unpublished")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Save draft/ }));
     await waitFor(() =>
-      expect(lastCall("PATCH", "/clubs/site")).toMatchObject({ body: { layout: { order: ["team", "upcoming", "about", "past", "photos"], hidden: ["past"], titles: { team: "Who we are" } } } }),
+      expect(lastCall("PATCH", "/clubs/site")).toMatchObject({ body: { layout: { order: ["team", "upcoming", "about", "past", "photos"], hidden: ["past"] } } }),
     );
-    expect((lastCall("PATCH", "/clubs/site")?.body as Body).template).toBeUndefined();
+    const sent = lastCall("PATCH", "/clubs/site")?.body as { template?: string; layout: { titles: Body } };
+    expect(sent.template).toBeUndefined();
+    expect(sent.layout.titles).toEqual({ team: "Who we are" });
+    // Saved: the draft is the site again, and a title cleared later goes as null (the API merges titles).
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Save draft/ })).not.toBeInTheDocument());
+    expect(screen.getByLabelText("Team title")).toHaveValue("Who we are");
+    fireEvent.change(screen.getByLabelText("Team title"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save draft/ }));
+    await waitFor(() => expect((lastCall("PATCH", "/clubs/site")?.body as { layout: { titles: Body } }).layout.titles).toEqual({ team: null }));
   });
 
   it("shows a two-column template's profile column as fixed at the side", async () => {
@@ -341,7 +360,7 @@ describe("the website page: photos", () => {
     await screen.findByText(/Live · updated/);
     openTab(/Photos/);
     expect(within(screen.getByTestId("slot-hero.cover")).getByText(/1440 × 300 px/)).toBeInTheDocument();
-    expect(within(screen.getByTestId("slot-hero.cover")).getByText(/Empty/)).toBeInTheDocument();
+    expect(within(screen.getByTestId("slot-hero.cover")).getByText(/Empty: your club's cover shows/)).toBeInTheDocument();
     expect(within(screen.getByTestId("slot-about.image")).getByText(/Photo 1/)).toBeInTheDocument();
     // Photo 1 is the about image, so the gallery starts at photo 2.
     expect(within(screen.getByTestId("slot-photos.1")).getByText(/Auto: photo 2/)).toBeInTheDocument();
@@ -356,10 +375,11 @@ describe("the website page: photos", () => {
     expect(within(screen.getByTestId("slot-photos.2")).getByText(/Empty/)).toBeInTheDocument();
     // The library says where each photo goes.
     expect(within(screen.getByTestId("photo-12")).getByText("Cover photo")).toBeInTheDocument();
+    expect(within(screen.getByTestId("photo-13")).getByText("Photo 1")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Clear About image" }));
     fireEvent.click(screen.getByRole("button", { name: /Save draft/ }));
-    await waitFor(() => expect(lastCall("PATCH", "/clubs/site")).toMatchObject({ body: { layout: { slots: { "hero.cover": 12 } } } }));
-    expect(((lastCall("PATCH", "/clubs/site")?.body as Body).layout as Body).slots).toEqual({ "hero.cover": 12 });
+    // A place emptied goes as null: the API merges slots by key.
+    await waitFor(() => expect(((lastCall("PATCH", "/clubs/site")?.body as Body)?.layout as Body)?.slots).toEqual({ "hero.cover": 12, "about.image": null }));
   });
 
   it("uploads several photos with their progress, up to the 20 the library holds", async () => {
@@ -440,14 +460,14 @@ describe("the website page: photos", () => {
     openTab(/Photos/);
     fireEvent.click(screen.getByRole("button", { name: "Delete photo 1" }));
     const dialog = await screen.findByRole("alertdialog");
-    expect(within(dialog).getByText(/It is used in About image\./)).toBeInTheDocument();
+    expect(within(dialog).getByText(/It shows on the page as About image\./)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Delete photo" }));
     await waitFor(() => expect(lastCall("DELETE", "/images/11")).toBeTruthy());
     await waitFor(() => expect(screen.queryByTestId("photo-11")).not.toBeInTheDocument());
     expect(within(screen.getByTestId("slot-about.image")).getByText(/Empty/)).toBeInTheDocument();
-    // An unused one says so.
-    fireEvent.click(screen.getByRole("button", { name: "Delete photo 2" }));
-    expect(within(await screen.findByRole("alertdialog")).getByText(/isn't chosen for any place/)).toBeInTheDocument();
+    // One filling the gallery says so too.
+    fireEvent.click(screen.getByRole("button", { name: "Delete photo 1" }));
+    expect(within(await screen.findByRole("alertdialog")).getByText(/It shows on the page as Photo 1\./)).toBeInTheDocument();
   });
 });
 

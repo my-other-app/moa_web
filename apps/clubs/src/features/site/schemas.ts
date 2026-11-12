@@ -96,6 +96,8 @@ export const templateSchema = z.object({
   /** The movable sections in their default order; absent from a server before v2. */
   sections: z.array(sectionMetaSchema).optional().catch(undefined),
   slots: z.array(slotMetaSchema).optional().catch([]),
+  /** The sections the template keeps in place: {top, side, bottom} (or, in the contract's sketch, fixed_top / fixed_side / fixed_bottom). */
+  fixed: z.object({ top: keys, side: keys, bottom: keys }).optional().catch(undefined),
   fixed_top: keys,
   fixed_side: keys,
   fixed_bottom: keys,
@@ -109,6 +111,15 @@ export const templateSchema = z.object({
     .catch(null),
 });
 export type SiteTemplate = z.infer<typeof templateSchema>;
+
+/** The rows a template fixes in place, whichever way the server writes them. */
+export function fixedOf(t: SiteTemplate | undefined): { top: string[]; side: string[]; bottom: string[] } {
+  return {
+    top: t?.fixed?.top ?? t?.fixed_top ?? [],
+    side: t?.fixed?.side ?? t?.fixed_side ?? [],
+    bottom: t?.fixed?.bottom ?? t?.fixed_bottom ?? [],
+  };
+}
 
 export const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -124,16 +135,24 @@ export const layoutSchema = z.object({
   accent: z.string().regex(HEX).nullable().optional().catch(null).transform((a) => a ?? null),
 });
 export type Layout = { order: string[]; hidden: string[]; titles: Record<string, string>; slots: Record<string, number>; accent: string | null };
+/**
+ * The layout as PATCH and the preview take it: `order` and `hidden`
+ * replace; `titles` and `slots` merge by key, a null clearing one (back to
+ * the template's title, an empty slot); `accent` sets, or null for the
+ * template's own.
+ */
+export type LayoutPatch = { order: string[]; hidden: string[]; titles: Record<string, string | null>; slots: Record<string, number | null>; accent: string | null };
 
 export const siteImageSchema = z.object({
   id: z.number(),
-  url: z.string(),
+  /** Null while the picture cannot be shown (no CDN and no signed link). */
+  url: z.string().nullable(),
   srcset: z.string().nullable().optional().catch(null),
   alt: z.string().nullable().optional().catch(null),
   width: z.number().nullable().optional().catch(null),
   height: z.number().nullable().optional().catch(null),
   position: z.number().optional().catch(0),
-  /** The slots (of any template) the saved layout puts it in. */
+  /** The saved template's slots it shows in (chosen, or filling the gallery); the editor works this out itself for the draft. */
   used_in: z.array(z.string()).optional().catch([]),
 });
 export type SiteImage = z.infer<typeof siteImageSchema>;
@@ -155,6 +174,10 @@ export const siteSchema = z.object({
   layout: layoutSchema.nullable().optional().catch(null),
   images: z.array(siteImageSchema).nullable().optional().catch(null),
   limits: z.object({ images: z.number().catch(DEFAULT_LIMITS.images), image_mb: z.number().catch(DEFAULT_LIMITS.image_mb) }).nullable().optional().catch(null),
+  /** The club's brand colour, for the accent switch. */
+  club_colour: z.string().nullable().optional().catch(null),
+  /** After a PATCH: what the server's layout check changed in what was sent (order_dropped, order_appended, hidden_dropped, titles_dropped). */
+  adjusted: z.record(z.string(), z.array(z.string())).nullable().optional().catch(null),
   // ── before v2 ──
   sections: z.record(z.string(), z.boolean()).optional().catch(undefined),
   available: z.record(z.string(), z.boolean()).optional().catch(undefined),
@@ -191,4 +214,4 @@ export type SiteAnalytics = z.infer<typeof siteAnalyticsSchema>;
  * sent whole, normalised for the template); `sections` is the older
  * server's on/off map.
  */
-export type SitePatch = Partial<{ template: string; layout: Layout; headline: string | null; subline: string | null; sections: Record<string, boolean> }>;
+export type SitePatch = Partial<{ template: string; layout: LayoutPatch; headline: string | null; subline: string | null; sections: Record<string, boolean> }>;

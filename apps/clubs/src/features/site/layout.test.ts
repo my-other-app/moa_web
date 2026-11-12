@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { layoutFor, listWords, mergeLayout, moved, sameLayout, slotFills, slotLabel, usedIn } from "./layout";
-import { layoutSchema, siteSchema, templateSchema, type Layout, type SiteImage } from "./schemas";
+import { layoutFor, layoutPatch, listWords, mergeLayout, moved, placesByImage, sameLayout, slotFills, slotLabel } from "./layout";
+import { fixedOf, layoutSchema, siteImageSchema, siteSchema, templateSchema, type Layout, type SiteImage } from "./schemas";
 
 const classic = templateSchema.parse({
   key: "classic",
@@ -59,6 +59,12 @@ describe("the layout, as a template keeps it", () => {
     expect(sameLayout(L({ accent: null }), L({ accent: "#aabbcc" }))).toBe(false);
   });
 
+  it("sends a cleared title or slot as null (the API merges them by key)", () => {
+    const saved = L({ order: ["a"], titles: { about: "Hello", past: "Before" }, slots: { "hero.cover": 1, "photos.1": 2 } });
+    const now = L({ order: ["a"], titles: { past: "Earlier" }, slots: { "photos.1": 3 }, accent: "#112233" });
+    expect(layoutPatch(saved, now)).toEqual({ order: ["a"], hidden: [], titles: { past: "Earlier", about: null }, slots: { "photos.1": 3, "hero.cover": null }, accent: "#112233" });
+  });
+
   it("moves an item, clamped to the list", () => {
     expect(moved(["a", "b", "c"], 0, 2)).toEqual(["b", "c", "a"]);
     expect(moved(["a", "b", "c"], 2, -4)).toEqual(["c", "a", "b"]);
@@ -83,8 +89,11 @@ describe("photo places", () => {
     expect(slotFills(classic, L(), [])["photos.1"]).toEqual({ image: null, auto: false });
   });
 
-  it("names where a photo is used, the draft's places and the server's", () => {
-    expect(usedIn(img(3, 0, ["join.image"]), classic, L({ slots: { "hero.cover": 3, "photos.2": 3 } }))).toEqual(["Cover photo", "Photo 2", "Join image"]);
+  it("names where each photo shows: chosen, or filling the gallery", () => {
+    const places = placesByImage(classic, L({ slots: { "hero.cover": 3, "photos.2": 3 } }), images);
+    expect(places.get(3)).toEqual(["Cover photo", "Photo 2"]);
+    expect(places.get(4)).toEqual(["Photo 1"]);
+    expect(places.get(5)).toBeUndefined();
     expect(slotLabel(undefined, "photos.7")).toBe("Photo 7");
     expect(listWords(["A"])).toBe("A");
     expect(listWords(["A", "B", "C"])).toBe("A, B and C");
@@ -92,6 +101,12 @@ describe("photo places", () => {
 });
 
 describe("the site as either server sends it", () => {
+  it("reads the fixed rows either way the server writes them, and a photo not yet viewable", () => {
+    expect(fixedOf(templateSchema.parse({ key: "k", name: "K", fixed: { top: ["nav"], side: ["profile"], bottom: ["footer"] } }))).toEqual({ top: ["nav"], side: ["profile"], bottom: ["footer"] });
+    expect(fixedOf(templateSchema.parse({ key: "k", name: "K", fixed_top: ["nav", "hero"] }))).toEqual({ top: ["nav", "hero"], side: [], bottom: [] });
+    expect(siteImageSchema.parse({ id: 1, url: null, srcset: null, alt: null, width: 10, height: 10, position: 0, used_in: [] }).url).toBeNull();
+  });
+
   it("reads sizes in either shape, a template accent, and a layout's nulls", () => {
     expect(editorial.slots?.[0]?.size).toEqual([1200, 600]);
     expect(templateSchema.parse({ key: "k", name: "K", accent: { default: "#112233", vars: ["--accent"] } }).accent).toBe("#112233");

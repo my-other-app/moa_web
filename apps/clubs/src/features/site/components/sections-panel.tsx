@@ -5,7 +5,7 @@ import { ArrowDownIcon, ArrowUpIcon, GripVerticalIcon, LockIcon } from "lucide-r
 import { CardLabel, FigurePanel, IconButton, Switch, cn } from "@moa/ui";
 
 import { moved, sectionWord } from "../layout";
-import { LEGACY_SECTION_EMPTY, LEGACY_SECTION_LABEL, TITLE_MAX, type Layout, type SiteTemplate } from "../schemas";
+import { LEGACY_SECTION_EMPTY, LEGACY_SECTION_LABEL, TITLE_MAX, fixedOf, type Layout, type SiteTemplate } from "../schemas";
 import { useDragReorder } from "../use-drag-reorder";
 
 /**
@@ -60,9 +60,7 @@ export function SectionsPanel({
     onChange({ ...layout, titles });
   };
 
-  const top = [...(template?.fixed_top ?? [])];
-  const side = [...(template?.fixed_side ?? [])];
-  const bottom = [...(template?.fixed_bottom ?? [])];
+  const { top, side, bottom } = fixedOf(template);
 
   return (
     <FigurePanel className="p-4">

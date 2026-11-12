@@ -8,7 +8,7 @@ import { CardLabel, EmptyState, FigurePanel, Notice, Skeleton, TabPanel, TabRail
 import { useMyClub } from "@/features/club";
 import { LockedNotice, useFeatureGate } from "@/features/plan";
 
-import { EMPTY_LAYOUT, layoutFor, line, mergeLayout, sameLayout, sortImages, templateOf } from "../layout";
+import { EMPTY_LAYOUT, layoutFor, layoutPatch, line, mergeLayout, sameLayout, sortImages, templateOf } from "../layout";
 import { usePatchSite, usePreview, usePublishSite, useSite } from "../queries";
 import { DEFAULT_LIMITS, LEGACY_SECTION_LABEL, isV2, type Layout, type Site, type SitePatch, type SiteTemplate } from "../schemas";
 import { useUploadQueue } from "../uploads";
@@ -67,7 +67,7 @@ function changesOf(site: Site, draft: Draft, template: SiteTemplate | undefined,
     const saved = layoutFor(template, site.layout, imageIds);
     const now = layoutFor(template, draft.layout ?? site.layout, imageIds);
     // A new template takes its layout with it, so what carried over is said, not guessed.
-    if (out.template || !sameLayout(now, saved)) out.layout = now;
+    if (out.template || !sameLayout(now, saved)) out.layout = layoutPatch(saved, now);
   } else if (draft.sections) {
     const keys = Object.keys(LEGACY_SECTION_LABEL);
     if (keys.some((k) => (draft.sections?.[k] ?? true) !== (site.sections?.[k] ?? true))) out.sections = { ...site.sections, ...draft.sections };
@@ -127,7 +127,7 @@ function Editor({ site, draft, setDraft, tab, setTab }: { site: Site; draft: Dra
             defaultSubline={site.default_subline}
             onHeadline={(headline) => setDraft((d) => ({ ...d, headline }))}
             onSubline={(subline) => setDraft((d) => ({ ...d, subline }))}
-            {...(v2 ? { accent: layout.accent, templateAccent: template?.accent ?? null, brand: club.data?.brand_primary ?? null, onAccent: (accent: string | null) => setLayout({ ...layout, accent }) } : {})}
+            {...(v2 ? { accent: layout.accent, templateAccent: template?.accent ?? null, brand: site.club_colour ?? club.data?.brand_primary ?? null, onAccent: (accent: string | null) => setLayout({ ...layout, accent }) } : {})}
           />
         )}
       </TabPanel>

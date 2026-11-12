@@ -38,8 +38,12 @@ function Picker({ slot, images, current, onPick, onClose }: { slot: SlotMeta; im
                     onClick={() => onPick(img.id)}
                     className={cn("relative block w-full overflow-hidden rounded-lg border-2 p-0", on ? "border-brand" : "hover:border-line border-transparent")}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element -- the library's own small variant */}
-                    <img src={img.url} srcSet={img.srcset ?? undefined} sizes="140px" alt="" className="aspect-[4/3] w-full object-cover" />
+                    {img.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- the library's own small variant
+                      <img src={img.url} srcSet={img.srcset ?? undefined} sizes="140px" alt="" className="aspect-[4/3] w-full object-cover" />
+                    ) : (
+                      <span className="bg-sunken block aspect-[4/3] w-full" />
+                    )}
                     {on ? (
                       <span className="bg-brand text-brand-foreground absolute top-1 right-1 grid size-5 place-items-center rounded-full">
                         <CheckIcon className="size-3" />
@@ -72,7 +76,7 @@ function Thumb({ fill }: { fill: SlotFill | undefined }) {
   const img = fill?.image;
   return (
     <span className="bg-sunken border-line-soft relative grid h-12 w-16 shrink-0 place-items-center overflow-hidden rounded-md border">
-      {img ? (
+      {img?.url ? (
         // eslint-disable-next-line @next/next/no-img-element -- the library's own small variant
         <img src={img.url} alt="" className={cn("h-full w-full object-cover", fill?.auto && "opacity-70")} />
       ) : (
@@ -133,6 +137,8 @@ export function ImageSlots({ template, layout, images, onChange }: { template: S
                     ) : (
                       `Photo ${n}`
                     )
+                  ) : s.key === "hero.cover" ? (
+                    "Empty: your club's cover shows"
                   ) : (
                     "Empty"
                   )}
