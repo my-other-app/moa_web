@@ -100,9 +100,9 @@ export function SectionsPanel({
                 <GripVerticalIcon className="size-4" />
               </span>
               <div className="grid min-w-0 flex-1 gap-1">
-                <span className={cn("text-[12.5px] font-medium", shown ? "text-ink" : "text-ink-3 line-through")}>
-                  {label}
-                  {!shown ? <span className="text-ink-3 ml-2 text-[11px] font-normal no-underline">Hidden</span> : null}
+                <span className="flex items-center gap-2 text-[12.5px] font-medium">
+                  <span className={cn(shown ? "text-ink" : "text-ink-3 line-through")}>{label}</span>
+                  {!shown ? <span className="text-ink-3 text-[11px] font-normal">Hidden</span> : null}
                 </span>
                 <input
                   aria-label={`${label} title`}

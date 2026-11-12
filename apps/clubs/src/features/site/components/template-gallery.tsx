@@ -26,7 +26,8 @@ function Thumb({ t, mobile }: { t: SiteTemplate; mobile: boolean }) {
   const src = assetUrl(mobile ? (t.thumb_mobile_url ?? t.thumb_url) : (t.thumb_url ?? t.thumb_mobile_url));
   const [broken, setBroken] = React.useState(false);
   return (
-    <div className={cn("bg-sunken relative grid h-[150px] w-full place-items-center overflow-hidden rounded-lg", mobile && "py-2")}>
+    // The desktop picture fills a 3:2 frame (600 × 400); the phone's (300 × 600) stands whole in a taller one.
+    <div className={cn("bg-sunken relative flex w-full items-center justify-center overflow-hidden rounded-lg", mobile ? "aspect-[4/5] py-2" : "aspect-[3/2]")}>
       {src && !broken ? (
         // A plain img: the thumbnails are small PNGs from the API, shown as they are.
         // eslint-disable-next-line @next/next/no-img-element
@@ -35,7 +36,7 @@ function Thumb({ t, mobile }: { t: SiteTemplate; mobile: boolean }) {
           alt={`${t.name}, ${mobile ? "on a phone" : "on a desktop"}`}
           loading="lazy"
           onError={() => setBroken(true)}
-          className={cn(mobile ? "border-line h-full w-auto rounded-md border object-contain" : "h-full w-full object-cover object-top")}
+          className={cn(mobile ? "border-line h-full w-auto max-w-none rounded-md border shadow-sm" : "h-full w-full object-cover object-top")}
         />
       ) : (
         <span className="text-ink-3 flex flex-col items-center gap-1 text-[12px]" aria-hidden="true">
@@ -93,7 +94,7 @@ export function TemplateGallery({ templates, chosen, saved, onChoose }: { templa
                 aria-label={on ? `${t.name} is chosen` : `Use ${t.name}`}
                 aria-pressed={on}
                 onClick={() => (lock ? openUpgrade(lock) : onChoose(t.key))}
-                className={cn("btn btn-sm mt-auto", on ? "btn-secondary" : "btn-primary")}
+                className={cn("btn btn-sm mt-auto", on ? "btn-ghost text-brand" : "btn-secondary")}
               >
                 {on ? (
                   <>

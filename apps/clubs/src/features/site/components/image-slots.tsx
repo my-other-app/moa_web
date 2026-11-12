@@ -20,7 +20,7 @@ function Picker({ slot, images, current, onPick, onClose }: { slot: SlotMeta; im
   const hint = sizeHint(slot);
   return (
     <Dialog open onOpenChange={(open) => (open ? null : onClose())}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Photo for {slot.label}</DialogTitle>
           <DialogDescription>{hint ? `Drawn at ${hint} px; a photo of another shape is cropped to fit.` : "Pick one from the library."}</DialogDescription>
@@ -151,7 +151,10 @@ export function ImageSlots({ template, layout, images, onChange }: { template: S
                 <IconButton label={`Clear ${s.label}`} size="xs" variant="ghost" onClick={() => assign(s.key, null)}>
                   <XIcon className="size-3.5" />
                 </IconButton>
-              ) : null}
+              ) : (
+                // Room for Clear, so every row's Choose lines up.
+                <span className="w-7 shrink-0" aria-hidden="true" />
+              )}
             </li>
           );
         })}
