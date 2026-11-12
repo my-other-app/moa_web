@@ -3,8 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 
-import { fetchLayout, resetDesign, saveLayout, type LayoutBody } from "./api";
-import type { Audience, DesignKind, DesignScope } from "./schemas";
+import { type ArtworkField, fetchArtwork, fetchLayout, resetDesign, resetPreset, saveArtwork, saveLayout, savePreset, type LayoutBody } from "./api";
+import type { Audience, DesignKind, DesignScope, LayerDesign, PresetChoice } from "./schemas";
 
 const CLUB = ["club-designs"] as const;
 const scopeKey = (scope: DesignScope) => (scope.kind === "event" ? qk.eventDesigns.forEvent(scope.eventId) : CLUB);
@@ -24,23 +24,40 @@ export function useLayout(scope: DesignScope, kind: DesignKind, audience: Audien
   });
 }
 
+/**
+ * What a save answers -- the saved design -- written straight into the cache
+ * rather than invalidated, because a refetch would briefly show the old one.
+ * The sibling audiences are invalidated instead: the first save forks the
+ * event's design, which changes what they fall back to.
+ */
+function useWriteSaved(scope: DesignScope, kind: DesignKind, audience: Audience) {
+  const queryClient = useQueryClient();
+  return (data: LayerDesign) => {
+    queryClient.setQueryData(layoutKey(scope, kind, audience), data);
+    void queryClient.invalidateQueries({
+      queryKey: scopeKey(scope),
+      predicate: (query) => query.queryKey.at(-1) === "layout" && query.queryKey.at(-2) !== audience,
+    });
+  };
+}
+
 export function useSaveLayout(scope: DesignScope, kind: DesignKind, audience: Audience) {
+  const written = useWriteSaved(scope, kind, audience);
+  return useMutation({ mutationFn: (body: LayoutBody) => saveLayout(scope, kind, audience, body), onSuccess: written });
+}
+
+/** Save a ready design and its settings for this audience. */
+export function useSavePreset(scope: DesignScope, kind: DesignKind, audience: Audience) {
+  const written = useWriteSaved(scope, kind, audience);
+  return useMutation({ mutationFn: (choice: PresetChoice) => savePreset(scope, kind, audience, choice), onSuccess: written });
+}
+
+/** Drop the ready design saved here, so the design follows what it came from. */
+export function useResetPreset(scope: DesignScope, kind: DesignKind, audience: Audience) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: LayoutBody) => saveLayout(scope, kind, audience, body),
-    onSuccess: (data) => {
-      /*
-       * Written straight into the cache rather than invalidated, because the
-       * response is the saved design and a refetch would briefly show the
-       * old one. The sibling audiences are invalidated instead: the first
-       * save forks the event's design, which changes what they fall back to.
-       */
-      queryClient.setQueryData(layoutKey(scope, kind, audience), data);
-      void queryClient.invalidateQueries({
-        queryKey: scopeKey(scope),
-        predicate: (query) => query.queryKey.at(-1) === "layout" && query.queryKey.at(-2) !== audience,
-      });
-    },
+    mutationFn: () => resetPreset(scope, kind, audience),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: scopeKey(scope) }),
   });
 }
 
@@ -49,5 +66,34 @@ export function useResetLayout(scope: DesignScope, kind: DesignKind, audience: A
   return useMutation({
     mutationFn: () => resetDesign(scope, kind, audience),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: scopeKey(scope) }),
+  });
+}
+
+const artworkKey = (eventId: number, kind: DesignKind, audience: Audience) => [...qk.eventDesigns.detail(eventId, kind, audience), "artwork"] as const;
+
+/** An event's certificate pictures; nothing for the club's templates, which have no such upload. */
+export function useArtwork(scope: DesignScope, kind: DesignKind, audience: Audience, enabled: boolean) {
+  const eventId = scope.kind === "event" ? scope.eventId : 0;
+  return useQuery({
+    queryKey: artworkKey(eventId, kind, audience),
+    queryFn: () => fetchArtwork(eventId, kind, audience),
+    enabled: enabled && eventId > 0,
+    staleTime: 0,
+  });
+}
+
+/**
+ * Upload or remove one picture. It forks the event's design when the event
+ * followed the club's, so the design itself is read again too.
+ */
+export function useSaveArtwork(scope: DesignScope, kind: DesignKind, audience: Audience) {
+  const queryClient = useQueryClient();
+  const eventId = scope.kind === "event" ? scope.eventId : 0;
+  return useMutation({
+    mutationFn: ({ field, file }: { field: ArtworkField; file: File | null }) => saveArtwork(eventId, kind, audience, field, file),
+    onSuccess: (artwork) => {
+      queryClient.setQueryData(artworkKey(eventId, kind, audience), artwork);
+      void queryClient.invalidateQueries({ queryKey: layoutKey(scope, kind, audience) });
+    },
   });
 }

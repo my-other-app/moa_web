@@ -95,11 +95,11 @@ const NO_PROBLEMS = new Set<string>();
 const THUMB = { w: 280, h: 124 };
 
 /** A layout drawn by the stage itself, as it would print: what you pick is what you get. */
-const LayoutThumb = ({ layout, look }: { layout: Layout; look: StageLook }) => {
+export const LayoutThumb = ({ layout, look, box = THUMB, className }: { layout: Layout; look: StageLook; box?: { w: number; h: number }; className?: string }) => {
   const area = ticketArea(layout.canvas);
-  const zoom = Math.min(THUMB.w / area.width, THUMB.h / area.height);
+  const zoom = Math.min(box.w / area.width, box.h / area.height);
   return (
-    <span aria-hidden="true" className="bg-sunken grid h-[140px] place-items-center overflow-hidden rounded-[var(--radius-md)]">
+    <span aria-hidden="true" className={className ?? "bg-sunken grid h-[140px] place-items-center overflow-hidden rounded-[var(--radius-md)]"}>
       <TicketStage
         layout={layout}
         mode="preview"
@@ -137,10 +137,10 @@ const LayoutChooser = ({
   onPick: (name: string) => void;
 }) => {
   const [picked, setPicked] = React.useState<string | null>(null);
-  const layouts = React.useMemo(
-    () => Object.keys(config.starters).map((name) => ({ name, ...config.starters[name]!, layout: config.starter(name, { seats: false, page }) })),
-    [config, page]
-  );
+  const layouts = React.useMemo(() => {
+    const draw = config.starter;
+    return draw ? Object.keys(config.starters).map((name) => ({ name, ...config.starters[name]!, layout: draw(name, { seats: false, page }) })) : [];
+  }, [config, page]);
   return (
     <>
       <div role="radiogroup" aria-label="Layouts" className="scroll-thin -mx-1 grid max-h-[60vh] gap-2 overflow-y-auto px-1 py-0.5 sm:grid-cols-2">

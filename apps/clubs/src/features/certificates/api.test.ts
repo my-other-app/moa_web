@@ -10,6 +10,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       return { issued: 2, revoked: 0, attended: 2, registrations: 3, outdated: 0, design_version: 1, channels: [{ channel: "email", sent: 1, failed: 0, skipped: 0, pending: 0, unsent: 1 }] };
     if (path.endsWith("/issue-preview")) return { eligible: 2, already_issued: 0, to_issue: 2, outdated: 0 };
     if (path.endsWith("/issue")) return { issued: 2, refreshed: 0, already_issued: 0 };
+    if (path.endsWith("/apply-design")) return { updated: 5, designs: { attendee: "certificate/07-swiss-minimal", speaker: "custom" } };
     if (path.endsWith("/revoke")) return { registration_id: "r1", number: "CERT-1", revoked_at: "2026-10-11T00:00:00Z" };
     if (path.endsWith("/reinstate")) return { registration_id: "r1", number: "CERT-1", revoked_at: null };
     return { items: [], total: 0, page: 1, page_size: 25 };
@@ -25,7 +26,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
   };
 });
 
-const { certificatePdfUrl, fetchCertificateSummary, fetchCertificates, fetchIssuePreview, issueCertificates, setCertificateRevoked } =
+const { applyDesignToIssued, certificatePdfUrl, fetchCertificateSummary, fetchCertificates, fetchIssuePreview, issueCertificates, setCertificateRevoked } =
   await import("./api");
 
 beforeEach(() => {
@@ -33,6 +34,14 @@ beforeEach(() => {
 });
 
 describe("the certificate endpoints", () => {
+  it("applies the current design to the certificates already issued, confirmed", async () => {
+    const r = await applyDesignToIssued(42);
+    expect(calls[0]).toMatchObject({ method: "POST", path: "/api/v1/events/42/certificates/apply-design", body: { confirm: true } });
+    expect(r).toEqual({ updated: 5, designs: { attendee: "certificate/07-swiss-minimal", speaker: "custom" } });
+    // A summary from before the count reads as none to apply.
+    expect((await fetchCertificateSummary(42)).other_design).toBe(0);
+  });
+
   it("previews and issues to the audience chosen", async () => {
     const p = await fetchIssuePreview(42, { audience: "roles", roles: ["speaker"] });
     await issueCertificates(42, { audience: "checked_in", roles: [] });

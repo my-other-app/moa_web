@@ -17,14 +17,25 @@ import { DesignerPage } from "./designer-page";
 const state: { design: LayerDesign; saving: boolean } = { design: null as unknown as LayerDesign, saving: false };
 const save = vi.fn();
 const reset = vi.fn();
+const applyIssued = vi.fn();
+const certificates: { summary: { other_design: number } | undefined } = { summary: undefined };
+const clearPreset = vi.fn();
+const saveArtwork = vi.fn();
 
 vi.mock("../queries", () => ({
   useLayout: () => ({ data: state.design, isError: false, error: null, refetch: vi.fn(async () => ({})) }),
   useSaveLayout: () => ({ mutateAsync: save, isPending: state.saving, isError: false, error: null }),
   useResetLayout: () => ({ mutateAsync: reset, isPending: false }),
+  useResetPreset: () => ({ mutateAsync: clearPreset, isPending: false }),
+  useArtwork: () => ({ data: undefined }),
+  useSaveArtwork: () => ({ mutateAsync: saveArtwork, isPending: false }),
 }));
 vi.mock("@/features/events", () => ({
   useEventDetail: (id: number) => ({ data: id ? { id, name: "Hack Night" } : undefined }),
+}));
+vi.mock("@/features/certificates", () => ({
+  useCertificateSummary: () => ({ data: certificates.summary }),
+  useApplyDesignToIssued: () => ({ mutate: applyIssued, isPending: false }),
 }));
 vi.mock("@/features/registrations", () => ({
   useRegistrations: () => ({ data: { items: [], total: 0 } }),
@@ -202,17 +213,28 @@ describe("layers and properties", () => {
 });
 
 describe("layouts", () => {
-  it("lists the starters as choices and replaces the design only once one is picked", async () => {
+  it("offers the ID card one layout, the CR80 card, and replaces the design only once it is picked", async () => {
     open(EVENT);
+    fireEvent.click(await screen.findByRole("tab", { name: "ID card" }));
     fireEvent.click(await screen.findByRole("button", { name: /Layouts/ }));
     const dialog = await screen.findByRole("dialog", { name: "Start from a layout" });
     const choices = within(dialog).getAllByRole("radio");
-    expect(choices.length).toBeGreaterThan(1);
+    expect(choices).toHaveLength(1);
+    expect(choices[0]).toHaveTextContent(/Card \(CR80\)/);
     const replace = within(dialog).getByRole("button", { name: "Replace the design" });
     expect(replace).toBeDisabled();
     fireEvent.click(choices[0]!);
     expect(replace).toBeEnabled();
     fireEvent.click(replace);
     expect(within(saveBar()).getByRole("status")).toHaveTextContent(/Unsaved changes/);
+  });
+
+  it("has no layouts for tickets or certificates any more: their canvas starts blank", async () => {
+    open(EVENT);
+    await screen.findByRole("region", { name: "Layers" });
+    expect(screen.queryByRole("button", { name: /Layouts/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Certificate" }));
+    await screen.findByRole("region", { name: "Layers" });
+    expect(screen.queryByRole("button", { name: /Layouts/ })).not.toBeInTheDocument();
   });
 });

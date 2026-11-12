@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Notice, Segmented, cn, type NoticeTone } from "@moa/ui";
-import { BookOpenIcon, CheckIcon, LayoutTemplateIcon, Loader2Icon, RotateCcwIcon, ScanEyeIcon } from "lucide-react";
+import { ArrowLeftIcon, BookOpenIcon, CheckIcon, LayoutTemplateIcon, Loader2Icon, RotateCcwIcon, ScanEyeIcon } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
@@ -22,7 +22,7 @@ export const AudiencePicker = ({ value, onChange }: { value: Audience; onChange:
   </div>
 );
 
-/** The actions on the whole design, above the stage. */
+/** The actions on the whole design, above the stage. Layouts only where the kind has any to start from. */
 export const DesignActions = ({
   onGuide,
   onLayouts,
@@ -30,7 +30,7 @@ export const DesignActions = ({
   disabled,
 }: {
   onGuide?: () => void;
-  onLayouts?: () => void;
+  onLayouts?: (() => void) | null;
   onPreview?: () => void;
   disabled?: boolean;
 }) => (
@@ -38,13 +38,22 @@ export const DesignActions = ({
     <Button variant="ghost" disabled={disabled} onClick={onGuide}>
       <BookOpenIcon /> Designing in Figma?
     </Button>
-    <Button variant="secondary" disabled={disabled} onClick={onLayouts}>
-      <LayoutTemplateIcon /> Layouts
-    </Button>
+    {onLayouts !== null ? (
+      <Button variant="secondary" disabled={disabled} onClick={onLayouts}>
+        <LayoutTemplateIcon /> Layouts
+      </Button>
+    ) : null}
     <Button variant="secondary" disabled={disabled} onClick={onPreview}>
       <ScanEyeIcon /> Preview as issued
     </Button>
   </div>
+);
+
+/** Back from an editor to the gallery of designs. */
+export const BackToDesigns = ({ onClick }: { onClick: () => void }) => (
+  <Button variant="secondary" onClick={onClick}>
+    <ArrowLeftIcon /> All designs
+  </Button>
 );
 
 /** The row above the stage: the audience on the left (an event's only), the design's actions on the right. */
@@ -85,18 +94,20 @@ export const Provenance = ({
   onLayouts: () => void;
 }) => {
   const noun = config.noun;
-  const starter = config.starters.classic?.label ?? "classic";
+  // What an unsaved design opens on: the kind's first layout, or a blank canvas where it has none.
+  const firstLayout = Object.values(config.starters)[0]?.label;
+  const starter = firstLayout ? `the ${firstLayout} layout` : "a blank canvas";
   const v = version > 0 ? ` · version ${version}` : "";
   const reset = (label: string) => (
     <Button size="sm" variant="secondary" onClick={onReset}>
       <RotateCcwIcon /> {label}
     </Button>
   );
-  const layouts = (
+  const layouts = config.starter ? (
     <Button size="sm" variant="secondary" onClick={onLayouts}>
       <LayoutTemplateIcon /> Choose a layout
     </Button>
-  );
+  ) : null;
   let tone: NoticeTone = "neutral";
   let tag: string;
   let body: React.ReactNode;
@@ -106,7 +117,7 @@ export const Provenance = ({
     if (fromStarter) {
       tone = "accent";
       tag = "Starter";
-      body = `Your club has no ${noun} template yet, so this is the ${starter} layout. Save it to make it the template every new event starts from.`;
+      body = `Your club has no ${noun} template yet, so this is ${starter}. Save it to make it the template every new event starts from.`;
       action = layouts;
     } else if (isOwn) {
       tag = "Club template";
@@ -120,7 +131,7 @@ export const Provenance = ({
     if (fromStarter) {
       tone = "accent";
       tag = "Starter";
-      body = `Nothing is designed for this event or in your club's templates yet, so this is the ${starter} layout. Change it as you like and save; saving makes a copy for this event only.`;
+      body = `Nothing is designed for this event or in your club's templates yet, so this is ${starter}. Change it as you like and save; saving makes a copy for this event only.`;
       action = layouts;
     } else if (isOwn) {
       tag = "This event";

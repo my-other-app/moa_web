@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderTicketTemplate, ticketStarter } from "@moa/layout";
+import { badgeStarter, renderTicketTemplate } from "@moa/layout";
 
 import { DESIGNERS, designSamples } from "./config";
 
@@ -24,8 +24,8 @@ describe("the designer's sample values", () => {
     expect(designSamples({ ticket_code: "MOA-2BCEBA8-PFZG3" }).ticket_code).toBe("MOA-7K3QF-X9PLM");
   });
 
-  it("prints the sample ticket code under a starter's QR, and encodes it in the sample QR", () => {
-    const code = ticketStarter("classic").layers.find((l) => l.kind === "text" && l.id === "code");
+  it("prints the sample ticket code on the CR80 card, and encodes it in the sample QR", () => {
+    const code = badgeStarter("card_cr80").layers.find((l) => l.kind === "text" && l.id === "code");
     expect(code && code.kind === "text" ? renderTicketTemplate(code.text, designSamples({})) : null).toBe("MOA-7K3QF-X9PLM");
     expect(DESIGNERS.ticket.sampleQr).toBe("MOA-7K3QF-X9PLM");
     expect(DESIGNERS.badge.sampleQr).toBe("MOA-7K3QF-X9PLM");

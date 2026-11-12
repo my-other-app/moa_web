@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { type AgendaEntry, type AgendaPiece, layoutAgenda, layoutProblems, layoutText, lineX, sampleAgenda } from "./engine";
-import { AGENDA_STARTERS, agendaStarter, BADGE_STARTERS, badgeStarter, badgeStarterPage, CERTIFICATE_STARTERS, certificateStarter, TICKET_STARTERS, ticketStarter } from "./starters";
+import { AGENDA_STARTERS, agendaStarter, BADGE_STARTERS, badgeStarter } from "./starters";
 import { AgendaLayer, minQrSize, PAGE_PRESETS, TicketLayoutFields } from "./ticket-layout";
 import { canonicalToken, carriesPerGuestToken, fieldToken, parseTicketTemplate, renderTicketTemplate, sampleValues, TOKEN_BY_KEY } from "./ticket-tokens";
 
@@ -115,21 +115,31 @@ describe("text layout", () => {
   });
 });
 
+/** A plain ticket built here, now the ticket starters are gone: a name, the code and the QR. */
+const plainTicket = () => {
+  const page = PAGE_PRESETS.ticket.page;
+  const canvas = { width: 1560, height: 690, background: "#FFFFFF", templateKey: null, templatePreprinted: false, area: null };
+  const base = { hidden: false, locked: false, preprinted: false, opacity: 1 };
+  const text = (id: string, name: string, t: string, y: number, size: number) => ({
+    ...base, kind: "text" as const, id, name, text: t, x: 72, y, width: 780, size, font: "inter" as const, weight: 500, color: "#141614",
+    align: "left" as const, maxLines: 1, lineSpacing: 0, letterSpacing: 0, fit: "shrink" as const,
+  });
+  const layers = [
+    text("guest", "Guest name", "{{attendee_name}}", 288, 45),
+    text("code", "Ticket code", "{{ticket_code}}", 576, 30),
+    { kind: "qr" as const, id: "qr", name: "QR code", x: 1164, y: 168, size: 324, quietZone: 2, dark: "#000000", light: "#FFFFFF", hidden: false, locked: false, preprinted: false },
+  ];
+  return TicketLayoutFields.parse({ canvas, layers, page });
+};
+
 describe("what a design may not be", () => {
-  it.each(Object.keys(TICKET_STARTERS) as (keyof typeof TICKET_STARTERS)[])("the %s ticket starter is valid as it comes", (kind) => {
-    const s = ticketStarter(kind);
-    expect(TicketLayoutFields.safeParse(s).success).toBe(true);
+  it("a plain ticket is valid as it comes", () => {
+    const s = plainTicket();
     expect(layoutProblems(s.canvas, s.layers, s.page)).toEqual([]);
   });
 
-  it.each(Object.keys(CERTIFICATE_STARTERS) as (keyof typeof CERTIFICATE_STARTERS)[])("the %s certificate starter is valid as it comes", (kind) => {
-    const s = certificateStarter(kind);
-    expect(TicketLayoutFields.safeParse(s).success).toBe(true);
-    expect(layoutProblems(s.canvas, s.layers, s.page, { qrRequired: false })).toEqual([]);
-  });
-
   it("needs exactly one readable QR on a ticket, and names an unknown token", () => {
-    const s = ticketStarter("classic");
+    const s = plainTicket();
     const noQr = s.layers.filter((l) => l.kind !== "qr");
     expect(layoutProblems(s.canvas, noQr, s.page).map((p) => p.message)).toContainEqual(expect.stringContaining("QR"));
     const typo = s.layers.map((l) => (l.kind === "text" && l.id === "guest" ? { ...l, text: "{{nmae}}" } : l));
@@ -137,57 +147,41 @@ describe("what a design may not be", () => {
   });
 
   it("a fixed page refuses a canvas of another shape, and a QR too small to print at 12 mm", () => {
-    const s = ticketStarter("classic");
+    const s = plainTicket();
     expect(layoutProblems(s.canvas, s.layers, PAGE_PRESETS.a4_portrait.page).map((p) => p.message)).toContainEqual(expect.stringContaining("not the shape of a 210 × 297 mm page"));
     const tiny = s.layers.map((l) => (l.kind === "qr" ? { ...l, size: 40 } : l));
     expect(layoutProblems(s.canvas, tiny, s.page).map((p) => p.message)).toContainEqual(expect.stringContaining(`at least ${minQrSize(s.canvas, s.page)} px`));
   });
 });
 
-describe("the code every starter prints under the QR", () => {
+describe("the starters left after the new designs", () => {
   const textLayers = (s: { layers: readonly { kind: string; id: string; text?: string }[] }) => s.layers.filter((l): l is { kind: "text"; id: string; text: string } => l.kind === "text");
 
-  it.each(Object.keys(TICKET_STARTERS) as (keyof typeof TICKET_STARTERS)[])("the %s ticket prints {{ticket_code}}, never {{admission_no}}", (kind) => {
-    for (const seats of [false, true]) {
-      const layers = textLayers(ticketStarter(kind, { seats }));
-      const code = layers.filter((l) => l.id === "code");
-      expect(code).toHaveLength(1);
-      expect(parseTicketTemplate(code[0]!.text).tokens).toEqual(["ticket_code"]);
-      expect(layers.filter((l) => parseTicketTemplate(l.text).tokens.includes("admission_no"))).toEqual([]);
-      for (const label of layers.filter((l) => l.id === "code-label")) expect(label.text).toBe("TICKET CODE");
-    }
+  it("keeps one badge, the CR80 card, and no ticket or certificate starters", async () => {
+    expect(Object.keys(BADGE_STARTERS)).toEqual(["card_cr80"]);
+    expect(BADGE_STARTERS.card_cr80.label).toBe("Card (CR80)");
+    const all = await import("./starters");
+    expect(Object.keys(all).filter((k) => /^(TICKET|CERTIFICATE)_STARTERS$|^(ticket|certificate)Starter$|^badgeStarterPage$/.test(k))).toEqual([]);
   });
 
-  it.each(Object.keys(BADGE_STARTERS) as (keyof typeof BADGE_STARTERS)[])("the %s ID card prints {{ticket_code}} under a TICKET CODE label", (kind) => {
+  it("draws the CR80 card upright on a CR80 page, valid, whatever page the designer is on", () => {
     for (const page of [null, PAGE_PRESETS.cr80_landscape.page, PAGE_PRESETS.label_38x90.page]) {
-      const layers = textLayers(badgeStarter(kind, { seats: false, page }));
-      const code = layers.filter((l) => l.id === "code");
-      // "simple" is a name, a QR and the event, by design: no code line at all.
-      if (kind === "simple") expect(code).toEqual([]);
-      else expect(code.length).toBeGreaterThan(0);
-      for (const l of code) expect(parseTicketTemplate(l.text).tokens).toEqual(["ticket_code"]);
-      for (const l of layers.filter((x) => x.id === "code-label")) expect(l.text).toBe("TICKET CODE");
-      expect(layers.filter((l) => parseTicketTemplate(l.text).tokens.includes("admission_no"))).toEqual([]);
-    }
-  });
-});
-
-describe("the badge starters", () => {
-  it.each(Object.keys(BADGE_STARTERS) as (keyof typeof BADGE_STARTERS)[])("the %s badge starter is valid as it comes", (kind) => {
-    for (const page of [null, PAGE_PRESETS.cr80_landscape.page, PAGE_PRESETS.label_38x90.page]) {
-      const s = badgeStarter(kind, { seats: false, page });
-      const parsed = TicketLayoutFields.parse({ canvas: s.canvas, layers: s.layers, page: s.page });
-      expect(layoutProblems(parsed.canvas, parsed.layers, parsed.page, { qrRequired: true })).toEqual([]);
-      expect(parsed.layers.some((l) => l.kind === "qr")).toBe(true);
+      for (const seats of [false, true]) {
+        const s = badgeStarter("card_cr80", { seats, page });
+        expect(s.page).toEqual(PAGE_PRESETS.cr80_portrait.page);
+        const parsed = TicketLayoutFields.parse({ canvas: s.canvas, layers: s.layers, page: s.page });
+        expect(layoutProblems(parsed.canvas, parsed.layers, parsed.page, { qrRequired: true })).toEqual([]);
+        expect(parsed.layers.filter((l) => l.kind === "qr")).toHaveLength(1);
+      }
     }
   });
 
-  it("draws the insert and label starters for the page the designer is on", () => {
-    expect(badgeStarterPage("classic")).toEqual(PAGE_PRESETS.cr80_portrait.page);
-    expect(badgeStarterPage("insert", PAGE_PRESETS.cr80_landscape.page)).toEqual(PAGE_PRESETS.cr80_landscape.page);
-    expect(badgeStarterPage("insert", PAGE_PRESETS.ticket.page)).toEqual(PAGE_PRESETS.badge_87x130.page);
-    expect(badgeStarterPage("label_brother", PAGE_PRESETS.label_29x90.page)).toEqual(PAGE_PRESETS.label_29x90.page);
-    expect(badgeStarterPage("label_4x6")).toEqual(PAGE_PRESETS.lanyard_4x6.page);
+  it("prints {{ticket_code}} on the CR80 card, never {{admission_no}}", () => {
+    const layers = textLayers(badgeStarter("card_cr80"));
+    const code = layers.filter((l) => l.id === "code");
+    expect(code).toHaveLength(1);
+    expect(parseTicketTemplate(code[0]!.text).tokens).toEqual(["ticket_code"]);
+    expect(layers.filter((l) => parseTicketTemplate(l.text).tokens.includes("admission_no"))).toEqual([]);
   });
 });
 

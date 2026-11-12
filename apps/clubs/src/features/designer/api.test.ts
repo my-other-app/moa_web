@@ -16,6 +16,9 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     calls.push({ method, path, body, options });
     if (path.endsWith("/layout/images")) return { key: "base/events/42/layout/template-abc.png", url: "https://bucket/t.png?signed", width: 1560, height: 690 };
     if (path.includes("/starters/")) return { canvas: CANVAS, layers: LAYERS, page: PAGE };
+    if (path.endsWith("/preset/preview")) return { html: "<!doctype html><p>filled</p>" };
+    if (path.endsWith("/designs/certificate") || path.endsWith("/artwork"))
+      return { config: { logo_url: "https://cdn/logo.png?signed", signature_1_url: null, signature_1_key: null }, source: "event_default", is_own: true };
     return DESIGN;
   };
   return {
@@ -52,7 +55,7 @@ const DESIGN = {
   sampleValues: { attendee_name: "Ananya Iyer" },
 };
 
-const { fetchLayout, fetchStarter, resetDesign, saveLayout, uploadLayoutImage } = await import("./api");
+const { fetchArtwork, saveArtwork, fetchLayout, fetchStarter, previewPresetHtml, previewPresetPng, resetDesign, resetPreset, saveLayout, savePreset, uploadLayoutImage } = await import("./api");
 const EVENT = { kind: "event", eventId: 42 } as const;
 const CLUB = { kind: "club" } as const;
 
@@ -115,5 +118,73 @@ describe("the club's own designs", () => {
     expect(calls[2]).toMatchObject({ method: "DELETE", path: "/api/v1/clubs/designs/badge/layout" });
     await uploadLayoutImage(CLUB, "badge", new File([new Uint8Array([137, 80, 78, 71])], "art.png", { type: "image/png" }), "image");
     expect(calls[3]?.path).toBe("/api/v1/clubs/designs/badge/layout/images");
+  });
+});
+
+describe("the ready designs", () => {
+  const CHOICE = { id: "badge/04-big-name", options: { lanyard: false }, bindings: { zone: { source: "text" as const, value: "B2" } }, accent: "#ffd83a" };
+
+  it("saves a design for the audience on screen, sending only the choice", async () => {
+    const d = await savePreset(EVENT, "badge", "speaker", { ...CHOICE, extra: "dropped" } as never);
+    expect(calls[0]).toMatchObject({
+      method: "PUT",
+      path: "/api/v1/events/42/designs/badge/preset",
+      body: CHOICE,
+      options: { query: { audience: "speaker" } },
+    });
+    expect(Object.keys(calls[0]!.body as object)).toEqual(["id", "options", "bindings", "accent"]);
+    // The answer is the design as GET has it; one from before the designs reads as the canvas.
+    expect(d.active).toBe("custom");
+    expect(d.catalogue).toEqual([]);
+  });
+
+  it("drops the design saved for an audience", async () => {
+    await resetPreset(EVENT, "ticket", "staff");
+    expect(calls[0]).toMatchObject({ method: "DELETE", path: "/api/v1/events/42/designs/ticket/preset", options: { query: { audience: "staff" } } });
+  });
+
+  it("asks the server to fill the preview, for the sample guest or a ticket, and can be called off", async () => {
+    const ctrl = new AbortController();
+    const html = await previewPresetHtml(CLUB, "certificate", "event_default", { ...CHOICE, id: "certificate/07-swiss-minimal" }, "MOA-ABCDE-12345", ctrl.signal);
+    expect(html).toBe("<!doctype html><p>filled</p>");
+    expect(calls[0]).toMatchObject({
+      method: "POST",
+      path: "/api/v1/clubs/designs/certificate/preset/preview",
+      body: { id: "certificate/07-swiss-minimal", ticket_id: "MOA-ABCDE-12345" },
+      options: { query: { audience: "event_default" }, signal: ctrl.signal },
+    });
+  });
+
+  it("fetches the exact preview as a PNG through the gateway", async () => {
+    const fetchMock = vi.fn(async () => new Response(new Blob(["png"], { type: "image/png" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const blob = await previewPresetPng(EVENT, "ticket", "attendee", { ...CHOICE, id: "ticket/01-dusk-horizon" }, null);
+      expect(blob.size).toBeGreaterThan(0);
+      const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      expect(url).toMatch(/\/api\/v1\/events\/42\/designs\/ticket\/preset\/preview\?format=png&audience=attendee$/);
+      expect(init).toMatchObject({ method: "POST", credentials: "include" });
+      expect(JSON.parse(String(init.body))).toMatchObject({ id: "ticket/01-dusk-horizon", ticket_id: null });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe("a certificate's pictures", () => {
+  it("reads them from the stored design for the audience", async () => {
+    const art = await fetchArtwork(42, "certificate", "speaker");
+    expect(calls[0]).toMatchObject({ method: "GET", path: "/api/v1/events/42/designs/certificate", options: { query: { audience: "speaker" } } });
+    expect(art).toEqual({ logo: "https://cdn/logo.png?signed", signature_1: null, signature_2: null });
+  });
+
+  it("uploads one as multipart, or removes it with its remove flag", async () => {
+    const file = new File([new Uint8Array([137, 80, 78, 71])], "sig.png", { type: "image/png" });
+    await saveArtwork(42, "certificate", "event_default", "signature_1", file);
+    expect(calls[0]).toMatchObject({ method: "PUT", path: "/api/v1/events/42/designs/certificate/artwork", options: { query: { audience: "event_default" } } });
+    expect((calls[0]!.body as FormData).get("signature_1")).toBe(file);
+    await saveArtwork(42, "certificate", "event_default", "logo", null);
+    expect((calls[1]!.body as FormData).get("remove_logo")).toBe("true");
+    expect((calls[1]!.body as FormData).get("logo")).toBeNull();
   });
 });
