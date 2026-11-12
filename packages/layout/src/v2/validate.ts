@@ -18,7 +18,7 @@ import { canonicalV2, parseV2, showIfNames } from "./tokens";
  * qr_missing, qr_extra, duplicate_id, unknown_token, unknown_font, font_face,
  * template, svg_unsafe, image_missing, photo_preprinted, qr_hidden, qr_small,
  * qr_outside, accent_missing; warnings: off_canvas, empty_text, invisible,
- * svg_cleaned, qr_small (under 15 mm), qr_square.
+ * svg_cleaned, qr_small (under 15 mm), qr_square, font_slanted.
  */
 
 export interface ProblemV2 {
@@ -156,6 +156,8 @@ const colorsOf = (layer: LayerV2): string[] => {
 const fontProblems = (fonts: readonly FontFamilyV2[], family: string, weight: number, style: string, field: string, name: string, lid: string): ProblemV2[] => {
   const font = findFont(family, fonts);
   if (!font) return [p("unknown_font", `${field}.family`, `${name}: there is no font called ${pyRepr(family)}. The nearest are ${nearestFonts(family, fonts).join(", ")}.`, "error", lid)];
+  if (style === "italic" && hasFace(font, weight, "normal") && !hasFace(font, weight, "italic"))
+    return [p("font_slanted", `${field}.style`, `${name}: ${family} has no italic; the browser slants the upright letters.`, "warning", lid)];
   if (!hasFace(font, weight, style)) {
     const have = facesOf(font)
       .map((f) => `${f.weight}${f.style === "italic" ? " italic" : ""}`)

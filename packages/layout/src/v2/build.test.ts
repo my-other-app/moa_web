@@ -82,6 +82,13 @@ describe("the body", () => {
     const layout = parseLayoutV2(minimal([textRaw({ hidden: true })]));
     expect(layerDrawn(layout.layers[0]!, values)).toBe(false);
   });
+
+  it("shows a layer whose showIf names a picture only when the context has it", () => {
+    const logo = { kind: "shape", id: "frame", name: "Frame", x: 0, y: 0, width: 10, height: 10, showIf: "logo_src", fill: { type: "solid", color: "#000000" } };
+    expect(one(logo)).toBeNull();
+    expect(one(logo, {}, values, { ...ctx, images: { org_logo: PNG } })).not.toBeNull();
+    expect(one({ ...logo, showIf: "photo_url|signature_src" }, {}, values, { ...ctx, images: { signature_1: PNG } })).not.toBeNull();
+  });
 });
 
 describe("text", () => {
@@ -141,7 +148,7 @@ describe("shapes", () => {
   it("draws a path in an svg of the layer box, gradients in its defs, shadows as drop-shadows", () => {
     const html = one(shape({ shape: "path", path: "M0 0 L100 0 L50 50 Z", fill: { type: "linear", angle: 90, stops: [{ offset: 0, color: "#000000" }, { offset: 1, color: "#ffffff" }] }, shadow: [{ y: 2, blur: 4 }, { x: 1, inset: true }] }))!;
     expect(html).toBe(
-      '<div data-layer="s" data-kind="shape" style="position:absolute;left:1px;top:2px;width:100px;height:50px;filter:drop-shadow(0px 2px 4px #00000040)">' +
+      '<div data-layer="s" data-kind="shape" style="position:absolute;left:1px;top:2px;width:100px;height:50px;filter:drop-shadow(0px 2px 2px #00000040)">' +
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50" width="100%" height="100%" preserveAspectRatio="none" style="display:block;overflow:visible">' +
         '<defs><linearGradient id="s-fill" gradientUnits="userSpaceOnUse" x1="0" y1="25" x2="100" y2="25"><stop offset="0" stop-color="#000000"></stop><stop offset="1" stop-color="#FFFFFF"></stop></linearGradient></defs>' +
         '<path d="M0 0 L100 0 L50 50 Z" fill="url(#s-fill)"></path></svg></div>',
@@ -234,14 +241,14 @@ describe("the page", () => {
     expect(html).toContain('<script data-moa="fit">');
     expect(html).toContain("window.__moaReady = true");
     // 384 px is 101.6 mm at 96 per inch: no scale when printed.
-    expect(pageCss(layout)).toBe('.moa-page[data-canvas="384x576"]{width:384px;height:576px}@media print{.moa-page[data-canvas="384x576"]{width:101.6mm;height:152.4mm}}');
+    expect(pageCss(layout)).toBe('html,body{margin:0;padding:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.moa-page[data-canvas="384x576"]{width:384px;height:576px}@media print{.moa-page[data-canvas="384x576"]{width:101.6mm;height:152.4mm}}');
     expect(buildHtml(layout, values, ctx, { fontCss: "@font-face{}" })).toContain('<style data-moa="fonts">\n@font-face{}\n</style>');
   });
 
   it("scales a canvas that is not 96 px per inch to the paper", () => {
     const card = parseLayoutV2({ ...minimal(), page: { widthMm: 54, heightMm: 85.6 }, canvas: { width: 638, height: 1011 } });
     expect(pageCss(card)).toBe(
-      '.moa-page[data-canvas="638x1011"]{width:638px;height:1011px}@media print{.moa-page[data-canvas="638x1011"]{width:54mm;height:85.6mm}.moa-page[data-canvas="638x1011"] .moa-doc{transform:scale(0.319897,0.320007);transform-origin:0 0}}',
+      'html,body{margin:0;padding:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.moa-page[data-canvas="638x1011"]{width:638px;height:1011px}@media print{.moa-page[data-canvas="638x1011"]{width:54mm;height:85.6mm}.moa-page[data-canvas="638x1011"] .moa-doc{transform:scale(0.319897,0.320007);transform-origin:0 0}}',
     );
   });
 

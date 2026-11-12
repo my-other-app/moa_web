@@ -2,13 +2,13 @@ import type { TicketFont } from "../fonts";
 
 /**
  * The fonts a v2 layout may name: every family in the backend's
- * `assets/doc-fonts/fonts.lock.json` (34 from the 35 designs) plus the three
- * v1 fonts the lock gains for layout v2. A face is a family, a weight and a
- * style that the lock has a file for; validation refuses any other.
+ * `assets/doc-fonts/fonts.lock.json`, the 34 the 35 designs use and the three
+ * v1 fonts it gained for layout v2. A face is a family, a weight and a style
+ * the lock has a file for; validation refuses any other.
  *
- * Generated from fonts.lock.json (digest c4c034816f9967e4) and the v1 font
- * table; the API's `fonts` list (GET …/layout) is the live answer and may be
- * passed to `validate` instead.
+ * Generated from fonts.lock.json (digest df327f211bbacfc3, backend c2bb88c).
+ * The API's `fonts` list (GET …/layout) is the live answer: pass
+ * `fontsFromApi(fonts)` to `validate` to check against it.
  */
 
 export interface FontFamilyV2 {
