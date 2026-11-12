@@ -51,7 +51,11 @@ describe("a v2 layout's meaning", () => {
     expect(validate(minimal([qr(), textRaw({ font: { family: "EB Garamond", weight: 700 } })]))).toEqual([
       { code: "font_face", field: "layers.1.font.weight", message: "Name: EB Garamond has 400 italic, 400, 500, not 700.", level: "error", layer: "t1" },
     ]);
-    expect(validate(minimal([qr(), textRaw({ font: { family: "Inter", style: "italic" } })]))[0]!.message).toBe("Name: Inter has 400, 500, 600, 700, not 400 italic.");
+    // An upright face with no italic beside it: the browser slants it, which is a warning.
+    expect(validate(minimal([qr(), textRaw({ font: { family: "Inter", style: "italic" } })]))).toEqual([
+      { code: "font_slanted", field: "layers.1.font.style", message: "Name: Inter has no italic; the browser slants the upright letters.", level: "warning", layer: "t1" },
+    ]);
+    expect(validate(minimal([qr(), textRaw({ font: { family: "Cormorant Garamond", weight: 700, style: "italic" } })]))[0]!.message).toBe("Name: Cormorant Garamond has 500 italic, 600 italic, not 700 italic.");
     // v1's keys are not CSS names: fromV1 maps them.
     expect(codes(minimal([qr(), textRaw({ font: { family: "inter" } })]))).toEqual(["unknown_font"]);
   });

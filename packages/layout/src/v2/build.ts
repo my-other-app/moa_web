@@ -16,7 +16,7 @@ import {
   type TextLayerV2,
   textFloor,
 } from "./schema";
-import { fillTemplate, showV2 } from "./tokens";
+import { fillTemplate, IMAGE_TOKENS, showV2 } from "./tokens";
 
 /**
  * A v2 layout as HTML: the backend's `layout_v2/build.py`, rule for rule,
@@ -72,6 +72,13 @@ export const PX_PER_MM = 96 / 25.4;
 
 const strValues = (values: Values): Record<string, string> =>
   Object.fromEntries(Object.entries(values ?? {}).map(([k, v]) => [k, v === null || v === undefined ? "" : String(v)]));
+
+/** The values a page reads: as text, and each picture's showIf name present when the context has that picture. */
+const valuesOf = (values: Values, ctx: Ctx): Record<string, string> => {
+  const out = strValues(values);
+  for (const [token, source] of Object.entries(IMAGE_TOKENS)) if (!(token in out)) out[token] = imageOf(ctx, source, null) ? "1" : "";
+  return out;
+};
 
 const contextOf = (ctx: BuildContext = {}) => ({
   qr: String(ctx.qr || ""),
@@ -325,16 +332,16 @@ export const onStock = (layer: LayerV2) => {
 };
 
 /** Whether a layer is drawn for these values: not hidden, its showIf met, not on the stock when printing on stock. */
-export const layerDrawn = (layer: LayerV2, values: Values, opts: BuildOptions = {}) =>
-  !layer.hidden && showV2(layer.showIf, strValues(values), opts.kind ?? "ticket") && !(opts.skipPreprinted && onStock(layer));
+export const layerDrawn = (layer: LayerV2, values: Values, context: BuildContext = {}, opts: BuildOptions = {}) =>
+  !layer.hidden && showV2(layer.showIf, valuesOf(values, contextOf(context)), opts.kind ?? "ticket") && !(opts.skipPreprinted && onStock(layer));
 
 /** One layer's element, or null when it is left out. */
 export const buildLayer = (layout: LayoutV2, layer: LayerV2, values: Values, context: BuildContext = {}, opts: BuildOptions = {}): string | null => {
-  const vals = strValues(values);
+  const ctx = contextOf(context);
+  const vals = valuesOf(values, ctx);
   const kind = opts.kind ?? "ticket";
   if (layer.hidden || !showV2(layer.showIf, vals, kind)) return null;
   if (opts.skipPreprinted && onStock(layer)) return null;
-  const ctx = contextOf(context);
   const paint = new Paint(layout, ctx.colors);
   switch (layer.kind) {
     case "text":
@@ -388,7 +395,7 @@ export const pageCss = (layout: Pick<LayoutV2, "canvas" | "page">) => {
   const c = layout.canvas;
   const p = layout.page;
   const key = pageKey(layout);
-  let css = `.moa-page[data-canvas="${key}"]{width:${num(c.width)}px;height:${num(c.height)}px}`;
+  let css = "html,body{margin:0;padding:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}" + `.moa-page[data-canvas="${key}"]{width:${num(c.width)}px;height:${num(c.height)}px}`;
   const kx = (p.widthMm * PX_PER_MM) / c.width;
   const ky = (p.heightMm * PX_PER_MM) / c.height;
   css += `@media print{.moa-page[data-canvas="${key}"]{width:${gFmt(p.widthMm)}mm;height:${gFmt(p.heightMm)}mm}`;

@@ -99,6 +99,15 @@ const ROWS: readonly (readonly [string, string, string, string, string])[] = [
 
 const KIND: Record<string, DesignTokenKinds> = { t: "ticket", c: "certificate", b: "badge" };
 
+/** Pictures a showIf may name: present when the context carries that picture. */
+export const IMAGE_TOKENS: Readonly<Record<string, string>> = {
+  logo_src: "org_logo",
+  photo_url: "guest_photo",
+  sponsor_src: "sponsor",
+  signature_src: "signature_1",
+  second_signature_src: "signature_2",
+};
+
 const V1_NAMES: ReadonlySet<string> = new Set(TICKET_TOKENS.flatMap((t) => [t.key, ...(t.aliases ?? [])]));
 
 export const DESIGN_TOKENS: readonly DesignToken[] = ROWS.map(([key, group, label, sample, kinds]) => ({
@@ -153,8 +162,17 @@ export const parseV2 = (src: string, kind: string = "ticket"): ParsedTemplate =>
 export const fillTemplate = (src: string, values: Readonly<Record<string, string>>, kind: string = "ticket"): string =>
   src.includes("{") ? renderTemplateNodes(parseV2(src, kind).nodes, values as Record<string, string>) : src;
 
-/** The canonical key of a token name for a kind, or null when it is not one. */
-export const canonicalV2 = (name: string, kind: string = "ticket"): string | null => canonicalToken(name, designTokens(kind));
+const withImages = new Map<string, ReadonlySet<string>>();
+
+/** The canonical key of a token name for a kind (a picture's name too), or null when it is not one. */
+export const canonicalV2 = (name: string, kind: string = "ticket"): string | null => {
+  let names = withImages.get(kind);
+  if (!names) {
+    names = new Set([...designTokens(kind), ...Object.keys(IMAGE_TOKENS)]);
+    withImages.set(kind, names);
+  }
+  return canonicalToken(name, names);
+};
 
 /** Whether a token has a value (after trimming), by any of its names. */
 export const presentV2 = (name: string, values: Readonly<Record<string, string>>, kind: string = "ticket"): boolean => {

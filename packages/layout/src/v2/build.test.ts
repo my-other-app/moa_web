@@ -82,6 +82,13 @@ describe("the body", () => {
     const layout = parseLayoutV2(minimal([textRaw({ hidden: true })]));
     expect(layerDrawn(layout.layers[0]!, values)).toBe(false);
   });
+
+  it("shows a layer whose showIf names a picture only when the context has it", () => {
+    const logo = { kind: "shape", id: "frame", name: "Frame", x: 0, y: 0, width: 10, height: 10, showIf: "logo_src", fill: { type: "solid", color: "#000000" } };
+    expect(one(logo)).toBeNull();
+    expect(one(logo, {}, values, { ...ctx, images: { org_logo: PNG } })).not.toBeNull();
+    expect(one({ ...logo, showIf: "photo_url|signature_src" }, {}, values, { ...ctx, images: { signature_1: PNG } })).not.toBeNull();
+  });
 });
 
 describe("text", () => {
@@ -234,14 +241,14 @@ describe("the page", () => {
     expect(html).toContain('<script data-moa="fit">');
     expect(html).toContain("window.__moaReady = true");
     // 384 px is 101.6 mm at 96 per inch: no scale when printed.
-    expect(pageCss(layout)).toBe('.moa-page[data-canvas="384x576"]{width:384px;height:576px}@media print{.moa-page[data-canvas="384x576"]{width:101.6mm;height:152.4mm}}');
+    expect(pageCss(layout)).toBe('html,body{margin:0;padding:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.moa-page[data-canvas="384x576"]{width:384px;height:576px}@media print{.moa-page[data-canvas="384x576"]{width:101.6mm;height:152.4mm}}');
     expect(buildHtml(layout, values, ctx, { fontCss: "@font-face{}" })).toContain('<style data-moa="fonts">\n@font-face{}\n</style>');
   });
 
   it("scales a canvas that is not 96 px per inch to the paper", () => {
     const card = parseLayoutV2({ ...minimal(), page: { widthMm: 54, heightMm: 85.6 }, canvas: { width: 638, height: 1011 } });
     expect(pageCss(card)).toBe(
-      '.moa-page[data-canvas="638x1011"]{width:638px;height:1011px}@media print{.moa-page[data-canvas="638x1011"]{width:54mm;height:85.6mm}.moa-page[data-canvas="638x1011"] .moa-doc{transform:scale(0.319897,0.320007);transform-origin:0 0}}',
+      'html,body{margin:0;padding:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.moa-page[data-canvas="638x1011"]{width:638px;height:1011px}@media print{.moa-page[data-canvas="638x1011"]{width:54mm;height:85.6mm}.moa-page[data-canvas="638x1011"] .moa-doc{transform:scale(0.319897,0.320007);transform-origin:0 0}}',
     );
   });
 
