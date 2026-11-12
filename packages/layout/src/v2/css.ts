@@ -86,11 +86,11 @@ export class Paint {
       .join(", ");
   }
 
-  /** Shadows as a CSS filter of drop-shadows (inset ones have none), joined with " ". */
+  /** Shadows as a CSS filter of drop-shadows (inset ones have none), joined with " ". A drop-shadow's length is the blur's standard deviation: half a box-shadow's blur. */
   dropShadows(layer: Pick<LayerV2, "shadow">): string {
     return shadowsOf(layer)
       .filter((s) => !s.inset)
-      .map((s) => `drop-shadow(${num(s.x)}px ${num(s.y)}px ${num(s.blur)}px ${this.color(s.color)})`)
+      .map((s) => `drop-shadow(${num(s.x)}px ${num(s.y)}px ${num(s.blur / 2)}px ${this.color(s.color)})`)
       .join(" ");
   }
 }
@@ -102,9 +102,17 @@ export const radiusCss = (r: Quad): string | null => {
   return r.map((x) => `${num(x)}px`).join(" ");
 };
 
-/** A rectangle with four corner radii as an SVG path (each radius at most half of either side). */
+/** CSS's rule for corner radii: when two corners on a side ask for more than the side, all four shrink by the same factor. */
+export const clampRadii = (radii: Quad, w: number, h: number): Quad => {
+  const r = radii.map((v) => Math.max(0, v)) as Quad;
+  const sides: [number, number][] = [[r[0] + r[1], w], [r[1] + r[2], h], [r[2] + r[3], w], [r[3] + r[0], h]];
+  const f = Math.min(...sides.filter(([total]) => total > 0).map(([total, length]) => length / total), 1);
+  return f < 1 ? (r.map((v) => v * f) as Quad) : r;
+};
+
+/** A rectangle with four corner radii as an SVG path, the radii clamped as CSS clamps them. */
 export const roundedRectPath = (x: number, y: number, w: number, h: number, r: Quad): string => {
-  const [tl, tr, br, bl] = r.map((v) => Math.max(0, Math.min(v, w / 2, h / 2))) as Quad;
+  const [tl, tr, br, bl] = clampRadii(r, w, h);
   return (
     `M${num(x + tl)} ${num(y)}H${num(x + w - tr)}` +
     (tr ? `A${num(tr)} ${num(tr)} 0 0 1 ${num(x + w)} ${num(y + tr)}` : "") +

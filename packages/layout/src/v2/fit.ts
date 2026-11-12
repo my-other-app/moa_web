@@ -55,7 +55,7 @@ const room = (el: HTMLElement) => {
   return box.clientHeight - num(s.paddingTop) - num(s.paddingBottom);
 };
 
-const over = (el: HTMLElement, lines: number) => linesOf(el) > lines || el.offsetHeight > room(el) + 1 || el.scrollWidth > el.clientWidth + 1;
+const over = (el: HTMLElement, lines: number) => linesOf(el) > lines || el.offsetHeight > room(el) + 1;
 
 const clamp = (el: HTMLElement, lines: number) => {
   const fit = Math.max(1, Math.min(lines, Math.floor((room(el) + 1) / lineHeight(el))));

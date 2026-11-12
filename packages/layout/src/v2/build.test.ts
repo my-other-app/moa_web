@@ -148,7 +148,7 @@ describe("shapes", () => {
   it("draws a path in an svg of the layer box, gradients in its defs, shadows as drop-shadows", () => {
     const html = one(shape({ shape: "path", path: "M0 0 L100 0 L50 50 Z", fill: { type: "linear", angle: 90, stops: [{ offset: 0, color: "#000000" }, { offset: 1, color: "#ffffff" }] }, shadow: [{ y: 2, blur: 4 }, { x: 1, inset: true }] }))!;
     expect(html).toBe(
-      '<div data-layer="s" data-kind="shape" style="position:absolute;left:1px;top:2px;width:100px;height:50px;filter:drop-shadow(0px 2px 4px #00000040)">' +
+      '<div data-layer="s" data-kind="shape" style="position:absolute;left:1px;top:2px;width:100px;height:50px;filter:drop-shadow(0px 2px 2px #00000040)">' +
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50" width="100%" height="100%" preserveAspectRatio="none" style="display:block;overflow:visible">' +
         '<defs><linearGradient id="s-fill" gradientUnits="userSpaceOnUse" x1="0" y1="25" x2="100" y2="25"><stop offset="0" stop-color="#000000"></stop><stop offset="1" stop-color="#FFFFFF"></stop></linearGradient></defs>' +
         '<path d="M0 0 L100 0 L50 50 Z" fill="url(#s-fill)"></path></svg></div>',

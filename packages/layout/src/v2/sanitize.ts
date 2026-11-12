@@ -115,6 +115,7 @@ const cleanStyle = (value: string, removed: string[]) => {
 type Attr = [string, string | null];
 
 /** The parser's events, as Python's html.parser.HTMLParser gives them for SVG art (names lower case, references decoded). */
+export type HtmlEvent = Ev;
 type Ev =
   | { t: "start"; tag: string; attrs: Attr[]; closed: boolean }
   | { t: "end"; tag: string }
@@ -124,6 +125,9 @@ type Ev =
   | { t: "decl" };
 
 const ATTR_RE = /([^\s/>"'=][^\s/>=]*)(\s*=\s*('[^']*'|"[^"]*"|(?!['"])[^>\s]*))?/y;
+
+/** @internal The parser's events for a fragment (used by the conformance normaliser). */
+export const htmlEvents = (src: string): Ev[] => tokenize(src);
 
 const tokenize = (src: string): Ev[] => {
   const out: Ev[] = [];
