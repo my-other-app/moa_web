@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { ApiError } from "@moa/api";
 import { toast } from "@moa/ui";
@@ -10,11 +10,15 @@ import fixture from "../__fixtures__/integrations.json";
  * "Dashboards"): Settings → Integrations with its API keys (a key shown
  * once, scopes in groups, the DPDP tick before people's details), webhook
  * endpoints (a test, the delivery log and a replay), connected partner apps
- * and usage; the rail's item, there only for an allocated club's owner or
- * admin on an API that has integrations; and the consent page a partner
- * app sends the club to. The fixture is in the backend's own shapes
- * (feat/partner-api app/api/partner/club_router.py, feat/api-webhooks
- * app/api/webhooks_out/router.py).
+ * and usage; the developer docs card (a link of one's own opened in a new
+ * tab, a shared link shown once, the list and its revoke;
+ * feature-register/private-dev-docs-contract.md); the rail's item, there
+ * only for an allocated club's owner or admin on an API that has
+ * integrations; and the consent page a partner app sends the club to. The
+ * fixture is in the backend's own shapes (feat/partner-api
+ * app/api/partner/club_router.py, feat/api-webhooks
+ * app/api/webhooks_out/router.py, feat/private-dev-docs
+ * app/api/partner/docs_links.py).
  */
 
 type Role = "owner" | "admin" | "editor" | "door";
@@ -51,6 +55,10 @@ const state = {
   consentError: null as ApiError | null,
   decideError: null as ApiError | null,
   testAnswer: TEST_OK as unknown,
+  docsLinks: fixture.docs_links as unknown,
+  /** GET /clubs/integrations/docs-links: "old" answers FastAPI's bare 404 (an API from before docs links). */
+  docsRoute: "ok" as "ok" | "old",
+  docsError: null as ApiError | null,
 };
 
 /** The partner's OAuth request, as /partner/oauth/authorize passed it on to /integrations/connect. */
@@ -97,6 +105,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
           if (state.consentError) throw state.consentError;
           return state.consent;
         }
+        if (path === "/api/v1/clubs/integrations/docs-links") {
+          if (state.docsRoute === "old") throw notFound();
+          return state.docsLinks;
+        }
         // The plan and everything else of the rail: an older API, nothing locked.
         throw notFound();
       }),
@@ -108,6 +120,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (/\/webhooks\/\w+\/test$/.test(path)) return state.testAnswer;
         if (/\/webhooks\/deliveries\/\w+\/retry$/.test(path)) return { ok: false, delivery: { ...fixture.deliveries.data[0], attempts: 8 } };
         if (/\/webhooks\/\w+\/rotate-secret$/.test(path)) return { ...fixture.webhooks.data[0], secret: "whsec_rotated" };
+        if (path === "/api/v1/clubs/integrations/docs-links") {
+          if (state.docsError) throw state.docsError;
+          return (body as { purpose: string }).purpose === "self" ? fixture.docs_self : fixture.docs_shared;
+        }
         if (path === "/api/v1/clubs/integrations/connect") {
           if (state.decideError) throw state.decideError;
           const b = body as { decision: string };
@@ -130,12 +146,14 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
 });
 
 const { render } = await import("@/test/render");
-const { IntegrationsPage, ConsentPage, integrationsBrowser } = await import("./index");
+const { IntegrationsPage, ConsentPage, integrationsBrowser, docsTab } = await import("./index");
 const schemas = await import("./schemas");
 const { SidebarNav } = await import("@/components/sidebar-nav");
 const { blockedBy } = await import("@/features/access");
 
 const writeText = vi.fn(async (_text: string) => {});
+/** The tab "Open developer docs" opens in the click, and sends on once the link is made. */
+const docsWindow = { go: vi.fn((_url: string) => {}), close: vi.fn(() => {}) };
 beforeEach(() => {
   calls.length = 0;
   Object.assign(state, {
@@ -148,10 +166,16 @@ beforeEach(() => {
     consentError: null,
     decideError: null,
     testAnswer: TEST_OK,
+    docsLinks: fixture.docs_links,
+    docsRoute: "ok",
+    docsError: null,
   });
   Object.values(router).forEach((f) => f.mockClear());
   vi.restoreAllMocks();
   integrationsBrowser.go = vi.fn();
+  docsWindow.go.mockClear();
+  docsWindow.close.mockClear();
+  docsTab.open = vi.fn(() => docsWindow);
   writeText.mockClear();
   Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
 });
@@ -525,6 +549,129 @@ describe("the rail's Integrations item", () => {
     await waitFor(() => expect(screen.queryByRole("link", { name: /Club profile/ })).toBeNull());
     expect(screen.queryByRole("link", { name: /Integrations/ })).toBeNull();
     expect(sent("GET", /\/clubs\/integrations$/)).toHaveLength(0);
+  });
+});
+
+// ─── Developer docs ──────────────────────────────────────────────────────
+
+describe("Settings → Integrations: developer docs", () => {
+  // The links' dates are the fixture's: "now" is the day they were made.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-12T12:00:00+05:30"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const card = () => screen.findByRole("region", { name: "Developer docs" });
+
+  it("opens the docs in a new tab with a link of one's own", async () => {
+    render(<IntegrationsPage />);
+    fireEvent.click(within(await card()).getByRole("button", { name: /Open developer docs/ }));
+    // The tab opens in the click, so no popup blocker stops it; the link follows.
+    expect(docsTab.open).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(docsWindow.go).toHaveBeenCalledWith(fixture.docs_self.url));
+    expect(sent("POST", /\/integrations\/docs-links$/)[0]!.body).toEqual({ purpose: "self" });
+    // The public page about the API isn't offered to a club that has the docs.
+    expect(screen.queryByRole("link", { name: /About the API/ })).toBeNull();
+    expect(document.body.textContent).not.toContain(fixture.docs_self.url);
+  });
+
+  it("closes the tab and says why when no link could be made", async () => {
+    const error = vi.spyOn(toast, "error");
+    state.docsError = new ApiError({ status: 409, message: "Your club has 20 links that work. Revoke one to make another.", errorCode: "DOCS_LINK_LIMIT" });
+    render(<IntegrationsPage />);
+    fireEvent.click(within(await card()).getByRole("button", { name: /Open developer docs/ }));
+    await waitFor(() => expect(docsWindow.close).toHaveBeenCalled());
+    expect(docsWindow.go).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith("Your club has 20 links that work. Revoke one to make another.");
+  });
+
+  it("shares a link with a label, shown once with its warning", async () => {
+    render(<IntegrationsPage />);
+    fireEvent.click(within(await card()).getByRole("button", { name: "Share with your developer" }));
+    const dialog = await screen.findByRole("dialog", { name: "Share the docs with your developer" });
+    fireEvent.change(within(dialog).getByLabelText(/Who it's for/), { target: { value: "  Ravi, our web agency " } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Make link" }));
+    await waitFor(() => expect(sent("POST", /\/integrations\/docs-links$/)).toHaveLength(1));
+    expect(sent("POST", /\/integrations\/docs-links$/)[0]!.body).toEqual({ purpose: "share", label: "Ravi, our web agency" });
+
+    const shown = await screen.findByRole("dialog", { name: "Link for “Ravi, our web agency”" });
+    expect(within(shown).getByTestId("secret")).toHaveTextContent(fixture.docs_shared.url);
+    expect(within(shown).getByText("Copy it now. It won't be shown again.")).toBeInTheDocument();
+    expect(within(shown).getByText(/Anyone with this link can read the docs until it expires \(30 days\) or you revoke it\./)).toBeInTheDocument();
+    fireEvent.click(within(shown).getByRole("button", { name: "Copy" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(fixture.docs_shared.url));
+    fireEvent.click(within(shown).getByRole("button", { name: "I've copied it" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // Gone for good: nothing on the page holds it any more.
+    expect(document.body.textContent).not.toContain(fixture.docs_shared.url);
+    expect(docsTab.open).not.toHaveBeenCalled();
+  });
+
+  it("sends no label when none is given", async () => {
+    render(<IntegrationsPage />);
+    fireEvent.click(within(await card()).getByRole("button", { name: "Share with your developer" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Make link" }));
+    await waitFor(() => expect(sent("POST", /\/integrations\/docs-links$/)[0]?.body).toEqual({ purpose: "share" }));
+  });
+
+  it("lists the links, and revokes one only after asking", async () => {
+    render(<IntegrationsPage />);
+    const docs = await card();
+    const ravi = await within(docs).findByRole("listitem", { name: "Ravi, our web agency" });
+    expect(within(ravi).getByText("Working")).toBeInTheDocument();
+    expect(within(ravi).getByText(/by Asha Nair .* expires .* last used/)).toBeInTheDocument();
+    const own = within(docs).getByRole("listitem", { name: "Opened from the dashboard" });
+    expect(within(own).getByText(/by the club account .* not used yet/)).toBeInTheDocument();
+    // An ended link waits behind its button, with nothing to revoke.
+    expect(within(docs).queryByRole("listitem", { name: "Old agency" })).toBeNull();
+    fireEvent.click(within(docs).getByRole("button", { name: "Show ended links (1)" }));
+    const old = within(docs).getByRole("listitem", { name: "Old agency" });
+    expect(within(old).getByText("Revoked")).toBeInTheDocument();
+    expect(within(old).queryByRole("button", { name: "Revoke" })).toBeNull();
+
+    fireEvent.click(within(ravi).getByRole("button", { name: "Revoke" }));
+    const ask = await screen.findByRole("alertdialog", { name: "Revoke “Ravi, our web agency”?" });
+    expect(within(ask).getByText(/loses the docs within 5 minutes/)).toBeInTheDocument();
+    fireEvent.click(within(ask).getByRole("button", { name: "Keep it" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(sent("DELETE", /docs-links/)).toHaveLength(0);
+
+    fireEvent.click(within(ravi).getByRole("button", { name: "Revoke" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Revoke" }));
+    await waitFor(() => expect(sent("DELETE", /\/integrations\/docs-links\/dl1$/)).toHaveLength(1));
+  });
+
+  it("is hidden for a club without API access, and on an API without docs links", async () => {
+    state.status = { ...fixture.status, allocated: false, live_keys: 0, apps_connected: 1 };
+    const a = render(<IntegrationsPage />);
+    expect(await screen.findByRole("listitem", { name: "EventHub" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Developer docs" })).toBeNull();
+    expect(sent("GET", /\/docs-links$/)).toHaveLength(0);
+    // What there is instead: the public page about the API.
+    expect(screen.getByRole("link", { name: /About the API/ })).toHaveAttribute("href", schemas.DOCS_URL);
+    a.unmount();
+
+    state.status = fixture.status;
+    state.docsRoute = "old";
+    render(<IntegrationsPage />);
+    await screen.findByRole("listitem", { name: "College ERP" });
+    await waitFor(() => expect(sent("GET", /\/docs-links$/).length).toBeGreaterThan(0));
+    expect(await screen.findByRole("link", { name: /About the API/ })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Developer docs" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Open developer docs/ })).toBeNull();
+  });
+
+  it("names a link by its label, or by what it was made for", () => {
+    const at = (days: number) => new Date(Date.parse("2026-11-12T12:00:00+05:30") + days * 86_400_000).toISOString();
+    expect(schemas.docsLinkName({ label: " Ravi ", purpose: null, created_at: at(0), expires_at: at(30) })).toBe("Ravi");
+    expect(schemas.docsLinkName({ label: null, purpose: "self", created_at: at(0), expires_at: at(30) })).toBe("Opened from the dashboard");
+    expect(schemas.docsLinkName({ label: null, purpose: null, created_at: at(0), expires_at: at(7) })).toBe("Opened from the dashboard");
+    expect(schemas.docsLinkName({ label: "", purpose: null, created_at: at(0), expires_at: at(30) })).toBe("Shared link");
+    expect(schemas.docsLinkBody("share", "x".repeat(90))).toEqual({ purpose: "share", label: "x".repeat(80) });
+    expect(schemas.docsLinkBody("self", "ignored")).toEqual({ purpose: "self" });
+    // Only a web address is opened or copied.
+    expect(() => schemas.docsLinkCreatedSchema.parse({ link: { id: "1" }, url: "javascript:alert(1)" })).toThrow();
   });
 });
 

@@ -7,6 +7,11 @@ import {
   allocationListSchema,
   allocationSchema,
   clubDetailSchema,
+  docsLinkCreatedSchema,
+  docsLinkFor,
+  docsLinkName,
+  docsLinkStatus,
+  docsLinksSchema,
   partnerAppListSchema,
   partnerAppSchema,
   partnerAppWithSecretSchema,
@@ -15,6 +20,8 @@ import {
   webhookHealthSchema,
   type Allocation,
   type AllocationBody,
+  type DocsLink,
+  type DocsLinkBody,
   type PartnerApp,
   type PartnerAppBody,
 } from "./schemas";
@@ -40,8 +47,11 @@ import {
  *   DELETE /admin/integrations/partner-apps/{id}/connections/{cid}  disconnect a club
  *   GET    /admin/integrations/webhooks/health?days=7               {endpoints, per_day, top_clubs_7d, failing_endpoints}
  *   PATCH  /admin/integrations/webhooks/endpoints/{id}              {enabled} → endpoint
+ *   GET    /admin/integrations/docs-links?partner_app_id=           {links: [link]} newest first (manage_content)
+ *   POST   /admin/integrations/docs-links                           {purpose: "self"} | {partner_app_id, label?} → {link, url}: the url once
+ *   DELETE /admin/integrations/docs-links/{id}                      {revoked: true}
  *
- * The two lists come whole (the server caps them at a few hundred), so the
+ * The lists come whole (the server caps them at a few hundred), so the
  * search, the filter and the pages are the portal's own.
  */
 const BASE = "/api/v1/admin/integrations";
@@ -140,4 +150,51 @@ export async function fetchWebhookHealth(days = 7) {
 /** Turns any club's endpoint off (or on again); the club sees it turned off by MyOtherApp. */
 export async function setEndpointEnabled(endpointId: string, enabled: boolean) {
   await api.patch<unknown>(`${BASE}/webhooks/endpoints/${id(endpointId)}`, { enabled });
+}
+
+// ─── Developer docs links ────────────────────────────────────────────────
+
+const DOCS = `${BASE}/docs-links`;
+
+export interface DocsLinkQuery {
+  kind?: string | undefined;
+  status?: string | undefined;
+  search?: string | undefined;
+  offset: number;
+  limit: number;
+}
+
+/**
+ * Every docs link, filtered — and the probe for the docs: `null` on an API
+ * without them (a bare 404 or 405), so "Open developer docs" and the tab
+ * stay out of sight.
+ */
+export async function fetchDocsLinks(query: DocsLinkQuery, now: Date = new Date()): Promise<Paginated<DocsLink> | null> {
+  return nullIfAhead(async () => {
+    const rows = docsLinksSchema.parse(await api.get<unknown>(DOCS));
+    const q = (query.search ?? "").trim().toLowerCase();
+    const kept = rows.filter(
+      (l) =>
+        (!query.kind || l.kind === query.kind) &&
+        (!query.status || docsLinkStatus(l, now) === query.status) &&
+        (!q || matches(docsLinkName(l), q) || matches(docsLinkFor(l), q) || matches(byNameOf(l), q)),
+    );
+    return page(kept, query.offset, query.limit);
+  });
+}
+
+const byNameOf = (l: DocsLink) => (typeof l.created_by === "string" ? l.created_by : (l.created_by?.name ?? l.created_by?.email ?? ""));
+
+/** One partner app's links, for its sheet. */
+export async function fetchAppDocsLinks(appId: string) {
+  return docsLinksSchema.parse(await api.get<unknown>(DOCS, { query: { partner_app_id: appId } }));
+}
+
+/** A new link: the link itself comes back once, to the caller. */
+export async function createDocsLink(body: DocsLinkBody) {
+  return docsLinkCreatedSchema.parse(await api.post<unknown>(DOCS, body));
+}
+
+export async function revokeDocsLink(linkId: string) {
+  await api.del<unknown>(`${DOCS}/${id(linkId)}`);
 }

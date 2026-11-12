@@ -358,5 +358,125 @@
         "description": "x"
       }
     ]
+  },
+  "docs_links": {
+    "links": [
+      {
+        "id": "dl2",
+        "label": null,
+        "kind": "club",
+        "purpose": "self",
+        "status": "active",
+        "club": {
+          "id": 5,
+          "name": "GDG Trivandrum"
+        },
+        "partner_app": null,
+        "created_by": {
+          "id": 30,
+          "name": "The club's own account",
+          "member_id": null
+        },
+        "created_at": "2026-11-12T09:00:00+05:30",
+        "expires_at": "2026-11-19T09:00:00+05:30",
+        "last_used_at": null,
+        "use_count": 0,
+        "revoked_at": null
+      },
+      {
+        "id": "dl1",
+        "label": "Ravi, our web agency",
+        "kind": "club",
+        "purpose": "share",
+        "status": "active",
+        "club": {
+          "id": 5,
+          "name": "GDG Trivandrum"
+        },
+        "partner_app": null,
+        "created_by": {
+          "id": 30,
+          "name": "Asha Nair",
+          "member_id": 12
+        },
+        "created_at": "2026-11-10T10:00:00+05:30",
+        "expires_at": "2026-12-10T10:00:00+05:30",
+        "last_used_at": "2026-11-11T18:20:00+05:30",
+        "use_count": 14,
+        "revoked_at": null
+      },
+      {
+        "id": "dl3",
+        "label": "Old agency",
+        "kind": "club",
+        "purpose": "share",
+        "status": "revoked",
+        "club": {
+          "id": 5,
+          "name": "GDG Trivandrum"
+        },
+        "partner_app": null,
+        "created_by": {
+          "id": 30,
+          "name": "Vivek Menon",
+          "member_id": 9
+        },
+        "created_at": "2026-10-20T10:00:00+05:30",
+        "expires_at": "2026-11-19T10:00:00+05:30",
+        "last_used_at": "2026-10-25T11:00:00+05:30",
+        "use_count": 3,
+        "revoked_at": "2026-11-01T12:00:00+05:30"
+      }
+    ]
+  },
+  "docs_self": {
+    "link": {
+      "id": "dl4",
+      "label": null,
+      "kind": "club",
+      "purpose": "self",
+      "status": "active",
+      "club": {
+        "id": 5,
+        "name": "GDG Trivandrum"
+      },
+      "partner_app": null,
+      "created_by": {
+        "id": 30,
+        "name": "The club's own account",
+        "member_id": null
+      },
+      "created_at": "2026-11-12T12:00:00+05:30",
+      "expires_at": "2026-11-19T12:00:00+05:30",
+      "last_used_at": null,
+      "use_count": 0,
+      "revoked_at": null
+    },
+    "url": "https://myotherapp.in/developers/access?t=moa_docs_SELFselfSELFselfSELFselfSELFselfSELFself"
+  },
+  "docs_shared": {
+    "link": {
+      "id": "dl5",
+      "label": "Ravi, our web agency",
+      "kind": "club",
+      "purpose": "share",
+      "status": "active",
+      "club": {
+        "id": 5,
+        "name": "GDG Trivandrum"
+      },
+      "partner_app": null,
+      "created_by": {
+        "id": 30,
+        "name": "Asha Nair",
+        "member_id": 12
+      },
+      "created_at": "2026-11-12T12:00:00+05:30",
+      "expires_at": "2026-12-12T12:00:00+05:30",
+      "last_used_at": null,
+      "use_count": 0,
+      "revoked_at": null
+    },
+    "url": "https://myotherapp.in/developers/access?t=moa_docs_SHAREshareSHAREshareSHAREshareSHAREsh"
   }
 }

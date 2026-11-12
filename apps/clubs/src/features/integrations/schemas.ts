@@ -106,7 +106,7 @@ export type Person = z.infer<typeof personSchema>;
 export function personLabel(p: Person | string | null | undefined): string {
   if (!p) return "someone";
   if (typeof p === "string") return p === "The club's own account" ? "the club account" : p;
-  if (p.role === "owner" && !p.name && !p.email) return "the club account";
+  if ((p.role === "owner" && !p.name && !p.email) || p.name === "The club's own account") return "the club account";
   const who = p.name || p.email || "a team member";
   return p.role && p.role !== "owner" ? `${who} (${p.role})` : who;
 }
@@ -654,4 +654,105 @@ export function refusalRedirect(error: unknown): string | null {
   if (!(error instanceof ApiError)) return null;
   const raw = (error.fieldErrors as unknown as Record<string, unknown> | null)?.redirect_to;
   return typeof raw === "string" ? safeRedirect(raw) : null;
+}
+
+// ─── Developer docs links ────────────────────────────────────────────────
+
+/**
+ * The docs' guides, reference, spec and Postman file are private
+ * (feature-register/private-dev-docs-contract.md): they open through a
+ * signed link the club's owner or an admin makes here. One opens them for
+ * the person who asks (7 days); one is for the club's developer (30 days,
+ * with a label to say whose it is). The link carries its token, so the
+ * server gives it once; the list shows the links without it.
+ */
+export const DOCS_SELF_DAYS = 7;
+export const DOCS_SHARE_DAYS = 30;
+export const DOCS_LABEL_MAX = 80;
+
+/** What someone sharing a link is told, word for word. */
+export const DOCS_SHARE_WARNING = `Anyone with this link can read the docs until it expires (${DOCS_SHARE_DAYS} days) or you revoke it.`;
+
+export const DOCS_PURPOSES = ["self", "share"] as const;
+export type DocsPurpose = (typeof DOCS_PURPOSES)[number];
+
+export const docsLinkSchema = z.object({
+  id: z.coerce.string(),
+  label: z.string().nullable().optional().catch(null),
+  kind: z.string().catch("club"),
+  /** "self" or "share", when the server says; otherwise told by how long it lasts. */
+  purpose: z.enum(DOCS_PURPOSES).nullable().optional().catch(null),
+  /** The server's word at the time it answered; the list works it out again from the dates. */
+  status: z.enum(["active", "expired", "revoked"]).nullable().optional().catch(null),
+  /** Who made it: `{id, name, member_id}` as the server keeps it. */
+  created_by: z.union([z.string(), personSchema]).nullable().optional().catch(null),
+  created_at: z.string().nullable().optional().catch(null),
+  expires_at: z.string().nullable().optional().catch(null),
+  last_used_at: z.string().nullable().optional().catch(null),
+  use_count: z.number().catch(0),
+  revoked_at: z.string().nullable().optional().catch(null),
+});
+export type DocsLink = z.infer<typeof docsLinkSchema>;
+
+/** Working, expired or revoked: revoked and expired as the server said, or by the dates now. */
+export function docsLinkStatus(l: Pick<DocsLink, "status" | "revoked_at" | "expires_at">, now: Date = new Date()): KeyStatus {
+  if (l.status === "revoked" || l.status === "expired") return l.status;
+  return keyStatus(l, now);
+}
+
+/** `{links: [...]}`, newest first: those that work, and those ended in the last 30 days. Never a token. */
+export const docsLinksSchema = z
+  .object({ links: z.array(docsLinkSchema).optional(), items: z.array(docsLinkSchema).optional() })
+  .transform((r) => r.links ?? r.items ?? []);
+
+/** Only a web address is opened or copied. */
+export function safeDocsUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A new link: its row, and `url`, the link itself with its token, which the
+ * server never sends again. Kept apart so nothing that lists links can carry it.
+ */
+export const docsLinkCreatedSchema = z
+  .object({ link: docsLinkSchema, url: z.string().min(1) })
+  .transform((r, ctx) => {
+    const url = safeDocsUrl(r.url);
+    if (!url) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "The docs link isn't a web address." });
+      return z.NEVER;
+    }
+    return { link: r.link, url };
+  });
+export type DocsLinkCreated = z.infer<typeof docsLinkCreatedSchema>;
+
+export interface DocsLinkBody {
+  purpose: DocsPurpose;
+  label?: string;
+}
+
+/** The body for a new link: a label only when one is given, trimmed and within its length. */
+export function docsLinkBody(purpose: DocsPurpose, label = ""): DocsLinkBody {
+  const text = label.trim().slice(0, DOCS_LABEL_MAX);
+  return purpose === "share" && text ? { purpose, label: text } : { purpose };
+}
+
+const DAY = 86_400_000;
+
+/** Whether a link was made to open the docs oneself: the server's word, or a life of a week or less. */
+export function isSelfLink(l: Pick<DocsLink, "purpose" | "created_at" | "expires_at">): boolean {
+  if (l.purpose) return l.purpose === "self";
+  if (!l.created_at || !l.expires_at) return false;
+  return Date.parse(l.expires_at) - Date.parse(l.created_at) <= (DOCS_SELF_DAYS + 1) * DAY;
+}
+
+/** What a link is called in the list: its label, or what it was made for. */
+export function docsLinkName(l: Pick<DocsLink, "label" | "purpose" | "created_at" | "expires_at">): string {
+  if (l.label?.trim()) return l.label.trim();
+  return isSelfLink(l) ? "Opened from the dashboard" : "Shared link";
 }

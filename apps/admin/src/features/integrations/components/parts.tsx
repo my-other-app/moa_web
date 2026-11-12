@@ -37,13 +37,18 @@ export function SecretOnce({ label, value, testId = "secret" }: { label: string;
   );
 }
 
-export function ShownOnceWarning() {
+/** The warning over a value shown once: a client secret's by default, or `children` for another (a docs link). */
+export function ShownOnceWarning({ children }: { children?: React.ReactNode }) {
   return (
     <div className="bg-caution-soft text-ink flex items-start gap-2.5 rounded-xl px-3.5 py-3 text-[12.5px] leading-[1.55]" role="alert">
       <AlertTriangleIcon className="text-caution mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <p className="m-0">
-        <strong className="font-semibold">Copy the secret now. It won&apos;t be shown again.</strong> We keep only a fingerprint of it. Send it to the partner by a private channel,
-        never by email in plain text; if it&apos;s lost, make a new one.
+        {children ?? (
+          <>
+            <strong className="font-semibold">Copy the secret now. It won&apos;t be shown again.</strong> We keep only a fingerprint of it. Send it to the partner by a private
+            channel, never by email in plain text; if it&apos;s lost, make a new one.
+          </>
+        )}
       </p>
     </div>
   );

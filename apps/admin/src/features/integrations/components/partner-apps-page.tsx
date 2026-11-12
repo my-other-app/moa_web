@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { BuildingIcon, KeyRoundIcon, Loader2Icon, PauseCircleIcon, PencilIcon, PlayCircleIcon, PlusIcon, UnplugIcon } from "lucide-react";
+import { BookOpenIcon, BuildingIcon, KeyRoundIcon, Loader2Icon, PauseCircleIcon, PencilIcon, PlayCircleIcon, PlusIcon, UnplugIcon } from "lucide-react";
 import { ListFilters, ResourceList, formatDate, formatDateTime, relativeTime, useListParams, type CsvColumn } from "@moa/app-kit";
 import {
   AlertDialog,
@@ -41,7 +41,16 @@ import { ExportButton } from "@/components/export-button";
 import { useCan } from "@/hooks/use-can";
 
 import { fetchPartnerApps } from "../api";
-import { useCreatePartnerApp, useDisconnectPartnerClub, usePartnerApp, usePartnerApps, useRotatePartnerSecret, useSuspendPartnerApp, useUpdatePartnerApp } from "../queries";
+import {
+  useCreatePartnerApp,
+  useDisconnectPartnerClub,
+  useDocsOnServer,
+  usePartnerApp,
+  usePartnerApps,
+  useRotatePartnerSecret,
+  useSuspendPartnerApp,
+  useUpdatePartnerApp,
+} from "../queries";
 import {
   EMPTY_PARTNER_FORM,
   RATE_TIERS,
@@ -59,6 +68,7 @@ import {
   type PartnerAppWithSecret,
   type RateTier,
 } from "../schemas";
+import { AppDocsLink } from "./docs-links-page";
 import { ScopeChecklist, ScopeTags, SecretOnce, ShownOnceWarning } from "./parts";
 
 export const PARTNER_COLUMNS: CsvColumn<PartnerApp>[] = [
@@ -85,13 +95,16 @@ const STATUS_FILTERS = [
  * Integrations → Partner apps: other platforms MyOtherApp lets act for the
  * clubs that connect them. Only an admin registers one (there is no
  * self-registration), choosing what it may ever ask a club for; each club
- * then allows some or all of that. The client secret is shown once.
+ * then allows some or all of that. The client secret is shown once. An app's
+ * sheet has the clubs connected to it and a docs link for its developers.
  */
 export function PartnerAppsPage() {
   const params = useListParams();
   const status = params.param("status");
   const manage = useCan("manage_content");
   const canExport = useCan("export_data");
+  // Docs links on this API, for a role that may make them.
+  const docs = useDocsOnServer(manage) === true;
   const query = { status, search: params.search || undefined, offset: params.offset, limit: params.pageSize };
   const list = usePartnerApps(query);
   const [editing, setEditing] = React.useState<PartnerApp | "new" | null>(null);
@@ -166,7 +179,12 @@ export function PartnerAppsPage() {
       header: <span className="block text-right">Action</span>,
       className: "text-right",
       headerClassName: "text-right",
-      cell: (a) => (manage ? <RowActions app={a} onEdit={() => setEditing(a)} onRotated={(made) => setShown({ made, rotated: true })} /> : <span className="text-muted-foreground text-xs">--</span>),
+      cell: (a) =>
+        manage ? (
+          <RowActions app={a} onEdit={() => setEditing(a)} onRotated={(made) => setShown({ made, rotated: true })} onDocs={docs ? () => setClubsOf(a) : undefined} />
+        ) : (
+          <span className="text-muted-foreground text-xs">--</span>
+        ),
     },
   ];
 
@@ -207,12 +225,12 @@ export function PartnerAppsPage() {
         />
       ) : null}
       {shown ? <SecretDialog shown={shown} onClose={() => setShown(null)} /> : null}
-      <ClubsSheet app={clubsOf} manage={manage} onClose={() => setClubsOf(null)} />
+      <AppSheet app={clubsOf} manage={manage} docs={docs} onClose={() => setClubsOf(null)} />
     </div>
   );
 }
 
-function RowActions({ app, onEdit, onRotated }: { app: PartnerApp; onEdit: () => void; onRotated: (made: PartnerAppWithSecret) => void }) {
+function RowActions({ app, onEdit, onRotated, onDocs }: { app: PartnerApp; onEdit: () => void; onRotated: (made: PartnerAppWithSecret) => void; onDocs?: (() => void) | undefined }) {
   const suspend = useSuspendPartnerApp();
   const rotate = useRotatePartnerSecret();
   const [asking, setAsking] = React.useState<"suspend" | "rotate" | null>(null);
@@ -226,6 +244,11 @@ function RowActions({ app, onEdit, onRotated }: { app: PartnerApp; onEdit: () =>
       <Button size="xs" variant="outline" className={pressable} onClick={() => setAsking("rotate")} disabled={rotate.isPending} aria-label={`New secret for ${app.name}`}>
         {rotate.isPending ? <Loader2Icon className="animate-spin" /> : <KeyRoundIcon />} New secret
       </Button>
+      {onDocs ? (
+        <Button size="xs" variant="outline" className={pressable} onClick={onDocs} aria-label={`Docs link for ${app.name}'s developers`}>
+          <BookOpenIcon /> Docs link
+        </Button>
+      ) : null}
       {suspended ? (
         <Button size="xs" variant="outline" className={pressable} onClick={() => suspend.mutate({ appId: app.id, suspend: false })} disabled={suspend.isPending} aria-label={`Resume ${app.name}`}>
           {suspend.isPending ? <Loader2Icon className="animate-spin" /> : <PlayCircleIcon />} Resume
@@ -399,19 +422,38 @@ function SecretDialog({ shown, onClose }: { shown: { made: PartnerAppWithSecret;
   );
 }
 
-function ClubsSheet({ app, manage, onClose }: { app: PartnerApp | null; manage: boolean; onClose: () => void }) {
+/** A partner app's sheet: a docs link for its developers (when they can be made here), and the clubs connected to it. */
+function AppSheet({ app, manage, docs, onClose }: { app: PartnerApp | null; manage: boolean; docs: boolean; onClose: () => void }) {
   const detail = usePartnerApp(app?.id ?? null);
   const disconnect = useDisconnectPartnerClub(app?.id ?? "");
   const [asking, setAsking] = React.useState<string | null>(null);
+  // While a docs link is on show, a click outside doesn't close the sheet and lose it.
+  const [showingLink, setShowingLink] = React.useState(false);
   const list = detail.data?.connections ?? [];
   return (
-    <Sheet open={app !== null} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-[560px]">
+    <Sheet
+      open={app !== null}
+      onOpenChange={(open) => {
+        if (open) return;
+        setShowingLink(false);
+        onClose();
+      }}
+    >
+      <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-[560px]" onInteractOutside={(e) => showingLink && e.preventDefault()}>
         <SheetHeader>
-          <SheetTitle>Clubs connected to {app?.name}</SheetTitle>
-          <SheetDescription>Each club allowed some or all of what the app may ask for. A club disconnects it from its own dashboard; MyOtherApp can too, here.</SheetDescription>
+          <SheetTitle>{app?.name}</SheetTitle>
+          <SheetDescription>{docs ? "A docs link for its developers, and the clubs connected to it." : "The clubs connected to it."}</SheetDescription>
         </SheetHeader>
+        {docs && app ? (
+          <div className="px-4 pb-4">
+            <AppDocsLink app={app} onShowing={setShowingLink} />
+          </div>
+        ) : null}
         <div className="px-4 pb-6">
+          <h3 className="text-ink m-0 text-[13.5px] font-medium">Clubs connected to {app?.name}</h3>
+          <p className="text-ink-3 m-0 mt-0.5 mb-2 text-[12px] leading-[1.5]">
+            Each club allowed some or all of what the app may ask for. A club disconnects it from its own dashboard; MyOtherApp can too, here.
+          </p>
           {detail.isPending ? (
             <Skeleton className="h-24 rounded-xl" />
           ) : detail.isError ? (
