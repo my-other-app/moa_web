@@ -1,26 +1,51 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, CopyIcon, ExternalLinkIcon, GlobeIcon, Loader2Icon, LockIcon, MonitorIcon, MoonIcon, RefreshCwIcon, SmartphoneIcon, SunIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, ExternalLinkIcon, GlobeIcon, Loader2Icon, LockIcon, RefreshCwIcon } from "lucide-react";
 import { formatDateTime } from "@moa/app-kit";
-import { CardLabel, ChoiceCard, EmptyState, FigurePanel, NativeSelect, Notice, Segmented, Skeleton, Switch, cn, toast } from "@moa/ui";
+import { CardLabel, EmptyState, FigurePanel, Notice, Skeleton, TabPanel, TabRail, toast } from "@moa/ui";
 
-import { LockBadge, LockedNotice, openUpgrade, useFeatureGate, usePlan } from "@/features/plan";
+import { useMyClub } from "@/features/club";
+import { LockedNotice, useFeatureGate } from "@/features/plan";
 
+import { EMPTY_LAYOUT, layoutFor, line, mergeLayout, sameLayout, sortImages, templateOf } from "../layout";
 import { usePatchSite, usePreview, usePublishSite, useSite } from "../queries";
-import { SECTIONS, SECTION_EMPTY, SECTION_LABEL, type Site, type SitePatch, type Template, type Theme } from "../schemas";
+import { DEFAULT_LIMITS, LEGACY_SECTION_LABEL, isV2, type Layout, type Site, type SitePatch, type SiteTemplate } from "../schemas";
+import { useUploadQueue } from "../uploads";
 import { DomainCard } from "./domain-card";
+import { ImageSlots } from "./image-slots";
+import { PhotoLibrary } from "./photo-library";
+import { LegacySectionsPanel, SectionsPanel } from "./sections-panel";
 import { SiteAnalytics } from "./site-analytics";
+import { SitePreview } from "./site-preview";
+import { TemplateGallery } from "./template-gallery";
+import { TextPanel } from "./text-panel";
 
 /**
- * The club's website: a public page made from the club's own data and a
- * handful of choices. Pick a template, a look and a font, write the hero
- * line, switch sections on and off, and watch the page as you edit; then
- * Update site puts that page at the public address as one HTML file. The
- * page rebuilds itself whenever the club's events change, so it never
- * goes stale between updates.
+ * The club's website: one public page, made from the club's own data and a
+ * few choices. Pick one of the designer's templates, put its sections in
+ * the order you want (or hide some, or retitle them), fill its photo places
+ * from the club's photo library, write the hero's two lines, keep the
+ * template's colour or use the club's; the preview follows every edit.
+ * Publish puts the page at the public address; until then the changes are
+ * the club's alone ("Unpublished changes"). The page rebuilds itself when
+ * the club's events change, so it never goes stale between publishes.
+ *
+ * Photos are saved as they are added, ordered, described or deleted; the
+ * rest is a draft here until Save draft or Publish.
  */
-const field = "input w-full";
+
+interface Draft {
+  template?: string;
+  /** Every section and slot set while editing, whichever template it was for (mergeLayout). */
+  layout?: Layout;
+  headline?: string;
+  subline?: string;
+  /** The older server's on/off map. */
+  sections?: Record<string, boolean>;
+}
+
+type Tab = "template" | "sections" | "photos" | "text";
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = React.useState(value);
@@ -31,132 +56,81 @@ function useDebounced<T>(value: T, ms: number): T {
   return v;
 }
 
-function TemplateMini({ k }: { k: Template }) {
-  const bar = "bg-ink-3/40 h-1.5 rounded-full";
-  const card = "bg-brand/40 h-4 rounded-sm";
-  return (
-    <div className="bg-sunken flex h-16 w-full flex-col gap-1.5 rounded-lg p-2" aria-hidden="true">
-      {k === "launchpad" ? (
-        <>
-          <span className={cn(bar, "mx-auto w-1/2")} />
-          <span className={cn(bar, "mx-auto w-1/3")} />
-          <div className="mt-auto grid grid-cols-3 gap-1">
-            <span className={card} />
-            <span className={card} />
-            <span className={card} />
-          </div>
-        </>
-      ) : k === "chapter" ? (
-        <>
-          <span className={cn(bar, "w-2/3")} />
-          <span className={cn(bar, "w-1/3")} />
-          <span className="bg-brand/40 mt-auto h-2 w-full rounded-sm" />
-          <span className="bg-brand/40 h-2 w-full rounded-sm" />
-        </>
-      ) : k === "campus" ? (
-        <>
-          <span className="bg-brand/50 h-6 w-full rounded-md" />
-          <div className="mt-auto grid grid-cols-3 gap-1">
-            <span className={card} />
-            <span className={card} />
-            <span className={card} />
-          </div>
-        </>
-      ) : (
-        <>
-          <span className={cn(bar, "w-1/2")} />
-          <div className="flex gap-1">
-            <span className="bg-brand/60 h-4 w-6 rounded-sm" />
-            <span className="bg-brand/60 h-4 w-6 rounded-sm" />
-            <span className="bg-brand/60 h-4 w-6 rounded-sm" />
-          </div>
-          <span className="bg-brand/40 mt-auto h-3 w-full rounded-sm" />
-        </>
-      )}
-    </div>
-  );
+/** What the draft changes, as PATCH (and the preview) take it: only what differs from the saved site. */
+function changesOf(site: Site, draft: Draft, template: SiteTemplate | undefined, imageIds: ReadonlySet<number>): SitePatch {
+  const out: SitePatch = {};
+  const key = draft.template ?? site.template;
+  if (key !== site.template) out.template = key;
+  if (draft.headline !== undefined && line(draft.headline) !== line(site.headline)) out.headline = line(draft.headline);
+  if (draft.subline !== undefined && line(draft.subline) !== line(site.subline)) out.subline = line(draft.subline);
+  if (site.layout) {
+    const saved = layoutFor(template, site.layout, imageIds);
+    const now = layoutFor(template, draft.layout ?? site.layout, imageIds);
+    // A new template takes its layout with it, so what carried over is said, not guessed.
+    if (out.template || !sameLayout(now, saved)) out.layout = now;
+  } else if (draft.sections) {
+    const keys = Object.keys(LEGACY_SECTION_LABEL);
+    if (keys.some((k) => (draft.sections?.[k] ?? true) !== (site.sections?.[k] ?? true))) out.sections = { ...site.sections, ...draft.sections };
+  }
+  return out;
 }
 
-function Editor({ site, draft, setDraft }: { site: Site; draft: SitePatch; setDraft: (next: SitePatch) => void }) {
-  const theme = draft.theme ?? site.theme;
-  const plan = usePlan();
-  // The plan includes the first N templates; the one the site already uses stays, whatever its place.
-  const cap = plan.limit("website_templates");
-  const templateLock = cap === null ? null : plan.limitLock("website_templates", Math.max(cap, 1));
+function Editor({ site, draft, setDraft, tab, setTab }: { site: Site; draft: Draft; setDraft: React.Dispatch<React.SetStateAction<Draft>>; tab: Tab; setTab: (t: Tab) => void }) {
+  const club = useMyClub();
+  const v2 = isV2(site);
+  const images = React.useMemo(() => sortImages(site.images ?? []), [site.images]);
+  const imageIds = React.useMemo(() => new Set(images.map((i) => i.id)), [images]);
+  const templateKey = draft.template ?? site.template;
+  const template = templateOf(site, templateKey);
+  const layout = layoutFor(template, draft.layout ?? site.layout ?? EMPTY_LAYOUT, imageIds);
+  const limits = site.limits ?? DEFAULT_LIMITS;
+  const uploads = useUploadQueue({ room: limits.images - images.length, limit: limits.images, maxMb: limits.image_mb });
+
+  const setLayout = (next: Layout) => setDraft((d) => ({ ...d, layout: mergeLayout(d.layout ?? site.layout ?? EMPTY_LAYOUT, template, next) }));
+  const dropImage = (id: number) =>
+    setDraft((d) => (d.layout ? { ...d, layout: { ...d.layout, slots: Object.fromEntries(Object.entries(d.layout.slots).filter(([, v]) => v !== id)) } } : d));
+
+  const tabs = [
+    { key: "template", label: "Template" },
+    { key: "sections", label: "Sections", count: v2 ? layout.order.length - layout.hidden.length : null },
+    ...(v2 ? [{ key: "photos", label: "Photos", count: uploads.pending ? `${images.length} +${uploads.pending}` : images.length }] : []),
+    { key: "text", label: v2 ? "Text and colour" : "Text" },
+  ];
+
   return (
-    <div className="grid gap-4">
-      <FigurePanel className="p-4">
-        <CardLabel>Template</CardLabel>
-        <div className="mt-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Template">
-          {site.templates.map((t, i) => {
-            const lock = cap !== null && i >= cap && t.key !== site.template ? templateLock : null;
-            return (
-              <ChoiceCard
-                key={t.key}
-                checked={(draft.template ?? site.template) === t.key}
-                onClick={() => (lock ? openUpgrade(lock) : setDraft({ ...draft, template: t.key as Template }))}
-                title={
-                  <span className="flex flex-col gap-2">
-                    <TemplateMini k={t.key as Template} />
-                    <span className="flex items-center gap-1.5">
-                      {t.name}
-                      <LockBadge lock={lock} />
-                    </span>
-                  </span>
-                }
-                hint={t.blurb}
-              />
-            );
-          })}
-        </div>
-      </FigurePanel>
-      <FigurePanel className="p-4">
-        <CardLabel>Look</CardLabel>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Segmented label="Theme" value={theme} options={[{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} onChange={(v) => setDraft({ ...draft, theme: v as Theme })} />
-          <span className="text-ink-3">{theme === "dark" ? <MoonIcon className="size-4" /> : <SunIcon className="size-4" />}</span>
-          <NativeSelect aria-label="Font" className="w-auto min-w-40" value={draft.font ?? site.font} onChange={(e) => setDraft({ ...draft, font: e.target.value as SitePatch["font"] })}>
-            {site.fonts.map((f) => (
-              <option key={f.key} value={f.key}>
-                {f.name}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-        <p className="text-ink-3 mt-2 flex items-center gap-1.5 text-[11.5px]">
-          <span className="bg-brand inline-block size-2.5 rounded-full" /> Brand colour, logo and cover come from Club profile.
-        </p>
-      </FigurePanel>
-      <FigurePanel className="p-4">
-        <CardLabel>Hero</CardLabel>
-        <label htmlFor="site-headline" className="eyebrow mt-3 mb-1.5 block">
-          Headline
-        </label>
-        <input id="site-headline" className={field} value={draft.headline ?? site.headline ?? ""} placeholder={site.default_headline} onChange={(e) => setDraft({ ...draft, headline: e.target.value })} maxLength={120} />
-        <label htmlFor="site-subline" className="eyebrow mt-3 mb-1.5 block">
-          Subline
-        </label>
-        <input id="site-subline" className={field} value={draft.subline ?? site.subline ?? ""} placeholder={site.default_subline ?? "One line on what the club does."} onChange={(e) => setDraft({ ...draft, subline: e.target.value })} maxLength={240} />
-        <p className="text-ink-3 mt-2 text-[11.5px]">Left empty, the headline is your tagline and the subline the first line of your about.</p>
-      </FigurePanel>
-      <FigurePanel className="p-4">
-        <CardLabel>Sections</CardLabel>
-        <ul className="mt-3 grid gap-2">
-          {SECTIONS.map((k) => {
-            const on = (draft.sections ?? site.sections)[k] ?? true;
-            const has = site.available[k] ?? true;
-            return (
-              <li key={k} className="flex items-center justify-between gap-3 text-[13px]">
-                <span className={cn(on && has ? "text-ink" : "text-ink-3")}>
-                  {SECTION_LABEL[k]}
-                  {!has ? <span className="text-ink-3 ml-2 text-[11px]">{SECTION_EMPTY[k] ?? "nothing to show yet"}</span> : null}
-                </span>
-                <Switch checked={on} onCheckedChange={(v) => setDraft({ ...draft, sections: { ...(draft.sections ?? site.sections), [k]: v } })} aria-label={SECTION_LABEL[k]} />
-              </li>
-            );
-          })}
-        </ul>
-      </FigurePanel>
+    <div className="grid content-start gap-4">
+      {!v2 ? (
+        <Notice tone="neutral" tag="Soon">
+          Moving sections, the photo library and photo places arrive with the next server update. For now, pick a template, switch sections on or off and write the hero.
+        </Notice>
+      ) : null}
+      <TabRail items={tabs} value={tab} onChange={(k) => setTab(k as Tab)} label="Website editor" />
+      <TabPanel id={tab} className="grid gap-4">
+        {tab === "template" ? (
+          <TemplateGallery templates={site.templates} chosen={templateKey} saved={site.template} onChoose={(key) => setDraft((d) => ({ ...d, template: key }))} />
+        ) : tab === "sections" ? (
+          v2 ? (
+            <SectionsPanel template={template} layout={layout} typed={(draft.layout ?? site.layout ?? EMPTY_LAYOUT).titles} onChange={setLayout} />
+          ) : (
+            <LegacySectionsPanel sections={draft.sections ?? site.sections ?? {}} available={site.available ?? {}} onChange={(sections) => setDraft((d) => ({ ...d, sections }))} />
+          )
+        ) : tab === "photos" && v2 ? (
+          <>
+            <PhotoLibrary images={images} limit={limits.images} maxMb={limits.image_mb} queue={uploads} template={template} layout={layout} onDeleted={dropImage} />
+            <ImageSlots template={template} layout={layout} images={images} onChange={setLayout} />
+          </>
+        ) : (
+          <TextPanel
+            headline={draft.headline ?? site.headline ?? ""}
+            subline={draft.subline ?? site.subline ?? ""}
+            defaultHeadline={site.default_headline}
+            defaultSubline={site.default_subline}
+            onHeadline={(headline) => setDraft((d) => ({ ...d, headline }))}
+            onSubline={(subline) => setDraft((d) => ({ ...d, subline }))}
+            {...(v2 ? { accent: layout.accent, templateAccent: template?.accent ?? null, brand: club.data?.brand_primary ?? null, onAccent: (accent: string | null) => setLayout({ ...layout, accent }) } : {})}
+          />
+        )}
+      </TabPanel>
       <FigurePanel className="p-4">
         <CardLabel>Address</CardLabel>
         <p className="text-ink mt-2 flex items-center gap-2 font-mono text-[12.5px]">
@@ -172,24 +146,51 @@ export function SitePage() {
   const q = useSite();
   const patch = usePatchSite();
   const publish = usePublishSite();
-  // Publishing (and updating) the site is the plan's `website`; editing the draft is not.
+  // Publishing the site is the plan's `website`; editing the draft is not.
   const web = useFeatureGate("website");
-  const [draft, setDraft] = React.useState<SitePatch>({});
-  const [device, setDevice] = React.useState<"desktop" | "mobile">("desktop");
-  const debounced = useDebounced(draft, 400);
+  const [draft, setDraft] = React.useState<Draft>({});
+  const [tab, setTab] = React.useState<Tab>("template");
   const site = q.data;
-  const preview = usePreview(debounced, !!site);
-  const dirty = Object.keys(draft).length > 0;
 
-  const save = async () => {
+  const images = React.useMemo(() => sortImages(site?.images ?? []), [site?.images]);
+  const imageIds = React.useMemo(() => new Set(images.map((i) => i.id)), [images]);
+  const template = site ? templateOf(site, draft.template ?? site.template) : undefined;
+  const changes = site ? changesOf(site, draft, template, imageIds) : {};
+  const changesKey = JSON.stringify(changes);
+  const dirty = changesKey !== "{}";
+  // Keyed on the text of the changes: a re-render with the same choices is no new preview.
+  const settled = useDebounced(changesKey, 400);
+  const previewBody = React.useMemo(() => JSON.parse(settled) as SitePatch, [settled]);
+  const libraryVersion = images.map((i) => `${i.id}:${i.alt ?? ""}`).join(",");
+  const preview = usePreview(previewBody, !!site, libraryVersion);
+  const published = !!site?.published_at;
+  const behind = dirty || !!site?.stale;
+
+  // A draft not yet saved is lost with the tab: the browser asks first.
+  React.useEffect(() => {
     if (!dirty) return;
-    await patch.mutateAsync(draft);
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  const save = async (): Promise<boolean> => {
+    if (!dirty) return true;
+    try {
+      await patch.mutateAsync(changes);
+    } catch {
+      return false; // said by the mutation's toast
+    }
     setDraft({});
+    return true;
   };
-  const update = async () => {
-    if (dirty) await patch.mutateAsync(draft);
-    setDraft({});
-    await publish.mutateAsync();
+  const doPublish = async () => {
+    if (!(await save())) return;
+    try {
+      await publish.mutateAsync();
+    } catch {
+      // said by the mutation's toast
+    }
   };
   const copy = async () => {
     if (!site) return;
@@ -203,16 +204,24 @@ export function SitePage() {
 
   if (q.isError) return <EmptyState tone="muted" title="The website could not load" description="Try again in a moment." />;
 
+  const address = site?.url.replace(/^https?:\/\//, "") ?? "";
+  const busy = publish.isPending || patch.isPending;
+
   return (
     <div className="grid gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="page-title">Website</h1>
-          <p className="text-ink-3 mt-1 text-[12.5px]">A public site built from your club and events, as one page. Pick a template and a look; the data comes from Club profile and Events.</p>
+          <p className="text-ink-3 mt-1 text-[12.5px]">A public page built from your club and events. Pick a design, arrange it, add photos; the rest comes from Club profile and Events.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {site?.published_at ? (
-            <a href={site.url} target="_blank" rel="noreferrer" className="btn btn-secondary">
+          {site && (dirty || (published && site.stale)) ? (
+            <span className="text-caution flex items-center gap-1.5 text-[12px] font-medium" data-testid="unpublished">
+              <span className="bg-caution inline-block size-2 rounded-full" aria-hidden="true" /> Unpublished changes
+            </span>
+          ) : null}
+          {published ? (
+            <a href={site?.url} target="_blank" rel="noreferrer" className="btn btn-secondary">
               <ExternalLinkIcon /> Open site
             </a>
           ) : null}
@@ -220,12 +229,12 @@ export function SitePage() {
             <CopyIcon /> Copy site link
           </button>
           {dirty ? (
-            <button type="button" className="btn btn-secondary" onClick={() => void save()} disabled={patch.isPending}>
-              {patch.isPending ? <Loader2Icon className="animate-spin" /> : <CheckIcon />} Save
+            <button type="button" className="btn btn-secondary" onClick={() => void save()} disabled={busy}>
+              {patch.isPending && !publish.isPending ? <Loader2Icon className="animate-spin" /> : <CheckIcon />} Save draft
             </button>
           ) : null}
-          <button type="button" className="btn btn-primary" onClick={web.guard(() => void update())} disabled={!site || publish.isPending || patch.isPending}>
-            {publish.isPending ? <Loader2Icon className="animate-spin" /> : web.locked ? <LockIcon /> : <RefreshCwIcon />} {site?.published_at ? "Update site" : "Publish site"}
+          <button type="button" className="btn btn-primary" onClick={web.guard(() => void doPublish())} disabled={!site || busy}>
+            {busy ? <Loader2Icon className="animate-spin" /> : web.locked ? <LockIcon /> : <RefreshCwIcon />} {!published ? "Publish site" : behind ? "Publish changes" : "Republish"}
           </button>
         </div>
       </div>
@@ -234,49 +243,30 @@ export function SitePage() {
 
       {!site ? (
         <Skeleton className="h-[72px]" />
-      ) : site.published_at ? (
-        <Notice tone={site.stale || dirty ? "caution" : "admit"} tag={site.stale || dirty ? "Behind" : "Live"} action={<a href={site.url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">Open</a>}>
-          {site.stale || dirty ? `The live page is from ${formatDateTime(site.published_at)}; update it to show these changes.` : `Live · updated ${formatDateTime(site.published_at)} · ${site.url.replace(/^https?:\/\//, "")}`}
+      ) : published ? (
+        <Notice
+          tone={behind ? "caution" : "admit"}
+          tag={behind ? "Unpublished changes" : "Live"}
+          action={
+            <a href={site.url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">
+              Open
+            </a>
+          }
+        >
+          {behind ? `The live page is from ${formatDateTime(site.published_at ?? "")}. Publish to put these changes on it.` : `Live · updated ${formatDateTime(site.published_at ?? "")} · ${address}`}
         </Notice>
       ) : (
         <Notice tone="neutral" tag="Not yet">
-          Nothing is public until you publish. Set the look, then Publish site puts the page at {site.url.replace(/^https?:\/\//, "")}.
+          Nothing is public until you publish. Set it up here, then Publish site puts the page at {address}.
         </Notice>
       )}
 
-      {site?.published_at ? <SiteAnalytics published /> : null}
+      {published ? <SiteAnalytics published /> : null}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-        {!site ? <Skeleton className="h-[640px]" /> : <Editor site={site} draft={draft} setDraft={setDraft} />}
-        <div className="grid content-start gap-2">
-          <div className="flex items-center justify-between">
-            <span className="text-ink-3 text-[12.5px]">Live preview · updates as you edit</span>
-            <Segmented
-              label="Preview device"
-              value={device}
-              options={[
-                { value: "desktop", label: "Desktop" },
-                { value: "mobile", label: "Mobile" },
-              ]}
-              onChange={(v) => setDevice(v as "desktop" | "mobile")}
-            />
-          </div>
-          <FigurePanel className="overflow-hidden p-0">
-            <div className="border-line-soft bg-sunken flex items-center gap-1.5 border-b px-3 py-2">
-              <span className="bg-ink-3/40 size-2.5 rounded-full" />
-              <span className="bg-ink-3/40 size-2.5 rounded-full" />
-              <span className="bg-ink-3/40 size-2.5 rounded-full" />
-              <span className="text-ink-3 mx-auto font-mono text-[11px]">{site?.url.replace(/^https?:\/\//, "")}</span>
-              <span className="text-ink-3">{device === "desktop" ? <MonitorIcon className="size-3.5" /> : <SmartphoneIcon className="size-3.5" />}</span>
-            </div>
-            <div className={cn("bg-sunken flex justify-center", device === "mobile" && "py-4")}>
-              {preview.data ? (
-                <iframe title="Site preview" srcDoc={preview.data} sandbox="allow-same-origin" className={cn("bg-white", device === "desktop" ? "h-[720px] w-full" : "border-line h-[720px] w-[390px] rounded-[28px] border-8 border-black/80")} />
-              ) : (
-                <Skeleton className="h-[720px] w-full" />
-              )}
-            </div>
-          </FigurePanel>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
+        {!site ? <Skeleton className="h-[640px]" /> : <Editor site={site} draft={draft} setDraft={setDraft} tab={tab} setTab={setTab} />}
+        <div className="lg:sticky lg:top-4 lg:self-start">
+          <SitePreview html={preview.data} address={address} updating={preview.isFetching || changesKey !== settled} failed={preview.isError} />
         </div>
       </div>
 
