@@ -252,3 +252,134 @@ export const uploadedImageSchema = z.object({
   width: z.number().nullish(),
   height: z.number().nullish(),
 });
+
+// ─── Layout v2: the board (feature-register/layout-v2-contract.md) ──────────
+
+/** The kinds drawn on the board; the programme keeps the canvas editor. */
+export const BOARD_KINDS = ["ticket", "badge", "certificate"] as const;
+export type BoardKind = (typeof BOARD_KINDS)[number];
+export const isBoardKind = (k: DesignKind): k is BoardKind => (BOARD_KINDS as readonly string[]).includes(k);
+
+/** A design to start from: the 35 designs converted, the CR80 card and a blank canvas. */
+export const starterMetaSchema = z.preprocess(
+  (v) => {
+    const o = camelKeys(v);
+    if (!isMap(o)) return o;
+    const r = { ...o };
+    if (r.name === undefined && typeof r.title === "string") r.name = r.title;
+    if (r.preview === undefined && typeof r.previewUrl === "string") r.preview = r.previewUrl;
+    if (r.mono === undefined && typeof r.colour === "string") r.mono = r.colour === "mono";
+    return r;
+  },
+  z.object({
+    id: z.string(),
+    name: z.string(),
+    /** The picture of it: a URL, or a path under the dashboard's /designs. */
+    preview: z.string().nullish(),
+    page: camel(z.object({ widthMm: z.number(), heightMm: z.number() })).nullish(),
+    hasPhoto: z.boolean().nullish(),
+    mono: z.boolean().nullish(),
+    /** What it is for, in a line: "For card printers: …". */
+    use: z.string().nullish(),
+    note: z.string().nullish(),
+  })
+);
+export type StarterMeta = z.infer<typeof starterMetaSchema>;
+
+/** A font as the API lists it. */
+const apiFontSchema = z.object({
+  family: z.string(),
+  weights: z.array(z.number()).default([]),
+  styles: z.array(z.string()).default(["normal"]),
+  faces: z
+    .array(z.object({ weight: z.number(), style: z.string() }))
+    .nullish()
+    .transform((v) => v ?? undefined),
+});
+
+/**
+ * GET …/layout answers the canvas's fields as before and the board's under
+ * `v2`: the layout (converted when what prints is a v1 canvas or a preset),
+ * where it came from, the gallery, the fonts, the tokens, the pictures'
+ * links, and the sample guest's values and context. Read flat here.
+ */
+const flattenBoard = (v: unknown) => {
+  const o = camelKeys(v);
+  if (!isMap(o)) return o;
+  const v2 = camelKeys(o.v2);
+  // A backend from before the board: the canvas as saved, which the board converts.
+  if (!isMap(v2)) return { ...o, layout: o.layout ?? { canvas: o.canvas, layers: o.layers, page: o.page }, convertedFrom: o.layout ? null : "v1" };
+  return {
+    ...o,
+    layout: v2.layout ?? o.layout,
+    convertedFrom: v2.from ?? null,
+    version: typeof v2.revision === "number" ? v2.revision : o.version,
+    fromStarter: v2.from === undefined ? o.fromStarter : v2.from === "default",
+    starters: v2.starters ?? o.starters,
+    fonts: v2.fonts ?? o.fonts,
+    tokens: v2.tokens ?? o.tokens,
+    images: v2.images ?? null,
+    values: v2.values ?? null,
+    context: v2.context ?? null,
+  };
+};
+
+/** The pictures a layout shows, as links signed now: by source, and uploads by key. */
+const boardImagesSchema = z.object({
+  org_logo: z.string().nullish(),
+  event_icon: z.string().nullish(),
+  guest_photo: z.string().nullish(),
+  signature_1: z.string().nullish(),
+  signature_2: z.string().nullish(),
+  sponsor: z.string().nullish(),
+  uploads: z.record(z.string().nullable()).default({}),
+});
+
+/** What the server fills the design with for the sample guest, so the stage reads as the PDF does. */
+const boardContextSchema = z.object({
+  qr: z.string().nullish(),
+  colors: z.record(z.string().nullable()).default({}).transform((o) => Object.fromEntries(Object.entries(o).filter((e): e is [string, string] => typeof e[1] === "string"))),
+  initials: z.string().nullish(),
+});
+
+/** What GET …/layout answers for the board: the design as v2 (converted if it was v1 or a preset) and what the board needs around it. */
+export const boardDesignSchema = z.preprocess(
+  flattenBoard,
+  z.object({
+    eventId: z.number().default(0),
+    kind: z.enum(DESIGN_KINDS),
+    audience: z.string().default("event_default"),
+    /** Parsed by the board: v2, or v1 from a backend that sends it as saved. */
+    layout: z.unknown(),
+    version: z.number().default(0),
+    isOwn: z.boolean().default(false),
+    /** Nothing saved anywhere up the chain: the layout is the default design. */
+    fromStarter: z.boolean().default(false),
+    /** Where the layout came from: "saved" (v2), "v1" or "preset" (converted), "default" (nothing saved). */
+    convertedFrom: z.string().nullish(),
+    images: boardImagesSchema.nullish(),
+    /** The sample guest's values, made by the renderer's own code. */
+    values: z
+      .record(z.unknown())
+      .transform((o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v === null || v === undefined ? "" : String(v)])))
+      .nullish(),
+    context: boardContextSchema.nullish(),
+    imageUrls: z.record(z.string()).default({}),
+    brand: z
+      .object({ orgName: z.string().default(""), primary: z.string(), secondary: z.string(), logoUrl: z.string().nullish() })
+      .default({ orgName: "", primary: "#1B6B47", secondary: "#1DB9A0" }),
+    eventIconUrl: z.string().nullish(),
+    starters: z.array(starterMetaSchema).default([]),
+    fonts: z.array(apiFontSchema).default([]),
+    tokens: z.array(tokenSchema).default([]),
+    qrRequired: z.boolean().nullish(),
+    sampleValues: z.record(z.string()).default({}),
+    questions: z.array(z.object({ key: z.string().nullish(), label: z.string().nullish(), type: z.string().nullish(), token: z.string() })).default([]),
+    hasPhotoQuestion: z.boolean().nullish(),
+    /** Which is in use: the board's design, or a preset still saved from before (it opens converted). */
+    active: z.string().nullish(),
+    /** What a save may still want looked at (a small QR, a layer off the canvas): saved, but said. */
+    warnings: z.array(z.object({ message: z.string() }).passthrough()).default([]),
+  })
+);
+export type BoardDesign = z.infer<typeof boardDesignSchema>;

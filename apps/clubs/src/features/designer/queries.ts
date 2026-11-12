@@ -3,8 +3,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@moa/api";
 
-import { type ArtworkField, fetchArtwork, fetchLayout, resetDesign, resetPreset, saveArtwork, saveLayout, savePreset, type LayoutBody } from "./api";
-import type { Audience, DesignKind, DesignScope, LayerDesign, PresetChoice } from "./schemas";
+import type { LayoutV2 } from "@moa/layout";
+
+import {
+  type ArtworkField,
+  fetchArtwork,
+  fetchBoard,
+  fetchLayout,
+  fetchStarterLayout,
+  resetDesign,
+  resetPreset,
+  saveArtwork,
+  saveBoard,
+  saveLayout,
+  savePreset,
+  type LayoutBody,
+} from "./api";
+import type { Audience, BoardDesign, BoardKind, DesignKind, DesignScope, LayerDesign, PresetChoice } from "./schemas";
 
 const CLUB = ["club-designs"] as const;
 const scopeKey = (scope: DesignScope) => (scope.kind === "event" ? qk.eventDesigns.forEvent(scope.eventId) : CLUB);
@@ -94,6 +109,40 @@ export function useSaveArtwork(scope: DesignScope, kind: DesignKind, audience: A
     onSuccess: (artwork) => {
       queryClient.setQueryData(artworkKey(eventId, kind, audience), artwork);
       void queryClient.invalidateQueries({ queryKey: layoutKey(scope, kind, audience) });
+    },
+  });
+}
+
+// ─── Layout v2: the board ───────────────────────────────────────────────
+
+/** The board's design: the same route as the canvas's, read as v2, so it has its own key. */
+const boardKey = (scope: DesignScope, kind: BoardKind, audience: Audience) => [...layoutKey(scope, kind, audience), "v2"] as const;
+
+export function useBoard(scope: DesignScope, kind: BoardKind, audience: Audience) {
+  return useQuery({ queryKey: boardKey(scope, kind, audience), queryFn: () => fetchBoard(scope, kind, audience), staleTime: 0 });
+}
+
+/** A starter's layout, fetched when one is picked; kept a minute so going back and forth does not fetch again. */
+export function useStarterLayout(scope: DesignScope, kind: BoardKind, id: string | null) {
+  return useQuery({
+    queryKey: [...boardKey(scope, kind, "event_default"), "starter", id] as const,
+    queryFn: () => fetchStarterLayout(scope, kind, id!),
+    enabled: !!id,
+    staleTime: 60_000,
+  });
+}
+
+/** Save the board: the answer goes straight into the cache, and the other audiences are read again (the first save forks). */
+export function useSaveBoard(scope: DesignScope, kind: BoardKind, audience: Audience) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (layout: LayoutV2) => saveBoard(scope, kind, audience, layout),
+    onSuccess: (data: BoardDesign) => {
+      queryClient.setQueryData(boardKey(scope, kind, audience), data);
+      void queryClient.invalidateQueries({
+        queryKey: scopeKey(scope),
+        predicate: (query) => !(query.queryKey.at(-1) === "v2" && query.queryKey.at(-3) === audience),
+      });
     },
   });
 }
