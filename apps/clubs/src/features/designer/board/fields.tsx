@@ -35,11 +35,15 @@ export interface ColorContext {
   accent: string;
   primary: string;
   secondary: string;
+  /** A sample ticket type's colour; the primary when not given. */
+  ticketType?: string;
 }
 
+/** A colour as the editor's swatches show it, resolved as the builder resolves it. */
 export const resolveColorV2 = (c: ColorV2, ctx: ColorContext): string => {
   if (c === "var:accent") return ctx.accent;
-  if (c === "brand.primary" || c === "ticket_type") return ctx.primary;
+  if (c === "brand.primary") return ctx.primary;
+  if (c === "ticket_type") return ctx.ticketType ?? ctx.primary;
   if (c === "brand.secondary") return ctx.secondary;
   return c;
 };

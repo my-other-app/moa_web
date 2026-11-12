@@ -1,4 +1,4 @@
-import { type ColorV2, type FillV2, type LayerKindV2, type LayerV2, type LayoutV2, layerV2 } from "@moa/layout";
+import { type ColorV2, type FillV2, type LayerKindV2, type LayerV2, type LayoutV2, layerV2, shadowsOf } from "@moa/layout";
 
 /**
  * Making and changing layers on the board, the way the inspector and the
@@ -74,6 +74,8 @@ export const newLayer = (spec: NewLayer, layout: LayoutV2): LayerV2 => {
         width: round(short * 0.22),
         height: round(short * 0.22),
         fit: spec.source === "guest_photo" ? "cover" : "contain",
+        // A guest with no photo still gets a tile with their initials.
+        placeholder: spec.source === "guest_photo" ? "initials" : "none",
       });
     case "qr": {
       const size = round(short * 0.3);
@@ -85,6 +87,8 @@ export const newLayer = (spec: NewLayer, layout: LayoutV2): LayerV2 => {
         y: round((H - size) / 2),
         width: size,
         height: size,
+        // A blank border, so it scans on any background.
+        quietZone: 2,
       });
     }
     case "svg":
@@ -107,7 +111,7 @@ export const copiesOf = (layers: readonly LayerV2[], layout: LayoutV2, offset = 
   return layers.map((l) => {
     const id = freshId(l.kind, taken);
     taken.add(id);
-    return { ...structuredClone(l), id, name: l.name.endsWith(" copy") ? l.name : `${l.name} copy`.slice(0, 80), x: l.x + offset, y: l.y + offset, locked: false } as LayerV2;
+    return { ...structuredClone(l), id, name: l.name.endsWith(" copy") ? l.name : `${l.name} copy`.slice(0, 60), x: l.x + offset, y: l.y + offset, locked: false } as LayerV2;
   });
 };
 
@@ -119,7 +123,7 @@ export const colorsOf = (l: LayerV2): ColorV2[] => {
     if (f.type === "solid") out.push(f.color);
     else out.push(...f.stops.map((s) => s.color));
   };
-  if (l.shadow) out.push(l.shadow.color);
+  out.push(...shadowsOf(l).map((s) => s.color));
   switch (l.kind) {
     case "text":
       out.push(l.color);

@@ -74,7 +74,7 @@ export const fitCanvasToPage = (layout: LayoutV2): LayoutV2 => {
       y: Math.round(l.y * ky * 100) / 100,
       width: Math.round(l.width * k * 100) / 100,
       height: Math.round(l.height * k * 100) / 100,
-      ...(l.kind === "text" ? { size: Math.round(l.size * k * 100) / 100, minSize: Math.max(1, Math.round(l.minSize * k * 100) / 100) } : {}),
+      ...(l.kind === "text" ? { size: Math.round(l.size * k * 100) / 100, minSize: l.minSize === null ? null : Math.max(1, Math.round(l.minSize * k * 100) / 100) } : {}),
     })),
   };
 };
@@ -110,7 +110,7 @@ export const DocumentPanel = ({
         <ColorFieldV2
           id="doc-accent"
           label="Accent"
-          value={vars.accent}
+          value={vars.accent ?? "#000000"}
           refs={false}
           ctx={colors}
           onChange={(c) => c && onChange((l) => ({ ...l, vars: { ...l.vars, accent: c.slice(0, 7) } }), "accent")}
@@ -126,7 +126,7 @@ export const DocumentPanel = ({
                 onClick={() => onChange((l) => ({ ...l, vars: { ...l.vars, accent: s } }))}
                 className={cn(
                   "border-line size-6 rounded-full border focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring)] focus-visible:outline-none",
-                  vars.accent.toUpperCase() === s.toUpperCase() && "ring-brand ring-2 ring-offset-1"
+                  vars.accent?.toUpperCase() === s.toUpperCase() && "ring-brand ring-2 ring-offset-1"
                 )}
                 style={{ background: s }}
               />

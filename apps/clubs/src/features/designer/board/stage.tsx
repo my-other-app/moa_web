@@ -528,6 +528,7 @@ function useDocDom(host: React.RefObject<HTMLElement | null>, layout: LayoutV2, 
       if (!html) {
         // Hidden, or left out by showIf.
         if (prev) {
+          if (before === prev.el) before = prev.el.nextElementSibling;
           prev.el.remove();
           s.drawn.delete(layer.id);
         }
@@ -538,7 +539,11 @@ function useDocDom(host: React.RefObject<HTMLElement | null>, layout: LayoutV2, 
       if (!prev || prev.html !== html) {
         const fresh = renderer.parse(html);
         if (!fresh) continue;
-        if (node) node.replaceWith(fresh);
+        if (node) {
+          node.replaceWith(fresh);
+          // The element it replaced may be where the next one goes.
+          if (before === node) before = fresh;
+        }
         node = fresh;
         s.drawn.set(layer.id, { html, el: fresh });
         changed.push({ el: fresh, layer });

@@ -115,8 +115,8 @@ export const BoardPage = ({
   const thumbRenderer = React.useMemo(() => {
     if (!d || !current || !("layout" in current)) return null;
     const l = current.layout;
-    return makeRenderer({ version: 2, page: l.page, canvas: l.canvas, vars: l.vars }, boardValues(d), boardContext(d, config.sampleQr));
-  }, [d, current, config.sampleQr]);
+    return makeRenderer({ page: l.page, canvas: l.canvas, vars: l.vars }, boardValues(d), boardContext(d, config.sampleQr), kind);
+  }, [d, current, config.sampleQr, kind]);
 
   if (design.isError) return <Failed bar={bar(picker)} title="Could not load the designs" err={design.error} onRetry={() => void design.refetch()} />;
   if (!d || !current) {
@@ -164,6 +164,8 @@ export const BoardPage = ({
   if (fromStarter && starter.data === undefined) return <Loading bar={bar(left)} />;
   const open = fromStarter ? opened(starter.data) : current;
   if ("error" in open) return <Failed bar={bar(left)} title="Could not open this design" err={open.error} onRetry={() => void design.refetch()} />;
+  // A copy of a starter says which one it was copied from.
+  const initial = fromStarter && starterId && !open.layout.starter ? { ...open.layout, starter: starterId } : open.layout;
 
   return (
     <Board
@@ -173,7 +175,7 @@ export const BoardPage = ({
       scope={scope}
       audience={audience}
       design={d}
-      initial={open.layout}
+      initial={initial}
       starterName={fromStarter && view.mode === "board" ? (view.starter?.name ?? null) : null}
       picker={left}
       onGallery={toGallery}

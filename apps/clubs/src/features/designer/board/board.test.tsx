@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { render } from "@/test/render";
 
-import type { DesignScope } from "../schemas";
+import { boardDesignSchema, type DesignScope } from "../schemas";
 import { DesignerPage } from "../components/designer-page";
 
 /**
@@ -151,7 +151,8 @@ beforeEach(() => {
   state.design = DESIGN(TICKET(LAYERS));
   state.starters = {};
   save.mockReset();
-  save.mockImplementation(async (layout: unknown) => ({ ...DESIGN(layout), v2: { ...(DESIGN(layout).v2 as object), revision: 4 } }));
+  // As the mutation answers: the saved design, parsed.
+  save.mockImplementation(async (layout: unknown) => boardDesignSchema.parse({ ...DESIGN(layout), v2: { ...(DESIGN(layout).v2 as object), revision: 4 } }));
   reset.mockReset();
   preview.mockClear();
 });
@@ -325,7 +326,7 @@ describe("text", () => {
     click(60, 220);
     fireEvent.click(within(props()).getByRole("button", { name: "Font" }));
     fireEvent.change(await screen.findByRole("textbox", { name: "Search fonts" }), { target: { value: "ant" } });
-    const options = screen.getAllByRole("option");
+    const options = within(screen.getByRole("listbox", { name: "Fonts" })).getAllByRole("option");
     expect(options).toHaveLength(1);
     expect(options[0]!.querySelector<HTMLElement>("span span")!.style.fontFamily).toMatch(/Anton/);
     fireEvent.click(options[0]!);
@@ -341,7 +342,7 @@ describe("the document", () => {
     await openBoard();
     expect(screen.getByRole("region", { name: "Document" })).toHaveTextContent("Used by 1 layer");
     fireEvent.change(within(screen.getByRole("region", { name: "Document" })).getByLabelText("Accent"), { target: { value: "#123456" } });
-    await waitFor(() => expect(doc().querySelector('[data-layer="band"]')!.innerHTML).toMatch(/#123456|rgb\(18, 52, 86\)/i));
+    await waitFor(() => expect(doc().querySelector('[data-layer="band"]')!.outerHTML).toMatch(/#123456|rgb\(18, 52, 86\)/i));
     expect((await saved()).vars.accent).toBe("#123456");
   });
 });

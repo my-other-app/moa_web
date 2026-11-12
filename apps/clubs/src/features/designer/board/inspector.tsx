@@ -13,8 +13,9 @@ import {
   type SvgLayerV2,
   type TextLayerV2,
   type TokenGroup,
-  defaultMinSize,
   findFont,
+  shadowsOf,
+  textFloor,
 } from "@moa/layout";
 import { Button, CardLabel, FigurePanel, IconButton, Notice, Switch, cn } from "@moa/ui";
 import { CopyIcon, Trash2Icon, UploadIcon, XIcon } from "lucide-react";
@@ -64,7 +65,7 @@ const NameField = ({ id, value, onCommit }: { id: string; value: string; onCommi
   }
   const commit = () => {
     const v = draft.trim();
-    if (v && v !== value) onCommit(v.slice(0, 80));
+    if (v && v !== value) onCommit(v.slice(0, 60));
     else setDraft(value);
   };
   return (
@@ -75,7 +76,7 @@ const NameField = ({ id, value, onCommit }: { id: string; value: string; onCommi
       <input
         id={id}
         value={draft}
-        maxLength={80}
+        maxLength={60}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
@@ -145,7 +146,7 @@ const TextFields = ({ l, patch, ctx, id }: { l: TextLayerV2; patch: Patch; ctx: 
     const el = area.current;
     const start = el?.selectionStart ?? l.text.length;
     const end = el?.selectionEnd ?? l.text.length;
-    patch({ text: l.text.slice(0, start) + snippet + l.text.slice(end) });
+    patch({ text: l.text.slice(0, start) + snippet + l.text.slice(end), spans: null });
     requestAnimationFrame(() => {
       el?.focus();
       el?.setSelectionRange(start + snippet.length, start + snippet.length);
@@ -165,10 +166,12 @@ const TextFields = ({ l, patch, ctx, id }: { l: TextLayerV2; patch: Patch; ctx: 
             rows={3}
             maxLength={2000}
             spellCheck={false}
-            onChange={(e) => patch({ text: e.target.value }, `${l.id}-text`)}
+            onChange={(e) => patch({ text: e.target.value, spans: null }, `${l.id}-text`)}
             className="input min-h-[72px] w-full py-2 font-mono text-[12px]"
           />
-          <p className={cn(ui.note, "mt-1")}>Double-click the text on the canvas to write in place.</p>
+          <p className={cn(ui.note, "mt-1")}>
+            {l.spans ? "Some words here have their own style; writing here makes it all one style. " : ""}Double-click the text on the canvas to write in place.
+          </p>
         </div>
       </Section>
       <Section title="Type">
@@ -209,7 +212,7 @@ const TextFields = ({ l, patch, ctx, id }: { l: TextLayerV2; patch: Patch; ctx: 
             min={1}
             max={1000}
             suffix="px"
-            onChange={(size) => patch({ size, minSize: Math.min(l.minSize, size) }, `${l.id}-size`)}
+            onChange={(size) => patch({ size, minSize: l.minSize === null ? null : Math.min(l.minSize, size) }, `${l.id}-size`)}
           />
           <NumberField id={id("tracking")} label="Letter spacing" value={l.letterSpacing} step={0.01} min={-1} max={5} suffix="em" onChange={(v) => patch({ letterSpacing: v }, `${l.id}-tracking`)} />
           <NumberField id={id("leading")} label="Line height" value={l.lineHeight} step={0.05} min={0.5} max={5} onChange={(v) => patch({ lineHeight: v }, `${l.id}-leading`)} />
@@ -262,7 +265,7 @@ const TextFields = ({ l, patch, ctx, id }: { l: TextLayerV2; patch: Patch; ctx: 
             onChange={(fit) => patch({ fit })}
           />
           {l.fit === "shrink" ? (
-            <NumberField id={id("min")} label="Smallest size" value={l.minSize} min={1} max={l.size} suffix="px" onChange={(v) => patch({ minSize: v }, `${l.id}-min`)} />
+            <NumberField id={id("min")} label="Smallest size" value={textFloor(l)} min={1} max={l.size} suffix="px" onChange={(v) => patch({ minSize: v }, `${l.id}-min`)} />
           ) : null}
         </div>
       </Section>
@@ -331,8 +334,8 @@ const ShapeFields = ({ l, patch, ctx, id }: { l: ShapeLayerV2; patch: Patch; ctx
           />
           {l.stroke.dash ? (
             <>
-              <NumberField id={id("dash-on")} label="Dash" value={l.stroke.dash[0]} min={0} suffix="px" onChange={(v) => patch({ stroke: { ...l.stroke!, dash: [v, l.stroke!.dash![1]] } }, `${l.id}-dash`)} />
-              <NumberField id={id("dash-off")} label="Gap" value={l.stroke.dash[1]} min={0} suffix="px" onChange={(v) => patch({ stroke: { ...l.stroke!, dash: [l.stroke!.dash![0], v] } }, `${l.id}-dash`)} />
+              <NumberField id={id("dash-on")} label="Dash" value={l.stroke.dash[0] ?? 0} min={0} suffix="px" onChange={(v) => patch({ stroke: { ...l.stroke!, dash: [v, l.stroke!.dash![1] ?? 0] } }, `${l.id}-dash`)} />
+              <NumberField id={id("dash-off")} label="Gap" value={l.stroke.dash[1] ?? 0} min={0} suffix="px" onChange={(v) => patch({ stroke: { ...l.stroke!, dash: [l.stroke!.dash![0] ?? 0, v] } }, `${l.id}-dash`)} />
             </>
           ) : null}
         </div>
@@ -554,7 +557,7 @@ const QrFields = ({ l, patch, ctx, id }: { l: QrLayerV2; patch: Patch; ctx: Insp
   </Section>
 );
 
-const SHADOW: ShadowV2 = { x: 0, y: 4, blur: 12, spread: 0, color: "#00000040" };
+const SHADOW: ShadowV2 = { x: 0, y: 4, blur: 12, spread: 0, color: "#00000040", inset: false };
 
 // ─── The panel ──────────────────────────────────────────────────────────
 
@@ -584,6 +587,14 @@ export const BoardInspector = ({
   const state = [KIND_NAME[layer.kind], layer.locked ? "locked" : null, layer.hidden ? "hidden" : null].filter(Boolean).join(" · ");
   const tokenOptions = [{ value: "", label: "Always" }, ...ctx.tokens.map((t) => ({ value: t.key, label: `When ${t.label.toLowerCase()} is filled in` }))];
   const square = layer.kind === "qr";
+  // One shadow, or several on the wire: the fields edit the first and keep the rest.
+  const shadows = shadowsOf(layer);
+  const shadow = shadows[0] ?? null;
+  const setShadow = (p: Partial<ShadowV2>) => {
+    if (!shadow) return;
+    const first = { ...shadow, ...p };
+    onPatch({ shadow: shadows.length > 1 ? [first, ...shadows.slice(1)] : first }, g("shadow"));
+  };
   return (
     <FigurePanel role="region" aria-label="Properties" className="p-0">
       <div className="px-4 pt-4 pb-3.5">
@@ -647,16 +658,18 @@ export const BoardInspector = ({
       {layer.kind === "image" ? <ImageFields l={layer} patch={onPatch} ctx={ctx} id={id} /> : null}
       {layer.kind === "qr" ? <QrFields l={layer} patch={onPatch} ctx={ctx} id={id} /> : null}
 
-      <Section title="Shadow" right={<Switch aria-label="Shadow" checked={!!layer.shadow} onCheckedChange={(on) => onPatch({ shadow: on ? SHADOW : null })} />}>
-        {layer.shadow ? (
+      <Section title="Shadow" right={<Switch aria-label="Shadow" checked={!!shadow} onCheckedChange={(on) => onPatch({ shadow: on ? SHADOW : null })} />}>
+        {shadow ? (
           <>
+            {shadows.length > 1 ? <p className={ui.note}>This layer has {shadows.length} shadows; these fields change the first.</p> : null}
             <div className="grid grid-cols-2 gap-2.5">
-              <NumberField id={id("sx")} label="Across" value={layer.shadow.x} suffix="px" onChange={(x) => onPatch({ shadow: { ...layer.shadow!, x } }, g("shadow"))} />
-              <NumberField id={id("sy")} label="Down" value={layer.shadow.y} suffix="px" onChange={(y) => onPatch({ shadow: { ...layer.shadow!, y } }, g("shadow"))} />
-              <NumberField id={id("sb")} label="Blur" value={layer.shadow.blur} min={0} suffix="px" onChange={(blur) => onPatch({ shadow: { ...layer.shadow!, blur } }, g("shadow"))} />
-              <NumberField id={id("ss")} label="Spread" value={layer.shadow.spread} suffix="px" onChange={(spread) => onPatch({ shadow: { ...layer.shadow!, spread } }, g("shadow"))} />
+              <NumberField id={id("sx")} label="Across" value={shadow.x} suffix="px" onChange={(x) => setShadow({ x })} />
+              <NumberField id={id("sy")} label="Down" value={shadow.y} suffix="px" onChange={(y) => setShadow({ y })} />
+              <NumberField id={id("sb")} label="Blur" value={shadow.blur} min={0} suffix="px" onChange={(blur) => setShadow({ blur })} />
+              {layer.kind === "text" ? null : <NumberField id={id("ss")} label="Spread" value={shadow.spread} suffix="px" onChange={(spread) => setShadow({ spread })} />}
             </div>
-            <ColorFieldV2 id={id("sc")} label="Shadow colour" value={layer.shadow.color} ctx={ctx.colors} onChange={(c) => c && onPatch({ shadow: { ...layer.shadow!, color: c } }, g("shadow"))} />
+            <ColorFieldV2 id={id("sc")} label="Shadow colour" value={shadow.color} ctx={ctx.colors} onChange={(c) => c && setShadow({ color: c })} />
+            {layer.kind === "text" ? null : <Toggle id={id("inset")} label="Inside the box" checked={shadow.inset} onChange={(inset) => setShadow({ inset })} />}
           </>
         ) : (
           <p className={ui.note}>No shadow.</p>
@@ -682,5 +695,3 @@ export const BoardInspector = ({
 /** A text layer's colour as painted, for the in-place editor. */
 export const paintOf = (l: TextLayerV2, ctx: ColorContext) => resolveColorV2(l.color, ctx);
 
-/** minSize kept below size when the size shrinks under it. */
-export const minFor = (size: number, min: number | undefined) => Math.min(size, min ?? defaultMinSize(size));

@@ -279,6 +279,8 @@ export const starterMetaSchema = z.preprocess(
     page: camel(z.object({ widthMm: z.number(), heightMm: z.number() })).nullish(),
     hasPhoto: z.boolean().nullish(),
     mono: z.boolean().nullish(),
+    /** What it is for, in a line: "For card printers: …". */
+    use: z.string().nullish(),
     note: z.string().nullish(),
   })
 );
@@ -336,7 +338,7 @@ const boardImagesSchema = z.object({
 /** What the server fills the design with for the sample guest, so the stage reads as the PDF does. */
 const boardContextSchema = z.object({
   qr: z.string().nullish(),
-  colors: z.record(z.string()).default({}),
+  colors: z.record(z.string().nullable()).default({}).transform((o) => Object.fromEntries(Object.entries(o).filter((e): e is [string, string] => typeof e[1] === "string"))),
   initials: z.string().nullish(),
 });
 
@@ -357,7 +359,10 @@ export const boardDesignSchema = z.preprocess(
     convertedFrom: z.string().nullish(),
     images: boardImagesSchema.nullish(),
     /** The sample guest's values, made by the renderer's own code. */
-    values: z.record(z.string()).nullish(),
+    values: z
+      .record(z.unknown())
+      .transform((o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v === null || v === undefined ? "" : String(v)])))
+      .nullish(),
     context: boardContextSchema.nullish(),
     imageUrls: z.record(z.string()).default({}),
     brand: z
@@ -373,6 +378,8 @@ export const boardDesignSchema = z.preprocess(
     hasPhotoQuestion: z.boolean().nullish(),
     /** Which is in use: the board's design, or a preset still saved from before (it opens converted). */
     active: z.string().nullish(),
+    /** What a save may still want looked at (a small QR, a layer off the canvas): saved, but said. */
+    warnings: z.array(z.object({ message: z.string() }).passthrough()).default([]),
   })
 );
 export type BoardDesign = z.infer<typeof boardDesignSchema>;

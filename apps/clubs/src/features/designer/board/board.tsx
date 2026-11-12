@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  DOC_FONTS,
-  type LayerV2,
-  LayoutV2,
-  type TextLayerV2,
-  fontsFromApi,
-} from "@moa/layout";
+import { DOC_FONTS, LayerV2, LayoutV2, type TextLayerV2, fontsFromApi } from "@moa/layout";
+import { z } from "zod";
 import { Button, CardLabel, FigurePanel, Notice, cn, toast } from "@moa/ui";
 import { AlertTriangleIcon, CheckCircle2Icon, ScanEyeIcon } from "lucide-react";
 import * as React from "react";
@@ -20,7 +15,7 @@ import { AUDIENCES, type Audience, type BoardDesign, type BoardKind, type Design
 import { PreviewDialog, ResetDialog } from "../components/dialogs";
 import { DesignBar, Provenance, SaveBar, type SaveState } from "../components/shell";
 import { DocumentPanel } from "./document-panel";
-import { boardContext, boardValues, checkLayout, makeRenderer, readLayout } from "./engine";
+import { boardColors, boardContext, boardValues, checkLayout, imageLinkOf, makeRenderer, readLayout } from "./engine";
 import { type ColorContext, resolveColorV2 } from "./fields";
 import { type Alignment, type OrderMove, align, distribute, reorder } from "./geometry";
 import { useHistory } from "./history";
@@ -110,16 +105,16 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
   // ─── What the stage draws with ─────────────────────────────────────────
 
   const fonts = React.useMemo(() => (design.fonts.length ? fontsFromApi(design.fonts) : [...DOC_FONTS]), [design.fonts]);
-  const tokenKeys = React.useMemo(() => design.tokens.map((t) => t.key), [design.tokens]);
   const samples = React.useMemo(() => boardValues(design), [design]);
   const ctx = React.useMemo(() => boardContext(design, config.sampleQr, urls), [design, config.sampleQr, urls]);
-  const colors: ColorContext = React.useMemo(
-    () => ({ accent: layout.vars.accent, primary: ctx.brand?.primary ?? design.brand.primary, secondary: ctx.brand?.secondary ?? design.brand.secondary }),
-    [layout.vars.accent, ctx, design.brand]
-  );
+  const colors: ColorContext = React.useMemo(() => {
+    const c = boardColors(design);
+    // An accent left unset paints black, as the builder paints it.
+    return { accent: layout.vars.accent ?? "#000000", primary: c.primary, secondary: c.secondary, ticketType: c.ticketType };
+  }, [layout.vars.accent, design]);
   const renderer = React.useMemo(
-    () => makeRenderer({ version: 2, page: layout.page, canvas: layout.canvas, vars: layout.vars }, samples, ctx),
-    [layout.page, layout.canvas, layout.vars, samples, ctx]
+    () => makeRenderer({ page: layout.page, canvas: layout.canvas, vars: layout.vars }, samples, ctx, kind),
+    [layout.page, layout.canvas, layout.vars, samples, ctx, kind]
   );
 
   // ─── Zoom ──────────────────────────────────────────────────────────────
@@ -323,7 +318,7 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
       let src = clipboard;
       if (text.startsWith(CLIP_MARK)) {
         try {
-          src = LayoutV2.shape.layers.parse(JSON.parse(text.slice(CLIP_MARK.length))) as LayerV2[];
+          src = z.array(LayerV2).parse(JSON.parse(text.slice(CLIP_MARK.length))) as LayerV2[];
         } catch {
           src = clipboard;
         }
@@ -348,7 +343,7 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
 
   // ─── Checks, save, preview, reset ──────────────────────────────────────
 
-  const check = React.useMemo(() => checkLayout(layout, kind, { fonts, tokens: tokenKeys }), [layout, kind, fonts, tokenKeys]);
+  const check = React.useMemo(() => checkLayout(layout, kind, { fonts }), [layout, kind, fonts]);
   const flagged = React.useMemo(() => new Set(check.byLayer.keys()), [check]);
 
   const scopeName = AUDIENCES.find((a) => a.value === audience)?.label ?? "Everyone";
@@ -387,7 +382,8 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
       setFromStarter(false);
       setStartedFrom(null);
       dirtyRef.current = false;
-      toast.success(`${subject} saved`, { description: `Version ${res.version}. ${config.savedNote}` });
+      const note = res.warnings[0]?.message;
+      toast.success(`${subject} saved`, { description: note ? `Version ${res.version}. Worth a look: ${note}` : `Version ${res.version}. ${config.savedNote}` });
       onSaved();
     } catch (err) {
       toast.error(errorCopy(err));
@@ -448,7 +444,7 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
     guestPhoto: config.guestPhoto,
     preprint: kind === "badge",
     qrHolds: kind === "certificate" ? "the link that proves the certificate is real" : "the guest's ticket code, which the gate scans",
-    imageUrl: (l) => (l.source === "upload" ? (l.imageKey ? (ctx.images?.uploads?.[l.imageKey] ?? null) : null) : (ctx.images?.[l.source] ?? null)),
+    imageUrl: (l) => imageLinkOf(ctx, l),
     onUpload: upload,
     onSignature:
       scope.kind === "event"
@@ -469,7 +465,7 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
       frame={frame}
       zoom={zoom}
       color={resolveColorV2(l.color, colors)}
-      onChange={(text) => update((cur) => patchLayer(cur, l.id, { text }), `text-${l.id}`)}
+      onChange={(text) => update((cur) => patchLayer(cur, l.id, { text, spans: null }), `text-${l.id}`)}
       onDone={() => {
         setEditing(null);
         history.seal();

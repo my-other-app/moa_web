@@ -159,7 +159,7 @@ export const StarterGallery = ({
               <li key={s.id} className="min-w-0">
                 <button type="button" className={cardClass(false)} onClick={() => onPick(s)} aria-label={`Start from ${s.name}`}>
                   <StarterThumb kind={kind} s={s} />
-                  <Caption title={s.name} meta={s.note ?? (s.page ? `${s.page.widthMm} × ${s.page.heightMm} mm` : "")} />
+                  <Caption title={s.name} meta={s.use ?? s.note ?? (s.page ? `${s.page.widthMm} × ${s.page.heightMm} mm` : "")} />
                 </button>
               </li>
             ))}
