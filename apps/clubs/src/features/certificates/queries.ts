@@ -9,6 +9,7 @@ import { useRefreshDeliveries } from "@/features/deliveries";
 import { toastError } from "@/features/plan/errors";
 
 import {
+  applyDesignToIssued,
   fetchCertificateSummary,
   fetchCertificates,
   fetchIssuePreview,
@@ -69,6 +70,21 @@ export function useRevokeCertificate(eventId: number) {
     onSuccess: (state) => {
       toast.success(state.revoked_at ? `${state.number} revoked` : `${state.number} reinstated`, {
         description: state.revoked_at ? "Its QR now says so, and the download is refused." : "It verifies and downloads again.",
+      });
+      refresh();
+    },
+    onError: toastError,
+  });
+}
+
+/** Put the certificates already issued onto the current design (the club's explicit, confirmed choice). */
+export function useApplyDesignToIssued(eventId: number) {
+  const refresh = useRefreshDeliveries(eventId);
+  return useMutation({
+    mutationFn: () => applyDesignToIssued(eventId),
+    onSuccess: (r) => {
+      toast.success(r.updated === 1 ? "1 certificate is on the current design" : `${r.updated} certificates are on the current design`, {
+        description: "Their numbers and verify links stay the same.",
       });
       refresh();
     },

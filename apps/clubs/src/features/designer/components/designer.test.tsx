@@ -17,6 +17,8 @@ import { DesignerPage } from "./designer-page";
 const state: { design: LayerDesign; saving: boolean } = { design: null as unknown as LayerDesign, saving: false };
 const save = vi.fn();
 const reset = vi.fn();
+const applyIssued = vi.fn();
+const certificates: { summary: { other_design: number } | undefined } = { summary: undefined };
 const clearPreset = vi.fn();
 const saveArtwork = vi.fn();
 
@@ -30,6 +32,10 @@ vi.mock("../queries", () => ({
 }));
 vi.mock("@/features/events", () => ({
   useEventDetail: (id: number) => ({ data: id ? { id, name: "Hack Night" } : undefined }),
+}));
+vi.mock("@/features/certificates", () => ({
+  useCertificateSummary: () => ({ data: certificates.summary }),
+  useApplyDesignToIssued: () => ({ mutate: applyIssued, isPending: false }),
 }));
 vi.mock("@/features/registrations", () => ({
   useRegistrations: () => ({ data: { items: [], total: 0 } }),

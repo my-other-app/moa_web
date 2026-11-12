@@ -23,6 +23,12 @@ export const issueResponseSchema = z.object({
   already_issued: z.number(),
 });
 
+/** How many issued certificates took the current design, and the design each role's now keep (an id, or "custom"). */
+export const applyDesignResponseSchema = z.object({
+  updated: z.number(),
+  designs: z.record(z.string()).default({}),
+});
+
 export const certificateRowSchema = z.object({
   registration_id: z.string(),
   ticket_id: z.string(),

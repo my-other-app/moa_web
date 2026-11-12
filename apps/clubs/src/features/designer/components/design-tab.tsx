@@ -9,6 +9,7 @@ import { DESIGNERS, designSamples } from "../config";
 import { defaultIdOf } from "../presets";
 import { useLayout, useResetPreset } from "../queries";
 import { type Audience, type DesignKind, type DesignScope, type LayerDesign } from "../schemas";
+import { ApplyToIssued } from "./apply-to-issued";
 import { LayoutThumb, LeaveDialog, type StageLook } from "./dialogs";
 import { Gallery } from "./gallery";
 import { useTicketFonts } from "./kit";
@@ -110,6 +111,8 @@ export const DesignTab = ({ scope, kind, dirtyRef }: { scope: DesignScope; kind:
     />
   );
   const toGallery = () => ask({ view: { mode: "gallery" } });
+  // An event's certificates already issued on another design, and the way to bring them over.
+  const issued = kind === "certificate" && scope.kind === "event" ? <ApplyToIssued eventId={scope.eventId} /> : null;
 
   const d = design.data;
   // The canvas: always for the programme, and for any kind whose backend has no ready designs yet.
@@ -128,6 +131,7 @@ export const DesignTab = ({ scope, kind, dirtyRef }: { scope: DesignScope; kind:
     };
     return (
       <>
+        {issued}
         <LayerDesignerPage
           key={view.mode === "custom" ? `custom-${view.starter ?? ""}` : "canvas"}
           scope={scope}
@@ -181,6 +185,7 @@ export const DesignTab = ({ scope, kind, dirtyRef }: { scope: DesignScope; kind:
   if (open) {
     return (
       <>
+        {issued}
         <PresetEditor
           key={`${audience}-${open.id}`}
           scope={scope}
@@ -201,6 +206,7 @@ export const DesignTab = ({ scope, kind, dirtyRef }: { scope: DesignScope; kind:
   return (
     <>
       <DesignBar left={picker} actions={null} />
+      {issued}
       <GalleryView
         design={d}
         kind={kind}

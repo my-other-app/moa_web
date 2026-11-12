@@ -72,6 +72,8 @@ export const certificateSummarySchema = z.object({
   attended: z.number(),
   registrations: z.number(),
   outdated: z.number(),
+  /** Issued with another design than their role's now: what applying the current design would change (doc-designs contract §6). */
+  other_design: z.number().default(0),
   design_version: z.number(),
   channels: deliverySummarySchema.shape.channels,
 });

@@ -20,6 +20,8 @@ const state: { designs: Partial<Record<DesignKind, LayerDesign>> } = { designs: 
 const savePreset = vi.fn();
 const saveLayout = vi.fn();
 const reset = vi.fn();
+const applyIssued = vi.fn();
+const certificates: { summary: { other_design: number } | undefined } = { summary: undefined };
 const clearPreset = vi.fn();
 const saveArtwork = vi.fn();
 const previewHtml = vi.fn(async (..._args: unknown[]) => "<!doctype html><p>Filled by the server</p>");
@@ -44,6 +46,10 @@ vi.mock("@/lib/images", async (importOriginal) => ({
 }));
 vi.mock("@/features/events", () => ({
   useEventDetail: (id: number) => ({ data: id ? { id, name: "Hack Night" } : undefined }),
+}));
+vi.mock("@/features/certificates", () => ({
+  useCertificateSummary: () => ({ data: certificates.summary }),
+  useApplyDesignToIssued: () => ({ mutate: applyIssued, isPending: false }),
 }));
 vi.mock("@/features/registrations", () => ({
   useRegistrations: () => ({ data: { items: [], total: 0 } }),
@@ -227,6 +233,8 @@ const pick = async (name: RegExp) => fireEvent.click(await screen.findByRole("bu
 beforeEach(() => {
   state.designs = { ticket: design("ticket"), badge: design("badge"), certificate: design("certificate"), agenda: design("agenda") };
   savePreset.mockReset();
+  applyIssued.mockReset();
+  certificates.summary = undefined;
   saveLayout.mockReset();
   reset.mockReset();
   previewHtml.mockClear();
@@ -471,5 +479,33 @@ describe("where the design comes from", () => {
     await pick(/Custom design/);
     fireEvent.click(await screen.findByRole("button", { name: /Use this design/ }));
     await waitFor(() => expect(clearPreset).toHaveBeenCalled());
+  });
+});
+
+describe("certificates already issued", () => {
+  it("says how many keep another design, and applies the current one after asking", async () => {
+    certificates.summary = { other_design: 3 };
+    open();
+    await tab("Certificate");
+    expect(await screen.findByText(/3 certificates already issued keep the design they were issued with/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Apply the current design" }));
+    const dialog = await screen.findByRole("dialog", { name: "Apply the current design to 3 certificates?" });
+    expect(applyIssued).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: /Apply to 3 certificates/ }));
+    expect(applyIssued).toHaveBeenCalled();
+  });
+
+  it("says nothing when every issued certificate is on the current design, or on the club's templates", async () => {
+    certificates.summary = { other_design: 0 };
+    const { unmount } = open();
+    await tab("Certificate");
+    await screen.findByRole("heading", { name: "Ready designs" });
+    expect(screen.queryByText(/already issued keep/)).not.toBeInTheDocument();
+    unmount();
+    certificates.summary = { other_design: 2 };
+    open({ kind: "club" });
+    await tab("Certificate");
+    await screen.findByRole("heading", { name: "Ready designs" });
+    expect(screen.queryByText(/already issued keep/)).not.toBeInTheDocument();
   });
 });
