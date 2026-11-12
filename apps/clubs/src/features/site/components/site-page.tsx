@@ -158,8 +158,9 @@ export function SitePage() {
   const changes = site ? changesOf(site, draft, template, imageIds) : {};
   const changesKey = JSON.stringify(changes);
   const dirty = changesKey !== "{}";
-  // Keyed on the text of the changes: a re-render with the same choices is no new preview.
-  const settled = useDebounced(changesKey, 400);
+  // Keyed on the text of the changes: a re-render with the same choices is no new preview. Half a
+  // second of quiet keeps typing well under the API's 60 previews a minute.
+  const settled = useDebounced(changesKey, 500);
   const previewBody = React.useMemo(() => JSON.parse(settled) as SitePatch, [settled]);
   const libraryVersion = images.map((i) => `${i.id}:${i.alt ?? ""}`).join(",");
   const preview = usePreview(previewBody, !!site, libraryVersion);
