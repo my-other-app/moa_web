@@ -10,13 +10,14 @@ import { GALLERY_PREFIX, SECTION_WORDS, TITLE_MAX, type Layout, type LayoutPatch
  * - `hidden` only names sections the template lets be hidden;
  * - `titles` are trimmed, at most 60 characters, and only for its sections
  *   (an empty one, or the template's own, is no override);
- * - `slots` only name its slots and the club's own photos.
+ * - `slots` only name its slots and the club's own photos;
+ * - `join_text` is one line (whitespace runs as one space), null when empty.
  *
  * The editor's draft keeps every key it has seen (`mergeLayout`), so a
  * template tried and left again keeps what was set for it.
  */
 
-export const EMPTY_LAYOUT: Layout = { order: [], hidden: [], titles: {}, slots: {}, accent: null };
+export const EMPTY_LAYOUT: Layout = { order: [], hidden: [], titles: {}, slots: {}, accent: null, join_text: null };
 
 /** The photo library in its order: position, then the order they came in. */
 export function sortImages(images: readonly SiteImage[]): SiteImage[] {
@@ -42,7 +43,7 @@ export function layoutFor(template: SiteTemplate | undefined, layout: Layout, im
     const id = layout.slots[s.key];
     if (typeof id === "number" && (!imageIds || imageIds.has(id))) slots[s.key] = id;
   }
-  return { order, hidden, titles, slots, accent: layout.accent ?? null };
+  return { order, hidden, titles, slots, accent: layout.accent ?? null, join_text: oneLine(layout.join_text) };
 }
 
 /**
@@ -59,20 +60,24 @@ export function mergeLayout(union: Layout, template: SiteTemplate | undefined, n
     titles: { ...keep(union.titles, own), ...next.titles },
     slots: { ...keep(union.slots, ownSlots), ...next.slots },
     accent: next.accent,
+    join_text: next.join_text,
   };
 }
 
 /**
  * `now` as a PATCH body against `saved` (both as the template keeps them):
  * the server merges titles and slots by key, so one cleared since is sent
- * as null.
+ * as null. The Join line goes only when it changed (null: back to the
+ * default), so a server without it is never sent one it did not give.
  */
 export function layoutPatch(saved: Layout, now: Layout): LayoutPatch {
   const titles: Record<string, string | null> = { ...now.titles };
   for (const k of Object.keys(saved.titles)) if (!(k in now.titles)) titles[k] = null;
   const slots: Record<string, number | null> = { ...now.slots };
   for (const k of Object.keys(saved.slots)) if (!(k in now.slots)) slots[k] = null;
-  return { order: now.order, hidden: now.hidden, titles, slots, accent: now.accent };
+  const out: LayoutPatch = { order: now.order, hidden: now.hidden, titles, slots, accent: now.accent };
+  if ((now.join_text ?? null) !== (saved.join_text ?? null)) out.join_text = now.join_text ?? null;
+  return out;
 }
 
 /** Two layouts that make the same page (keys in any order). */
@@ -83,7 +88,8 @@ export function sameLayout(a: Layout, b: Layout): boolean {
     [...a.hidden].sort().join("|") === [...b.hidden].sort().join("|") &&
     rec(a.titles) === rec(b.titles) &&
     rec(a.slots) === rec(b.slots) &&
-    (a.accent ?? null)?.toLowerCase() === (b.accent ?? null)?.toLowerCase()
+    (a.accent ?? null)?.toLowerCase() === (b.accent ?? null)?.toLowerCase() &&
+    (a.join_text ?? null) === (b.join_text ?? null)
   );
 }
 
@@ -184,6 +190,11 @@ export function sectionWord(template: SiteTemplate | undefined, key: string): st
 /** The template the site (or the draft) uses. */
 export function templateOf(site: Site, key: string): SiteTemplate | undefined {
   return site.templates.find((t) => t.key === key);
+}
+
+/** One line of plain text as the server keeps the Join line: whitespace runs as one space, trimmed; null when empty. */
+export function oneLine(v: string | null | undefined): string | null {
+  return (v ?? "").split(/\s+/).filter(Boolean).join(" ") || null;
 }
 
 /** A trimmed line, or null for an empty one (the server keeps it so). */

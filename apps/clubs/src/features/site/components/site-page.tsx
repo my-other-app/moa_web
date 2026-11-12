@@ -3,6 +3,7 @@
 import * as React from "react";
 import { CheckIcon, CopyIcon, ExternalLinkIcon, GlobeIcon, Loader2Icon, LockIcon, RefreshCwIcon } from "lucide-react";
 import { formatDateTime } from "@moa/app-kit";
+import { ApiError } from "@moa/api";
 import { CardLabel, EmptyState, FigurePanel, Notice, Skeleton, TabPanel, TabRail, toast } from "@moa/ui";
 
 import { useMyClub } from "@/features/club";
@@ -10,7 +11,7 @@ import { LockedNotice, useFeatureGate } from "@/features/plan";
 
 import { EMPTY_LAYOUT, layoutFor, layoutPatch, line, mergeLayout, sameLayout, sortImages, templateOf } from "../layout";
 import { usePatchSite, usePreview, usePublishSite, useSite } from "../queries";
-import { DEFAULT_LIMITS, LEGACY_SECTION_LABEL, isV2, type Layout, type Site, type SitePatch, type SiteTemplate } from "../schemas";
+import { DEFAULT_LIMITS, JOIN_TEXT_TOO_LONG, LEGACY_SECTION_LABEL, isV2, type Layout, type Site, type SitePatch, type SiteTemplate } from "../schemas";
 import { useUploadQueue } from "../uploads";
 import { DomainCard } from "./domain-card";
 import { ImageSlots } from "./image-slots";
@@ -75,7 +76,24 @@ function changesOf(site: Site, draft: Draft, template: SiteTemplate | undefined,
   return out;
 }
 
-function Editor({ site, draft, setDraft, tab, setTab }: { site: Site; draft: Draft; setDraft: React.Dispatch<React.SetStateAction<Draft>>; tab: Tab; setTab: (t: Tab) => void }) {
+function Editor({
+  site,
+  draft,
+  setDraft,
+  tab,
+  setTab,
+  joinError,
+  onJoinEdit,
+}: {
+  site: Site;
+  draft: Draft;
+  setDraft: React.Dispatch<React.SetStateAction<Draft>>;
+  tab: Tab;
+  setTab: (t: Tab) => void;
+  /** The API refused the Join line (too long): said under its field until it is edited. */
+  joinError: string | null;
+  onJoinEdit: () => void;
+}) {
   const club = useMyClub();
   const v2 = isV2(site);
   const images = React.useMemo(() => sortImages(site.images ?? []), [site.images]);
@@ -127,7 +145,21 @@ function Editor({ site, draft, setDraft, tab, setTab }: { site: Site; draft: Dra
             defaultSubline={site.default_subline}
             onHeadline={(headline) => setDraft((d) => ({ ...d, headline }))}
             onSubline={(subline) => setDraft((d) => ({ ...d, subline }))}
-            {...(v2 ? { accent: layout.accent, templateAccent: template?.accent ?? null, brand: site.club_colour ?? club.data?.brand_primary ?? null, onAccent: (accent: string | null) => setLayout({ ...layout, accent }) } : {})}
+            {...(v2
+              ? {
+                  accent: layout.accent,
+                  templateAccent: template?.accent ?? null,
+                  brand: site.club_colour ?? club.data?.brand_primary ?? null,
+                  onAccent: (accent: string | null) => setLayout({ ...layout, accent }),
+                  // As typed (the layout's is trimmed): a space between words stays while typing.
+                  joinText: (draft.layout ?? site.layout ?? EMPTY_LAYOUT).join_text ?? "",
+                  onJoinText: (join_text: string) => {
+                    onJoinEdit();
+                    setLayout({ ...layout, join_text });
+                  },
+                  joinError,
+                }
+              : {})}
           />
         )}
       </TabPanel>
@@ -179,8 +211,10 @@ export function SitePage() {
     if (!dirty) return true;
     try {
       await patch.mutateAsync(changes);
-    } catch {
-      return false; // said by the mutation's toast
+    } catch (error) {
+      // Said by the mutation's toast; a Join line refused is also said under its field, shown.
+      if (error instanceof ApiError && error.errorCode === JOIN_TEXT_TOO_LONG) setTab("text");
+      return false;
     }
     setDraft({});
     return true;
@@ -206,6 +240,7 @@ export function SitePage() {
   if (q.isError) return <EmptyState tone="muted" title="The website could not load" description="Try again in a moment." />;
 
   const address = site?.url.replace(/^https?:\/\//, "") ?? "";
+  const joinError = patch.error instanceof ApiError && patch.error.errorCode === JOIN_TEXT_TOO_LONG ? patch.error.message : null;
   const busy = publish.isPending || patch.isPending;
 
   return (
@@ -265,7 +300,11 @@ export function SitePage() {
       {published ? <SiteAnalytics published /> : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
-        {!site ? <Skeleton className="h-[640px]" /> : <Editor site={site} draft={draft} setDraft={setDraft} tab={tab} setTab={setTab} />}
+        {!site ? (
+          <Skeleton className="h-[640px]" />
+        ) : (
+          <Editor site={site} draft={draft} setDraft={setDraft} tab={tab} setTab={setTab} joinError={joinError} onJoinEdit={() => (joinError ? patch.reset() : undefined)} />
+        )}
         <div className="lg:sticky lg:top-4 lg:self-start">
           <SitePreview html={preview.data} address={address} updating={preview.isFetching || changesKey !== settled} failed={preview.isError} />
         </div>

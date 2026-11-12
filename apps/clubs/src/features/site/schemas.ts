@@ -19,6 +19,12 @@ import { z } from "zod";
 export const TITLE_MAX = 60;
 export const HEADLINE_MAX = 120;
 export const SUBLINE_MAX = 240;
+/** The club's own line for the Join section (layout.join_text). */
+export const JOIN_TEXT_MAX = 240;
+/** What the Join section says when the club writes nothing (the server's default). */
+export const JOIN_TEXT_DEFAULT = "Joining is free. Follow us to hear about every event first.";
+/** The API's refusal of a Join line over 240 characters. */
+export const JOIN_TEXT_TOO_LONG = "SITE_JOIN_TEXT_TOO_LONG";
 /** A library photo's alt text. */
 export const ALT_MAX = 200;
 /** What the library holds and each photo may weigh, when the server does not say. */
@@ -133,15 +139,33 @@ export const layoutSchema = z.object({
     .catch({})
     .transform((s) => Object.fromEntries(Object.entries(s).filter((e): e is [string, number] => typeof e[1] === "number"))),
   accent: z.string().regex(HEX).nullable().optional().catch(null).transform((a) => a ?? null),
+  /** The Join section's line, plain text; null for the default (absent from a server before it). */
+  join_text: z.string().nullable().optional().catch(null).transform((t) => t ?? null),
 });
-export type Layout = { order: string[]; hidden: string[]; titles: Record<string, string>; slots: Record<string, number>; accent: string | null };
+export type Layout = {
+  order: string[];
+  hidden: string[];
+  titles: Record<string, string>;
+  slots: Record<string, number>;
+  accent: string | null;
+  /** In the draft, as typed; layoutFor trims it (an empty one is null). */
+  join_text: string | null;
+};
 /**
  * The layout as PATCH and the preview take it: `order` and `hidden`
  * replace; `titles` and `slots` merge by key, a null clearing one (back to
  * the template's title, an empty slot); `accent` sets, or null for the
- * template's own.
+ * template's own; `join_text`, sent only when it changed, sets the Join
+ * section's line, or null for the default.
  */
-export type LayoutPatch = { order: string[]; hidden: string[]; titles: Record<string, string | null>; slots: Record<string, number | null>; accent: string | null };
+export type LayoutPatch = {
+  order: string[];
+  hidden: string[];
+  titles: Record<string, string | null>;
+  slots: Record<string, number | null>;
+  accent: string | null;
+  join_text?: string | null;
+};
 
 export const siteImageSchema = z.object({
   id: z.number(),
