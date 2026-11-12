@@ -11,7 +11,7 @@ import { useEventDetail } from "@/features/events";
 import { DESIGNERS } from "../config";
 import { DESIGN_KINDS, type DesignKind, type DesignScope } from "../schemas";
 import { LeaveDialog } from "./dialogs";
-import { LayerDesignerPage } from "./layer-designer";
+import { DesignTab } from "./design-tab";
 
 const isKind = (v: string | null): v is DesignKind => !!v && (DESIGN_KINDS as readonly string[]).includes(v);
 
@@ -87,7 +87,7 @@ function Designers({ scope }: { scope: DesignScope }) {
         items={DESIGN_KINDS.map((k) => ({ key: k, label: DESIGNERS[k].label }))}
       />
 
-      <LayerDesignerPage key={kind} scope={scope} kind={kind} dirtyRef={dirtyRef} />
+      <DesignTab key={kind} scope={scope} kind={kind} dirtyRef={dirtyRef} />
 
       <LeaveDialog
         open={pending !== null}

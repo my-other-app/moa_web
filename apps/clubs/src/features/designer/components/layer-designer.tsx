@@ -35,10 +35,10 @@ import { DESIGNERS, designSamples, type DesignerConfig } from "../config";
 import { useLayout, useResetLayout, useSaveLayout } from "../queries";
 import { AUDIENCES, type Audience, type DesignKind, type DesignScope, type LayerDesign } from "../schemas";
 import { detectTicketArea } from "./detect-area";
-import { GuideDialog, LayoutsDialog, LeaveDialog, PreviewDialog, ResetDialog, type StageLook } from "./dialogs";
+import { GuideDialog, LayoutsDialog, PreviewDialog, ResetDialog, type StageLook } from "./dialogs";
 import { type Layout, layoutLayer, scaleLayer, useLayoutHistory, useTicketFonts } from "./kit";
 import { CanvasPanel, Inspector, type InspectorContext, LayersPanel } from "./panels";
-import { AudiencePicker, DesignActions, DesignBar, Provenance, SaveBar, type SaveState, Shortcuts } from "./shell";
+import { BackToDesigns, DesignActions, DesignBar, Provenance, SaveBar, type SaveState, Shortcuts } from "./shell";
 import { AREA_ID, TicketStage } from "./stage";
 
 const ZOOMS = [0.25, 0.5, 0.75, 1, 1.5, 2] as const;
@@ -61,54 +61,52 @@ const EditorSkeleton = ({ bar }: { bar: React.ReactNode }) => (
 );
 
 /**
- * The layer designer -- tickets and certificates alike. A template uploaded
+ * The layer designer -- the free canvas, for every kind. A template uploaded
  * from Figma (or a starter layout) with text, QR, image and shape layers on
  * top, every text layer a template of tokens, on a page of a known physical
  * size. Designs are per event, with an optional copy per audience.
  *
- * `dirtyRef` is the page's: it asks before switching kind, and learns about
- * unsaved work from the editor through it.
+ * The tab around it owns who the design is for (`audience`, with its picker)
+ * and asks before a switch loses unsaved work; `dirtyRef` is how it learns
+ * about that work. `startWith` opens on one of the kind's starters (the CR80
+ * card), unsaved; `onBack` returns to the gallery of designs.
  */
 export const LayerDesignerPage = ({
   scope,
   kind,
+  audience,
+  picker,
   dirtyRef,
+  onBack,
+  startWith,
+  presetInUse,
 }: {
   scope: DesignScope;
   kind: DesignKind;
+  audience: Audience;
+  picker: React.ReactNode;
   dirtyRef: React.MutableRefObject<boolean>;
+  onBack?: () => void;
+  startWith?: string | null;
+  /** The name of the ready design this kind uses now, if it uses one: saving the canvas replaces it. */
+  presetInUse?: string | null;
 }) => {
   const config = DESIGNERS[kind];
   // The club's designer has no event: the hook stays quiet for 0.
   const eventId = scope.kind === "event" ? scope.eventId : 0;
-  const [audience, setAudience] = React.useState<Audience>("event_default");
-  const [pending, setPending] = React.useState<Audience | null>(null);
   const [nonce, setNonce] = React.useState(0);
   const design = useLayout(scope, kind, audience);
-
-  const changeScope = (next: Audience) => {
-    if (next === audience) return;
-    if (dirtyRef.current) setPending(next);
-    else setAudience(next);
-  };
-  const picker = scope.kind === "event" ? <AudiencePicker value={audience} onChange={changeScope} /> : null;
-  const leave = (
-    <LeaveDialog
-      open={pending !== null}
-      what={config.noun}
-      onStay={() => setPending(null)}
-      onLeave={() => {
-        dirtyRef.current = false;
-        if (pending) setAudience(pending);
-        setPending(null);
-      }}
-    />
+  const left = (
+    <>
+      {onBack ? <BackToDesigns onClick={onBack} /> : null}
+      {picker}
+    </>
   );
 
   if (design.isError) {
     return (
       <>
-        <DesignBar left={picker} actions={<DesignActions disabled />} />
+        <DesignBar left={left} actions={<DesignActions disabled onLayouts={config.starter ? undefined : null} />} />
         <EmptyState
           tone="muted"
           title="Could not load this design"
@@ -119,36 +117,32 @@ export const LayerDesignerPage = ({
             </Button>
           }
         />
-        {leave}
       </>
     );
   }
   const d = design.data;
-  return (
-    <>
-      {d ? (
-        <Editor
-          key={`${audience}-${nonce}`}
-          config={config}
-          scope={scope}
-          eventId={eventId}
-          design={d}
-          audience={audience}
-          picker={picker}
-          onSaved={() => void design.refetch()}
-          onDiscard={() => setNonce((n) => n + 1)}
-          onReset={async () => {
-            // The design reset to is a different one: open it fresh, history and all.
-            await design.refetch();
-            setNonce((n) => n + 1);
-          }}
-          dirtyRef={dirtyRef}
-        />
-      ) : (
-        <EditorSkeleton bar={<DesignBar left={picker} actions={<DesignActions disabled />} />} />
-      )}
-      {leave}
-    </>
+  return d ? (
+    <Editor
+      key={`${audience}-${nonce}`}
+      config={config}
+      scope={scope}
+      eventId={eventId}
+      design={d}
+      audience={audience}
+      picker={left}
+      startWith={nonce === 0 ? (startWith ?? null) : null}
+      presetInUse={presetInUse ?? null}
+      onSaved={() => void design.refetch()}
+      onDiscard={() => setNonce((n) => n + 1)}
+      onReset={async () => {
+        // The design reset to is a different one: open it fresh, history and all.
+        await design.refetch();
+        setNonce((n) => n + 1);
+      }}
+      dirtyRef={dirtyRef}
+    />
+  ) : (
+    <EditorSkeleton bar={<DesignBar left={left} actions={<DesignActions disabled onLayouts={config.starter ? undefined : null} />} />} />
   );
 };
 
@@ -158,23 +152,30 @@ interface EditorProps {
   eventId: number;
   design: LayerDesign;
   audience: Audience;
-  /** Who the design is for -- an event's only; the club's templates are for everyone. */
+  /** Who the design is for -- an event's only; the club's templates are for everyone -- and the way back to the gallery. */
   picker: React.ReactNode;
+  /** A starter to open on instead of the saved design, unsaved. */
+  startWith: string | null;
+  presetInUse: string | null;
   onSaved: () => void;
   onDiscard: () => void;
   onReset: () => Promise<void>;
   dirtyRef: React.MutableRefObject<boolean>;
 }
 
-const Editor = ({ config, scope, eventId, design, audience, picker, onSaved, onDiscard, onReset, dirtyRef }: EditorProps) => {
+const Editor = ({ config, scope, eventId, design, audience, picker, startWith, presetInUse, onSaved, onDiscard, onReset, dirtyRef }: EditorProps) => {
   const save = useSaveLayout(scope, config.kind, audience);
   const reset = useResetLayout(scope, config.kind, audience);
-  const initial = React.useMemo<Layout>(() => ({ canvas: design.canvas, layers: design.layers, page: design.page }), [design]);
+  const saved = React.useMemo<Layout>(() => ({ canvas: design.canvas, layers: design.layers, page: design.page }), [design]);
+  // Opened from a starter card (the CR80 card): that layout, unsaved, over whatever was saved.
+  const [initial] = React.useState<Layout>(() => (startWith && config.starter ? config.starter(startWith, { seats: false, page: saved.page }) : saved));
   // What the server holds; updated on save so the editor need not remount -- a
   // remount would close a preview opened right after saving.
-  const [savedJson, setSavedJson] = React.useState(() => JSON.stringify(initial));
+  const [savedJson, setSavedJson] = React.useState(() => JSON.stringify(saved));
   const [version, setVersion] = React.useState(design.version);
   const [fromStarter, setFromStarter] = React.useState(design.fromStarter);
+  // Saving the canvas makes it the design in use; until then a ready design may be.
+  const [replacing, setReplacing] = React.useState(presetInUse);
   const history = useLayoutHistory(initial);
   const { layout, set, undo, redo, seal } = history;
   const [selected, setSelected] = React.useState<string | null>(null);
@@ -693,6 +694,7 @@ const Editor = ({ config, scope, eventId, design, audience, picker, onSaved, onD
       set(next);
       setVersion(res.version);
       setFromStarter(false);
+      setReplacing(null);
       dirtyRef.current = false;
       onSaved();
     } catch (err) {
@@ -873,8 +875,15 @@ const Editor = ({ config, scope, eventId, design, audience, picker, onSaved, onD
     <>
       <DesignBar
         left={picker}
-        actions={<DesignActions onGuide={() => setDialog("guide")} onLayouts={() => setDialog("layouts")} onPreview={() => setDialog("preview")} />}
+        actions={
+          <DesignActions onGuide={() => setDialog("guide")} onLayouts={config.starter ? () => setDialog("layouts") : null} onPreview={() => setDialog("preview")} />
+        }
       />
+      {replacing ? (
+        <Notice tone="caution" tag="Not in use">
+          {Noun}s use the {replacing} design now. Saving this canvas makes it the {config.noun} design instead.
+        </Notice>
+      ) : null}
       <Provenance
         scope={scope}
         audience={audience}
@@ -1090,6 +1099,7 @@ const Editor = ({ config, scope, eventId, design, audience, picker, onSaved, onD
         page={page}
         look={look}
         onPick={(name) => {
+          if (!config.starter) return;
           set(config.starter(name, { seats: false, page }));
           setSelected(null);
           setMode("edit");

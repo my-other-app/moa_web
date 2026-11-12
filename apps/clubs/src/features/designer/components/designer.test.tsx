@@ -202,17 +202,28 @@ describe("layers and properties", () => {
 });
 
 describe("layouts", () => {
-  it("lists the starters as choices and replaces the design only once one is picked", async () => {
+  it("offers the ID card one layout, the CR80 card, and replaces the design only once it is picked", async () => {
     open(EVENT);
+    fireEvent.click(await screen.findByRole("tab", { name: "ID card" }));
     fireEvent.click(await screen.findByRole("button", { name: /Layouts/ }));
     const dialog = await screen.findByRole("dialog", { name: "Start from a layout" });
     const choices = within(dialog).getAllByRole("radio");
-    expect(choices.length).toBeGreaterThan(1);
+    expect(choices).toHaveLength(1);
+    expect(choices[0]).toHaveTextContent(/Card \(CR80\)/);
     const replace = within(dialog).getByRole("button", { name: "Replace the design" });
     expect(replace).toBeDisabled();
     fireEvent.click(choices[0]!);
     expect(replace).toBeEnabled();
     fireEvent.click(replace);
     expect(within(saveBar()).getByRole("status")).toHaveTextContent(/Unsaved changes/);
+  });
+
+  it("has no layouts for tickets or certificates any more: their canvas starts blank", async () => {
+    open(EVENT);
+    await screen.findByRole("region", { name: "Layers" });
+    expect(screen.queryByRole("button", { name: /Layouts/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Certificate" }));
+    await screen.findByRole("region", { name: "Layers" });
+    expect(screen.queryByRole("button", { name: /Layouts/ })).not.toBeInTheDocument();
   });
 });

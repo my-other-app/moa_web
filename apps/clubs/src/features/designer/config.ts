@@ -3,13 +3,8 @@ import {
   agendaStarter,
   BADGE_STARTERS,
   badgeStarter,
-  CERTIFICATE_STARTERS,
-  certificateStarter,
-  PAGE_PRESETS,
-  TICKET_STARTERS,
   TOKEN_BY_KEY,
   sampleValues,
-  ticketStarter,
   type PagePreset,
   type PageSpec,
   type TicketCanvas,
@@ -40,11 +35,15 @@ export interface DesignerConfig {
   pages: PagePreset[];
   /** Templates are exported at this resolution. */
   dpi: number;
+  /**
+   * Layered designs the canvas can start from. Tickets and certificates have
+   * none now: the designer's templates replaced them, and a custom design
+   * starts from a blank canvas. Badges keep the CR80 card; programmes keep theirs.
+   */
   starters: Record<string, { label: string; note: string }>;
-  starter: (
-    name: string,
-    opts: { seats: boolean; page?: PageSpec | null }
-  ) => { canvas: TicketCanvas; layers: TicketLayer[]; page: PageSpec };
+  starter: ((name: string, opts: { seats: boolean; page?: PageSpec | null }) => { canvas: TicketCanvas; layers: TicketLayer[]; page: PageSpec }) | null;
+  /** Whether the kind has the gallery of ready designs (the designer's templates) before the canvas. */
+  gallery: boolean;
   /** Token groups offered in the insert menu, in order. */
   tokenGroups: TokenGroup[];
   /** The guest-photo image source makes sense here. */
@@ -84,16 +83,14 @@ export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
     kind: "ticket",
     label: "Ticket",
     title: "Ticket design",
-    description: "The ticket each attendee receives. Upload a template from Figma, or start from a layout, then place the fields on it.",
+    description: "The ticket each attendee receives. Pick a design and set its wording, or make your own on the canvas.",
     noun: "ticket",
     qrRequired: true,
     pages: ["ticket"],
     dpi: 300,
-    starters: TICKET_STARTERS,
-    starter: (name, o) => ({
-      ...ticketStarter(name as keyof typeof TICKET_STARTERS, { seats: o.seats }),
-      page: PAGE_PRESETS.ticket.page,
-    }),
+    starters: {},
+    starter: null,
+    gallery: true,
     tokenGroups: ["Guest", "Ticket", "Event", "Club"],
     guestPhoto: false,
     previewNote: "Rendered by the same code that issues tickets. The QR in a preview admits nobody.",
@@ -105,13 +102,14 @@ export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
     kind: "badge",
     label: "ID card",
     title: "ID card design",
-    description: "The card or label printed at the door. Pick the size, upload a template or start from a layout, and mark what the blank stock already carries.",
+    description: "The card printed at the door. Pick a 4 × 6 in design, the CR80 card for card printers, or make your own on the canvas.",
     noun: "card",
     qrRequired: true,
     pages: ["cr80_portrait", "cr80_landscape", "badge_87x130", "badge_130x87", "a6_portrait", "label_4x3", "lanyard_4x6", "label_62x90", "label_54x90", "label_50x90", "label_38x90", "label_29x90"],
     dpi: 300,
     starters: BADGE_STARTERS,
     starter: (name, o) => badgeStarter(name as keyof typeof BADGE_STARTERS, o),
+    gallery: true,
     tokenGroups: ["Guest", "Ticket", "Event", "Club"],
     guestPhoto: true,
     previewNote: "Rendered by the same code that prints at the door, at the card's real size. The QR in a preview admits nobody.",
@@ -123,13 +121,14 @@ export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
     kind: "certificate",
     label: "Certificate",
     title: "Certificate design",
-    description: "The certificate each attendee can receive after the event. A4 by default; the QR, if you keep one, verifies the certificate.",
+    description: "The certificate each attendee can receive after the event, on A4. Pick a design and its wording, or make your own on the canvas.",
     noun: "certificate",
     qrRequired: false,
     pages: ["a4_landscape", "a4_portrait", "letter_landscape"],
     dpi: 150,
-    starters: CERTIFICATE_STARTERS,
-    starter: (name) => certificateStarter(name as keyof typeof CERTIFICATE_STARTERS),
+    starters: {},
+    starter: null,
+    gallery: true,
     tokenGroups: ["Guest", "Certificate", "Event", "Club", "Ticket"],
     guestPhoto: true,
     previewNote: "Rendered by the same code that issues certificates. The QR in a preview verifies nothing.",
@@ -148,6 +147,7 @@ export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
     dpi: 150,
     starters: AGENDA_STARTERS,
     starter: (name) => agendaStarter(name as keyof typeof AGENDA_STARTERS),
+    gallery: false,
     tokenGroups: ["Event", "Club"],
     guestPhoto: false,
     previewNote: "Rendered by the same code that prints the programme, with the event's own sessions.",
