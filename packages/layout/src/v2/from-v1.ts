@@ -14,9 +14,10 @@ import { LayoutV2, type LayoutV2Input, V2_LIMITS } from "./schema";
  * ascent; CSS adds half the leading above it, so the box moves up by that
  * half-leading. Line spacing (extra px) becomes a unitless line height,
  * letter spacing (px) becomes em, "truncate" becomes "ellipsis", and shrink
- * keeps v1's floor of half the size. Agenda layers have no v2 kind and are
- * left out. A shape outline drawn in v1's 1000 × 1000 box is rescaled to the
- * layer's own px.
+ * keeps v1's floor of half the size (v2's when minSize is unset). Agenda
+ * layers have no v2 kind and are left out. A shape outline drawn in v1's
+ * 1000 × 1000 box is rescaled to the layer's own px. A guest photo keeps
+ * v1's initials when there is no photo.
  */
 
 const round = (v: number, places = 3) => {
@@ -75,7 +76,8 @@ const convertLayer = (l: TicketLayer, dx: number, dy: number, s: number): Record
         transform: "none",
         maxLines: Math.min(20, l.maxLines),
         fit: l.fit === "truncate" ? "ellipsis" : "shrink",
-        minSize: Math.max(1, round((l.fit === "truncate" ? l.size : l.size * 0.5) * s)),
+        // v1 shrinks to half the size: v2's floor when minSize is left unset.
+        minSize: null,
         background: null,
         padding: [0, 0, 0, 0],
         radius: [0, 0, 0, 0],
@@ -105,9 +107,12 @@ const convertLayer = (l: TicketLayer, dx: number, dy: number, s: number): Record
         source: l.source,
         imageKey: l.imageKey,
         fit: l.fit,
+        align: l.align,
+        valign: "middle",
         radius: [r, r, r, r],
         border: null,
-        placeholder: "initials",
+        // v1 draws a guest's initials when there is no photo.
+        placeholder: l.source === "guest_photo" ? "initials" : "none",
       };
     }
     case "shape": {

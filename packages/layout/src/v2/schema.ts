@@ -46,17 +46,27 @@ export const SHAPE_PATH = /^[MmLlHhVvCcSsQqTtAaZz0-9.,\s+eE-]*$/;
 
 const isRef = (v: string) => (COLOR_REFS as readonly string[]).includes(v);
 
+const chars = (n: number) => `${n} character${n === 1 ? "" : "s"}`;
+
+/**
+ * A string checked as pydantic checks it: its length first (and nothing
+ * more when that fails), then the field's own validator.
+ */
+const pyString = (opts: { min?: number; max?: number }, check?: (v: string) => string | null) =>
+  z.string().superRefine((v, ctx) => {
+    if (opts.min !== undefined && v.length < opts.min) ctx.addIssue({ code: z.ZodIssueCode.custom, message: `String should have at least ${chars(opts.min)}` });
+    else if (opts.max !== undefined && v.length > opts.max) ctx.addIssue({ code: z.ZodIssueCode.custom, message: `String should have at most ${chars(opts.max)}` });
+    else {
+      const message = check?.(v);
+      if (message) ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+    }
+  });
+
 /** The backend's check_color: a reference as it is, hex upper case, anything else refused. */
 const color = (field = "color") =>
-  z
-    .string()
-    .min(4)
-    .max(16)
-    .superRefine((v, ctx) => {
-      if (!isRef(v) && !HEX_COLOR.test(v))
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${field}: use #RRGGBB, #RRGGBBAA, var:accent, brand.primary, brand.secondary or ticket_type` });
-    })
-    .transform((v) => (isRef(v) ? v : v.toUpperCase()));
+  pyString({ min: 4, max: 16 }, (v) =>
+    !isRef(v) && !HEX_COLOR.test(v) ? `${field}: use #RRGGBB, #RRGGBBAA, var:accent, brand.primary, brand.secondary or ticket_type` : null,
+  ).transform((v) => (isRef(v) ? v : v.toUpperCase()));
 
 /** "#RRGGBB", "#RRGGBBAA" (stored upper case), or var:accent, brand.primary, brand.secondary, ticket_type. */
 export const ColorV2 = color();
@@ -152,14 +162,7 @@ const ShadowField = z
 
 const LayerBase = z.object({
   id: z.string().regex(LAYER_ID, { message: `String should match pattern '${LAYER_ID.source}'` }),
-  name: z
-    .string()
-    .min(1)
-    .max(60)
-    .transform((v) => v.trim())
-    .superRefine((v, ctx) => {
-      if (!v) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Give the layer a name." });
-    }),
+  name: pyString({ min: 1, max: 60 }, (v) => (v.trim() ? null : "Give the layer a name.")).transform((v) => v.trim()),
   x: z.number().min(-10_000).max(10_000),
   y: z.number().min(-10_000).max(10_000),
   width: z.number().gt(0).max(10_000),
@@ -170,15 +173,10 @@ const LayerBase = z.object({
   hidden: z.boolean().default(false),
   locked: z.boolean().default(false),
   /** Left out when this token's value is empty (after trimming). Several tokens: "a b" needs every one, "a|b" any one. */
-  showIf: z
-    .string()
-    .max(200)
+  showIf: pyString({ max: 200 }, (v) => (!v.trim() || SHOW_IF.test(v.trim()) ? null : "showIf: a token, or tokens separated by spaces (all) or | (any)"))
+    .transform((v) => v.trim() || null)
     .nullable()
-    .default(null)
-    .transform((v) => (v === null ? null : v.trim() || null))
-    .superRefine((v, ctx) => {
-      if (v !== null && !SHOW_IF.test(v)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "showIf: a token, or tokens separated by spaces (all) or | (any)" });
-    }),
+    .default(null),
   /** Already on the card stock: drawn on screen, skipped when printed on it. */
   preprinted: z.boolean().default(false),
   /** One shadow, or up to six. */
@@ -248,16 +246,13 @@ export const ShapeLayerV2 = LayerBase.extend({
   kind: z.literal("shape"),
   shape: z.enum(["rect", "ellipse", "path"]).default("rect"),
   /** For "path": M/L/H/V/C/S/Q/T/A/Z in the layer's own pixels (0..width, 0..height). */
-  path: z
-    .string()
-    .max(V2_LIMITS.maxPath)
+  path: pyString({ max: V2_LIMITS.maxPath }, (raw) => {
+    const v = raw.split(/\s+/).filter(Boolean).join(" ");
+    return v && (!SHAPE_PATH.test(v) || !"Mm".includes(v[0]!)) ? "path: SVG path commands (M, L, H, V, C, S, Q, T, A, Z) and numbers, starting with M" : null;
+  })
+    .transform((v) => v.split(/\s+/).filter(Boolean).join(" ") || null)
     .nullable()
-    .default(null)
-    .transform((v) => (v === null ? null : v.split(/\s+/).filter(Boolean).join(" ") || null))
-    .superRefine((v, ctx) => {
-      if (v !== null && (!SHAPE_PATH.test(v) || !"Mm".includes(v[0]!)))
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "path: SVG path commands (M, L, H, V, C, S, Q, T, A, Z) and numbers, starting with M" });
-    }),
+    .default(null),
   fill: FillV2.nullable().default(null),
   stroke: StrokeV2.nullable().default(null),
   radius: four("radius"),
