@@ -12,7 +12,7 @@ import { SCOPE_GROUPS, SCOPE_INFO, groupScopes, needsNoticeTick, noticeText, sco
  * again. The secret lives only in the dialog's state: closing the dialog
  * forgets it, and nothing writes it anywhere else.
  */
-export function SecretOnce({ label, secret, children }: { label: string; secret: string; children?: React.ReactNode }) {
+export function SecretOnce({ label, secret, warning, children }: { label: string; secret: string; warning?: React.ReactNode; children?: React.ReactNode }) {
   const [copied, setCopied] = React.useState(false);
   const copy = async () => {
     try {
@@ -28,8 +28,8 @@ export function SecretOnce({ label, secret, children }: { label: string; secret:
       <div className="bg-caution-soft text-ink flex items-start gap-2.5 rounded-xl px-3.5 py-3 text-[12.5px] leading-[1.55]" role="alert">
         <AlertTriangleIcon className="text-caution mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <p className="m-0">
-          <strong className="font-semibold">Copy it now. It won&apos;t be shown again.</strong> We keep only a fingerprint of it, so if it&apos;s lost, make a new one. Keep it out of
-          websites, apps and shared documents: anyone who has it acts as your club.
+          <strong className="font-semibold">Copy it now. It won&apos;t be shown again.</strong>{" "}
+          {warning ?? "We keep only a fingerprint of it, so if it's lost, make a new one. Keep it out of websites, apps and shared documents: anyone who has it acts as your club."}
         </p>
       </div>
       <div>

@@ -5,6 +5,8 @@ import {
   consentDecisionSchema,
   consentSchema,
   deliveriesSchema,
+  docsLinkCreatedSchema,
+  docsLinksSchema,
   endpointSchema,
   endpointWithSecretSchema,
   endpointsSchema,
@@ -17,6 +19,7 @@ import {
   usageSchema,
   webhookStatusSchema,
   type CreateKeyBody,
+  type DocsLinkBody,
   type EndpointBody,
   type OAuthParams,
 } from "./schemas";
@@ -47,9 +50,13 @@ import {
  *   POST   /clubs/integrations/webhooks/{id}/test              {ok, delivery}
  *   GET    /clubs/integrations/webhooks/{id}/deliveries        ?status=&cursor=&limit= → {data: [delivery], next_cursor}
  *   POST   /clubs/integrations/webhooks/deliveries/{id}/retry  {ok, delivery} (a replay)
+ *   GET    /clubs/integrations/docs-links                      {links: [link]} newest first, ended ones for 30 days
+ *   POST   /clubs/integrations/docs-links                      {purpose: "self"|"share", label?} → {link, url}: the url once
+ *   DELETE /clubs/integrations/docs-links/{id}                 {revoked: true}
  */
 export const BASE = "/api/v1/clubs/integrations";
 const HOOKS = `${BASE}/webhooks`;
+const DOCS = `${BASE}/docs-links`;
 const id = (v: string) => encodeURIComponent(v);
 
 /**
@@ -153,4 +160,27 @@ export interface ConsentDecision {
 
 export async function decideConsent(params: OAuthParams, body: ConsentDecision) {
   return consentDecisionSchema.parse(await api.post<unknown>(`${BASE}/connect`, { ...params, ...body }));
+}
+
+/**
+ * The club's links to the private developer docs. `null` on an API without
+ * them, and for a club or role that may not make them (403), so the card
+ * stays out of sight.
+ */
+export async function fetchDocsLinks() {
+  try {
+    return docsLinksSchema.parse(await api.get<unknown>(DOCS));
+  } catch (error) {
+    if (isIntegrationsMissing(error) || isNotAllowed(error)) return null;
+    throw error;
+  }
+}
+
+/** A new link. The link itself comes back once, to the caller: nothing here keeps it. */
+export async function createDocsLink(body: DocsLinkBody) {
+  return docsLinkCreatedSchema.parse(await api.post<unknown>(DOCS, body));
+}
+
+export async function revokeDocsLink(linkId: string) {
+  await api.del<unknown>(`${DOCS}/${id(linkId)}`);
 }

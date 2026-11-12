@@ -7,6 +7,7 @@ import { useAccess, useMyAccess } from "@/features/access";
 import { toastError } from "@/features/plan";
 
 import {
+  createDocsLink,
   createEndpoint,
   createKey,
   decideConsent,
@@ -15,12 +16,14 @@ import {
   fetchConnections,
   fetchConsent,
   fetchDeliveries,
+  fetchDocsLinks,
   fetchEndpoints,
   fetchKeys,
   fetchStatus,
   fetchUsage,
   fetchWebhookStatus,
   retryDelivery,
+  revokeDocsLink,
   revokeKey,
   rotateEndpointSecret,
   rotateKey,
@@ -28,13 +31,24 @@ import {
   updateEndpoint,
   type ConsentDecision,
 } from "./api";
-import { deliveryOutcome, integrationsVisible, type Connection, type CreateKeyBody, type Endpoint, type EndpointBody, type OAuthParams } from "./schemas";
+import {
+  deliveryOutcome,
+  docsLinkBody,
+  integrationsVisible,
+  type Connection,
+  type CreateKeyBody,
+  type DocsLink,
+  type Endpoint,
+  type EndpointBody,
+  type OAuthParams,
+} from "./schemas";
 
 export const INTEGRATIONS_KEY = ["integrations"] as const;
 const STATUS_KEY = [...INTEGRATIONS_KEY, "status"] as const;
 const KEYS_KEY = [...INTEGRATIONS_KEY, "keys"] as const;
 const ENDPOINTS_KEY = [...INTEGRATIONS_KEY, "webhooks"] as const;
 const APPS_KEY = [...INTEGRATIONS_KEY, "apps"] as const;
+const DOCS_KEY = [...INTEGRATIONS_KEY, "docs-links"] as const;
 const deliveriesKey = (endpointId: string, status: string | undefined) => [...ENDPOINTS_KEY, endpointId, "deliveries", status ?? "all"] as const;
 
 /** How often an API (or a club) without integrations is asked again, so the section turns up by itself. */
@@ -256,5 +270,78 @@ export function useDecideConsent(params: OAuthParams) {
   return useMutation({
     mutationFn: (body: ConsentDecision) => decideConsent(params, body),
     onSuccess: () => refresh(APPS_KEY, STATUS_KEY),
+  });
+}
+
+// ─── Developer docs links ────────────────────────────────────────────────
+
+/** The club's docs links; `null` on an API without them, or for a club that may not make them. */
+export function useDocsLinks(enabled = true) {
+  return useQuery({ queryKey: DOCS_KEY, queryFn: fetchDocsLinks, enabled, staleTime: 15_000, retry: false });
+}
+
+/** A tab for the docs, opened in the click itself and sent on once the link is made. */
+export interface DocsTab {
+  go: (url: string) => void;
+  close: () => void;
+}
+
+/**
+ * Opening the docs in a new tab (a seam, so tests can watch it without a
+ * window). The tab opens in the click, before the link is made, so a popup
+ * blocker lets it through; it is cut off from this page, then sent to the
+ * link. If no tab could be opened, this page goes to the docs instead.
+ */
+export const docsTab = {
+  open(): DocsTab {
+    const w = window.open("", "_blank");
+    if (w) w.opener = null;
+    return {
+      go: (url) => {
+        if (w && !w.closed) w.location.replace(url);
+        else window.location.assign(url);
+      },
+      close: () => {
+        if (w && !w.closed) w.close();
+      },
+    };
+  },
+};
+
+/** "Open developer docs": a link of one's own (7 days), opened in the tab made for it. */
+export function useOpenDocs() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (_tab: DocsTab) => createDocsLink(docsLinkBody("self")),
+    onSuccess: (made, tab) => {
+      tab.go(made.url);
+      refresh(DOCS_KEY);
+    },
+    onError: (error, tab) => {
+      tab.close();
+      toastError(error);
+    },
+  });
+}
+
+/** "Share with your developer": a 30-day link, given back once to the caller. */
+export function useShareDocs() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (label: string) => createDocsLink(docsLinkBody("share", label)),
+    onSuccess: () => refresh(DOCS_KEY),
+    onError: toastError,
+  });
+}
+
+export function useRevokeDocsLink() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (link: DocsLink) => revokeDocsLink(link.id),
+    onSuccess: () => {
+      toast.success("Link revoked. It stops working within 5 minutes.");
+      refresh(DOCS_KEY);
+    },
+    onError: toastError,
   });
 }

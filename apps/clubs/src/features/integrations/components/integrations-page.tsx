@@ -4,9 +4,10 @@ import * as React from "react";
 import { ExternalLinkIcon } from "lucide-react";
 import { EmptyState, Notice, Skeleton, TabRail } from "@moa/ui";
 
-import { useIntegrationsRole, useIntegrationsStatus } from "../queries";
+import { useDocsLinks, useIntegrationsRole, useIntegrationsStatus } from "../queries";
 import { DOCS_URL, integrationsVisible, type IntegrationsStatus } from "../schemas";
 import { AppsPanel } from "./apps-panel";
+import { DocsPanel } from "./docs-panel";
 import { KeysPanel } from "./keys-panel";
 import { UsagePanel } from "./usage-panel";
 import { WebhooksPanel } from "./webhooks-panel";
@@ -17,7 +18,8 @@ const TIER_LABEL: Record<string, string> = { standard: "Standard", high: "High" 
 
 /**
  * Settings → Integrations: the club's API keys, webhook endpoints, connected
- * partner apps and how much the API was used.
+ * partner apps and how much the API was used, with the links that open the
+ * private developer docs.
  *
  * Owners and admins only. It shows once the MyOtherApp team has given the
  * club API access (or the club connected a partner app, so it can be
@@ -29,6 +31,10 @@ export function IntegrationsPage() {
   const role = useIntegrationsRole();
   // Asked once the server has said who is signed in: an editor is never sent for what it would refuse.
   const status = useIntegrationsStatus(role.manage && role.known);
+  const allocated = Boolean(status.data?.allocated);
+  // A club with API access opens the private docs from the card below; anyone else gets the public page about the API.
+  const docs = useDocsLinks(allocated);
+  const ownDocs = allocated && docs.data !== null;
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -39,9 +45,11 @@ export function IntegrationsPage() {
             Connect your club&apos;s own systems, such as your website, an ERP or a college portal, so events, registrations, check-ins and certificates stay the same on both sides.
           </p>
         </div>
-        <a href={DOCS_URL} target="_blank" rel="noopener" className="btn btn-secondary btn-sm">
-          Developer docs <ExternalLinkIcon className="size-3.5" aria-hidden="true" />
-        </a>
+        {ownDocs ? null : (
+          <a href={DOCS_URL} target="_blank" rel="noopener" className="btn btn-secondary btn-sm">
+            About the API <ExternalLinkIcon className="size-3.5" aria-hidden="true" />
+          </a>
+        )}
       </header>
 
       {role.known && !role.manage ? (
@@ -91,6 +99,7 @@ function Sections({ status }: { status: IntegrationsStatus }) {
           Your club has partner apps connected. API keys and webhooks of your own come with API access, which the MyOtherApp team turns on: ask them through Help.
         </Notice>
       )}
+      {status.allocated ? <DocsPanel /> : null}
       {tabs.length > 1 ? <TabRail label="Integration sections" items={tabs} value={current} onChange={(k) => setTab(k as Tab)} /> : null}
       <div role={tabs.length > 1 ? "tabpanel" : undefined}>
         {current === "keys" ? <KeysPanel status={status} /> : null}
