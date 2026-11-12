@@ -18,6 +18,7 @@ import {
   LayoutGridIcon,
   LifeBuoyIcon,
   ListChecksIcon,
+  MailIcon,
   MailXIcon,
   MegaphoneIcon,
   MessageSquareTextIcon,
@@ -50,7 +51,7 @@ export interface NavItem {
    * Which count to show, if any: one from the overview payload, or
    * `openReports`, which the rail asks for itself every minute.
    */
-  badge?: "pendingClubs" | "users" | "events" | "trash" | "openReports" | "teamworkCases" | "teamworkDue";
+  badge?: "pendingClubs" | "users" | "events" | "trash" | "openReports" | "teamworkCases" | "teamworkDue" | "platformMail";
   /**
    * An operator tool the backend may not have yet: shown only once
    * GET /admin/ops/me lists it, so a portal deployed ahead of its API never
@@ -66,7 +67,7 @@ export interface NavItem {
 }
 
 /** The features the rail asks about themselves. */
-export type Probe = "teamwork" | "speakers" | "integrations";
+export type Probe = "teamwork" | "speakers" | "integrations" | "mail";
 
 /**
  * The v2 rail: eighteen destinations in five groups, and the operator
@@ -108,6 +109,8 @@ export const navItems: NavItem[] = [
   { href: "/notifications", label: "Notifications", icon: InboxIcon },
   // What app users reported, beside the platform's own alerts: both are things that came in and want an admin.
   { href: "/reports", label: "Reports", icon: FlagIcon, badge: "openReports" },
+  // The platform's own inbox (admin@, developer@, developers@, info@): mail that came in and wants an answer, for owners and support, once the API has it. The rail asks it itself.
+  { href: "/mail", label: "Mail", icon: MailIcon, probe: "mail", badge: "platformMail" },
   { href: "/activity", label: "Activity", icon: ClockIcon },
   { href: "/push", label: "Push", icon: MegaphoneIcon, feature: "push" },
   { href: "/mail-suppressions", label: "Mail suppressions", icon: MailXIcon, feature: "suppressions" },
@@ -152,6 +155,11 @@ function groupOf(items: NavItem[]): string | undefined {
   return undefined;
 }
 
+/** The path is the section's own or under it: /mail and /mail?t=4, never /mail-suppressions. */
+export function isUnder(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(href.endsWith("/") ? href : `${href}/`);
+}
+
 export function isActive(pathname: string, item: NavItem): boolean {
-  return item.exact ? pathname === item.href : pathname.startsWith(item.href);
+  return item.exact ? pathname === item.href : isUnder(pathname, item.href);
 }
