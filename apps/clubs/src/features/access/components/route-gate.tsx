@@ -27,6 +27,8 @@ const RULES: { test: (path: string) => boolean; needs: Cap; what: string; applie
   { test: (p) => p === "/settings/social" || p.startsWith("/settings/social/") || /^\/events\/\d+\/promote(\/|$)/.test(p), needs: "edit_events", what: "social posting" },
   // Codes can make a ticket free: not for door staff (the rail already leaves the link out).
   { test: (p) => p === "/discount-codes" || p.startsWith("/discount-codes/"), needs: "edit_events", what: "discount codes" },
+  // API keys, webhooks and partner apps: the club's owner and admins.
+  { test: (p) => p === "/settings/integrations" || p.startsWith("/settings/integrations/"), needs: "integrations", what: "integrations" },
 ];
 
 export function blockedBy(path: string, can: Partial<Record<Cap, boolean>>) {

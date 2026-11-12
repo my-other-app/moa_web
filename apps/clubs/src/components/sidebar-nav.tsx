@@ -9,6 +9,7 @@ import { useAccess } from "@/features/access";
 import { useInvitationsOnServer } from "@/features/cohosts/queries";
 import { useContactsOnServer } from "@/features/contacts";
 import { useHelpOnServer, useRequests } from "@/features/help";
+import { useIntegrationsOnServer, useIntegrationsRole } from "@/features/integrations/queries";
 import { useMailSummary, useMailboxOnServer } from "@/features/mailbox/queries";
 import { usePlan } from "@/features/plan";
 import { useSocialOnServer } from "@/features/social";
@@ -51,7 +52,10 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
   // Help: once the API has the desk; the item counts requests with a reply not yet read.
   const help = useHelpOnServer();
   const helpUnread = useRequests(help === true).data?.filter((r) => r.unread).length ?? 0;
-  const onServer = { whatsapp, mailbox, ticketing, contacts, cohosts: invitations.on, social, speakers, help };
+  // Integrations, for owners and admins: once the API has them and the club has API access (or a partner app).
+  const integrationsRole = useIntegrationsRole();
+  const integrations = useIntegrationsOnServer(integrationsRole.manage && integrationsRole.known);
+  const onServer = { whatsapp, mailbox, ticketing, contacts, cohosts: invitations.on, social, speakers, help, integrations };
   // What waits unread in the inbox, for those who may read it: on the item and in the tab's title.
   const summary = useSummary(Boolean(can.whatsapp_inbox) && whatsapp === true);
   const unread = summary.data?.unread_total ?? 0;

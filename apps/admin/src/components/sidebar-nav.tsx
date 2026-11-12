@@ -7,6 +7,7 @@ import { cn } from "@moa/ui";
 
 import { useOpsMe } from "@/features/ops/queries";
 import { useOpenReportCount } from "@/features/reports";
+import { useIntegrationsOnServer } from "@/features/integrations";
 import { useSpeakersOnServer } from "@/features/speakers";
 import { useTeamworkBadge } from "@/features/teamwork";
 
@@ -52,8 +53,10 @@ export function SidebarNav({
   const ops = useOpsMe().data;
   // The speakers directory, once the API has it: its list answers the probe.
   const speakers = useSpeakersOnServer() === true;
+  // Integrations, once the API has them: the list of clubs with access answers the probe.
+  const integrations = useIntegrationsOnServer() === true;
   const sections: { label: string; items: NavItem[] }[] = [];
-  for (const item of visibleNavItems(ops?.features, { speakers, teamwork: Boolean(teamwork) })) {
+  for (const item of visibleNavItems(ops?.features, { speakers, teamwork: Boolean(teamwork), integrations })) {
     if (item.group || sections.length === 0) sections.push({ label: item.group ?? "Menu", items: [] });
     sections[sections.length - 1]!.items.push(item);
   }

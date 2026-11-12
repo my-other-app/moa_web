@@ -1,0 +1,362 @@
+{
+  "status": {
+    "allocated": true,
+    "source": "admin",
+    "rate_tier": "standard",
+    "rate_limit": {
+      "read_per_min": 600,
+      "write_per_min": 120
+    },
+    "max_keys": 5,
+    "live_keys": 2,
+    "scopes": [
+      {
+        "key": "events:read",
+        "label": "See events",
+        "description": "x",
+        "needs_disclosure": false
+      }
+    ],
+    "disclosure": "Our registration form tells people their details are shared with {name}.",
+    "docs_url": "https://myotherapp.in/developers",
+    "api_url": "https://api.myotherapp.in/partner/v1"
+  },
+  "keys": {
+    "keys": [
+      {
+        "id": "k1",
+        "client_id": "moa_key_erp1",
+        "name": "College ERP",
+        "prefix": "moa_live_Qx7p",
+        "mode": "live",
+        "livemode": true,
+        "scopes": [
+          "events:read",
+          "registrations:read",
+          "registrations:write",
+          "attendees:read",
+          "checkins:write"
+        ],
+        "expires_at": null,
+        "ip_allowlist": [
+          "203.0.113.10"
+        ],
+        "last_used_at": "2026-11-11T18:20:00+05:30",
+        "last_used_ip": "203.0.113.10",
+        "created_at": "2026-11-01T10:00:00+05:30",
+        "created_by": "Asha Nair",
+        "rotated_at": null,
+        "revoked_at": null,
+        "expired": false,
+        "attendees_disclosure_ack_at": null
+      },
+      {
+        "id": "k2",
+        "client_id": "moa_key_web2",
+        "name": "Website sync (test)",
+        "prefix": "moa_test_8fKd",
+        "mode": "test",
+        "livemode": false,
+        "scopes": [
+          "events:read",
+          "club:read"
+        ],
+        "expires_at": "2099-12-31T23:59:59+05:30",
+        "ip_allowlist": [],
+        "last_used_at": null,
+        "last_used_ip": null,
+        "created_at": "2026-11-05T09:00:00+05:30",
+        "created_by": null,
+        "rotated_at": null,
+        "revoked_at": null,
+        "expired": false,
+        "attendees_disclosure_ack_at": null
+      },
+      {
+        "id": "k3",
+        "client_id": "moa_key_old3",
+        "name": "Old sheet script",
+        "prefix": "moa_live_a1B2",
+        "mode": "live",
+        "livemode": true,
+        "scopes": [
+          "registrations:read"
+        ],
+        "expires_at": null,
+        "ip_allowlist": [],
+        "last_used_at": "2026-09-30T09:00:00+05:30",
+        "last_used_ip": null,
+        "created_at": "2026-09-01T09:00:00+05:30",
+        "created_by": "The club's own account",
+        "rotated_at": null,
+        "revoked_at": "2026-10-01T09:00:00+05:30",
+        "expired": false,
+        "attendees_disclosure_ack_at": null
+      }
+    ]
+  },
+  "created": {
+    "id": "k9",
+    "client_id": "moa_key_gate9",
+    "name": "Gate scanner",
+    "prefix": "moa_live_Zz9Y",
+    "mode": "live",
+    "livemode": true,
+    "scopes": [
+      "checkins:write",
+      "attendees:read"
+    ],
+    "expires_at": null,
+    "ip_allowlist": [],
+    "last_used_at": null,
+    "last_used_ip": null,
+    "created_at": "2026-11-12T10:00:00+05:30",
+    "created_by": "Asha Nair",
+    "rotated_at": null,
+    "revoked_at": null,
+    "expired": false,
+    "attendees_disclosure_ack_at": null,
+    "secret": "moa_live_Zz9YtQm4W1nVb7kR2cX8pL0sD5fG3hJ6aE9uIoQw"
+  },
+  "webhooks": {
+    "data": [
+      {
+        "id": "w1",
+        "url": "https://erp.example.edu/moa/webhooks",
+        "description": "ERP registrations",
+        "events": [
+          "*"
+        ],
+        "include_own_changes": false,
+        "livemode": true,
+        "enabled": true,
+        "status": "enabled",
+        "disabled_reason": null,
+        "disabled_at": null,
+        "share_attendee_details": false,
+        "dpdp_confirmed_at": null,
+        "dpdp_confirmed_by": null,
+        "owner": {
+          "type": "club",
+          "client_id": null,
+          "partner_app_id": null
+        },
+        "created_via": "dashboard",
+        "secret_hint": "whsec_…a1b2",
+        "secret_rotated_at": null,
+        "previous_secret_expires_at": null,
+        "failing_since": null,
+        "consecutive_failures": 0,
+        "last_success_at": "2026-11-11T18:21:00+05:30",
+        "last_failure_at": null,
+        "created_by_name": "Asha Nair",
+        "created_at": "2026-11-02T10:00:00+05:30",
+        "updated_at": "2026-11-02T10:00:00+05:30"
+      },
+      {
+        "id": "w2",
+        "url": "https://hooks.eventhub.example/moa/club-5",
+        "description": null,
+        "events": [
+          "registration.created",
+          "checkin.created"
+        ],
+        "include_own_changes": false,
+        "livemode": true,
+        "enabled": true,
+        "status": "enabled",
+        "disabled_reason": null,
+        "disabled_at": null,
+        "share_attendee_details": false,
+        "dpdp_confirmed_at": null,
+        "dpdp_confirmed_by": null,
+        "owner": {
+          "type": "partner_app",
+          "client_id": "moa_client_7Hk2pQ",
+          "partner_app_id": "p1"
+        },
+        "created_via": "partner_app",
+        "secret_hint": "whsec_…a1b2",
+        "secret_rotated_at": null,
+        "previous_secret_expires_at": null,
+        "failing_since": "2026-11-10T08:00:00+05:30",
+        "consecutive_failures": 31,
+        "last_success_at": "2026-11-10T07:00:00+05:30",
+        "last_failure_at": "2026-11-11T08:00:00+05:30",
+        "created_by_name": "Asha Nair",
+        "created_at": "2026-11-03T10:00:00+05:30",
+        "updated_at": "2026-11-03T10:00:00+05:30"
+      }
+    ],
+    "next_cursor": null
+  },
+  "endpoint_created": {
+    "id": "w9",
+    "url": "https://sheet.example.org/hook",
+    "description": null,
+    "events": [
+      "registration.created"
+    ],
+    "include_own_changes": true,
+    "livemode": true,
+    "enabled": true,
+    "status": "enabled",
+    "disabled_reason": null,
+    "disabled_at": null,
+    "share_attendee_details": true,
+    "dpdp_confirmed_at": null,
+    "dpdp_confirmed_by": null,
+    "owner": {
+      "type": "club",
+      "client_id": "moa_key_erp1",
+      "partner_app_id": null
+    },
+    "created_via": "dashboard",
+    "secret_hint": "whsec_…a1b2",
+    "secret_rotated_at": null,
+    "previous_secret_expires_at": null,
+    "failing_since": null,
+    "consecutive_failures": 0,
+    "last_success_at": null,
+    "last_failure_at": null,
+    "created_by_name": "Asha Nair",
+    "created_at": "2026-11-12T10:00:00+05:30",
+    "updated_at": "2026-11-12T10:00:00+05:30",
+    "secret": "whsec_6gT1pR9wQ2zXc4vB8nM0kL3jH5fD7sA1"
+  },
+  "deliveries": {
+    "data": [
+      {
+        "id": "d2",
+        "endpoint_id": "w2",
+        "event_id": "evt_01JCK2",
+        "event_type": "registration.created",
+        "object_id": "r1",
+        "status": "failed",
+        "attempts": 7,
+        "next_attempt_at": null,
+        "last_attempt_at": "2026-11-11T09:00:00+05:30",
+        "succeeded_at": null,
+        "response_status": 500,
+        "response_body": null,
+        "error": null,
+        "duration_ms": 812,
+        "created_at": "2026-11-10T09:00:00+05:30"
+      },
+      {
+        "id": "d1",
+        "endpoint_id": "w2",
+        "event_id": "evt_01JCK1",
+        "event_type": "checkin.created",
+        "object_id": "r1",
+        "status": "succeeded",
+        "attempts": 1,
+        "next_attempt_at": null,
+        "last_attempt_at": "2026-11-09T09:00:00+05:30",
+        "succeeded_at": null,
+        "response_status": 200,
+        "response_body": null,
+        "error": null,
+        "duration_ms": 140,
+        "created_at": "2026-11-09T09:00:00+05:30"
+      }
+    ],
+    "next_cursor": null
+  },
+  "apps": {
+    "apps": [
+      {
+        "id": "c1",
+        "club_id": 5,
+        "mode": "live",
+        "livemode": true,
+        "scopes": [
+          {
+            "key": "events:read",
+            "label": "See events"
+          },
+          {
+            "key": "events:write",
+            "label": "Create and edit events"
+          },
+          {
+            "key": "registrations:write",
+            "label": "Register people"
+          }
+        ],
+        "via": "consent",
+        "connected_by": "Asha Nair",
+        "connected_at": "2026-11-03T10:00:00+05:30",
+        "last_used_at": "2026-11-11T08:00:00+05:30",
+        "attendees_disclosure_ack_at": null,
+        "app": {
+          "id": "p1",
+          "name": "EventHub",
+          "logo_url": null,
+          "website": "https://www.eventhub.example",
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "consent": {
+    "app": {
+      "name": "EventHub",
+      "client_id": "moa_client_7Hk2pQ",
+      "description": "Event pages and ticketing",
+      "website": "https://www.eventhub.example",
+      "logo_url": null
+    },
+    "club": {
+      "id": 5,
+      "name": "GDG Trivandrum"
+    },
+    "mode": "live",
+    "scopes": [
+      {
+        "key": "events:read",
+        "label": "events:read",
+        "description": "x",
+        "needs_disclosure": false
+      },
+      {
+        "key": "events:write",
+        "label": "events:write",
+        "description": "x",
+        "needs_disclosure": false
+      },
+      {
+        "key": "registrations:read",
+        "label": "registrations:read",
+        "description": "x",
+        "needs_disclosure": false
+      },
+      {
+        "key": "attendees:read",
+        "label": "attendees:read",
+        "description": "x",
+        "needs_disclosure": true
+      }
+    ],
+    "redirect_target": "app.eventhub.example",
+    "disclosure": "Our registration form tells people their details are shared with EventHub.",
+    "already_connected": false
+  },
+  "webhook_status": {
+    "available": true,
+    "reason": null,
+    "message": null,
+    "max_endpoints": 10,
+    "retry_schedule_seconds": [
+      60,
+      300
+    ],
+    "event_types": [
+      {
+        "type": "event.created",
+        "object": "event",
+        "description": "x"
+      }
+    ]
+  }
+}

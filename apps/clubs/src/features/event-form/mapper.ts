@@ -42,6 +42,8 @@ const detailSchema = z
     high_demand_label: z.boolean().nullish(),
     // Guests may give a free ticket back; absent from an API without it.
     allow_self_cancel: z.boolean().nullish(),
+    // Registrations paid outside MyOtherApp, from the API; absent from an API without it.
+    external_payments_allowed: z.boolean().nullish(),
     max_participants: z.coerce.number().nullish(),
     contact_name: z.string().nullish(),
     contact_phone: z.string().nullish(),
@@ -147,6 +149,8 @@ export function eventDetailToFormValues(raw: unknown): EventFormValues {
     high_demand_label: d.high_demand_label ?? undefined,
     // The same: a save never switches off giving tickets back on a server it never heard it from.
     allow_self_cancel: d.allow_self_cancel ?? undefined,
+    // The same: a save never switches off what it never read.
+    external_payments_allowed: d.external_payments_allowed ?? undefined,
     max_participants: d.max_participants ?? undefined,
 
     contact_name: d.contact_name ?? "",

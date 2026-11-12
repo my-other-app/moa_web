@@ -169,6 +169,8 @@ export const eventDetailSchema = z
     high_demand_label: z.boolean().nullish().catch(null),
     /** Guests may give a free ticket back by their emails' link; absent from an older server: null. */
     allow_self_cancel: z.boolean().nullish().catch(null),
+    /** A paid event takes registrations paid outside MyOtherApp, from the API; absent from an older server: null. */
+    external_payments_allowed: z.boolean().nullish().catch(null),
     /** What it is about, for the Overview: its interests, and the topics they fall under (null from a server before topics). */
     interests: z.array(linkedInterestSchema).catch([]).default([]),
     topics: topicRefsField,

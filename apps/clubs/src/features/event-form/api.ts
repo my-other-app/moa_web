@@ -46,6 +46,10 @@ import type { AgendaDraftItem, EventFormParsed } from "./schemas";
  *   allow_self_cancel  "true"/"false": guests may give a free ticket back by
  *                      their emails' link. Sent only when the event's
  *                      detail carried it (a new event starts with it on).
+ *   external_payments_allowed  "true"/"false": a paid event takes
+ *                      registrations from the API marked as paid outside
+ *                      MyOtherApp. Sent only when the event's detail
+ *                      carried it (a new event starts with it off).
  *   store_item_ids     JSON array string of the club's items the event
  *                      sells, in the order ticked. Sent only with
  *                      merch_enabled on and the list known: switching
@@ -88,6 +92,7 @@ export function toEventFormData(values: EventFormParsed, status?: "draft" | "pub
   if (values.requires_approval !== undefined) fd.append("requires_approval", String(values.requires_approval));
   if (values.high_demand_label !== undefined) fd.append("high_demand_label", String(values.high_demand_label));
   if (values.allow_self_cancel !== undefined) fd.append("allow_self_cancel", String(values.allow_self_cancel));
+  if (values.external_payments_allowed !== undefined) fd.append("external_payments_allowed", String(values.external_payments_allowed));
 
   put("location_name", values.is_online ? undefined : values.location_name);
   // The map link, for an in-person event. Left empty (or the event went

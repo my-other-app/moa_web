@@ -2,6 +2,7 @@ import {
   BanknoteIcon,
   GlobeIcon,
   BellIcon,
+  BlocksIcon,
   InboxIcon,
   KeyRoundIcon,
   BuildingIcon,
@@ -50,7 +51,7 @@ export interface NavItem {
    * is known to have its routes (see SidebarNav). The dashboard can then go
    * out ahead of its backend, and the item appears when the backend does.
    */
-  server?: "whatsapp" | "mailbox" | "ticketing" | "contacts" | "cohosts" | "social" | "speakers" | "help";
+  server?: "whatsapp" | "mailbox" | "ticketing" | "contacts" | "cohosts" | "social" | "speakers" | "help" | "integrations";
 }
 
 export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
@@ -109,6 +110,9 @@ export const navItems: NavItem[] = [
   // `money`, as with Finance); only the owner changes it.
   { href: "/payments", label: "Payments", icon: BanknoteIcon, group: "manage", needs: "money" },
   { href: "/profile", label: "Club profile", icon: BuildingIcon, group: "manage", needs: "club_profile" },
+  // The club's API keys, webhooks and connected partner apps: owners and admins, once the API has integrations
+  // and the MyOtherApp team has given the club API access (or it connected a partner app).
+  { href: "/settings/integrations", label: "Integrations", icon: BlocksIcon, group: "manage", needs: "integrations", server: "integrations" },
   // MyOtherApp's answers and a line to its Support team: every role, every plan -- once the API has the desk.
   { href: "/help", label: "Help", icon: LifeBuoyIcon, group: "manage", server: "help" },
 ];
