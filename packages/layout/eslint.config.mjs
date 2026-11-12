@@ -5,7 +5,8 @@ import tseslint from "typescript-eslint";
 // rules and no hooks plugin, since nothing here renders -- it is the
 // layout contract shared by the editor and the renderer.
 export default tseslint.config(
-  { ignores: ["dist/**"] },
+  // __fixtures__ hold copies of the backend's files (its fit script among them), compared, not linted.
+  { ignores: ["dist/**", "src/**/__fixtures__/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
