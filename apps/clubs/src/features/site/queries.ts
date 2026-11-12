@@ -6,19 +6,38 @@ import { toast } from "@moa/ui";
 
 import { toastError } from "@/features/plan/errors";
 
-import { checkSiteDomain, connectSiteDomain, fetchSite, fetchSiteAnalytics, fetchSiteDomain, patchSite, previewSite, publishSite, removeSiteDomain } from "./api";
+import {
+  checkSiteDomain,
+  connectSiteDomain,
+  deleteSiteImage,
+  fetchSite,
+  fetchSiteAnalytics,
+  fetchSiteDomain,
+  orderSiteImages,
+  patchSite,
+  patchSiteImage,
+  previewSite,
+  publishSite,
+  removeSiteDomain,
+} from "./api";
 import { DOMAINS_UNAVAILABLE, NOT_ON_THIS_SERVER, domainPollInterval, isRoleRefusal, type SiteDomain } from "./domain";
-import type { SitePatch } from "./schemas";
+import { sortImages } from "./layout";
+import type { Site, SiteImage, SitePatch } from "./schemas";
 
-const KEY = ["club-site"] as const;
+export const SITE_KEY = ["club-site"] as const;
+const KEY = SITE_KEY;
 
 export function useSite() {
   return useQuery({ queryKey: KEY, queryFn: fetchSite, staleTime: 10_000 });
 }
 
-/** The page as the current choices would make it; keyed on them so each edit re-renders once the typing settles. */
-export function usePreview(patch: SitePatch, enabled: boolean) {
-  return useQuery({ queryKey: [...KEY, "preview", patch], queryFn: () => previewSite(patch), enabled, staleTime: 60_000, placeholderData: (prev) => prev });
+/**
+ * The page as the current choices would make it; keyed on them (and on the
+ * photo library, `version`) so each edit re-renders once the typing settles.
+ * The caller debounces `patch`.
+ */
+export function usePreview(patch: SitePatch, enabled: boolean, version = "") {
+  return useQuery({ queryKey: [...KEY, "preview", patch, version], queryFn: () => previewSite(patch), enabled, staleTime: 60_000, placeholderData: (prev) => prev, retry: false });
 }
 
 /** What the site brought. Not retried: a server without site tracking answers 404 and the panel stays away. */
@@ -30,7 +49,12 @@ export function usePatchSite() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (patch: SitePatch) => patchSite(patch),
-    onSuccess: (data) => queryClient.setQueryData(KEY, data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(KEY, data);
+      // What the server's layout check changed in what was sent (the editor sends what fits, so rarely anything).
+      const left = Object.values(data.adjusted ?? {}).flat();
+      if (left.length) toast.info(`Adjusted to fit the template: ${[...new Set(left)].join(", ")}`);
+    },
     onError: toastError,
   });
 }
@@ -43,6 +67,80 @@ export function usePublishSite() {
       queryClient.setQueryData(KEY, data);
       void queryClient.invalidateQueries({ queryKey: [...KEY, "analytics"] });
       toast.success("Site updated");
+    },
+    onError: toastError,
+  });
+}
+
+// ─── The photo library ───────────────────────────────────────────────────
+
+/** Writes the library into the site as read, keeping it in its order. */
+export function useSetImages() {
+  const queryClient = useQueryClient();
+  return (update: (images: SiteImage[]) => SiteImage[]) =>
+    queryClient.setQueryData<Site>(KEY, (s) => (s ? { ...s, images: sortImages(update(s.images ?? [])).map((i, position) => ({ ...i, position })) } : s));
+}
+
+/** After a library change the server's word wins: slots it cleared, used_in, a republished page. */
+function useRefreshSite() {
+  const queryClient = useQueryClient();
+  return () => void queryClient.invalidateQueries({ queryKey: KEY, exact: true });
+}
+
+export function useImageAlt() {
+  const setImages = useSetImages();
+  const refresh = useRefreshSite();
+  return useMutation({
+    mutationFn: ({ id, alt }: { id: number; alt: string | null }) => patchSiteImage(id, { alt }),
+    onMutate: ({ id, alt }) => setImages((list) => list.map((i) => (i.id === id ? { ...i, alt } : i))),
+    onSuccess: (image) => {
+      if (image) setImages((list) => list.map((i) => (i.id === image.id ? { ...i, ...image } : i)));
+      toast.success("Alt text saved");
+    },
+    onError: toastError,
+    // Whether the live page is behind now.
+    onSettled: refresh,
+  });
+}
+
+/** The library in a new order, shown at once; put back if the server refuses it. */
+export function useOrderImages() {
+  const queryClient = useQueryClient();
+  const setImages = useSetImages();
+  const refresh = useRefreshSite();
+  return useMutation({
+    mutationFn: (ids: number[]) => orderSiteImages(ids),
+    onMutate: (ids) => {
+      const before = queryClient.getQueryData<Site>(KEY)?.images ?? null;
+      const rank = new Map(ids.map((id, i) => [id, i]));
+      setImages((list) => list.map((i) => ({ ...i, position: rank.get(i.id) ?? ids.length })));
+      return { before };
+    },
+    onSuccess: (images) => {
+      if (images) setImages(() => images);
+    },
+    onError: (error, _ids, context) => {
+      if (context?.before) setImages(() => context.before ?? []);
+      toastError(error);
+    },
+    onSettled: refresh,
+  });
+}
+
+export function useDeleteImage() {
+  const setImages = useSetImages();
+  const queryClient = useQueryClient();
+  const refresh = useRefreshSite();
+  return useMutation({
+    mutationFn: (id: number) => deleteSiteImage(id),
+    onSuccess: (images, id) => {
+      setImages((list) => images ?? list.filter((i) => i.id !== id));
+      // The server takes it out of every slot; so does the site as read.
+      queryClient.setQueryData<Site>(KEY, (s) =>
+        s?.layout ? { ...s, layout: { ...s.layout, slots: Object.fromEntries(Object.entries(s.layout.slots).filter(([, v]) => v !== id)) } } : s,
+      );
+      toast.success("Photo deleted");
+      refresh();
     },
     onError: toastError,
   });
