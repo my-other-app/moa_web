@@ -18,6 +18,8 @@ import {
   textFloor,
 } from "@moa/layout";
 import { Button, CardLabel, FigurePanel, IconButton, Notice, Switch, cn } from "@moa/ui";
+
+import { IMAGE_ACCEPT } from "@/lib/images";
 import { CopyIcon, Trash2Icon, UploadIcon, XIcon } from "lucide-react";
 import * as React from "react";
 
@@ -434,7 +436,7 @@ const ImageFields = ({ l, patch, ctx, id }: { l: ImageLayerV2; patch: Patch; ctx
           <input
             ref={file}
             type="file"
-            accept="image/*"
+            accept={IMAGE_ACCEPT}
             className="hidden"
             aria-hidden="true"
             tabIndex={-1}
@@ -526,7 +528,7 @@ const SignatureField = ({
       <input
         ref={file}
         type="file"
-        accept="image/*"
+        accept={IMAGE_ACCEPT}
         className="hidden"
         aria-hidden="true"
         tabIndex={-1}

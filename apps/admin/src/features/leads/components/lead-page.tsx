@@ -44,7 +44,7 @@ function StageBar({ lead, canMove, onMove }: { lead: LeadDetail; canMove: boolea
                   ? s === "won"
                     ? "border-admit bg-admit text-white"
                     : s === "lost"
-                      ? "border-refuse bg-refuse text-white"
+                      ? "border-refuse bg-refuse text-refuse-foreground"
                       : "border-brand bg-brand text-brand-foreground"
                   : passed
                     ? "border-brand-line bg-brand-soft text-brand"

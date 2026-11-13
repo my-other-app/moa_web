@@ -1,8 +1,17 @@
 name: CI
 
 on:
+  # main on every push; any other branch through its pull request, so a PR's
+  # commits are not checked twice (once as a push, once as the PR).
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A newer commit on the same branch or PR supersedes the run in flight.
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
