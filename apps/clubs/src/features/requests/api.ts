@@ -9,6 +9,9 @@ import {
   declineResultSchema,
   reopenResultSchema,
   requestPageSchema,
+  requestSchema,
+  type RequestCorrection,
+  type RequestSort,
   type RequestTab,
 } from "./schemas";
 
@@ -24,15 +27,37 @@ export interface RequestQuery {
   limit?: number;
   /** Only those missing answers: "1" for any, or one question's key (missing-answers contract §1.4). */
   missing?: string;
+  /** "field:direction" (REQUEST_SORTS), or "" for the server's own order. */
+  sort?: RequestSort;
+}
+
+/** "name:desc" → { sort: "name", order: "desc" }; "" → nothing (the server's own order). */
+export function sortParams(sort: RequestSort | undefined): { sort?: string; order?: string } {
+  if (!sort) return {};
+  const [field, order] = sort.split(":");
+  return { sort: field, order };
 }
 
 /** GET …/requests: one page of a status, oldest first, with every status's count and the places left. */
 export async function fetchRequests(eventId: number, query: RequestQuery) {
   const raw = await api.get<unknown>(base(eventId), {
     // The server takes a search of up to 100 characters.
-    query: { status: query.status, q: query.q?.trim().slice(0, 100) || undefined, after: query.after ?? undefined, limit: query.limit, missing: query.missing || undefined },
+    query: {
+      status: query.status,
+      q: query.q?.trim().slice(0, 100) || undefined,
+      after: query.after ?? undefined,
+      limit: query.limit,
+      missing: query.missing || undefined,
+      ...sortParams(query.sort),
+    },
   });
   return requestPageSchema.parse(raw);
+}
+
+/** PATCH …/requests/{id}: correct their name, email, phone or answers; nothing is decided or emailed. */
+export async function correctRequest(eventId: number, requestId: string, patch: RequestCorrection) {
+  const raw = await api.patch<unknown>(`${base(eventId)}/${requestId}`, patch);
+  return requestSchema.parse(raw);
 }
 
 const guard = (ids: readonly string[]) => {

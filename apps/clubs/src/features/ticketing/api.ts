@@ -91,8 +91,25 @@ export async function deleteDiscountCode(id: number) {
 
 // ─── Waiting lists ──────────────────────────────────────────────────────
 
-export async function fetchWaitlist(eventId: number, status?: EntryStatus | null) {
-  return waitlistSchema.parse(await api.get<unknown>(`${event(eventId)}/waitlist`, { query: { status: status ?? undefined, limit: 1000 } }));
+export interface WaitlistQuery {
+  /** Name, email or phone contains. */
+  q?: string;
+  /** "field:direction" (WAITLIST_SORTS); "" is the line's own order. */
+  sort?: string;
+}
+
+export async function fetchWaitlist(eventId: number, status?: EntryStatus | null, query: WaitlistQuery = {}) {
+  const [sort, order] = (query.sort ?? "").split(":");
+  return waitlistSchema.parse(
+    await api.get<unknown>(`${event(eventId)}/waitlist`, {
+      query: { status: status ?? undefined, limit: 1000, q: query.q?.trim().slice(0, 100) || undefined, sort: sort || undefined, order: order || undefined },
+    }),
+  );
+}
+
+/** Correct someone's name, email or phone in line; their place is kept and nothing is sent. */
+export async function correctWaitlistEntry(eventId: number, entryId: string, patch: { full_name?: string; email?: string; phone?: string }) {
+  return waitlistEntrySchema.parse(await api.patch<unknown>(`${event(eventId)}/waitlist/${entryId}`, patch));
 }
 
 export async function putWaitlistSettings(eventId: number, body: { enabled?: boolean; offer_hours?: number }) {

@@ -394,3 +394,13 @@ export const TICKETING_ERRORS: Record<string, string> = {
   DISCOUNT_CODE_TAKEN: "You already have a code with that name.",
   WAITLIST_NO_ROOM: "No place is free. Raise the type's places (or the event's total) first, then offer it.",
 };
+
+/** The waiting list's orders (GET …/waitlist `sort` + `order`); "" is the line's own. */
+export const WAITLIST_SORTS = [
+  { value: "", label: "Place in line" },
+  { value: "name:asc", label: "Name A–Z" },
+  { value: "name:desc", label: "Name Z–A" },
+  { value: "email:asc", label: "Email A–Z" },
+  { value: "joined:desc", label: "Newest joined" },
+  { value: "joined:asc", label: "Oldest joined" },
+] as const;

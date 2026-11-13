@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, ChevronDownIcon, ClipboardListIcon, InboxIcon, Loader2Icon, RotateCcwIcon, XIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, ClipboardListIcon, InboxIcon, Loader2Icon, PencilIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import { ExportMenu, formatDateTime, formatNumber, hasRequestFigures } from "@moa/app-kit";
 import {
   Button,
@@ -9,6 +9,7 @@ import {
   Chip,
   EmptyState,
   FigurePanel,
+  NativeSelect,
   Notice,
   SearchField,
   Skeleton,
@@ -26,11 +27,13 @@ import { AnswerList, AskPanel, MissingAnswersNote, MissingMarker, requestRef, us
 import { useEventSummary } from "@/features/console/queries";
 import { useEventDetail } from "@/features/events";
 import { useMissingCount } from "@/features/registrations/queries";
+import { eventFieldSchema, type EventField } from "@/features/registrations/schemas";
 
 import { summarise, type OutcomeSummary } from "../bulk";
 import { useBulkDecision, useConfirmRequest, useExportRequests, useReopenRequest, useRequestList, type BulkPlan } from "../queries";
 import {
   OPTIONAL_TABS,
+  REQUEST_SORTS,
   STATUS_LABEL,
   STATUS_TABS,
   TAB_LABEL,
@@ -42,10 +45,12 @@ import {
   totalOf,
   type QuestionField,
   type RegistrationRequest,
+  type RequestSort,
   type RequestStatus,
   type RequestTab,
 } from "../schemas";
 import { ConfirmDialog, DeclineDialog } from "./decision-dialogs";
+import { RequestEditDialog } from "./request-edit-dialog";
 
 /**
  * The event's Review tab: everyone who registered while "Review
@@ -92,6 +97,15 @@ function useQuestions(eventId: number): QuestionField[] {
   }, [event.data]);
 }
 
+/** The event's questions in full (type, options, conditions), for correcting someone's answers. */
+function useEventFields(eventId: number): EventField[] {
+  const event = useEventDetail(eventId);
+  return React.useMemo(() => {
+    const raw = (event.data as { additional_details?: unknown } | undefined)?.additional_details;
+    return Array.isArray(raw) ? raw.flatMap((f) => { const parsed = eventFieldSchema.safeParse(f); return parsed.success ? [parsed.data] : []; }) : [];
+  }, [event.data]);
+}
+
 /** Still open (under review, or confirmed and paying): someone who counts for missing answers and can be asked. */
 const isOpen = (r: RegistrationRequest) => r.status === "pending" || (r.status === "approved" && !r.registration_id);
 
@@ -131,6 +145,7 @@ function RequestRow({
   onDecline,
   onReopen,
   onAskAgain,
+  onEdit,
   busy,
 }: {
   r: RegistrationRequest;
@@ -147,6 +162,8 @@ function RequestRow({
   onReopen: () => void;
   /** Ask them again for what they're missing; absent when the role can't write to guests. */
   onAskAgain?: () => void;
+  /** Correct their details; absent when the role can't. */
+  onEdit?: () => void;
   busy: boolean;
 }) {
   const answers = answerRows(r.answers, fields);
@@ -194,6 +211,12 @@ function RequestRow({
         ) : null}
         {canDecide ? (
           <td className={cn(CELL, "text-right whitespace-nowrap")}>
+            <span className="inline-flex items-center gap-1.5">
+            {onEdit ? (
+              <Button size="xs" variant="ghost" onClick={onEdit} disabled={busy} aria-label={`Edit ${r.full_name}'s details`} title="Edit details">
+                <PencilIcon /> <span className="sr-only sm:not-sr-only">Edit</span>
+              </Button>
+            ) : null}
             {r.status === "pending" ? (
               <span className="inline-flex gap-1.5">
                 <Button size="xs" onClick={onConfirm} disabled={busy} aria-label={`Confirm ${r.full_name}`}>
@@ -208,6 +231,7 @@ function RequestRow({
                 {busy ? <Loader2Icon className="animate-spin" /> : <RotateCcwIcon />} Back to review
               </Button>
             ) : null}
+            </span>
           </td>
         ) : null}
       </tr>
@@ -231,14 +255,17 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   const canDecide = Boolean(can.decide_requests);
   const event = useEventDetail(eventId);
   const fields = useQuestions(eventId);
+  const fullFields = useEventFields(eventId);
   const [status, setStatus] = React.useState<RequestTab>("pending");
+  const [sort, setSort] = React.useState<RequestSort>("");
+  const [editing, setEditing] = React.useState<RegistrationRequest | null>(null);
   const summary = useEventSummary(eventId);
   const exporter = useExportRequests(eventId);
   const [searchInput, setSearchInput] = React.useState("");
   const [q, setQ] = React.useState("");
   // Missing answers (missing-answers contract §3 item 2): the filter, its count, and asking them.
   const [missingOnly, setMissingOnly] = React.useState(false);
-  const list = useRequestList(eventId, status, q, missingOnly ? "1" : "");
+  const list = useRequestList(eventId, status, q, missingOnly ? "1" : "", sort);
   const answersSummary = useAnswersSummary(eventId);
   const peopleMissing = answersSummary.data?.people_missing ?? 0;
   const registrationsMissing = useMissingCount(eventId, peopleMissing > 0);
@@ -438,8 +465,22 @@ export function RequestsPage({ eventId }: { eventId: number }) {
             </>
           ) : null}
           <ToolbarEnd>
-            {/* The queue is oldest first (the order confirming takes); what was decided, newest first. */}
-            <span className="text-ink-3 hidden font-mono text-[11px] sm:inline">{onWaiting ? "Oldest first" : "Newest first"}</span>
+            {/* Default: the queue oldest first (the order confirming takes); what was decided, newest first. */}
+            <NativeSelect
+              aria-label="Sort registrations"
+              value={sort}
+              onChange={(e) => {
+                setSort(e.target.value as RequestSort);
+                setSelection(NONE);
+              }}
+              className="w-full sm:w-44"
+            >
+              {REQUEST_SORTS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.value === "" ? (onWaiting ? "Oldest first (queue)" : "Newest first") : o.label}
+                </option>
+              ))}
+            </NativeSelect>
             <SearchField value={searchInput} onChange={setSearchInput} onCommit={commitSearch} placeholder="Name, email or phone" label="Search registrations" className="w-full sm:w-64" />
           </ToolbarEnd>
         </Toolbar>
@@ -589,6 +630,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
                     onDecline={() => setDialog({ kind: "decline", row: r })}
                     onReopen={() => reopenOne.mutate(r)}
                     onAskAgain={mayAsk ? () => setAsk({ refs: [requestRef(r.id)], preselect: r.missing_answers, who: r.full_name }) : undefined}
+                    onEdit={canDecide ? () => setEditing(r) : undefined}
                     busy={busyRow(r.id) || bulk.running}
                   />
                 ))}
@@ -614,6 +656,9 @@ export function RequestsPage({ eventId }: { eventId: number }) {
       </FigurePanel>
 
       {mayAsk ? <AskPanel eventId={eventId} target={ask} onOpenChange={(o) => !o && setAsk(null)} /> : null}
+      {editing ? (
+        <RequestEditDialog eventId={eventId} fields={fullFields} request={editing} open onOpenChange={(o) => !o && setEditing(null)} />
+      ) : null}
       {dialog?.kind === "confirm" ? (
         <ConfirmDialog count={selectedCount} placesLeft={placesLeft} running={bulk.running} progress={bulk.progress} onConfirm={confirmSelected} onClose={() => setDialog(null)} />
       ) : null}

@@ -15,8 +15,17 @@ export interface RegistrationQuery {
   delivery?: "not_delivered" | undefined;
   /** Only guests missing answers: "1" for any, or one question's key (missing-answers contract §1.4). */
   missing?: string | undefined;
+  /** "field:direction" from GUEST_SORTS; unset: names A to Z. */
+  sort?: string | undefined;
   offset: number;
   limit: number;
+}
+
+/** "registered:desc" → { sort: "registered", order: "desc" }; unset → nothing (names A to Z). */
+function sortQuery(sort: string | undefined): { sort?: string; order?: string } {
+  if (!sort) return {};
+  const [field, order] = sort.split(":");
+  return { sort: field, ...(order ? { order } : {}) };
 }
 
 export async function fetchRegistrations(q: RegistrationQuery) {
@@ -28,6 +37,7 @@ export async function fetchRegistrations(q: RegistrationQuery) {
       role: q.role,
       delivery: q.delivery,
       missing: q.missing,
+      ...sortQuery(q.sort),
       offset: q.offset,
       limit: q.limit,
     },

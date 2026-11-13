@@ -8,6 +8,7 @@ import { ENTITLEMENTS_KEY } from "@/features/billing/queries";
 import { isPlanLockError } from "@/features/plan/errors";
 
 import {
+  correctWaitlistEntry,
   createDiscountCode,
   deleteDiscountCode,
   fetchDiscountCodes,
@@ -21,6 +22,7 @@ import {
   setDiscountCodeActive,
   updateDiscountCode,
   type CodeScope,
+  type WaitlistQuery,
 } from "./api";
 import { TICKETING_ERRORS, type CodeForm, type EntryStatus, type SaveTypesBody } from "./schemas";
 
@@ -94,10 +96,10 @@ export function useDiscountCodes(scope: CodeScope = {}) {
   });
 }
 
-export function useWaitlist(eventId: number, status?: EntryStatus | null) {
+export function useWaitlist(eventId: number, status?: EntryStatus | null, query: WaitlistQuery = {}) {
   return useQuery({
-    queryKey: [...waitlistKey(eventId), status ?? "all"],
-    queryFn: () => nullIfRouteMissing(() => fetchWaitlist(eventId, status)),
+    queryKey: [...waitlistKey(eventId), status ?? "all", query.q ?? "", query.sort ?? ""],
+    queryFn: () => nullIfRouteMissing(() => fetchWaitlist(eventId, status, query)),
     // Another filter keeps the settings and the counts on screen while it loads.
     placeholderData: keepPreviousData,
     staleTime: 15_000,
@@ -194,6 +196,18 @@ export function useOfferWaitlistEntry(eventId: number) {
       refresh(eventId);
     },
     onError: toastTicketingError,
+  });
+}
+
+/** Correct someone's name, email or phone in line: their place is kept, nothing is sent. */
+export function useCorrectWaitlistEntry(eventId: number) {
+  const refresh = useRefreshTicketing();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: { full_name?: string; email?: string; phone?: string } }) => correctWaitlistEntry(eventId, id, patch),
+    onSuccess: () => {
+      toast.success("Details corrected");
+      refresh(eventId);
+    },
   });
 }
 
