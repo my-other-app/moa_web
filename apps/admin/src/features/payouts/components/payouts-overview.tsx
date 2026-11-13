@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { RefreshCwIcon } from "lucide-react";
 import { formatCurrency, formatDate, formatNumber } from "@moa/app-kit";
-import { Button, Checkbox, DataTable, Label, Pager, SearchField, StatCard, type DataTableColumn } from "@moa/ui";
+import { Button, Checkbox, DataTable, Label, Pager, SearchField, StatCard, type DataTableColumn, type DataTableSort } from "@moa/ui";
 
 import { useCan } from "@/hooks/use-can";
 
@@ -32,7 +32,8 @@ export function PayoutsOverview() {
   const [search, setSearch] = React.useState("");
   const [owing, setOwing] = React.useState(false);
   const [page, setPage] = React.useState(1);
-  const { data, isPending, isError, isFetching } = usePayoutOverview({ q: search || undefined, owing, offset: (page - 1) * PAGE, limit: PAGE });
+  const [sort, setSort] = React.useState<DataTableSort | null>(null);
+  const { data, isPending, isError, isFetching } = usePayoutOverview({ q: search || undefined, owing, sort: sort?.key, order: sort?.order, offset: (page - 1) * PAGE, limit: PAGE });
   const canMoney = useCan("manage_money");
   const fees = useFetchFees();
   const totals = data?.totals ?? {};
@@ -41,6 +42,7 @@ export function PayoutsOverview() {
   const columns: DataTableColumn<OverviewRow>[] = [
     {
       key: "club",
+      sortable: true,
       header: "Club",
       cell: (row) => (
         <Link href={`/payouts/${row.club.id}`} className="font-medium underline-offset-4 hover:underline">
@@ -49,7 +51,7 @@ export function PayoutsOverview() {
         </Link>
       ),
     },
-    { key: "gross", header: "Gross", className: "text-right", headerClassName: "text-right", cell: (row) => <Money value={row.gross} /> },
+    { key: "gross", header: "Gross", sortable: true, firstOrder: "desc", className: "text-right", headerClassName: "text-right", cell: (row) => <Money value={row.gross} /> },
     {
       key: "fees",
       header: "Fees",
@@ -70,9 +72,10 @@ export function PayoutsOverview() {
       headerClassName: "hidden text-right lg:table-cell",
       cell: (row) => <Money value={row.chargebacks} negative muted />,
     },
-    { key: "net", header: "Net", className: "text-right", headerClassName: "text-right", cell: (row) => <Money value={row.net} /> },
+    { key: "net", header: "Net", sortable: true, firstOrder: "desc", className: "text-right", headerClassName: "text-right", cell: (row) => <Money value={row.net} /> },
     {
-      key: "paid",
+      key: "paid_out",
+      sortable: true,
       header: "Paid out",
       className: "hidden text-right md:table-cell",
       headerClassName: "hidden text-right md:table-cell",
@@ -85,6 +88,8 @@ export function PayoutsOverview() {
     },
     {
       key: "outstanding",
+      sortable: true,
+      firstOrder: "desc",
       header: "Outstanding",
       className: "text-right",
       headerClassName: "text-right",
@@ -142,6 +147,11 @@ export function PayoutsOverview() {
         isLoading={isPending}
         isError={isError}
         emptyMessage={search || owing ? "No club matches." : "No sales on MyOtherApp's Razorpay yet."}
+        sort={sort}
+        onSortChange={(next) => {
+          setSort(next);
+          setPage(1);
+        }}
       />
       {data && data.total > 0 ? (
         <Pager page={page} pageCount={Math.max(1, Math.ceil(data.total / PAGE))} total={data.total} pageSize={PAGE} noun={["club", "clubs"]} busy={isFetching} onPage={setPage} />

@@ -221,10 +221,10 @@ export function useAudienceCount(eventId: number, audience: EmailAudience, enabl
   });
 }
 
-export function useMessages(eventId: number, page: number, pageSize = 20) {
+export function useMessages(eventId: number, page: number, pageSize = 20, order: "asc" | "desc" = "desc") {
   return useQuery({
-    queryKey: [...messagesKey(eventId), "list", page, pageSize],
-    queryFn: () => fetchMessages(eventId, page, pageSize),
+    queryKey: [...messagesKey(eventId), "list", page, pageSize, ...(order === "asc" ? ["asc"] : [])],
+    queryFn: () => fetchMessages(eventId, page, pageSize, order),
     placeholderData: keepPreviousData,
     // A message in flight updates its counts as guests are reached.
     refetchInterval: (query) => (query.state.data?.items.some((m) => m.status === "SENDING") ? 3_000 : false),

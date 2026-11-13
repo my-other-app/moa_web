@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PlusIcon, UploadIcon } from "lucide-react";
 import { formatCurrency, formatDateTime, relativeTime } from "@moa/app-kit";
-import { Button, DataTable, Input, NativeSelect, Pager, SearchField, Segmented, StatusBadge, type DataTableColumn } from "@moa/ui";
+import { Button, DataTable, Input, NativeSelect, Pager, SearchField, Segmented, StatusBadge, type DataTableColumn, type DataTableSort } from "@moa/ui";
 import { useDebouncedValue } from "@moa/ui/hooks";
 
 import { ExcelExportButton } from "@/components/excel-export-button";
@@ -46,6 +46,8 @@ export function LeadsPage() {
   const [q, setQ] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
+  // A column clicked in the table; null: latest activity first (the server's own).
+  const [sort, setSort] = React.useState<DataTableSort | null>(null);
   const [creating, setCreating] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
   const mover = useStageMover();
@@ -57,7 +59,7 @@ export function LeadsPage() {
   const formOpen = creating || (prefill !== null && rights.createLeads && !prefillClosed);
 
   const filters = { type: type || undefined, stage: view === "table" ? stage || undefined : undefined, owner: owner === "me" ? (rights.meId ?? undefined) : owner ? Number(owner) : undefined, city: cityQuery || undefined, due: due || undefined, q: search || undefined };
-  const { data, isPending, isError, isFetching } = useLeads(view === "board" ? { view, ...filters, page: 1, pageSize: BOARD_MAX } : { view, ...filters, page, pageSize: PAGE });
+  const { data, isPending, isError, isFetching } = useLeads(view === "board" ? { view, ...filters, page: 1, pageSize: BOARD_MAX } : { view, ...filters, sort: sort?.key, order: sort?.order, page, pageSize: PAGE });
   const reset = <T,>(set: (v: T) => void) => (v: T) => {
     set(v);
     setPage(1);
@@ -66,6 +68,7 @@ export function LeadsPage() {
   const columns: DataTableColumn<LeadRow>[] = [
     {
       key: "name",
+      sortable: true,
       header: "Organisation",
       cell: (l) => (
         <div className="min-w-0">
@@ -79,9 +82,9 @@ export function LeadsPage() {
         </div>
       ),
     },
-    { key: "stage", header: "Stage", cell: (l) => <StatusBadge tone={STAGE_TONE[l.stage] ?? "info"} label={stageLabel(l.stage)} /> },
+    { key: "stage", header: "Stage", sortable: true, cell: (l) => <StatusBadge tone={STAGE_TONE[l.stage] ?? "info"} label={stageLabel(l.stage)} /> },
     { key: "owner", header: "Owner", cell: (l) => l.owner?.name ?? <span className="text-ink-3">No owner</span> },
-    { key: "value", header: "Value", className: "text-right", headerClassName: "text-right", cell: (l) => <span className="tabular-nums">{l.value_inr ? formatCurrency(l.value_inr) : "—"}</span> },
+    { key: "value", header: "Value", sortable: true, firstOrder: "desc", className: "text-right", headerClassName: "text-right", cell: (l) => <span className="tabular-nums">{l.value_inr ? formatCurrency(l.value_inr) : "—"}</span> },
     {
       key: "next",
       header: "Next step",
@@ -96,7 +99,7 @@ export function LeadsPage() {
         ),
     },
     { key: "contacts", header: "Contacts", className: "hidden lg:table-cell text-right", headerClassName: "hidden lg:table-cell text-right", cell: (l) => l.contacts_count },
-    { key: "updated", header: "Updated", className: "hidden xl:table-cell", headerClassName: "hidden xl:table-cell", cell: (l) => <span className="text-ink-3 text-xs">{relativeTime(l.updated_at)}</span> },
+    { key: "updated", header: "Updated", sortable: true, firstOrder: "desc", className: "hidden xl:table-cell", headerClassName: "hidden xl:table-cell", cell: (l) => <span className="text-ink-3 text-xs">{relativeTime(l.updated_at)}</span> },
   ];
 
   return (
@@ -171,7 +174,19 @@ export function LeadsPage() {
         )
       ) : (
         <>
-          <DataTable columns={columns} data={data?.items} rowKey={(l) => l.id} isLoading={isPending} isError={isError} emptyMessage="No leads match." />
+          <DataTable
+            columns={columns}
+            data={data?.items}
+            rowKey={(l) => l.id}
+            isLoading={isPending}
+            isError={isError}
+            emptyMessage="No leads match."
+            sort={sort}
+            onSortChange={(next) => {
+              setSort(next);
+              setPage(1);
+            }}
+          />
           {data && data.total > 0 ? <Pager page={page} pageCount={Math.max(1, Math.ceil(data.total / PAGE))} total={data.total} pageSize={PAGE} noun={["lead", "leads"]} busy={isFetching} onPage={setPage} /> : null}
         </>
       )}

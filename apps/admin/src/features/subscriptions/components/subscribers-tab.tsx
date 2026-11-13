@@ -134,6 +134,7 @@ export function SubscribersTab() {
   // Only the plans an admin gave free.
   const [freeOnly, setFreeOnly] = React.useState(false);
   const [search, setSearch] = React.useState(linked);
+  const [sort, setSort] = React.useState("");
   const [committed, setCommitted] = React.useState(linked);
   const [page, setPage] = React.useState(0);
   // Following another notification here changes ?q=; the search follows it.
@@ -149,6 +150,7 @@ export function SubscribersTab() {
     status: status || undefined,
     search: committed || undefined,
     complimentary: freeOnly ? true : undefined,
+    sort: sort || undefined,
     offset: page * PAGE_SIZE,
     limit: PAGE_SIZE,
   });
@@ -238,7 +240,23 @@ export function SubscribersTab() {
           <GiftIcon className="size-3.5" aria-hidden="true" /> Free plans
         </button>
 
-        <div className="relative ml-auto max-w-[280px] min-w-[200px] flex-1">
+        <select
+          aria-label="Sort subscriptions"
+          className="input ml-auto w-[170px]"
+          value={sort}
+          onChange={(event) => {
+            setSort(event.target.value);
+            setPage(0);
+          }}
+        >
+          <option value="">Highest value first</option>
+          <option value="club:asc">Club A–Z</option>
+          <option value="status:asc">Status</option>
+          <option value="renews:asc">Renews soonest</option>
+          <option value="created:desc">Newest first</option>
+          <option value="created:asc">Oldest first</option>
+        </select>
+        <div className="relative max-w-[280px] min-w-[200px] flex-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-[11px] size-4 -translate-y-1/2 text-ink-3" />
           <input
             className="input pl-8"

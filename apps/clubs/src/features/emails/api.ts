@@ -147,8 +147,8 @@ export async function uploadEmailImage(scope: EmailScope, file: File) {
 
 const messagesBase = (eventId: number) => `/api/v1/events/${eventId}/messages`;
 
-export async function fetchMessages(eventId: number, page: number, pageSize: number) {
-  const raw = await api.get<unknown>(messagesBase(eventId), { query: { page, page_size: pageSize } });
+export async function fetchMessages(eventId: number, page: number, pageSize: number, order: "asc" | "desc" = "desc") {
+  const raw = await api.get<unknown>(messagesBase(eventId), { query: { page, page_size: pageSize, order: order === "asc" ? "asc" : undefined } });
   return messagePageSchema.parse(raw);
 }
 
