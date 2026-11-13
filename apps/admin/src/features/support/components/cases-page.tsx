@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { PlusIcon } from "lucide-react";
 import { formatDateTime, formatNumber, relativeTime } from "@moa/app-kit";
-import { Button, DataTable, NativeSelect, Pager, SearchField, StatusBadge, TabRail, type DataTableColumn } from "@moa/ui";
+import { Button, DataTable, NativeSelect, Pager, SearchField, StatusBadge, TabRail, type DataTableColumn, type DataTableSort } from "@moa/ui";
 
 import { ExcelExportButton } from "@/components/excel-export-button";
 import { PRIORITIES, PRIORITY_LABEL, membersOf, priorityLabel, usePublicTopics, useTeamRights, useTeams } from "@/features/teamwork";
@@ -48,9 +48,11 @@ export function CasesPage() {
   const [q, setQ] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
+  // A column clicked; null: the tab's own order (the server's).
+  const [sort, setSort] = React.useState<DataTableSort | null>(null);
   const [logging, setLogging] = React.useState(false);
   const filters = { tab, topic: topic || undefined, priority: priority || undefined, assignee: assignee ? Number(assignee) : undefined, q: search || undefined, ageDays: age ? Number(age) : undefined };
-  const { data, isPending, isError, isFetching } = useCases({ ...filters, page, pageSize: PAGE });
+  const { data, isPending, isError, isFetching } = useCases({ ...filters, sort: sort?.key, order: sort?.order, page, pageSize: PAGE });
   const topicLabel = (key: string | null | undefined) => (key ? (topics.data?.find((t) => t.key === key)?.label ?? key) : "—");
   const support = membersOf(teams.data, "support");
   const reset = <T,>(set: (v: T) => void) => (v: T) => {
@@ -63,8 +65,10 @@ export function CasesPage() {
 
   const columns: DataTableColumn<CaseRow>[] = [
     {
-      key: "case",
+      key: "number",
       header: "Case",
+      sortable: true,
+      firstOrder: "desc",
       cell: (c) => (
         <div className="min-w-0">
           <Link href={`/teamwork/support/${c.id}`} className="font-medium underline-offset-2 hover:underline">
@@ -82,8 +86,9 @@ export function CasesPage() {
       ),
     },
     {
-      key: "who",
+      key: "requester",
       header: "From",
+      sortable: true,
       cell: (c) => (
         <div className="min-w-0">
           <p className="m-0 truncate">{requesterLabel(c.requester)}</p>
@@ -92,11 +97,11 @@ export function CasesPage() {
       ),
     },
     { key: "topic", header: "Topic", className: "hidden lg:table-cell", headerClassName: "hidden lg:table-cell", cell: (c) => topicLabel(c.topic) },
-    { key: "priority", header: "Priority", cell: (c) => <StatusBadge tone={c.priority === "urgent" ? "destructive" : c.priority === "high" ? "warning" : "default"} label={priorityLabel(c.priority)} /> },
-    { key: "status", header: "Status", cell: (c) => <StatusBadge tone={statusTone(c.status)} label={statusLabel(c.status)} /> },
+    { key: "priority", header: "Priority", sortable: true, firstOrder: "desc", cell: (c) => <StatusBadge tone={c.priority === "urgent" ? "destructive" : c.priority === "high" ? "warning" : "default"} label={priorityLabel(c.priority)} /> },
+    { key: "status", header: "Status", sortable: true, cell: (c) => <StatusBadge tone={statusTone(c.status)} label={statusLabel(c.status)} /> },
     { key: "assignee", header: "Assignee", cell: (c) => (c.assignee ? c.assignee.name : <span className="text-ink-3">Unassigned</span>) },
-    { key: "due", header: "Due", cell: (c) => <Due c={c} /> },
-    { key: "updated", header: "Updated", className: "hidden xl:table-cell", headerClassName: "hidden xl:table-cell", cell: (c) => <span className="text-ink-3 text-xs">{relativeTime(c.updated_at)}</span> },
+    { key: "due", header: "Due", sortable: true, cell: (c) => <Due c={c} /> },
+    { key: "updated", header: "Updated", sortable: true, firstOrder: "desc", className: "hidden xl:table-cell", headerClassName: "hidden xl:table-cell", cell: (c) => <span className="text-ink-3 text-xs">{relativeTime(c.updated_at)}</span> },
   ];
 
   return (
@@ -168,6 +173,11 @@ export function CasesPage() {
         rowKey={(c) => c.id}
         isLoading={isPending}
         isError={isError}
+        sort={sort}
+        onSortChange={(next) => {
+          setSort(next);
+          setPage(1);
+        }}
         emptyMessage={tab === "mine" ? "Nothing assigned to you." : tab === "unassigned" ? "Every case has an owner." : "No cases here."}
       />
       {data && data.total > 0 ? <Pager page={page} pageCount={Math.max(1, Math.ceil(data.total / PAGE))} total={data.total} pageSize={PAGE} noun={["case", "cases"]} busy={isFetching} onPage={setPage} /> : null}

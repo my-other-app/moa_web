@@ -71,7 +71,7 @@ export { Toaster, toast } from "./toast";
 export { SearchInput, type SearchInputProps } from "./search-input";
 export { Pagination, type PaginationProps } from "./pagination";
 export { StatusBadge, type StatusBadgeProps, type StatusTone } from "./status-badge";
-export { DataTable, type DataTableColumn, type DataTableProps } from "./data-table";
+export { DataTable, type DataTableColumn, type DataTableProps, type DataTableSort, type SortOrder } from "./data-table";
 export { StatCard, type StatCardProps, type StatCardTone } from "./stat-card";
 export { cn } from "../lib/cn";
 export { Separator } from "./separator";

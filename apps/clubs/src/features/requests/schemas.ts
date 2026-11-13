@@ -41,6 +41,26 @@ export type RequestTab = RequestStatus | "all";
 export const TAB_LABEL: Record<RequestTab, string> = { ...STATUS_LABEL, all: "All" };
 
 /** The most requests one call may name (or take, with all_pending): the server's 500. */
+/** How the list is ordered (GET …/requests `sort` + `order`); "" is the server's own: the queue oldest first, others newest first. */
+export const REQUEST_SORTS = [
+  { value: "", label: "Default order" },
+  { value: "submitted:asc", label: "Oldest first" },
+  { value: "submitted:desc", label: "Newest first" },
+  { value: "name:asc", label: "Name A–Z" },
+  { value: "name:desc", label: "Name Z–A" },
+  { value: "email:asc", label: "Email A–Z" },
+  { value: "email:desc", label: "Email Z–A" },
+] as const;
+export type RequestSort = (typeof REQUEST_SORTS)[number]["value"];
+
+/** A correction of a request: only the fields sent change; answers merge by question key. */
+export interface RequestCorrection {
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  answers?: Record<string, unknown>;
+}
+
 export const MAX_IDS_PER_CALL = 500;
 /**
  * What the dashboard confirms per call. Under the server's 500 so each call

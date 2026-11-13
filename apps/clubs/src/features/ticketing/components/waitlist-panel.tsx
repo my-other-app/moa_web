@@ -1,15 +1,25 @@
 "use client";
 
 import * as React from "react";
-import { CopyIcon, LockIcon, SendIcon, UserMinusIcon, UsersRoundIcon } from "lucide-react";
+import { CopyIcon, Loader2Icon, LockIcon, PencilIcon, SendIcon, UserMinusIcon, UsersRoundIcon } from "lucide-react";
+import { ApiError } from "@moa/api";
 import { ExportMenu, formatDateTime } from "@moa/app-kit";
 import {
+  Button,
   CardLabel,
   Chip,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   FigurePanel,
   IconButton,
+  NativeSelect,
   Notice,
+  SearchField,
   Skeleton,
   StatusBadge,
   Switch,
@@ -23,8 +33,8 @@ import { useEventDetail } from "@/features/events/queries";
 import { openUpgrade, useEventPlan } from "@/features/plan";
 
 import { waitlistExportUrl } from "../api";
-import { useOfferWaitlistEntry, useRemoveWaitlistEntry, useWaitlist, useWaitlistSettings } from "../queries";
-import { ENTRY_STATUS_LABEL, OFFER_HOURS, type EntryStatus, type WaitlistEntry } from "../schemas";
+import { useCorrectWaitlistEntry, useOfferWaitlistEntry, useRemoveWaitlistEntry, useWaitlist, useWaitlistSettings } from "../queries";
+import { ENTRY_STATUS_LABEL, OFFER_HOURS, WAITLIST_SORTS, type EntryStatus, type WaitlistEntry } from "../schemas";
 
 /**
  * The event's waiting list, for the club: switched on and off, how long an
@@ -62,7 +72,70 @@ async function copy(text: string) {
   }
 }
 
-function EntryRow({ e, eventId, canEdit }: { e: WaitlistEntry; eventId: number; canEdit: boolean }) {
+/** Correct someone's name, email or phone in line (after they wrote in); their place is kept and nothing is sent. */
+function EntryEditDialog({ eventId, entry, onClose }: { eventId: number; entry: WaitlistEntry; onClose: () => void }) {
+  const correct = useCorrectWaitlistEntry(eventId);
+  const [name, setName] = React.useState(entry.full_name);
+  const [email, setEmail] = React.useState(entry.email ?? "");
+  const [phone, setPhone] = React.useState(entry.phone ?? "");
+  const [error, setError] = React.useState<string | null>(null);
+  const save = (ev: React.FormEvent) => {
+    ev.preventDefault();
+    setError(null);
+    const patch: { full_name?: string; email?: string; phone?: string } = {};
+    if (name.trim() !== entry.full_name) patch.full_name = name.trim();
+    if (email.trim() !== (entry.email ?? "")) patch.email = email.trim();
+    if (phone.trim() !== (entry.phone ?? "")) patch.phone = phone.trim();
+    if (!name.trim()) return setError("A name is needed.");
+    if (!Object.keys(patch).length) return onClose();
+    correct.mutate(
+      { id: entry.id, patch },
+      { onSuccess: onClose, onError: (e) => setError(e instanceof ApiError ? e.message : "Could not save. Try again in a moment.") },
+    );
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit {entry.full_name}&apos;s details</DialogTitle>
+          <DialogDescription>Their place in line is kept and nothing is sent.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={save} noValidate className="grid gap-3">
+          <label className="grid gap-1">
+            <span className="eyebrow">Name</span>
+            <input className="input" value={name} onChange={(ev) => setName(ev.target.value)} autoFocus />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1">
+              <span className="eyebrow">Email</span>
+              <input className="input" type="email" value={email} onChange={(ev) => setEmail(ev.target.value)} />
+            </label>
+            <label className="grid gap-1">
+              <span className="eyebrow">Phone</span>
+              <input className="input" type="tel" value={phone} onChange={(ev) => setPhone(ev.target.value)} />
+            </label>
+          </div>
+          {error ? (
+            <p role="alert" className="text-refuse text-[12px]">
+              {error}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={correct.isPending}>
+              {correct.isPending ? <Loader2Icon className="animate-spin" /> : null}
+              Save details
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EntryRow({ e, eventId, canEdit, onEdit }: { e: WaitlistEntry; eventId: number; canEdit: boolean; onEdit: () => void }) {
   const offer = useOfferWaitlistEntry(eventId);
   const remove = useRemoveWaitlistEntry(eventId);
   const open = e.status === "waiting" || e.status === "offered";
@@ -85,6 +158,9 @@ function EntryRow({ e, eventId, canEdit }: { e: WaitlistEntry; eventId: number; 
       </p>
       {canEdit ? (
         <div className="flex items-center gap-1">
+          <IconButton label={`Edit ${e.full_name}'s details`} variant="ghost" size="sm" onClick={onEdit}>
+            <PencilIcon />
+          </IconButton>
           {e.offer_url ? (
             <IconButton label={`Copy ${e.full_name}'s claim link`} variant="ghost" size="sm" onClick={() => void copy(e.offer_url!)}>
               <CopyIcon />
@@ -136,7 +212,11 @@ function HoursField({ value, onSave, disabled }: { value: number; onSave: (hours
 
 export function WaitlistPanel({ eventId }: { eventId: number }) {
   const [filter, setFilter] = React.useState<EntryStatus | null>(null);
-  const list = useWaitlist(eventId, filter);
+  const [searchInput, setSearchInput] = React.useState("");
+  const [q, setQ] = React.useState("");
+  const [sort, setSort] = React.useState<string>("");
+  const [editing, setEditing] = React.useState<WaitlistEntry | null>(null);
+  const list = useWaitlist(eventId, filter, { q, sort });
   const settings = useWaitlistSettings(eventId);
   const { can } = useAccess();
   const plan = useEventPlan(eventId);
@@ -195,13 +275,24 @@ export function WaitlistPanel({ eventId }: { eventId: number }) {
           </Notice>
         ) : null}
         {s && notAllowed && s.enabled ? <Notice tone="caution" tag="Plan">Your plan no longer includes waiting lists, so nobody new can join. The people already in line still get their offers.</Notice> : null}
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Show">
-          {FILTERS.map((f) => (
-            <Chip key={f.key ?? "all"} active={filter === f.key} onClick={() => setFilter(f.key)}>
-              {f.label}
-              {f.key ? <span className="font-mono tabular-nums">{counts[f.key] ?? 0}</span> : null}
-            </Chip>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Show">
+            {FILTERS.map((f) => (
+              <Chip key={f.key ?? "all"} active={filter === f.key} onClick={() => setFilter(f.key)}>
+                {f.label}
+                {f.key ? <span className="font-mono tabular-nums">{counts[f.key] ?? 0}</span> : null}
+              </Chip>
+            ))}
+          </div>
+          <span className="flex-1" />
+          <NativeSelect aria-label="Sort the waiting list" value={sort} onChange={(ev) => setSort(ev.target.value)} className="w-full sm:w-40">
+            {WAITLIST_SORTS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </NativeSelect>
+          <SearchField value={searchInput} onChange={setSearchInput} onCommit={(v) => setQ(v.trim())} placeholder="Name, email or phone" label="Search the waiting list" className="w-full sm:w-56" />
         </div>
       </div>
       {list.isPending ? (
@@ -213,15 +304,16 @@ export function WaitlistPanel({ eventId }: { eventId: number }) {
         <p className="text-ink-3 px-4 pb-4 text-[12.5px]">The waiting list could not load. Try again in a moment.</p>
       ) : list.data && list.data.entries.length === 0 ? (
         <div className="px-4 pb-5">
-          <EmptyState size="sm" icon={<UsersRoundIcon />} title={filter ? "Nobody here" : "Nobody is waiting"} description={s?.enabled ? "When a ticket type sells out, people can join here instead of going away." : "Turn the list on, and people can join it once a ticket type sells out."} />
+          <EmptyState size="sm" icon={<UsersRoundIcon />} title={q ? "Nobody matches" : filter ? "Nobody here" : "Nobody is waiting"} description={s?.enabled ? "When a ticket type sells out, people can join here instead of going away." : "Turn the list on, and people can join it once a ticket type sells out."} />
         </div>
       ) : (
         <ul aria-label="People on the waiting list">
           {(list.data?.entries ?? []).map((e) => (
-            <EntryRow key={e.id} e={e} eventId={eventId} canEdit={canEdit} />
+            <EntryRow key={e.id} e={e} eventId={eventId} canEdit={canEdit} onEdit={() => setEditing(e)} />
           ))}
         </ul>
       )}
+      {editing ? <EntryEditDialog eventId={eventId} entry={editing} onClose={() => setEditing(null)} /> : null}
     </FigurePanel>
   );
 }

@@ -48,6 +48,22 @@ export interface ResourceListProps<T> {
   };
   /** Rendered at the right of the toolbar, e.g. an export button. */
   actions?: React.ReactNode;
+  /**
+   * Sort by clicking a column header (columns marked `sortable`), kept in
+   * the URL as `sort=<column key>:<asc|desc>`; the page reads it with
+   * `sortOf(params)` and passes it to its query, so the server sorts every
+   * page, not just the one on screen.
+   */
+  sortable?: boolean;
+}
+
+/** The list's sort from the URL (`sort=key:order`), for the page's query; {} when none. */
+export function sortOf(params: { param: (key: string) => string | undefined }): { sort?: string; order?: "asc" | "desc" } {
+  const raw = params.param("sort");
+  if (!raw) return {};
+  const [key, order] = raw.split(":");
+  if (!key) return {};
+  return { sort: key, ...(order === "asc" || order === "desc" ? { order } : {}) };
 }
 
 /**
@@ -73,7 +89,10 @@ export function ResourceList<T>({
   toolbar,
   selection,
   actions,
+  sortable = false,
 }: ResourceListProps<T>) {
+  const urlSort = sortable ? sortOf(params) : {};
+  const tableSort = urlSort.sort ? { key: urlSort.sort, order: urlSort.order ?? "asc" } : null;
   const [selectedKeys, setSelectedKeys] = React.useState<Set<React.Key>>(new Set());
   const total = page?.total ?? null;
   const pages = pageCount(total, params.pageSize) ?? 1;
@@ -173,6 +192,13 @@ export function ResourceList<T>({
             data={rows}
             rowKey={rowKey}
             isError={isError}
+            {...(sortable
+              ? {
+                  sort: tableSort,
+                  onSortChange: (next: { key: string; order: "asc" | "desc" } | null) =>
+                    params.setParam("sort", next ? `${next.key}:${next.order}` : undefined),
+                }
+              : {})}
             selection={
               selection
                 ? {

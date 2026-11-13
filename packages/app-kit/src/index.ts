@@ -99,7 +99,7 @@ export * from "./topics";
 export * from "./cohosts";
 export { useListParams, type ListParams } from "./hooks/use-list-params";
 export { useLocalPage } from "./hooks/use-local-page";
-export { ResourceList, type ResourceListProps } from "./components/resource-list";
+export { ResourceList, sortOf, type ResourceListProps } from "./components/resource-list";
 export { PageHeader } from "./components/page-header";
 export { SectionTitle } from "./components/section-title";
 export {

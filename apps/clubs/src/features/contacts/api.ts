@@ -10,6 +10,7 @@ function query(f: ContactFilters) {
     attended: f.attended ?? undefined,
     since: f.since || undefined,
     until: f.until || undefined,
+    ...(f.sort ? { sort: f.sort.split(":")[0], order: f.sort.split(":")[1] } : {}),
   };
 }
 

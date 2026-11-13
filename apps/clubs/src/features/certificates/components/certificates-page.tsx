@@ -10,6 +10,7 @@ import {
   ChoiceCard,
   EmptyState,
   FigurePanel,
+  NativeSelect,
   Notice,
   Pager,
   SearchInput,
@@ -27,6 +28,7 @@ import {
 import { verdictOf, type CertificateSummary } from "@/features/deliveries";
 import { useSendDocuments } from "@/features/deliveries/queries";
 
+import { CERTIFICATE_SORTS } from "../api";
 import {
   useCertificateSummary,
   useCertificates,
@@ -282,12 +284,14 @@ function ListPanel({
   );
   const [search, setSearch] = React.useState("");
   const [query, setQuery] = React.useState("");
+  const [sort, setSort] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(25);
   const list = useCertificates({
     eventId,
     status,
     search: query.trim() || undefined,
+    sort: sort || undefined,
     page,
     pageSize,
   });
@@ -324,6 +328,21 @@ function ListPanel({
           ))}
         </div>
         <ToolbarEnd>
+          <NativeSelect
+            aria-label="Sort certificates"
+            value={sort}
+            onChange={(e) => {
+              setSort(e.target.value);
+              setPage(1);
+            }}
+            className="w-full sm:w-44"
+          >
+            {CERTIFICATE_SORTS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </NativeSelect>
           <SearchInput
             value={search}
             onChange={setSearch}

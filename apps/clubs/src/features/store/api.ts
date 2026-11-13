@@ -23,8 +23,13 @@ export async function removeFromEvent(eventId: number, itemId: string) {
   await api.del<unknown>(`${base(eventId)}/${itemId}`);
 }
 
-export async function fetchStoreOrders(eventId: number, params: { q?: string; status?: OrderFilter; page: number; page_size: number }) {
-  return ordersPageSchema.parse(await api.get<unknown>(`${base(eventId)}/orders`, { query: { ...params, status: params.status || undefined } }));
+export async function fetchStoreOrders(eventId: number, params: { q?: string; status?: OrderFilter; page: number; page_size: number; sort?: string }) {
+  const [sort, order] = (params.sort ?? "").split(":");
+  return ordersPageSchema.parse(
+    await api.get<unknown>(`${base(eventId)}/orders`, {
+      query: { q: params.q, page: params.page, page_size: params.page_size, status: params.status || undefined, sort: sort || undefined, order: order || undefined },
+    }),
+  );
 }
 
 export async function handOverOrder(eventId: number, orderId: string, undo = false) {

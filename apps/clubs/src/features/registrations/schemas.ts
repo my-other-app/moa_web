@@ -181,3 +181,13 @@ export const eventAnalyticsSchema = z
 
 export type Registration = z.infer<typeof registrationSchema>;
 export type EventAnalytics = z.infer<typeof eventAnalyticsSchema>;
+
+/** The guest list's orders (GET …/list `sort` + `order`); "" is the server's own, names A to Z. */
+export const GUEST_SORTS = [
+  { value: "", label: "Name A–Z" },
+  { value: "name:desc", label: "Name Z–A" },
+  { value: "email:asc", label: "Email A–Z" },
+  { value: "registered:desc", label: "Newest registered" },
+  { value: "registered:asc", label: "Oldest registered" },
+  { value: "checked_in:desc", label: "Latest check-ins" },
+] as const;

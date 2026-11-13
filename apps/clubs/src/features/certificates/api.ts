@@ -48,13 +48,26 @@ export interface CertificateQuery {
   eventId: number;
   status?: "issued" | "revoked";
   search?: string;
+  /** "field:direction": ticket (the default), name, number or issued. */
+  sort?: string;
   page: number;
   pageSize: number;
 }
 
+/** The certificates list's orders (GET …/certificates `sort` + `order`). */
+export const CERTIFICATE_SORTS = [
+  { value: "", label: "Ticket number" },
+  { value: "name:asc", label: "Name A–Z" },
+  { value: "name:desc", label: "Name Z–A" },
+  { value: "number:asc", label: "Certificate number" },
+  { value: "issued:desc", label: "Newest issued" },
+  { value: "issued:asc", label: "Oldest issued" },
+] as const;
+
 export async function fetchCertificates(q: CertificateQuery) {
+  const [sort, order] = (q.sort ?? "").split(":");
   const raw = await api.get<unknown>(base(q.eventId), {
-    query: { status: q.status, search: q.search, page: q.page, page_size: q.pageSize },
+    query: { status: q.status, search: q.search, sort: sort || undefined, order: order || undefined, page: q.page, page_size: q.pageSize },
   });
   return certificatePageSchema.parse(raw);
 }

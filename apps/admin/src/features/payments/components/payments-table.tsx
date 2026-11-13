@@ -9,6 +9,7 @@ import {
   formatCurrency,
   formatDateTime,
   formatNumber,
+  sortOf,
   useListParams,
 } from "@moa/app-kit";
 import {
@@ -159,6 +160,8 @@ const columns: DataTableColumn<Payment>[] = [
   },
   {
     key: "amount",
+    sortable: true,
+    firstOrder: "desc",
     header: "Amount",
     cell: (row) => (
       <span className="font-medium tabular-nums">{formatCurrency(row.amount)}</span>
@@ -166,6 +169,7 @@ const columns: DataTableColumn<Payment>[] = [
   },
   {
     key: "status",
+    sortable: true,
     header: "Status",
     cell: (row) => (
       <StatusBadge tone={STATUS_TONE[row.status] ?? "default"} label={row.status} />
@@ -198,7 +202,9 @@ const columns: DataTableColumn<Payment>[] = [
     ),
   },
   {
-    key: "when",
+    key: "date",
+    sortable: true,
+    firstOrder: "desc",
     header: "When",
     className: "hidden md:table-cell",
     headerClassName: "hidden md:table-cell",
@@ -316,6 +322,7 @@ export function PaymentsTable() {
     status,
     gateway,
     search: params.search || undefined,
+    ...sortOf(params),
     offset: params.offset,
     limit: params.pageSize,
   });
@@ -325,6 +332,7 @@ export function PaymentsTable() {
       <Totals />
 
       <ResourceList
+        sortable
         page={data}
         isPending={isPending}
         isError={isError}

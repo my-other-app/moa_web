@@ -8,9 +8,19 @@ import { toast } from "@moa/ui";
 
 import { TICKETING_KEY } from "@/features/ticketing/queries";
 
-import { approveAllPending, approveRequests, declineAllPending, declineRequests, fetchRequests, fetchRequestsExport, reopenRequests } from "./api";
+import { approveAllPending, approveRequests, correctRequest, declineAllPending, declineRequests, fetchRequests, fetchRequestsExport, reopenRequests } from "./api";
 import { confirmAllWaiting, confirmIds, declineAllWaiting, declineIds, summarise, type BulkOutcome, type BulkProgress } from "./bulk";
-import { PAGE_SIZE, indiaTime, skipReasonText, type RegistrationRequest, type RequestPage, type RequestStatus, type RequestTab } from "./schemas";
+import {
+  PAGE_SIZE,
+  indiaTime,
+  skipReasonText,
+  type RegistrationRequest,
+  type RequestCorrection,
+  type RequestPage,
+  type RequestSort,
+  type RequestStatus,
+  type RequestTab,
+} from "./schemas";
 
 /**
  * Every read here is `null` from a backend without registration requests
@@ -21,8 +31,9 @@ import { PAGE_SIZE, indiaTime, skipReasonText, type RegistrationRequest, type Re
 export const requestsKey = (eventId: number) => ["registration-requests", eventId] as const;
 const countsKey = (eventId: number) => [...requestsKey(eventId), "counts"] as const;
 const listsKey = (eventId: number) => [...requestsKey(eventId), "list"] as const;
-// [..., "list", status, q, missing]: moveRows reads the status at [3].
-const listKey = (eventId: number, status: RequestTab, q: string, missing: string) => [...listsKey(eventId), status, q, missing] as const;
+// [..., "list", status, q, missing, sort]: moveRows reads the status at [3].
+const listKey = (eventId: number, status: RequestTab, q: string, missing: string, sort: RequestSort) =>
+  [...listsKey(eventId), status, q, missing, sort] as const;
 
 type Pages = InfiniteData<RequestPage | null, string | null>;
 
@@ -50,10 +61,11 @@ export function useRequestsOnServer(eventId: number | undefined): boolean | unde
 }
 
 /** One status's requests (or all of them), a page at a time by the server's cursor ("Load more"); `missing` keeps those missing answers. */
-export function useRequestList(eventId: number, status: RequestTab, q: string, missing = "") {
+export function useRequestList(eventId: number, status: RequestTab, q: string, missing = "", sort: RequestSort = "") {
   return useInfiniteQuery({
-    queryKey: listKey(eventId, status, q, missing),
-    queryFn: ({ pageParam }) => nullIfRouteMissing(() => fetchRequests(eventId, { status, q, after: pageParam, limit: PAGE_SIZE, missing: missing || undefined })),
+    queryKey: listKey(eventId, status, q, missing, sort),
+    queryFn: ({ pageParam }) =>
+      nullIfRouteMissing(() => fetchRequests(eventId, { status, q, after: pageParam, limit: PAGE_SIZE, missing: missing || undefined, sort })),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last?.next ?? undefined,
     // Another tab or search keeps the counts and the toolbar on screen while it loads.
@@ -101,6 +113,31 @@ function moveRows(queryClient: QueryClient, eventId: number, ids: ReadonlySet<st
 }
 
 /** Confirm one request from its row. */
+/**
+ * Correct a request's details (a support case: a misspelt name, an email
+ * typo). The corrected row replaces the old one in every loaded list, so
+ * the club keeps its place; a search that no longer matches is read again.
+ */
+export function useCorrectRequest(eventId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, patch }: { requestId: string; patch: RequestCorrection }) => correctRequest(eventId, requestId, patch),
+    onSuccess: (row) => {
+      for (const [key, data] of queryClient.getQueriesData<Pages>({ queryKey: listsKey(eventId) })) {
+        if (!data) continue;
+        queryClient.setQueryData<Pages>(key, {
+          ...data,
+          pages: data.pages.map((p) => (p ? { ...p, items: p.items.map((r) => (r.id === row.id ? row : r)) } : p)),
+        });
+      }
+      void queryClient.invalidateQueries({ queryKey: listsKey(eventId), refetchType: "none" });
+      // A confirmed request's registration was corrected too.
+      if (row.registration_id) void queryClient.invalidateQueries({ queryKey: qk.events.all });
+      toast.success("Details corrected");
+    },
+  });
+}
+
 export function useConfirmRequest(eventId: number) {
   const queryClient = useQueryClient();
   return useMutation({

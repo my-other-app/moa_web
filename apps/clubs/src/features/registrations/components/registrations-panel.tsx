@@ -49,7 +49,8 @@ import { GivenBackPanel } from "@/features/ticket-cancel";
 
 import { exportUrl } from "../api";
 import { useEventAnalytics, useImports, useMarkAttendance, useMissingCount, useRegistrations, useSetRegistrationRole } from "../queries";
-import { REGISTRATION_ROLES, eventFieldSchema, type EventField, type Registration, type RegistrationDetail, type RegistrationRole } from "../schemas";
+import {
+  GUEST_SORTS, REGISTRATION_ROLES, eventFieldSchema, type EventField, type Registration, type RegistrationDetail, type RegistrationRole } from "../schemas";
 import { AttendeeDetailDialog } from "./attendee-detail-dialog";
 import { AttendeeFormDialog } from "./attendee-form-dialog";
 import { ImportDialog, ImportRecord, importFileName } from "./import-panel";
@@ -258,6 +259,8 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
   const delivery = params.param("delivery") === "not_delivered" ? "not_delivered" : undefined;
   const paid = params.param("paid");
   const missing = params.param("missing") || undefined;
+  const sortParam = params.param("sort");
+  const sort = sortParam && GUEST_SORTS.some((o) => o.value === sortParam) ? sortParam : undefined;
 
   const fields: EventField[] = React.useMemo(() => {
     const raw = (event.data as { additional_details?: unknown } | undefined)?.additional_details;
@@ -274,6 +277,7 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
     role,
     delivery,
     missing,
+    sort,
     offset: params.offset,
     limit: params.pageSize,
   });
@@ -487,6 +491,18 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
                   Clear
                 </Button>
               ) : null}
+              <NativeSelect
+                aria-label="Sort guests"
+                value={sort ?? ""}
+                onChange={(e) => params.setParam("sort", e.target.value || undefined)}
+                className="w-full sm:w-44"
+              >
+                {GUEST_SORTS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </NativeSelect>
               <SearchField
                 value={params.searchInput}
                 onChange={params.setSearchInput}

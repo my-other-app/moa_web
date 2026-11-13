@@ -87,8 +87,16 @@ function page(query: Record<string, unknown>) {
   const all = requests
     .filter((r) => query.status === "all" || r.status === query.status)
     .filter((r) => !q || [r.full_name, r.email, r.phone].some((v) => v?.toLowerCase().includes(q)))
-    // All is newest first, as the server reads it.
-    .sort(query.status === "all" ? (a, b) => byQueue(b, a) : byQueue);
+    // All is newest first, as the server reads it; a sort asked for wins.
+    .sort((a, b) => {
+      if (query.sort === "name" || query.sort === "email") {
+        const key = query.sort === "name" ? "full_name" : "email";
+        const cmp = String(a[key] ?? "").toLowerCase().localeCompare(String(b[key] ?? "").toLowerCase()) || a.id.localeCompare(b.id);
+        return query.order === "desc" ? -cmp : cmp;
+      }
+      if (query.sort === "submitted") return query.order === "desc" ? byQueue(b, a) : byQueue(a, b);
+      return query.status === "all" ? byQueue(b, a) : byQueue(a, b);
+    });
   const start = query.after ? Number(query.after) : 0;
   const limit = Number(query.limit ?? 50);
   return { items: all.slice(start, start + limit), next: start + limit < all.length ? String(start + limit) : null, counts: counts(), places_left: places };
@@ -171,7 +179,22 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         throw new Error(`unstubbed POST ${path}`);
       }),
       put: vi.fn(),
-      patch: vi.fn(),
+      patch: vi.fn(async (path: string, body: Record<string, unknown>) => {
+        calls.push({ method: "PATCH", path, body });
+        const m = /\/events\/registration\/37\/requests\/([^/]+)$/.exec(path);
+        if (!m) throw new Error(`unstubbed PATCH ${path}`);
+        const r = requests.find((x) => x.id === m[1])!;
+        if (typeof body.email === "string" && requests.some((x) => x.id !== r.id && x.email === body.email)) {
+          throw new ApiError({ status: 409, message: "Another request on this event already uses that email." });
+        }
+        Object.assign(r, {
+          ...(body.full_name !== undefined ? { full_name: body.full_name } : {}),
+          ...(body.email !== undefined ? { email: body.email } : {}),
+          ...(body.phone !== undefined ? { phone: body.phone || null } : {}),
+          ...(body.answers ? { answers: { ...(r.answers ?? {}), ...(body.answers as object) } } : {}),
+        });
+        return { ...r, missing_answers: [] };
+      }),
       del: vi.fn(),
     },
   };
@@ -625,5 +648,75 @@ describe("the numbers, All and Export", () => {
     expect(screen.getByText("4 received · 3 under review · 0 confirmed · 1 declined")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^All/ })).toHaveTextContent("4");
     expect(screen.queryByRole("button", { name: "Export" })).toBeNull();
+  });
+});
+
+describe("sorting and correcting", () => {
+  it("sorts by name or email either way, asking the server for that order", async () => {
+    render(<RequestsPage eventId={37} />);
+    await screen.findByRole("table");
+    const select = screen.getByRole("combobox", { name: "Sort registrations" });
+    fireEvent.change(select, { target: { value: "name:desc" } });
+    await waitFor(() => expect(calls.some((c) => c.path.endsWith("/requests") && c.query?.sort === "name" && c.query?.order === "desc")).toBe(true));
+    await waitFor(() => {
+      const names = within(screen.getByRole("table"))
+        .getAllByText(/^(Asha Rao|Bilal Khan|Chitra Nair)$/)
+        .map((el) => el.textContent);
+      expect(names).toEqual(["Chitra Nair", "Bilal Khan", "Asha Rao"]);
+    });
+    // Back to the queue's own order (oldest first).
+    fireEvent.change(select, { target: { value: "" } });
+    await waitFor(() => {
+      const names = within(screen.getByRole("table"))
+        .getAllByText(/^(Asha Rao|Bilal Khan|Chitra Nair)$/)
+        .map((el) => el.textContent);
+      expect(names).toEqual(["Asha Rao", "Bilal Khan", "Chitra Nair"]);
+    });
+    // The queue's own order is asked for with no sort at all.
+    expect(calls.find((c) => c.path.endsWith("/requests") && c.query?.limit === 50)?.query?.sort).toBeUndefined();
+  });
+
+  it("corrects someone under review: only what changed is sent, nothing is decided, and the row updates", async () => {
+    render(<RequestsPage eventId={37} />);
+    await screen.findByRole("table");
+    fireEvent.click(screen.getByRole("button", { name: "Edit Bilal Khan's details" }));
+    const dialog = await screen.findByRole("dialog");
+    const name = within(dialog).getByLabelText("Name");
+    fireEvent.change(name, { target: { value: "Bilal Khan Mohammed" } });
+    fireEvent.change(within(dialog).getByLabelText("Email"), { target: { value: "bilal.k@example.com" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save details" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    const patch = calls.find((c) => c.method === "PATCH");
+    expect(patch?.path).toBe("/api/v1/events/registration/37/requests/rq-0002");
+    expect(patch?.body).toEqual({ full_name: "Bilal Khan Mohammed", email: "bilal.k@example.com" });
+    expect(await screen.findByText("Bilal Khan Mohammed")).toBeInTheDocument();
+    expect(posts("/requests/approve")).toHaveLength(0);
+    expect(requests.find((r) => r.id === "rq-0002")?.status).toBe("pending");
+  });
+
+  it("says so under the email when another registration already uses it", async () => {
+    render(<RequestsPage eventId={37} />);
+    await screen.findByRole("table");
+    fireEvent.click(screen.getByRole("button", { name: "Edit Chitra Nair's details" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Email"), { target: { value: "asha@example.com" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save details" }));
+    expect(await within(dialog).findByText("Another request on this event already uses that email.")).toBeInTheDocument();
+    expect(requests.find((r) => r.id === "rq-0003")?.email).toBe("chitra@example.com");
+  });
+
+  it("offers no editing to door staff", async () => {
+    me = {
+      role: "door",
+      role_label: "Door",
+      role_description: "Check-ins.",
+      can: { manage_access: false, see_access: false, money: false, club_profile: false, edit_events: false, delete_events: false, door: true },
+      club_id: 5,
+      club_name: "Circuit Society",
+      member: null,
+    };
+    render(<RequestsPage eventId={37} />);
+    expect(await screen.findByText(/Your role can see the registrations but not review them/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Edit .* details$/ })).not.toBeInTheDocument();
   });
 });
