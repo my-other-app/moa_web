@@ -123,7 +123,8 @@ const NONE: Record<OrderFilter, string> = {
 function Orders({ eventId, status, onStatus, oversold }: { eventId: number; status: OrderFilter; onStatus: (s: OrderFilter) => void; oversold: number }) {
   const [page, setPage] = React.useState(1);
   const [q, setQ] = React.useState("");
-  const orders = useStoreOrders(eventId, { q: q.trim() || undefined, status, page, page_size: 10 });
+  const [sort, setSort] = React.useState("");
+  const orders = useStoreOrders(eventId, { q: q.trim() || undefined, status, page, page_size: 10, sort: sort || undefined });
   const hand = useHandOver(eventId);
   const fulfil = useFulfil(eventId);
   const data = orders.data;
@@ -135,6 +136,22 @@ function Orders({ eventId, status, onStatus, oversold }: { eventId: number; stat
     <FigurePanel id="store-orders" className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
         <CardLabel>Orders</CardLabel>
+        <span className="flex-1" />
+        <select
+          aria-label="Sort orders"
+          className="input h-8 w-[160px] py-0 text-[12.5px]"
+          value={sort}
+          onChange={(e) => {
+            setSort(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">Newest first</option>
+          <option value="newest:asc">Oldest first</option>
+          <option value="name:asc">Name A–Z</option>
+          <option value="total:desc">Largest total</option>
+          <option value="handed:desc">Latest handed over</option>
+        </select>
         <input
           aria-label="Find an order"
           className="input h-8 w-[200px] text-[12.5px]"

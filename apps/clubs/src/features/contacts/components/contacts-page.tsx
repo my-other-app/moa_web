@@ -7,7 +7,7 @@ import { EmptyState, FigurePanel, Notice, Pager, SearchField, Skeleton, cn } fro
 
 import { contactsExportUrl } from "../api";
 import { useContacts } from "../queries";
-import { PAGE_SIZE, type ContactFilters } from "../schemas";
+import { CONTACT_SORTS, PAGE_SIZE, type ContactFilters } from "../schemas";
 
 const field = "input h-9";
 const label = "eyebrow mb-1.5 block";
@@ -27,6 +27,7 @@ export function ContactsPage() {
   const [came, setCame] = React.useState<Came>("all");
   const [since, setSince] = React.useState("");
   const [until, setUntil] = React.useState("");
+  const [sort, setSort] = React.useState("");
   const [page, setPage] = React.useState(1);
 
   const filters: ContactFilters = {
@@ -35,6 +36,7 @@ export function ContactsPage() {
     attended: came === "all" ? null : came === "yes",
     since: since || undefined,
     until: until || undefined,
+    sort: sort || undefined,
   };
   const list = useContacts(filters, page, PAGE_SIZE);
   const data = list.data;
@@ -107,6 +109,18 @@ export function ContactsPage() {
               <option value="all">Everyone</option>
               <option value="yes">Came</option>
               <option value="no">Didn&apos;t come</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="contacts-sort" className={label}>
+              Sort
+            </label>
+            <select id="contacts-sort" value={sort} onChange={(e) => change(setSort)(e.target.value)} className={cn(field, "w-[150px] py-0")}>
+              {CONTACT_SORTS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
           <div>

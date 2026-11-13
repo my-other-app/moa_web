@@ -20,8 +20,12 @@ export function useStoreSummary(eventId: number) {
   return useQuery({ queryKey: [...KEY(eventId), "summary"], queryFn: () => fetchStoreSummary(eventId), staleTime: 10_000, refetchInterval: 60_000 });
 }
 
-export function useStoreOrders(eventId: number, params: { q?: string; status?: OrderFilter; page: number; page_size: number }) {
-  return useQuery({ queryKey: [...KEY(eventId), "orders", params.q ?? "", params.status ?? "", params.page, params.page_size], queryFn: () => fetchStoreOrders(eventId, params), staleTime: 10_000 });
+export function useStoreOrders(eventId: number, params: { q?: string; status?: OrderFilter; page: number; page_size: number; sort?: string }) {
+  return useQuery({
+    queryKey: [...KEY(eventId), "orders", params.q ?? "", params.status ?? "", params.page, params.page_size, params.sort ?? ""],
+    queryFn: () => fetchStoreOrders(eventId, params),
+    staleTime: 10_000,
+  });
 }
 
 function useRefresh(eventId: number) {

@@ -18,11 +18,14 @@ export interface CaseQuery {
   q?: string | undefined;
   /** Older than this many days. */
   ageDays?: number | undefined;
+  /** A column clicked (number, subject, requester, priority, status, created, updated, due); unset: the tab's own order. */
+  sort?: string | undefined;
+  order?: "asc" | "desc" | undefined;
   page: number;
   pageSize: number;
 }
 
-const params = (q: CaseQuery) => ({ tab: q.tab, topic: q.topic, priority: q.priority, assignee: q.assignee, q: q.q, age_days: q.ageDays, page: q.page, page_size: q.pageSize });
+const params = (q: CaseQuery) => ({ tab: q.tab, topic: q.topic, priority: q.priority, assignee: q.assignee, q: q.q, age_days: q.ageDays, sort: q.sort, order: q.order, page: q.page, page_size: q.pageSize });
 
 /** A tab of the queue with its filters, and the count of every tab. Bodies never come in a list. */
 export async function fetchCases(query: CaseQuery) {

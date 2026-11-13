@@ -41,6 +41,18 @@ export interface ContactFilters {
   /** YYYY-MM-DD, on the event's end. */
   since?: string;
   until?: string;
+  /** "field:direction" (CONTACT_SORTS); "" is newest event first. */
+  sort?: string;
 }
+
+/** The contact book's orders (GET /clubs/contacts `sort` + `order`). */
+export const CONTACT_SORTS = [
+  { value: "", label: "Newest first" },
+  { value: "recent:asc", label: "Oldest first" },
+  { value: "name:asc", label: "Name A–Z" },
+  { value: "name:desc", label: "Name Z–A" },
+  { value: "email:asc", label: "Email A–Z" },
+  { value: "event:asc", label: "Event A–Z" },
+] as const;
 
 export const PAGE_SIZE = 50;
