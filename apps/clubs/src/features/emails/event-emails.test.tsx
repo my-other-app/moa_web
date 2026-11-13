@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { ApiError } from "@moa/api";
+import eventFixture from "../__fixtures__/event-detail.json";
 
 const calls: Array<{ method: string; path: string; body?: unknown; query?: Record<string, unknown> }> = [];
 
 const DAY = 86_400_000;
+// Whether the event reviews registrations (GET /events/info/42).
+let reviews = false;
 const soon = new Date(Date.now() + 2 * DAY + 60_000).toISOString();
 const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
 
@@ -47,6 +50,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         calls.push({ method: "GET", path, query: options?.query });
         const q = options?.query ?? {};
         if (path === "/api/v1/events/42/emails") return TEMPLATES;
+        if (path === "/api/v1/events/info/42") return { ...eventFixture, id: 42, requires_approval: reviews };
         // An API from before review emails per event reads "review" as a template's id.
         if (path === "/api/v1/events/42/emails/review") throw new ApiError({ status: 422, message: "Some of the submitted values were not valid.", fieldErrors: { "path.template_id": ["Input should be a valid UUID"] } });
         if (path === "/api/v1/events/42/emails/context") return { tokens: [], sampleValues: {}, brandPrimary: "#0f8a73" };
@@ -190,5 +194,27 @@ describe("an event's messages", () => {
       body: "Use gate 2.",
       audience: { who: "ALL", roles: [] },
     });
+  });
+});
+
+describe("the invite on an event that reviews registrations", () => {
+  it("says that confirmed people still get their designed ticket when the invite is off", async () => {
+    const invite = TEMPLATES.journey[0]!.template as Record<string, unknown>;
+    invite.enabled = false;
+    try {
+      reviews = false;
+      const first = render(<EmailsPage eventId={42} />);
+      expect(await screen.findByText(/so tickets go out in the plain ticket email, without your design/)).toBeInTheDocument();
+      first.unmount();
+
+      reviews = true;
+      render(<EmailsPage eventId={42} />);
+      expect(await screen.findByText(/People you confirm from Review still get their ticket in “Confirmed · ticket”, with your design/)).toBeInTheDocument();
+      expect(screen.getByText(/Off: people you confirm from Review still get their ticket/)).toBeInTheDocument();
+      expect(screen.queryByText(/so tickets go out in the plain ticket email, without your design/)).not.toBeInTheDocument();
+    } finally {
+      invite.enabled = true;
+      reviews = false;
+    }
   });
 });

@@ -79,6 +79,7 @@ import {
   isCustomised,
   type Figure,
 } from "./parts";
+import { useEventDetail } from "@/features/events/queries";
 import { ReviewSection } from "./review-section";
 import { SendTemplateDialog } from "./send-dialog";
 
@@ -135,12 +136,15 @@ function StageCard({
   invite,
   now,
   onSend,
+  reviews = false,
 }: {
   eventId: number;
   stage: JourneyStage;
   invite: InviteFigures | null;
   now: Date;
   onSend: (t: EmailTemplate) => void;
+  /** The event reviews registrations: a confirmed person's ticket goes in "Confirmed · ticket", not the invite. */
+  reviews?: boolean;
 }) {
   const t = stage.template;
   const save = useSaveTemplate({ kind: "event", eventId });
@@ -271,15 +275,19 @@ function StageCard({
       <p
         className={cn(
           "mt-0.5 text-[12px]",
-          t.enabled ? "text-ink-3" : "text-caution",
+          t.enabled || (isInvite && reviews) ? "text-ink-3" : "text-caution",
         )}
       >
         {t.enabled
           ? isInvite
-            ? "At registration, after payment, and from Send tickets on Attendees."
+            ? reviews
+              ? "For people you add yourself (Attendees, import, at the door). People you confirm from Review get their ticket in “Confirmed · ticket”."
+              : "At registration, after payment, and from Send tickets on Attendees."
             : meta.note
           : isInvite
-            ? "Off: tickets go out in the plain ticket email, without this design."
+            ? reviews
+              ? "Off: people you confirm from Review still get their ticket in “Confirmed · ticket”. Only people you add yourself get the plain ticket email."
+              : "Off: tickets go out in the plain ticket email, without this design."
             : "Off: its timer does not fire and it is not sent."}
       </p>
       <MiniFigures items={figures} />
@@ -463,6 +471,11 @@ export function EmailsPage({ eventId }: { eventId: number }) {
     (m) => m.kind !== "TEST" && m.failedCount > 0,
   );
   const inviteOff = off.find((s) => s.stage === "INVITE");
+  // Registrations reviewed: a confirmed person's ticket goes in "Confirmed ·
+  // ticket" (the review emails below), never in the invite, so the invite
+  // being off touches only people the club adds itself.
+  const event = useEventDetail(eventId);
+  const reviews = event.data?.requires_approval === true;
   const editor = (id: string) => `/events/${eventId}/emails/${id}`;
 
   const newEmail = () =>
@@ -579,7 +592,7 @@ export function EmailsPage({ eventId }: { eventId: number }) {
 
           {inviteOff ? (
             <Notice
-              tone="caution"
+              tone={reviews ? "neutral" : "caution"}
               tag="Invite"
               action={
                 <Link
@@ -590,8 +603,9 @@ export function EmailsPage({ eventId }: { eventId: number }) {
                 </Link>
               }
             >
-              The invite is off for this event, so tickets go out in the plain
-              ticket email, without your design.
+              {reviews
+                ? "The invite is off for this event. People you confirm from Review still get their ticket in “Confirmed · ticket”, with your design; only people you add yourself (on Attendees, by import or at the door) get the plain ticket email."
+                : "The invite is off for this event, so tickets go out in the plain ticket email, without your design."}
             </Notice>
           ) : off.length ? (
             <Notice
@@ -640,6 +654,7 @@ export function EmailsPage({ eventId }: { eventId: number }) {
                   invite={s.stage === "INVITE" ? invite : null}
                   now={now}
                   onSend={setSending}
+                  reviews={reviews}
                 />
               ))}
             </div>
