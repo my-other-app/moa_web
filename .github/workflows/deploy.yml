@@ -14,9 +14,10 @@ name: Deploy
 #   VERCEL_TOKEN   - create at https://vercel.com/account/tokens
 #   VERCEL_ORG_ID  - team_jKChA5mnZMI7QJqLnN1gJdu9
 
+# Production no longer runs on Vercel: the dashboards are built and served on
+# the MyOtherApp server (club-dashboard. and main-portal.myotherapp.in answer
+# "via: Caddy"). So this runs only by hand, e.g. for a Vercel preview.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       preview_only:

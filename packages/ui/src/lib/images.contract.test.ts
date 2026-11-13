@@ -18,7 +18,20 @@ const NOT_PICTURES = new Set([
   "apps/clubs/src/features/whatsapp/components/composer.tsx",
   "apps/clubs/src/features/mailbox/components/composer.tsx",
   "apps/clubs/src/features/registrations/components/import-panel.tsx",
+  // A spreadsheet import, and files attached to a lead, a support reply or a mail.
+  "apps/admin/src/features/leads/components/import-dialog.tsx",
+  "apps/admin/src/features/leads/components/lead-page.tsx",
+  "apps/admin/src/features/support/components/composer.tsx",
+  "packages/mail-ui/src/components/composer.tsx",
+  // A help request's attachments: screenshots and PDFs, checked by FILE_ACCEPT.
+  "apps/clubs/src/features/help/components/help-form.tsx",
+  // A social poster: only the formats Instagram, Facebook, LinkedIn and X take,
+  // checked per platform before upload (imageProblem).
+  "apps/clubs/src/features/social/components/poster-panel.tsx",
 ]);
+
+/** A picker that takes only SVG (a designer's shape or icon) is narrow on purpose. */
+const SVG_ONLY = '".svg,image/svg+xml"';
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -64,6 +77,7 @@ describe("picture pickers", () => {
     const narrow = fileInputs()
       .filter((input) => !NOT_PICTURES.has(input.file))
       .filter((input) => !/^\{(IMAGE_ACCEPT|DRAFT_FILE_ACCEPT)\}$/.test(input.accept))
+      .filter((input) => input.accept !== SVG_ONLY)
       .map((input) => `${input.file}:${input.line} accept=${input.accept}`);
     expect(narrow).toEqual([]);
   });

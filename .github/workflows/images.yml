@@ -27,9 +27,9 @@ name: Images
 # repositories; in private ones since January 2026, against the plan's
 # minutes); the repository variable ARM64_RUNNER=qemu emulates it on x86.
 
+# The Oracle box was never used: the live server builds its own images from
+# the source (moa_backend ops/server). So this runs only by hand.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
