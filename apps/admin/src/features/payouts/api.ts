@@ -7,13 +7,16 @@ const BASE = "/api/v1/admin/payouts";
 export interface OverviewQuery {
   q?: string | undefined;
   owing?: boolean | undefined;
+  /** A column clicked; unset: the list's own order. */
+  sort?: string | undefined;
+  order?: "asc" | "desc" | undefined;
   offset: number;
   limit: number;
 }
 
 export async function fetchPayoutOverview(query: OverviewQuery) {
   const raw = await api.get<unknown>(BASE, {
-    query: { q: query.q, owing: query.owing ? true : undefined, offset: query.offset, limit: query.limit },
+    query: { q: query.q, owing: query.owing ? true : undefined, sort: query.sort, order: query.order, offset: query.offset, limit: query.limit },
   });
   return overviewSchema.parse(raw);
 }

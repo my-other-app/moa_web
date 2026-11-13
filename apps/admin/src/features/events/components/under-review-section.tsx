@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { PencilIcon } from "lucide-react";
 import { ExportMenu, SectionTitle, formatDateTime, formatNumber } from "@moa/app-kit";
 import {
   DataTable,
   FigurePanel,
+  IconButton,
   Pager,
   SearchField,
   StatusBadge,
@@ -19,6 +21,7 @@ import { pressable } from "@moa/ui/motion";
 import { useCan } from "@/hooks/use-can";
 
 import { useExportUnderReview, useUnderReview } from "../queries";
+import { CorrectPersonDialog } from "./correct-person-dialog";
 import {
   CLOSED_REASON,
   REVIEW_LABEL,
@@ -65,7 +68,7 @@ function emptyMessage(tab: ReviewTab, q: string): string {
   return `No ${REVIEW_LABEL[tab].toLowerCase()} registrations.`;
 }
 
-const columns: DataTableColumn<ReviewRow>[] = [
+const baseColumns: DataTableColumn<ReviewRow>[] = [
   {
     key: "name",
     header: "Name",
@@ -134,6 +137,24 @@ const columns: DataTableColumn<ReviewRow>[] = [
  */
 export function UnderReviewSection({ eventId }: { eventId: number }) {
   const canExport = useCan("export_data");
+  // Correcting someone's details (a support case) is an edit: manage_content, as the server holds it.
+  const canCorrect = useCan("manage_content");
+  const [editing, setEditing] = React.useState<ReviewRow | null>(null);
+  const columns: DataTableColumn<ReviewRow>[] = canCorrect
+    ? [
+        ...baseColumns,
+        {
+          key: "edit",
+          header: <span className="sr-only">Edit</span>,
+          className: "w-10 text-right",
+          cell: (row) => (
+            <IconButton label={`Edit ${row.full_name}'s details`} variant="ghost" size="sm" onClick={() => setEditing(row)}>
+              <PencilIcon />
+            </IconButton>
+          ),
+        },
+      ]
+    : baseColumns;
   const exporter = useExportUnderReview(eventId);
   const [tab, setTab] = React.useState<ReviewTab>("pending");
   const [searchInput, setSearchInput] = React.useState("");
@@ -252,6 +273,14 @@ export function UnderReviewSection({ eventId }: { eventId: number }) {
           emptyMessage={emptyMessage(tab, q)}
           className={list.isPlaceholderData ? "opacity-60 transition-opacity" : undefined}
         />
+        {editing ? (
+          <CorrectPersonDialog
+            eventId={eventId}
+            kind="review"
+            person={{ id: editing.id, full_name: editing.full_name, email: editing.email ?? null, phone: editing.phone ?? null }}
+            onClose={() => setEditing(null)}
+          />
+        ) : null}
 
         {data && rows.length > 0 ? (
           <div className="border-line-soft border-t px-4 py-3">

@@ -27,6 +27,7 @@ import {
   EmptyState,
   FigurePanel,
   Notice,
+  NativeSelect,
   Pager,
   ProgressBar,
   SearchField,
@@ -583,7 +584,8 @@ export function MessagesPage({ eventId }: { eventId: number }) {
   const [now] = React.useState(() => new Date());
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
-  const list = useMessages(eventId, page, pageSize);
+  const [order, setOrder] = React.useState<"asc" | "desc">("desc");
+  const list = useMessages(eventId, page, pageSize, order);
   // The newest page, for the line and the notice; the same query as the list on page one.
   const first = useMessages(eventId, 1, pageSize);
   const tally = useDeliveryTally(eventId, "message");
@@ -727,12 +729,21 @@ export function MessagesPage({ eventId }: { eventId: number }) {
             <div className="border-line-soft border-b px-4 py-3">
               <CardLabel
                 right={
-                  <span className="text-ink-3 text-[11.5px]">
-                    journey emails, timers and messages written here
-                  </span>
+                  <NativeSelect
+                    aria-label="Order of the messages"
+                    value={order}
+                    onChange={(e) => {
+                      setOrder(e.target.value === "asc" ? "asc" : "desc");
+                      setPage(1);
+                    }}
+                    className="w-36"
+                  >
+                    <option value="desc">Newest first</option>
+                    <option value="asc">Oldest first</option>
+                  </NativeSelect>
                 }
               >
-                Sent, newest first
+                Sent: journey emails, timers and messages written here
               </CardLabel>
             </div>
             {items.length === 0 ? (

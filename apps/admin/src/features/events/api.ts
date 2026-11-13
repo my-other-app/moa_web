@@ -197,3 +197,23 @@ export async function downloadUnderReview(eventId: number, format: ExportFormat)
   const file = await fetchExport(`${GATEWAY_PREFIX}${reviewBase(eventId)}/export`, format, `event-${eventId}-registrations-under-review`);
   saveBlob(file.blob, file.filename);
 }
+
+/** A correction of someone's contact details: only the fields sent change. */
+export interface PersonPatch {
+  full_name?: string;
+  email?: string;
+  phone?: string;
+}
+
+/**
+ * Correct a registration's name, email or phone (a support case). The same
+ * route the club uses; an admin needs manage_content. Nothing is emailed.
+ */
+export async function correctRegistration(eventId: number, registrationId: string, patch: PersonPatch) {
+  await api.patch<unknown>(`/api/v1/events/registration/${eventId}/info/${registrationId}`, patch);
+}
+
+/** Correct someone under review (or already reviewed): nothing is decided or emailed. */
+export async function correctUnderReview(eventId: number, requestId: string, patch: PersonPatch) {
+  await api.patch<unknown>(`${reviewBase(eventId)}/${requestId}`, patch);
+}

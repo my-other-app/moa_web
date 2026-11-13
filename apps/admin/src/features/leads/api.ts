@@ -17,11 +17,14 @@ export interface LeadQuery {
   city?: string | undefined;
   due?: string | undefined;
   q?: string | undefined;
+  /** The table's column clicked (name, type, stage, city, value, close, created, updated); unset: latest activity. */
+  sort?: string | undefined;
+  order?: "asc" | "desc" | undefined;
   page: number;
   pageSize: number;
 }
 
-const params = (q: LeadQuery) => ({ view: q.view, type: q.type, stage: q.stage, owner: q.owner, city: q.city, due: q.due, q: q.q, page: q.page, page_size: q.pageSize });
+const params = (q: LeadQuery) => ({ view: q.view, type: q.type, stage: q.stage, owner: q.owner, city: q.city, due: q.due, q: q.q, sort: q.sort, order: q.order, page: q.page, page_size: q.pageSize });
 
 export async function fetchLeads(query: LeadQuery) {
   return leadPageSchema.parse(await api.get<unknown>(BASE, { query: params(query) }));

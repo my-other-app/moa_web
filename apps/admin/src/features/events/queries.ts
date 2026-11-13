@@ -28,6 +28,9 @@ import {
   type EventListQuery,
   type RegistrationQuery,
   type ReviewQuery,
+  correctRegistration,
+  correctUnderReview,
+  type PersonPatch,
 } from "./api";
 
 /**
@@ -201,5 +204,22 @@ export function useRestoreEvent() {
       ]);
     },
     onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+/**
+ * Correct a guest's or a registration under review's details from a support
+ * case. Afterwards both lists of the event are read again.
+ */
+export function useCorrectPerson(eventId: number, kind: "registration" | "review") {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: PersonPatch }) =>
+      kind === "registration" ? correctRegistration(eventId, id, patch) : correctUnderReview(eventId, id, patch),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.events.registrations(eventId) });
+      void queryClient.invalidateQueries({ queryKey: [...qk.events.detail(eventId), "under-review"] });
+      toast.success("Details corrected");
+    },
   });
 }

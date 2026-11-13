@@ -12,6 +12,9 @@ export interface AuditQuery {
   entityId?: string | undefined;
   /** Words to find in who acted, the summary, the record or the reason. */
   search?: string | undefined;
+  /** date (newest first unless asc) or action. */
+  sort?: string | undefined;
+  order?: "asc" | "desc" | undefined;
   offset: number;
   limit: number;
 }
@@ -25,6 +28,8 @@ export async function fetchAuditLog(query: AuditQuery) {
       // Sent only when there is something to find; an API from before the
       // log could be searched ignores it (the page then hides the box).
       q: query.search || undefined,
+      sort: query.sort,
+      order: query.order,
       offset: query.offset,
       limit: query.limit,
     },

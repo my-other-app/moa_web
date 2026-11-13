@@ -71,6 +71,8 @@ export interface SubscriptionQuery {
   complimentary?: boolean | undefined;
   /** One club's row. */
   clubId?: number | undefined;
+  /** "field:direction": mrr (default, highest first), club, status, renews or created. */
+  sort?: string | undefined;
   offset: number;
   limit: number;
 }
@@ -83,6 +85,8 @@ export async function fetchSubscriptions(query: SubscriptionQuery) {
       search: query.search,
       complimentary: query.complimentary,
       club_id: query.clubId,
+      sort: query.sort?.split(":")[0] || undefined,
+      order: query.sort?.split(":")[1] || undefined,
       offset: query.offset,
       limit: query.limit,
     },

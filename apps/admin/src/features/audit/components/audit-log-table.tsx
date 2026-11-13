@@ -1,6 +1,6 @@
 "use client";
 
-import { ListFilters, PersonAvatar, ResourceList, formatDateTime, useListParams } from "@moa/app-kit";
+import { ListFilters, PersonAvatar, ResourceList, formatDateTime, sortOf, useListParams } from "@moa/app-kit";
 import { Badge, type DataTableColumn } from "@moa/ui";
 
 import { useAuditActions, useAuditLog } from "../queries";
@@ -45,7 +45,8 @@ const columns: DataTableColumn<AuditEntry>[] = [
     ),
   },
   {
-    key: "what",
+    key: "action",
+    sortable: true,
     header: "What",
     cell: (row) => {
       const reason = reasonOf(row);
@@ -90,7 +91,9 @@ const columns: DataTableColumn<AuditEntry>[] = [
     ),
   },
   {
-    key: "when",
+    key: "date",
+    sortable: true,
+    firstOrder: "desc",
     header: "When",
     cell: (row) => (
       <span className="text-muted-foreground text-xs tabular-nums">
@@ -100,6 +103,11 @@ const columns: DataTableColumn<AuditEntry>[] = [
   },
 ];
 
+/** The URL's sort as the log's API takes it: date or action. */
+function auditSort(s: { sort?: string; order?: "asc" | "desc" }): { sort?: string; order?: "asc" | "desc" } {
+  return s.sort === "date" || s.sort === "action" ? s : {};
+}
+
 export function AuditLogTable() {
   const params = useListParams();
   const { data: actions = [] } = useAuditActions();
@@ -108,6 +116,7 @@ export function AuditLogTable() {
     action: params.param("action"),
     entityType: params.param("entity_type"),
     search: params.search || undefined,
+    ...auditSort(sortOf(params)),
     offset: params.offset,
     limit: params.pageSize,
   });
@@ -122,6 +131,7 @@ export function AuditLogTable() {
 
   return (
     <ResourceList
+      sortable
       page={data}
       isPending={isPending}
       isError={isError}

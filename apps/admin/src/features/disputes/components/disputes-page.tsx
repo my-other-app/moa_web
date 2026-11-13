@@ -18,6 +18,7 @@ import {
   StatusBadge,
   Textarea,
   type DataTableColumn,
+  type DataTableSort,
 } from "@moa/ui";
 
 import { useCan } from "@/hooks/use-can";
@@ -135,8 +136,9 @@ export function DisputesPage() {
   const [q, setQ] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
+  const [sort, setSort] = React.useState<DataTableSort | null>(null);
   const [openId, setOpenId] = React.useState<number | null>(null);
-  const { data, isPending, isError, isFetching } = useDisputes({ status: tab, q: search || undefined, offset: (page - 1) * PAGE, limit: PAGE });
+  const { data, isPending, isError, isFetching } = useDisputes({ status: tab, q: search || undefined, sort: sort?.key, order: sort?.order, offset: (page - 1) * PAGE, limit: PAGE });
   const selected = data?.items.find((d) => d.id === openId) ?? null;
 
   const columns: DataTableColumn<Dispute>[] = [
@@ -150,9 +152,9 @@ export function DisputesPage() {
         </button>
       ),
     },
-    { key: "status", header: "Status", cell: (row) => <StatusBadge tone={STATUS_TONE[row.status] ?? "default"} label={statusLabel(row.status)} /> },
-    { key: "amount", header: "Amount", className: "text-right", headerClassName: "text-right", cell: (row) => <span className="tabular-nums">{formatCurrency(row.amount)}</span> },
-    { key: "deadline", header: "Respond by", cell: (row) => <Deadline d={row} /> },
+    { key: "status", header: "Status", sortable: true, cell: (row) => <StatusBadge tone={STATUS_TONE[row.status] ?? "default"} label={statusLabel(row.status)} /> },
+    { key: "amount", header: "Amount", sortable: true, firstOrder: "desc", className: "text-right", headerClassName: "text-right", cell: (row) => <span className="tabular-nums">{formatCurrency(row.amount)}</span> },
+    { key: "deadline", header: "Respond by", sortable: true, cell: (row) => <Deadline d={row} /> },
     {
       key: "payment",
       header: "Payment",
@@ -213,6 +215,11 @@ export function DisputesPage() {
         isLoading={isPending}
         isError={isError}
         emptyMessage={tab === "open" ? "No open disputes." : "No disputes."}
+        sort={sort}
+        onSortChange={(next) => {
+          setSort(next);
+          setPage(1);
+        }}
       />
       {data && data.total > 0 ? (
         <Pager page={page} pageCount={Math.max(1, Math.ceil(data.total / PAGE))} total={data.total} pageSize={PAGE} noun={["dispute", "disputes"]} busy={isFetching} onPage={setPage} />

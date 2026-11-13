@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon,
   BuildingIcon,
+  PencilIcon,
   DownloadIcon,
   EyeIcon,
   PercentIcon,
@@ -58,6 +59,7 @@ import { enter, hoverLift, pressable, stagger } from "@moa/ui/motion";
 import { ArrivalCurveCard, EventAnalyticsPanels, RequestFunnelCard, hasRequestFigures } from "@moa/app-kit";
 
 import { WebAddressCard } from "@/features/web-address";
+import { CorrectPersonDialog } from "./correct-person-dialog";
 import { useCan } from "@/hooks/use-can";
 
 import { eventExportUrl } from "../api";
@@ -90,6 +92,8 @@ function RegistrationsTab({ eventId }: { eventId: number }) {
   // the guest list as a file is a data export; a placing is an edit.
   const canExport = useCan("export_data");
   const canPlace = useCan("manage_content");
+  // Correcting a guest's details (a support case) is an edit too.
+  const [editing, setEditing] = React.useState<EventRegistration | null>(null);
 
   const { data, isPending, isError } = useEventRegistrations(eventId, {
     offset: params.offset,
@@ -200,6 +204,11 @@ function RegistrationsTab({ eventId }: { eventId: number }) {
                 <code className="bg-muted hidden rounded px-1.5 py-0.5 text-xs sm:inline">
                   {row.ticket_id || "--"}
                 </code>
+                {canPlace ? (
+                  <Button size="icon" variant="ghost" aria-label={`Edit ${row.full_name || "this participant"}'s details`} title="Edit details" onClick={() => setEditing(row)}>
+                    <PencilIcon />
+                  </Button>
+                ) : null}
               </div>
             </div>
           ))}
@@ -213,6 +222,14 @@ function RegistrationsTab({ eventId }: { eventId: number }) {
           onPageChange={params.setPage}
           pageSize={params.pageSize}
           onPageSizeChange={params.setPageSize}
+        />
+      ) : null}
+      {editing ? (
+        <CorrectPersonDialog
+          eventId={eventId}
+          kind="registration"
+          person={{ id: editing.id, full_name: editing.full_name ?? null, email: editing.email ?? null, phone: editing.phone ?? null }}
+          onClose={() => setEditing(null)}
         />
       ) : null}
     </div>
