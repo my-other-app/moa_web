@@ -49,9 +49,10 @@ describe("the Vercel deploy (main-portal.myotherapp.in)", () => {
     expect(vercel.outputDirectory).toBe("apps/admin/.next");
   });
 
-  it("runs on every push to main, for this app with its own config, only after typecheck and tests pass", () => {
+  it("runs only by hand (production is served by the MyOtherApp server), for this app with its own config, only after typecheck and tests pass", () => {
     const deploy = read(".github/workflows/deploy.yml");
-    expect(deploy).toMatch(/on:\s*\n\s*push:\s*\n\s*branches:\s*\[main\]/);
+    expect(deploy).toMatch(/on:\s*\n\s*workflow_dispatch:/);
+    expect(deploy).not.toMatch(/on:\s*\n\s*push:/);
     expect(deploy).toMatch(/- app: admin\s*\n\s*config: vercel\.admin\.json\s*\n\s*project_id_secret: VERCEL_PROJECT_ID_ADMIN/);
     const steps = ["run: npm ci", "run: npm run typecheck", "run: npm run test", "vercel@"].map((s) => deploy.indexOf(s));
     expect(steps.every((i) => i > 0)).toBe(true);
