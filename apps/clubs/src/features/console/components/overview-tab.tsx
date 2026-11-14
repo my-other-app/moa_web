@@ -33,6 +33,7 @@ import {
 } from "@moa/ui";
 
 import type { EventDetail } from "@/features/events";
+import { NetworkingCard } from "@/features/networking";
 import { useResolvedTopics } from "@/features/topics";
 import { useEventSummary } from "../queries";
 import { overviewAttention, type EventSummary, type OverviewAttention } from "../schemas";
@@ -149,6 +150,9 @@ export function EventOverviewTab({
           {doorFigures}
         </>
       ) : null}
+
+      {/* Who met whom, in counts: away until anyone is in (and on an API without it). */}
+      <NetworkingCard eventId={eventId} live={s.status === "live"} timezone={s.timezone} />
 
       {signups}
 
