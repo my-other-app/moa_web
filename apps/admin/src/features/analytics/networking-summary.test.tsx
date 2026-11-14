@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@moa/api";
 
 /**
@@ -89,6 +90,38 @@ describe("the card", () => {
     expect(valueOf(panel, "Mutual saves")).toHaveTextContent("—");
     expect(valueOf(panel, "Profiles completed")).toHaveTextContent(/^0$/);
     expect(within(panel).queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("keeps the last figures when a refresh fails, and goes only when the API says no", async () => {
+    /** Reads the overview's figures again, as a later visit would. */
+    function Refresh() {
+      const queryClient = useQueryClient();
+      return (
+        <button type="button" onClick={() => void queryClient.invalidateQueries({ queryKey: ["analytics"] })}>
+          refresh
+        </button>
+      );
+    }
+    render(
+      <>
+        <Refresh />
+        <NetworkingSummaryPanel />
+      </>
+    );
+    const panel = await screen.findByRole("region", { name: "Networking" });
+    expect(valueOf(panel, "Saves, last 7 days")).toHaveTextContent("420");
+    answer = () => {
+      throw new TypeError("Failed to fetch");
+    };
+    fireEvent.click(screen.getByRole("button", { name: "refresh" }));
+    await waitFor(() => expect(gets).toHaveLength(2));
+    await act(async () => {});
+    expect(valueOf(screen.getByRole("region", { name: "Networking" }), "Saves, last 7 days")).toHaveTextContent("420");
+    answer = () => {
+      throw new ApiError({ status: 403, message: "Your admin role does not allow this.", errorCode: "INSUFFICIENT_ADMIN_ROLE" });
+    };
+    fireEvent.click(screen.getByRole("button", { name: "refresh" }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Networking" })).not.toBeInTheDocument());
   });
 
   const failures: Array<[string, () => unknown]> = [

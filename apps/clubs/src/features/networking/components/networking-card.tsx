@@ -3,7 +3,7 @@
 import * as React from "react";
 import { EVENT_TIMEZONE, formatNumber, formatTime, pct, plural } from "@moa/app-kit";
 import { CardLabel, FigurePanel, cn } from "@moa/ui";
-import type { NetworkingHour, NetworkingStats } from "@moa/api";
+import { ApiError, type NetworkingHour, type NetworkingStats } from "@moa/api";
 
 import { useNetworkingStats } from "../queries";
 
@@ -84,8 +84,9 @@ export function NetworkingFigures({ stats, timezone = EVENT_TIMEZONE }: { stats:
  *
  * Read every minute while the event is live and the tab is visible. Kept
  * off the page when there is nothing to say yet (nobody in, nothing saved),
- * and whenever the API cannot answer (no such route yet, not allowed, the
- * network): the page around it never depends on it.
+ * until the API has answered once (no such route yet, the network), and
+ * when it says no or not found (403, 404): the page around it never
+ * depends on it. A refresh that fails keeps the last counts on screen.
  */
 export function NetworkingCard({
   eventId,
@@ -101,7 +102,9 @@ export function NetworkingCard({
 }) {
   const q = useNetworkingStats(eventId, live);
   const stats = q.data;
-  if (q.isError || !stats) return null;
+  // React Query keeps the last answer when a refetch fails; only a refusal takes the card away.
+  const refused = q.error instanceof ApiError && (q.error.status === 403 || q.error.status === 404);
+  if (refused || !stats) return null;
   if (stats.checked_in === 0 && stats.saves === 0 && stats.people_networked === 0) return null;
   return (
     <FigurePanel role="region" aria-label="Networking" className={className}>

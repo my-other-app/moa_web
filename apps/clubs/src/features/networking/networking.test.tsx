@@ -199,6 +199,41 @@ describe("polling", () => {
     expect(statsCalls()).toHaveLength(1);
   });
 
+  it("keeps the last counts when a refresh fails, and goes only when the API says no", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(<NetworkingCard eventId={37} live />);
+    await card();
+    expect(screen.getByText("96")).toBeInTheDocument();
+    // One minute's read fails (the network, a 500): the card stays, with what it had.
+    answer = () => {
+      throw new TypeError("Failed to fetch");
+    };
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(NETWORKING_POLL_MS + 100);
+    });
+    await waitFor(() => expect(statsCalls()).toHaveLength(2));
+    await act(async () => {});
+    expect(screen.getByRole("region", { name: "Networking" })).toBeInTheDocument();
+    expect(screen.getByText("96")).toBeInTheDocument();
+    answer = () => {
+      throw new ApiError({ status: 500, message: "Something went wrong on our side." });
+    };
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(NETWORKING_POLL_MS + 100);
+    });
+    await waitFor(() => expect(statsCalls()).toHaveLength(3));
+    await act(async () => {});
+    expect(screen.getByText("96")).toBeInTheDocument();
+    // The next read is refused (the person lost access): now it goes.
+    answer = () => {
+      throw new ApiError({ status: 403, message: "You do not have permission to do that.", errorCode: "FORBIDDEN" });
+    };
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(NETWORKING_POLL_MS + 100);
+    });
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Networking" })).not.toBeInTheDocument());
+  });
+
   it("holds while the tab is hidden", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     render(<NetworkingCard eventId={37} live />);
