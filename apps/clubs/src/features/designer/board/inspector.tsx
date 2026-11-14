@@ -550,9 +550,13 @@ const SignatureField = ({
   );
 };
 
+/** What the Personal QR holds, in words: the inspector says it where a QR says what it holds. */
+const PERSONAL_QR_HOLDS =
+  "the guest's personal QR: their profile on MyOtherApp, which other guests scan to save them. It is left off the card of a guest without one";
+
 const QrFields = ({ l, patch, ctx, id }: { l: QrLayerV2; patch: Patch; ctx: InspectorContext; id: (f: string) => string }) => (
-  <Section title="QR code">
-    <p className={ui.note}>Always black on white, so every scanner reads it. It holds {ctx.qrHolds}.</p>
+  <Section title={l.bind ? "Personal QR" : "QR code"}>
+    <p className={ui.note}>Always black on white, so every scanner reads it. It holds {l.bind ? PERSONAL_QR_HOLDS : ctx.qrHolds}.</p>
     <NumberField id={id("quiet")} label="Blank border" value={l.quietZone} min={0} max={4} suffix="modules" onChange={(v) => patch({ quietZone: Math.round(v) }, `${l.id}-quiet`)} />
     <FillField id={id("bg")} label="Tile behind it" value={l.background} onChange={(background) => patch({ background }, `${l.id}-bg`)} ctx={ctx.colors} />
     <QuadField id={id("radius")} label="Corner radius" value={l.radius} names={CORNERS} onChange={(radius) => patch({ radius }, `${l.id}-radius`)} />

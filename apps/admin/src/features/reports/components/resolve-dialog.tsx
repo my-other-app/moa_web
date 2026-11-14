@@ -8,6 +8,7 @@ import { isAlreadyResolved, useResolveReport } from "../queries";
 import {
   NOTE_MAX,
   hiddenFromUsers,
+  isProfileReport,
   reportCountText,
   suspendRemovesContent,
   suspendsClubAccount,
@@ -36,6 +37,14 @@ function copy(r: Report, action: Resolution): { title: string; body: string; cta
       destructive: false,
     };
   }
+  if (action === "remove_content" && isProfileReport(r)) {
+    return {
+      title: "Hide this profile?",
+      body: `The profile, its vCard and its personal QR code answer “not found” for everyone until an admin unhides it. Nothing is deleted.${others(r)}`,
+      cta: "Hide profile",
+      destructive: true,
+    };
+  }
   if (action === "remove_content") {
     return {
       title: `Remove ${thing}?`,
@@ -48,7 +57,7 @@ function copy(r: Report, action: Resolution): { title: string; body: string; cta
   return {
     title: `Suspend ${name}?`,
     body: `${name} is signed out everywhere and cannot sign back in${suspendRemovesContent(r) ? `, and ${thing} is removed` : ""}. The account can be reinstated from its user page.${others(r)}`,
-    cta: "Suspend author",
+    cta: isProfileReport(r) ? "Suspend account" : "Suspend author",
     destructive: true,
   };
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { qk } from "@moa/api";
+import { nullIfRouteMissing, qk } from "@moa/api";
 
 import { staleTimes } from "@moa/app-kit";
-import { fetchAdminOverview, fetchPlatformDoors } from "./api";
+import { fetchAdminOverview, fetchNetworkingSummary, fetchPlatformDoors } from "./api";
 import type { TopClubSort } from "./overview-schemas";
 
 /**
@@ -32,5 +32,19 @@ export function usePlatformDoors() {
     queryFn: fetchPlatformDoors,
     staleTime: 15_000,
     refetchInterval: (q) => (q.state.data?.live.length ? 15_000 : 60_000),
+  });
+}
+
+/**
+ * The platform's networking, for its card on the overview. An API without
+ * the route answers null and the card stays away; any other failure hides
+ * it too (the card reads isError), so the overview never waits on it.
+ */
+export function useNetworkingSummary() {
+  return useQuery({
+    queryKey: [...qk.analytics.all, "networking"],
+    queryFn: () => nullIfRouteMissing(fetchNetworkingSummary),
+    staleTime: staleTimes.analytics,
+    retry: false,
   });
 }

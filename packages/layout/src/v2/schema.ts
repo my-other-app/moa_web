@@ -329,9 +329,31 @@ export type ImageLayerV2 = z.infer<typeof ImageLayerV2>;
 
 const upper = (v: unknown) => (typeof v === "string" ? v.toUpperCase() : v);
 
-/** What it encodes is the kind's (a ticket's or badge's ticket code, a certificate's verify address); never editable; always black on white. */
+/**
+ * The holder's personal QR (profiles and networking contract, "Badges"):
+ * their active `https://myotherapp.in/p/<code>` address, in a registration's
+ * render data; empty for a guest with no app account or with scanning off.
+ */
+export const PERSONAL_QR = "holder.profile_qr_url";
+/** What a QR layer may encode instead of the kind's own code. */
+export const QR_BINDINGS = [PERSONAL_QR] as const;
+export type QrBindingV2 = (typeof QR_BINDINGS)[number];
+
+/**
+ * What it encodes is the kind's (a ticket's or badge's ticket code, a
+ * certificate's verify address) unless it is bound: `bind` names the value
+ * it encodes instead (the Personal QR), and a bound QR is left out when
+ * that value is empty. Never editable; always black on white.
+ */
 export const QrLayerV2 = LayerBase.extend({
   kind: z.literal("qr"),
+  /**
+   * Absent (or null): the kind's own code, the one the gate scans. No default
+   * on purpose: the board sends the parsed layout as it is, and a server from
+   * before the Personal QR refuses a field it does not know, so an unbound QR
+   * must go out without it.
+   */
+  bind: z.enum(QR_BINDINGS).nullish(),
   dark: z.preprocess(upper, z.literal("#000000")).default("#000000"),
   light: z.preprocess(upper, z.literal("#FFFFFF")).default("#FFFFFF"),
   quietZone: z.number().int().min(0).max(4).default(0),
@@ -342,6 +364,11 @@ export type QrLayerV2 = z.infer<typeof QrLayerV2>;
 
 export const LayerV2 = z.discriminatedUnion("kind", [TextLayerV2.strict(), ShapeLayerV2.strict(), SvgLayerV2.strict(), ImageLayerV2.strict(), QrLayerV2.strict()]);
 export type LayerV2 = z.infer<typeof LayerV2>;
+
+/** The QR the gate scans (or a certificate's verify link): a QR layer bound to nothing. */
+export const isCodeQr = (layer: Pick<LayerV2, "kind"> & { bind?: string | null }): boolean => layer.kind === "qr" && !layer.bind;
+/** The holder's Personal QR: a QR layer bound to their profile address. */
+export const isPersonalQr = (layer: Pick<LayerV2, "kind"> & { bind?: string | null }): boolean => layer.kind === "qr" && layer.bind === PERSONAL_QR;
 export type LayerKindV2 = LayerV2["kind"];
 export type LayerOfKind<K extends LayerKindV2> = Extract<LayerV2, { kind: K }>;
 export const LAYER_KINDS_V2 = ["text", "shape", "svg", "image", "qr"] as const;

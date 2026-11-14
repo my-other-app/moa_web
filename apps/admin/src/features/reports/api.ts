@@ -1,12 +1,12 @@
 import { api } from "@moa/app-kit";
 
-import { reportPageSchema, resolveResultSchema, type ReportStatus, type Resolution } from "./schemas";
+import { reportPageSchema, resolveResultSchema, type ProfileItemKind, type ReportStatus, type Resolution } from "./schemas";
 
 const BASE = "/api/v1/admin/reports";
 
 export interface ReportQuery {
   status: ReportStatus;
-  /** thread, comment, user or club; left out, every kind. */
+  /** thread, comment, user, club or profile; left out, every kind. */
   targetType?: string | undefined;
   offset: number;
   /** 1 to 100. */
@@ -43,4 +43,21 @@ export async function resolveReport({ reportId, action, note }: ResolveInput) {
   const trimmed = note?.trim();
   const raw = await api.post<unknown>(`${BASE}/${reportId}/resolve`, { action, ...(trimmed ? { note: trimmed } : {}) });
   return resolveResultSchema.parse(raw);
+}
+
+// ─── A reported profile (profiles-networking contract, "Admin moderation") ───
+
+const PROFILES = "/api/v1/admin/profiles";
+
+/**
+ * Takes one link or one project off a person's public profile (204). Moderate
+ * or above, written to the admin audit log; the rest of the profile stays.
+ */
+export async function removeProfileItem({ userId, kind, itemId }: { userId: number; kind: ProfileItemKind; itemId: number }) {
+  await api.del<unknown>(`${PROFILES}/${userId}/${kind === "link" ? "links" : "projects"}/${itemId}`);
+}
+
+/** Shows a hidden profile again, with its vCard and its code (204). Moderate or above, audit-logged. */
+export async function unhideProfile(userId: number) {
+  await api.post<unknown>(`${PROFILES}/${userId}/unhide`);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { LayerKindV2, LayerV2 } from "@moa/layout";
+import { isCodeQr, type LayerKindV2, type LayerV2 } from "@moa/layout";
 import { CardLabel, FigurePanel, IconToggle, cn } from "@moa/ui";
 import { CircleAlertIcon, EyeIcon, EyeOffIcon, ImageIcon, LockIcon, LockOpenIcon, QrCodeIcon, ShapesIcon, SparklesIcon, TypeIcon } from "lucide-react";
 import * as React from "react";
@@ -80,7 +80,8 @@ export const BoardLayers = ({
           {ordered.map((l, i) => {
             const on = selected.has(l.id);
             const bad = flagged.has(l.id);
-            const pinned = l.kind === "qr" && pinnedQr;
+            // The code the gate scans; the Personal QR may come and go.
+            const pinned = isCodeQr(l) && pinnedQr;
             return (
               <li key={l.id}>
                 <div

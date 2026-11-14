@@ -14,9 +14,11 @@ import {
   fontUses,
   fontsCssUrl,
   fromV1,
+  isPersonalQr,
   isV2Layout,
   layoutProblemsV2,
   parseLayoutV2,
+  PERSONAL_QR,
 } from "@moa/layout";
 import { GATEWAY_PREFIX } from "@moa/auth";
 
@@ -138,8 +140,28 @@ export type LayoutCheck = ReturnType<typeof checkLayout>;
  */
 export const readLayout = (raw: unknown): LayoutV2 => (isV2Layout(raw) ? parseLayoutV2(raw) : fromV1(raw));
 
-/** What the stage fills a design with: the server's sample values over the catalogue's samples. */
-export const boardValues = (d: Pick<BoardDesign, "values" | "sampleValues">) => designSamples({ ...d.sampleValues, ...(d.values ?? {}) });
+/** The backend's sample personal QR (doc_presets/values.py SAMPLE_PROFILE_QR): the real shape, and never a real code. */
+export const SAMPLE_PERSONAL_QR = "https://myotherapp.in/p/samplecode";
+
+/**
+ * What the stage fills a design with: the server's sample values over the
+ * catalogue's samples, and the sample guest's personal QR when the server
+ * sends none, so a Personal QR layer is always drawn on the stage.
+ */
+export const boardValues = (d: Pick<BoardDesign, "values" | "sampleValues">) => {
+  const values = designSamples({ ...d.sampleValues, ...(d.values ?? {}) });
+  if (!String(values[PERSONAL_QR] ?? "").trim()) values[PERSONAL_QR] = SAMPLE_PERSONAL_QR;
+  return values;
+};
+
+/**
+ * Whether this server draws the Personal QR: its sample guest has one
+ * (the render data's holder.profile_qr_url), it lists the token, or the
+ * design already holds the layer. A server from before profiles refuses
+ * the layer on save, so the board offers it only then.
+ */
+export const personalQrOnServer = (d: Pick<BoardDesign, "values" | "sampleValues" | "tokens">, layout: Pick<LayoutV2, "layers">) =>
+  PERSONAL_QR in (d.values ?? {}) || PERSONAL_QR in d.sampleValues || d.tokens.some((t) => t.key === PERSONAL_QR) || layout.layers.some(isPersonalQr);
 
 /** The club's colours on the stage: what brand.primary, brand.secondary and ticket_type paint. */
 export const boardColors = (d: BoardDesign) => {

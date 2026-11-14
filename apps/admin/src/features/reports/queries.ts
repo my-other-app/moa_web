@@ -4,8 +4,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { ApiError, qk } from "@moa/api";
 import { toast } from "@moa/ui";
 
-import { fetchOpenReportCount, fetchReports, resolveReport, type ReportQuery, type ResolveInput } from "./api";
-import { REPORT_ERRORS, resolvedMessage } from "./schemas";
+import { fetchOpenReportCount, fetchReports, removeProfileItem, resolveReport, unhideProfile, type ReportQuery, type ResolveInput } from "./api";
+import { REPORT_ERRORS, profileActionMessage, resolvedMessage, type ProfileItemKind } from "./schemas";
 
 /** Every report list and the open count, so one decision refreshes the lot. */
 export const REPORTS_KEY = ["admin-reports"] as const;
@@ -63,6 +63,28 @@ export function useResolveReport() {
     // The dialog shows the server's words; a stale row is read again.
     onError: async (error: Error) => {
       if (isStale(error)) await refresh();
+    },
+  });
+}
+
+/** What an admin does to a reported profile outside resolving the report: take off a link or a project, or show it again. */
+export type ProfileAction =
+  | { kind: ProfileItemKind; userId: number; handle: string; itemId: number }
+  | { kind: "unhide"; userId: number; handle: string };
+
+/**
+ * The profile moderation writes (moderate and above, each in the audit
+ * log). The reports are read again after, so the row shows the profile as
+ * it now is; the dialog shows the server's words if it refuses.
+ */
+export function useProfileModeration() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (action: ProfileAction) =>
+      action.kind === "unhide" ? unhideProfile(action.userId) : removeProfileItem({ userId: action.userId, kind: action.kind, itemId: action.itemId }),
+    onSuccess: async (_, action) => {
+      toast.success(profileActionMessage(action));
+      await Promise.all([queryClient.invalidateQueries({ queryKey: REPORTS_KEY }), queryClient.invalidateQueries({ queryKey: ["audit-log"] })]);
     },
   });
 }

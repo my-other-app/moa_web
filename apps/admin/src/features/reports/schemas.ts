@@ -1,15 +1,16 @@
+import { reportedProfileField } from "@moa/api";
 import { pictureSchema } from "@moa/app-kit";
 import { z } from "zod";
 
 /**
- * What app users report (GET /admin/reports): a thread, a comment, a person
- * or a club, for one of seven reasons. App Store guideline 1.2 expects each
+ * What app users report (GET /admin/reports): a thread, a comment, a person,
+ * a club or a person's public profile, for one of seven reasons. App Store guideline 1.2 expects each
  * to be acted on promptly; this is where an admin does.
  *
  * Resolving one report resolves every open report on the same thing, so a
  * comment reported by five people is decided once.
  */
-export const TARGET_TYPES = ["thread", "comment", "user", "club"] as const;
+export const TARGET_TYPES = ["thread", "comment", "user", "club", "profile"] as const;
 export type TargetType = (typeof TARGET_TYPES)[number];
 
 export const REPORT_REASONS = ["spam", "harassment", "hate", "sexual", "violence", "misinformation", "other"] as const;
@@ -20,7 +21,10 @@ export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
 /**
  * dismiss         nothing is taken down; the reports are closed
- * remove_content  the thread or comment is taken down (not a user or a club)
+ * remove_content  the thread or comment is taken down (not a user or a
+ *                 club); for a profile, the profile is hidden: it, its
+ *                 vCard and its personal QR code answer "not found" until
+ *                 an admin unhides it
  * suspend_author  the author is signed out everywhere and cannot sign back
  *                 in; a reported thread or comment is taken down with it
  */
@@ -51,6 +55,7 @@ export const TARGET_LABEL: Record<TargetType, string> = {
   comment: "Comment",
   user: "User",
   club: "Club",
+  profile: "Profile",
 };
 
 export const RESOLUTION_LABEL: Record<Resolution, string> = {
@@ -99,15 +104,17 @@ export const reportSchema = z.object({
   note: z.string().nullish(),
   status: z.string(),
   reporter: person.nullish(),
-  /** The reported words (a thread's or comment's text, a user's or club's name), as they stand even after removal. */
+  /** The reported words (a thread's or comment's text, a user's or club's name; a profile's "Name (@handle) — headline"), as they stand even after removal. */
   target_preview: z.string().nullish().transform((v) => v ?? ""),
-  /** For a thread or a club, the club's own account; for a user, that user. */
+  /** For a thread or a club, the club's own account; for a user, that user; for a profile, its owner. */
   target_author: person.nullish(),
   club: z.object({ id: z.coerce.number(), name: z.string(), slug: z.string().nullish() }).nullish(),
   /** Open reports on the same thing from different people, now. */
   report_count: z.number().catch(0),
-  /** The thread, comment, user or club is gone: removed or deleted. */
+  /** The thread, comment, user or club is gone: removed or deleted. For a profile: hidden. */
   target_removed: z.boolean().catch(false),
+  /** A profile's handle, hidden state, links and projects: on a profile's reports only (null otherwise, and from an older server). */
+  profile: reportedProfileField,
   created_at: z.string(),
   resolved_at: z.string().nullish(),
   resolution: z.string().nullish(),
@@ -127,9 +134,17 @@ export const resolveResultSchema = z.object({
 });
 export type ResolveResult = z.infer<typeof resolveResultSchema>;
 
-/** Only a thread or a comment can be taken down; a person or a club is suspended instead (422 NOT_REMOVABLE). */
+/** A reported profile: the one kind whose "remove" hides rather than deletes. */
+export function isProfileReport(r: Pick<Report, "target_type">): boolean {
+  return r.target_type === "profile";
+}
+
+/**
+ * A thread or a comment can be taken down, and a profile hidden; a person or
+ * a club is suspended instead (422 NOT_REMOVABLE). Not what is already gone.
+ */
 export function canRemoveContent(r: Pick<Report, "target_type" | "target_removed">): boolean {
-  return (r.target_type === "thread" || r.target_type === "comment") && !r.target_removed;
+  return (r.target_type === "thread" || r.target_type === "comment" || r.target_type === "profile") && !r.target_removed;
 }
 
 /** Someone to suspend: without an author the server refuses (422 NO_AUTHOR). */
@@ -156,15 +171,33 @@ export function reportCountText(n: number): string {
   return `${n} ${n === 1 ? "report" : "reports"}`;
 }
 
+/** A decision in words, for the report it was taken on: hiding a profile is not removing it. */
+export function resolutionLabelFor(r: Pick<Report, "target_type">, resolution: string): string {
+  if (isProfileReport(r) && resolution === "remove_content") return "Profile hidden";
+  if (isProfileReport(r) && resolution === "suspend_author") return "Account suspended";
+  return resolutionLabel(resolution);
+}
+
 /** What the toast says once a report is decided: what happened, and how many reports went with it. */
 export function resolvedMessage(action: Resolution, result: ResolveResult): string {
   const { report, resolved } = result;
   const thing = targetLabel(report.target_type).toLowerCase();
   const also = resolved > 1 ? ` ${resolved} reports resolved.` : "";
   if (action === "dismiss") return resolved > 1 ? `Dismissed ${resolved} reports on this ${thing}.` : "Report dismissed.";
+  if (action === "remove_content" && isProfileReport(report)) return `The profile was hidden.${also}`;
   if (action === "remove_content") return `The ${thing} was removed.${also}`;
   const who = report.target_author?.name || "The author";
   return `${who} was suspended and signed out.${also}`;
+}
+
+/** A profile's link or project as the moderation routes name them. */
+export type ProfileItemKind = "link" | "project";
+
+/** What the toast says once a profile's link or project is taken off, or the profile shows again. */
+export function profileActionMessage(action: { kind: ProfileItemKind | "unhide"; handle: string }): string {
+  const whose = action.handle ? `@${action.handle}'s profile` : "the profile";
+  if (action.kind === "unhide") return action.handle ? `@${action.handle} shows again.` : "The profile shows again.";
+  return `The ${action.kind} was removed from ${whose}.`;
 }
 
 /** The server's refusals, by code. */

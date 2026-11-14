@@ -10,15 +10,17 @@ import {
   canRemoveContent,
   canSuspendAuthor,
   hiddenFromUsers,
+  isProfileReport,
   reasonLabel,
   reasonTone,
   reportCountText,
-  resolutionLabel,
+  resolutionLabelFor,
   targetLabel,
   type ReasonTone,
   type Report,
   type Resolution,
 } from "../schemas";
+import { ProfilePanel } from "./profile-panel";
 import { ResolveDialog } from "./resolve-dialog";
 
 const TONE: Record<ReasonTone, string> = {
@@ -39,7 +41,7 @@ export function ReasonChip({ reason, className }: { reason: string; className?: 
 }
 
 /** Whose it is: a comment's writer, the club account a thread was posted from, the account a person or club is. */
-const AUTHOR_WORD: Record<string, string> = { comment: "By", thread: "Posted by", user: "Account", club: "Account" };
+const AUTHOR_WORD: Record<string, string> = { comment: "By", thread: "Posted by", user: "Account", club: "Account", profile: "Profile of" };
 
 function PersonLink({ person }: { person: { id: number; name: string; avatar?: Picture | null } }) {
   return (
@@ -53,9 +55,13 @@ function PersonLink({ person }: { person: { id: number; name: string; avatar?: P
   );
 }
 
-/** Moderate and above: dismiss, take the thread or comment down, or suspend whoever posted it. */
+/**
+ * Moderate and above: dismiss, take the thread or comment down, or suspend
+ * whoever posted it. For a profile: hide it, or suspend its owner's account.
+ */
 function ReportActions({ report }: { report: Report }) {
   const [action, setAction] = React.useState<Resolution | null>(null);
+  const profile = isProfileReport(report);
   return (
     <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
       <Button size="xs" variant="secondary" onClick={() => setAction("dismiss")}>
@@ -63,12 +69,20 @@ function ReportActions({ report }: { report: Report }) {
       </Button>
       {canRemoveContent(report) ? (
         <Button size="xs" variant="secondary" danger onClick={() => setAction("remove_content")}>
-          <Trash2Icon /> Remove
+          {profile ? (
+            <>
+              <EyeOffIcon /> Hide profile
+            </>
+          ) : (
+            <>
+              <Trash2Icon /> Remove
+            </>
+          )}
         </Button>
       ) : null}
       {canSuspendAuthor(report) ? (
         <Button size="xs" variant="secondary" danger onClick={() => setAction("suspend_author")}>
-          <ShieldBanIcon /> Suspend author
+          <ShieldBanIcon /> {profile ? "Suspend account" : "Suspend author"}
         </Button>
       ) : null}
       {action ? <ResolveDialog report={report} action={action} onClose={() => setAction(null)} /> : null}
@@ -85,6 +99,10 @@ function ReportActions({ report }: { report: Report }) {
 export function ReportRow({ report: r, now, canModerate }: { report: Report; now: Date; canModerate: boolean }) {
   const open = r.status === "open";
   const quoted = r.target_type === "thread" || r.target_type === "comment";
+  const profile = isProfileReport(r);
+  // Hidden by an admin (suspended_at): the profile says so. target_removed is also true for a deleted
+  // account, which is gone, not hidden; without the profile field (an older server) it is all there is.
+  const hiddenProfile = profile && (r.profile ? r.profile.suspended : r.target_removed);
   return (
     <li data-report={r.id} className="flex flex-col gap-2 px-4 py-3.5">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -96,7 +114,11 @@ export function ReportRow({ report: r, now, canModerate }: { report: Report; now
             <EyeOffIcon className="size-3" aria-hidden="true" /> Hidden from users
           </span>
         ) : null}
-        {r.target_removed ? (
+        {hiddenProfile ? (
+          <span className="tag bg-caution-soft text-caution gap-1" title="The profile, its vCard and its personal QR code answer not found until it is unhidden.">
+            <EyeOffIcon className="size-3" aria-hidden="true" /> Profile hidden
+          </span>
+        ) : r.target_removed ? (
           <span className="tag bg-refuse-soft text-refuse gap-1">
             <Trash2Icon className="size-3" aria-hidden="true" /> Removed
           </span>
@@ -109,6 +131,9 @@ export function ReportRow({ report: r, now, canModerate }: { report: Report; now
       <blockquote className={cn("border-line text-ink m-0 line-clamp-4 border-l-2 pl-3 text-[13.5px] leading-[1.5] whitespace-pre-line", r.target_removed && "text-ink-2")}>
         {r.target_preview ? (quoted ? `“${r.target_preview}”` : r.target_preview) : <span className="text-ink-3 italic">Nothing to show</span>}
       </blockquote>
+
+      {/* A profile's links and projects, each removable on its own; an older server sends none. */}
+      {profile && r.profile ? <ProfilePanel profile={r.profile} hidden={hiddenProfile} canModerate={canModerate} /> : null}
 
       <div className="text-ink-3 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px]">
         {r.target_author ? (
@@ -139,7 +164,7 @@ export function ReportRow({ report: r, now, canModerate }: { report: Report; now
       {!open && r.resolution ? (
         <div className="bg-sunken text-ink-2 flex flex-col gap-0.5 rounded-[10px] px-3 py-2 text-[12.5px]">
           <span>
-            <span className="text-ink font-semibold">{resolutionLabel(r.resolution)}</span>
+            <span className="text-ink font-semibold">{resolutionLabelFor(r, r.resolution)}</span>
             {r.resolved_at ? (
               <>
                 {" · "}

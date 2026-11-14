@@ -1,8 +1,9 @@
 export { ReportsPage, PAGE_SIZE as REPORTS_PAGE_SIZE } from "./components/reports-page";
 export { ReportRow, ReasonChip } from "./components/report-row";
 export { ResolveDialog } from "./components/resolve-dialog";
-export { useReports, useOpenReportCount, useResolveReport, isStale, isAlreadyResolved, REPORTS_KEY, OPEN_COUNT_POLL_MS } from "./queries";
-export { fetchReports, fetchOpenReportCount, resolveReport, type ReportQuery, type ResolveInput } from "./api";
+export { ProfilePanel, linkTypeLabel } from "./components/profile-panel";
+export { useReports, useOpenReportCount, useResolveReport, useProfileModeration, isStale, isAlreadyResolved, REPORTS_KEY, OPEN_COUNT_POLL_MS, type ProfileAction } from "./queries";
+export { fetchReports, fetchOpenReportCount, resolveReport, removeProfileItem, unhideProfile, type ReportQuery, type ResolveInput } from "./api";
 export {
   TARGET_TYPES,
   REPORT_REASONS,
@@ -20,6 +21,9 @@ export {
   resolutionLabel,
   isTargetType,
   canRemoveContent,
+  isProfileReport,
+  resolutionLabelFor,
+  profileActionMessage,
   canSuspendAuthor,
   hiddenFromUsers,
   suspendsClubAccount,
@@ -36,4 +40,5 @@ export {
   type Resolution,
   type ResolveResult,
   type TargetType,
+  type ProfileItemKind,
 } from "./schemas";

@@ -49,6 +49,7 @@ import { useDebouncedValue } from "@moa/ui/hooks";
 
 import { useAccess } from "@/features/access";
 import { useEventSummary } from "@/features/console";
+import { NetworkingCard } from "@/features/networking";
 
 import { fetchCheckInLog } from "../api";
 import { useCheckInLog, useUndoCheckIn } from "../queries";
@@ -803,6 +804,7 @@ export function CheckInsPage({ eventId }: { eventId: number }) {
               {s.analytics.by_door.length > 1 ? <DoorLoad s={s} /> : null}
             </div>
           </div>
+          <NetworkingCard eventId={eventId} live={s.status === "live"} timezone={tz} />
         </>
       )}
 
