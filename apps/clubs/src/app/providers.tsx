@@ -6,7 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ThemeProvider, useTheme } from "next-themes";
 import { Toaster, TooltipProvider } from "@moa/ui";
 
-import { CropHost, getQueryClient, setLoginScope } from "@moa/app-kit";
+import { CropHost, SessionEndHost, getQueryClient, setLoginScope } from "@moa/app-kit";
 
 // Sign-ins from this app are for a club, so a team member's own password works here.
 setLoginScope("club");
@@ -20,6 +20,9 @@ function ThemedToaster() {
   const { resolvedTheme } = useTheme();
   return <Toaster theme={resolvedTheme === "dark" ? "dark" : "light"} position="bottom-right" richColors closeButton />;
 }
+
+/** Pages that need no session, where a refused renewal sends nobody to sign in. */
+const OPEN_PATHS = /^\/(?:forgot-password|signup|join|impersonate|gate|kiosk|s)(?:\/|$)/;
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Not useState(() => new QueryClient()): getQueryClient already returns a
@@ -36,6 +39,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <ThemedToaster />
           {/* Where a logo, banner or photo of another shape is placed in its own before it uploads. */}
           <CropHost />
+          {/* A session that could not be renewed: sign in again, after a word if this page has unsaved work. */}
+          <SessionEndHost openPaths={OPEN_PATHS} />
         </TooltipProvider>
       </ThemeProvider>
       {process.env.NODE_ENV === "development" ? (

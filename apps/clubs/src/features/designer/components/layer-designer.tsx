@@ -27,6 +27,7 @@ import {
 } from "@moa/ui";
 import { AlertTriangleIcon, CheckCircle2Icon, Loader2Icon, Redo2Icon, RotateCcwIcon, Undo2Icon } from "lucide-react";
 import * as React from "react";
+import { useUnsavedWork } from "@moa/app-kit";
 
 import { fitImage, isPicture } from "@/lib/images";
 
@@ -227,13 +228,8 @@ const Editor = ({ config, scope, eventId, design, audience, picker, startWith, p
   const fit = Math.max(0.05, Math.min(2, (fitWidth - 64) / shownWidth));
   const zoom = zoomChoice === "fit" ? fit : zoomChoice;
 
-  // Leaving with unsaved work asks first.
-  React.useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Leaving, or a session that ends, asks first (useUnsavedWork).
+  useUnsavedWork(dirty);
 
   const colors = React.useMemo(
     () => ({ primary: design.brand.primary, secondary: design.brand.secondary, ticketType: design.brand.primary }),

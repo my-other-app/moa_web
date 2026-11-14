@@ -90,16 +90,18 @@ export async function googleLogin(input: GoogleLoginInput): Promise<TokenRespons
  * cookies are still cleared: signing out must always sign out here.
  */
 export async function logout(): Promise<void> {
+  // Never renewed on the way out (`renew: false`): a session already spent
+  // is ended by /auth/logout itself, from the refresh cookie.
   try {
-    const sessions = await api.get<unknown>("/api/v1/auth/sessions");
+    const sessions = await api.get<unknown>("/api/v1/auth/sessions", { renew: false });
     const current = Array.isArray(sessions)
       ? (sessions as Array<{ id?: unknown; current?: unknown }>).find((s) => s?.current === true && typeof s.id === "string")
       : undefined;
-    if (current) await api.del<unknown>(`/api/v1/auth/sessions/${encodeURIComponent(current.id as string)}`);
+    if (current) await api.del<unknown>(`/api/v1/auth/sessions/${encodeURIComponent(current.id as string)}`, undefined, { renew: false });
   } catch {
     // Already ended, or the API could not say: the cookies go regardless.
   }
-  await api.post<void>("/api/v1/auth/logout");
+  await api.post<void>("/api/v1/auth/logout", undefined, { renew: false });
 }
 
 export async function fetchSession(): Promise<SessionUser> {

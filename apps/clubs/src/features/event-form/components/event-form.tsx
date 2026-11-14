@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckIcon, CircleIcon, Loader2Icon, MapPinIcon, SaveIcon } from "lucide-react";
 import { ApiError, nullIfRouteMissing } from "@moa/api";
 import { useObjectUrl } from "@moa/ui/hooks";
-import { PosterFrame } from "@moa/app-kit";
+import { PosterFrame, useUnsavedWork } from "@moa/app-kit";
 import { formChanged, questionToWire, type Question } from "@moa/questions";
 import { Form, InlineAlert, Notice, ProgressBar, cn, toast } from "@moa/ui";
 
@@ -248,6 +248,8 @@ export function EventForm({ mode, eventId, defaultValues, context }: { mode: "cr
   // useWatch, not form.watch(): the compiler cannot memoise the latter.
   const values = useWatch({ control: form.control }) as EventFormValues;
   const { errors, isDirty } = form.formState;
+  // Leaving, or a session that ends, asks first.
+  useUnsavedWork(isDirty);
   const isSaving = create.isPending || update.isPending || form.formState.isSubmitting;
   const ready = readiness(values);
   const isDraft = mode === "edit" && context?.status === "draft";

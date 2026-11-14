@@ -123,4 +123,10 @@ export {
   type AuthenticatorSetupProps,
   setLoginScope,
   safeNext,
+  SessionEndHost,
+  type SessionEndHostProps,
+  useUnsavedWork,
+  hasUnsavedWork,
+  signInAgainPath,
+  SESSION_RENEWAL,
 } from "./auth";
