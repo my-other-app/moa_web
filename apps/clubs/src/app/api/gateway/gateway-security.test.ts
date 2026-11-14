@@ -2,15 +2,17 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { CROSS_ORIGIN_REFUSED, createGatewayHandlers, isSameOrigin, stripTokens } from "@moa/auth/gateway";
+import { CROSS_ORIGIN_REFUSED, createGatewayHandlers, isCrossSite, isSameOrigin, stripTokens } from "@moa/auth/gateway";
 
 /**
  * The gateway is the dashboard's one way to the API, and the boundary that
  * keeps other sites out of it. The API allows credentialed CORS for the
  * public website (which calls it directly), so the gateway must never pass
  * that answer on: the dashboards are same-origin apps and give no CORS at
- * all. A change must come from the dashboard's own pages (the CSRF check),
- * and the session tokens in an auth answer's body never reach page script.
+ * all. Only the dashboard's own pages use it, so a request the browser says
+ * another site started is refused whatever its method; a change must also
+ * name the dashboard's origin (the CSRF check); and the session tokens in an
+ * auth answer's body never reach page script.
  */
 let server: http.Server;
 let apiUrl = "";
@@ -75,7 +77,7 @@ beforeEach(() => {
 
 const HOST = "main-portal.myotherapp.in";
 const gateway = () => createGatewayHandlers({ apiUrl });
-const ctx = (path: string) => ({ params: Promise.resolve({ path: path.split("/").filter(Boolean) }) });
+const ctx = (path: string) => ({ params: Promise.resolve({ path: path.split("?")[0]!.split("/").filter(Boolean) }) });
 const call = (method: string, path: string, headers: Record<string, string> = {}, body?: string) =>
   gateway()[method as "POST"](
     new Request(`https://${HOST}/api/gateway/${path}`, { method, headers: { host: HOST, ...headers }, body }),
@@ -86,11 +88,15 @@ const corsHeaders = (res: Response) => [...res.headers.keys()].filter((k) => k.s
 describe("CORS through the gateway", () => {
   it("answers a preflight itself, from any origin, with no Access-Control-* and without asking the API", async () => {
     for (const origin of ["https://myotherapp.in", "https://club-dashboard.myotherapp.in", "https://evil.example"]) {
-      const res = await call("OPTIONS", "api/v1/auth/me", {
-        origin,
-        "access-control-request-method": "POST",
-        "access-control-request-headers": "content-type",
-      });
+      const preflight = { origin, "access-control-request-method": "POST", "access-control-request-headers": "content-type" };
+      // As a browser sends it: refused, since another site asked.
+      for (const site of ["same-site", "cross-site"]) {
+        const res = await call("OPTIONS", "api/v1/auth/me", { ...preflight, "sec-fetch-site": site });
+        expect(res.status).toBe(403);
+        expect(corsHeaders(res)).toEqual([]);
+      }
+      // Without Sec-Fetch-Site: an empty answer that grants nothing.
+      const res = await call("OPTIONS", "api/v1/auth/me", preflight);
       expect(res.status).toBe(204);
       expect(corsHeaders(res)).toEqual([]);
     }
@@ -98,11 +104,61 @@ describe("CORS through the gateway", () => {
   });
 
   it("passes no Access-Control-* header on from the API's answer", async () => {
-    const res = await call("GET", "api/v1/auth/me", { origin: "https://myotherapp.in", "sec-fetch-site": "same-site" });
+    const res = await call("GET", "api/v1/auth/me", { "sec-fetch-site": "same-origin" });
     expect(res.status).toBe(200);
     expect(corsHeaders(res)).toEqual([]);
     // Other headers still pass.
     expect(res.headers.get("vary")).toBe("Origin");
+  });
+});
+
+describe("requests another site started", () => {
+  const reads = ["api/v1/clubs/overview", "api/v1/events/42/idcards/batch.pdf?scope=all", "api/v1/clubs/followers/export.csv?segment=all"];
+
+  it("refuses a read the browser says another site started, without sending it", async () => {
+    for (const site of ["same-site", "cross-site", "Cross-Site"]) {
+      for (const method of ["GET", "HEAD"]) {
+        for (const path of reads) {
+          // A link, an image or a redirect from the public website, the other dashboard or anywhere else.
+          const res = await call(method, path, { "sec-fetch-site": site, "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" });
+          expect(res.status).toBe(403);
+          expect(res.headers.get("cache-control")).toBe("no-store");
+          if (method === "GET") expect(((await res.json()) as { error_code: string }).error_code).toBe(CROSS_ORIGIN_REFUSED);
+        }
+      }
+    }
+    expect(seen).toEqual([]);
+  });
+
+  it("refuses one even when it names this dashboard's own Origin", async () => {
+    const res = await call("GET", "api/v1/clubs/overview", { origin: `https://${HOST}`, "sec-fetch-site": "cross-site" });
+    expect(res.status).toBe(403);
+    expect(seen).toEqual([]);
+  });
+
+  it("sends a read from the dashboard's own pages, including a window.open of an export", async () => {
+    const fetched = await call("GET", "api/v1/clubs/overview", { "sec-fetch-site": "same-origin", "sec-fetch-mode": "cors", "sec-fetch-dest": "empty" });
+    expect(fetched.status).toBe(200);
+    // window.open(url, "_blank", "noopener") on a same-origin path: a navigation the dashboard started.
+    const opened = await call("GET", "api/v1/events/42/idcards/batch.pdf?scope=all", { "sec-fetch-site": "same-origin", "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" });
+    expect(opened.status).toBe(200);
+    expect(seen.map((s) => s.url)).toEqual(["/api/v1/clubs/overview", "/api/v1/events/42/idcards/batch.pdf?scope=all"]);
+  });
+
+  it("sends a read the person started (address bar, bookmark), or one with no Sec-Fetch-Site (an older browser, a server)", async () => {
+    expect((await call("GET", "api/v1/clubs/overview", { "sec-fetch-site": "none", "sec-fetch-mode": "navigate" })).status).toBe(200);
+    expect((await call("GET", "api/v1/clubs/overview")).status).toBe(200);
+    expect(seen).toHaveLength(2);
+  });
+
+  it("reads only Sec-Fetch-Site to decide", () => {
+    const req = (headers: Record<string, string>) => new Request(`https://${HOST}/api/gateway/x`, { headers });
+    expect(isCrossSite(req({}))).toBe(false);
+    expect(isCrossSite(req({ "sec-fetch-site": "same-origin" }))).toBe(false);
+    expect(isCrossSite(req({ "sec-fetch-site": "none" }))).toBe(false);
+    expect(isCrossSite(req({ "sec-fetch-site": "same-site" }))).toBe(true);
+    expect(isCrossSite(req({ "sec-fetch-site": "cross-site" }))).toBe(true);
+    expect(isCrossSite(req({ "sec-fetch-site": "something-new" }))).toBe(true);
   });
 });
 
@@ -149,11 +205,6 @@ describe("requests that change something (the CSRF check)", () => {
     expect(seen.map((s) => s.method)).toEqual(["POST", "DELETE", "PATCH"]);
   });
 
-  it("lets a read from anywhere through: it changes nothing, and with no CORS another site cannot read it", async () => {
-    const res = await call("GET", "api/v1/clubs/overview", { origin: "https://myotherapp.in", "sec-fetch-site": "same-site" });
-    expect(res.status).toBe(200);
-    expect(corsHeaders(res)).toEqual([]);
-  });
 
   it("knows its own origin by the Host the proxy passed, or the forwarded host", () => {
     const req = (headers: Record<string, string>) => new Request("http://0.0.0.0:3000/api/gateway/x", { method: "POST", headers });

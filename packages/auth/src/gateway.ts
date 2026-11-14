@@ -17,9 +17,11 @@ import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "./constants";
  * credentialed CORS for the public website, which calls it directly; passed
  * through here, that answer was given on the dashboard's own origin, so
  * another site's script could have used a signed-in admin's session.
- * A request that changes something must come from this origin (see
- * `isSameOrigin`), and the session tokens never reach page script: the
- * HttpOnly cookies are the session (see `stripTokens`).
+ * Only this dashboard's own pages use the gateway, so a request the browser
+ * says another site started is refused whatever its method (see
+ * `isCrossSite`); a request that changes something must also name this
+ * origin (see `isSameOrigin`). The session tokens never reach page script:
+ * the HttpOnly cookies are the session (see `stripTokens`).
  */
 export interface GatewayOptions {
   /**
@@ -57,11 +59,18 @@ const DEFAULT_STRIPPED = [
 
 type RouteContext = { params: Promise<{ path?: string[] }> };
 
-/** Methods that only read: everything else must come from this origin. */
+/** Methods that only read: everything else must also name this origin. */
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /** What a refused cross-origin request is answered with. */
 export const CROSS_ORIGIN_REFUSED = "CROSS_ORIGIN_REFUSED";
+
+/** A 403 that says where to go instead: the dashboard, then the same button there. */
+const refused = () =>
+  Response.json(
+    { message: "This request did not come from this dashboard, so it was not sent. Open the dashboard, reload the page and try again from there.", error_code: CROSS_ORIGIN_REFUSED },
+    { status: 403, headers: { "cache-control": "no-store" } },
+  );
 
 /** Body fields that are a session: the HttpOnly cookies carry it instead. */
 const TOKEN_FIELDS = ["access_token", "refresh_token"] as const;
@@ -90,6 +99,25 @@ function ownHosts(request: Request): Set<string> {
     // A relative URL in a test: the headers decide.
   }
   return hosts;
+}
+
+/**
+ * The browser says another site started this request.
+ *
+ * Every current browser names who started a request in `Sec-Fetch-Site`:
+ * `same-origin` for this dashboard's own pages (its fetches, its links, a
+ * `window.open` of an export), `none` for the person themselves (the
+ * address bar, a bookmark). Anything else -- `same-site` (the public
+ * website, the other dashboard, a club's site) or `cross-site` -- did not
+ * come from here: nothing the dashboards do sends it, and it is refused for
+ * every method, reads included. Without the header (an older browser, a
+ * server-side call) this says nothing, and the other checks decide.
+ */
+export function isCrossSite(request: Request): boolean {
+  const site = request.headers.get("sec-fetch-site");
+  if (site === null) return false;
+  const value = site.trim().toLowerCase();
+  return value !== "same-origin" && value !== "none";
 }
 
 /**
@@ -167,18 +195,16 @@ export function createGatewayHandlers(options: GatewayOptions) {
   );
 
   async function handle(request: Request, context: RouteContext): Promise<Response> {
+    // Only this dashboard's own pages use the gateway: whatever the method, a
+    // request the browser says another site started is not sent.
+    if (isCrossSite(request)) return refused();
     // Same-origin pages never preflight, so this is only ever another site
     // asking: answered here, with no Access-Control-* at all, never by the API.
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: { allow: "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS" } });
     }
-    // CSRF: a change must come from this dashboard's own pages.
-    if (!SAFE_METHODS.has(request.method) && !isSameOrigin(request)) {
-      return Response.json(
-        { message: "This request did not come from this dashboard, so it was not sent. Reload the page and try again.", error_code: CROSS_ORIGIN_REFUSED },
-        { status: 403 }
-      );
-    }
+    // CSRF: a change must also name this dashboard's own origin.
+    if (!SAFE_METHODS.has(request.method) && !isSameOrigin(request)) return refused();
 
     const apiUrl = options.apiUrl ?? process.env.MOA_API_URL;
     if (!apiUrl) {
