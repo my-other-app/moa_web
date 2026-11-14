@@ -22,6 +22,9 @@ import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "./constants";
  * `isCrossSite`); a request that changes something must also name this
  * origin (see `isSameOrigin`). The session tokens never reach page script:
  * the HttpOnly cookies are the session (see `stripTokens`).
+ *
+ * The API has a fixed time to start answering (see `upstreamTimeout`), and
+ * a request the browser gave up on is cancelled upstream as well.
  */
 export interface GatewayOptions {
   /**
@@ -47,7 +50,24 @@ export interface GatewayOptions {
    * break the proxy.
    */
   onUpstreamResponse?: (result: { method: string; path: string; status: number; durationMs: number }) => void;
+  /**
+   * How long the API has to start answering, in milliseconds: `standard`
+   * for most calls, `long` for the slow ones (see `upstreamTimeout`).
+   * Defaults to UPSTREAM_TIMEOUT_MS; tests pass short ones.
+   */
+  timeouts?: Partial<UpstreamTimeouts>;
 }
+
+export interface UpstreamTimeouts {
+  standard: number;
+  long: number;
+}
+
+/** A minute for an ordinary call; three for a big decision, an import, an export, a bundle or a PDF. */
+export const UPSTREAM_TIMEOUT_MS: Readonly<UpstreamTimeouts> = { standard: 60_000, long: 180_000 };
+
+/** What a call the API took too long to answer is answered with (a 504). */
+export const UPSTREAM_TIMEOUT = "UPSTREAM_TIMEOUT";
 
 const DEFAULT_STRIPPED = [
   "host",
@@ -187,6 +207,53 @@ const setsSession = (cookies: string[]) =>
  */
 const STREAMED = [/^\/api\/v1\/clubs\/whatsapp\/conversations\/\d+\/media$/, /^\/api\/v1\/clubs\/mailbox\/messages$/];
 
+/**
+ * The calls that can take minutes: a decision on hundreds of registration
+ * requests at once (approve, decline, reopen), an import, an export or
+ * statement (CSV or Excel), a bundle of tickets, and a PDF -- a batch of
+ * cards, or a single one the render service may try twice.
+ */
+const LONG = [
+  /\/(?:approve|decline|reopen)$/,
+  /(?:^|[/_-])bulk(?:[/_.-]|$)/,
+  /(?:^|[/_.-])exports?(?:[/_.-]|$)/,
+  /(?:^|[/_.-])bundle(?:[/_.-]|$)/,
+  /\.(?:csv|xlsx|zip|pdf)$/i,
+];
+
+/** An event stream: open for as long as the page is, so never timed out. */
+const isEventStream = (request: Request, path: string) =>
+  /\/stream$/.test(path) || /\btext\/event-stream\b/i.test(request.headers.get("accept") ?? "");
+
+/**
+ * How long the API has to start answering this call, in milliseconds, or
+ * null for no limit: an event stream stays open as long as the page does.
+ * (A streamed upload has none either: see `createGatewayHandlers`.) Once
+ * the answer has started, its body passes through for as long as it takes:
+ * a big download on venue Wi-Fi is not cut off half way.
+ */
+export function upstreamTimeout(request: Request, path: string, timeouts: UpstreamTimeouts = UPSTREAM_TIMEOUT_MS): number | null {
+  if (isEventStream(request, path)) return null;
+  let format: string | null = null;
+  try {
+    format = new URL(request.url).searchParams.get("format");
+  } catch {
+    // A relative URL in a test: the path decides.
+  }
+  if (LONG.some((rx) => rx.test(path)) || /^(?:csv|xlsx)$/i.test(format ?? "")) return timeouts.long;
+  return timeouts.standard;
+}
+
+/** Said when the API took too long; a change may still go through, so it says to look first. */
+const timedOut = () =>
+  Response.json(
+    {
+      message: "The server took too long to answer, so the dashboard stopped waiting. If you were changing something it may still go through: reload in a minute and check before trying again.",
+      error_code: UPSTREAM_TIMEOUT,
+    },
+    { status: 504, headers: { "cache-control": "no-store" } },
+  );
+
 export function createGatewayHandlers(options: GatewayOptions) {
   const stripped = new Set(
     [...DEFAULT_STRIPPED, ...(options.stripRequestHeaders ?? [])].map((h) =>
@@ -239,7 +306,35 @@ export function createGatewayHandlers(options: GatewayOptions) {
     const length = request.headers.get("content-length");
     if (streamed && length) headers.set("content-length", length);
 
+    // The upstream call ends when the browser gives up on this one (a
+    // cancelled export, a page left), and when the API has not started
+    // answering in time. A streamed upload has no limit: a 100 MB file on
+    // venue Wi-Fi takes as long as it takes, and the API answers only once
+    // it has all of it.
+    const abort = new AbortController();
+    const onClientGone = () => abort.abort(request.signal.reason);
+    if (request.signal.aborted) onClientGone();
+    else request.signal.addEventListener("abort", onClientGone, { once: true });
+    const limit = streamed ? null : upstreamTimeout(request, upstreamPath, { ...UPSTREAM_TIMEOUT_MS, ...options.timeouts });
+    let expired = false;
+    const timer =
+      limit === null
+        ? undefined
+        : setTimeout(() => {
+            expired = true;
+            abort.abort(new DOMException(`The API did not answer within ${limit} ms.`, "TimeoutError"));
+          }, limit);
+
     const started = Date.now();
+    const report = (status: number) => {
+      if (!options.onUpstreamResponse) return;
+      try {
+        options.onUpstreamResponse({ method: request.method, path: upstreamPath, status, durationMs: Date.now() - started });
+      } catch {
+        // A reporting fault is not the caller's problem.
+      }
+    };
+
     let upstream: Response;
     try {
       upstream = await fetch(target, {
@@ -250,27 +345,27 @@ export function createGatewayHandlers(options: GatewayOptions) {
         ...(streamed ? { duplex: "half" } : {}),
         redirect: "manual",
         cache: "no-store",
+        signal: abort.signal,
       } as RequestInit);
     } catch (error) {
+      if (expired) {
+        // The API is stuck, not the caller: seen as an upstream 504.
+        report(504);
+        return timedOut();
+      }
+      // Nobody is waiting for an answer: say so quietly, never as a fault.
+      if (request.signal.aborted) return new Response(null, { status: 499 });
       if (!streamed) throw error;
       return Response.json(
         { message: "The file couldn't be sent: the connection dropped or the session ended. Sign in again if asked, and try again.", error_code: "UPLOAD_INTERRUPTED" },
         { status: 502 },
       );
+    } finally {
+      // The answer has started (or failed): its body is not timed.
+      clearTimeout(timer);
     }
 
-    if (options.onUpstreamResponse) {
-      try {
-        options.onUpstreamResponse({
-          method: request.method,
-          path: upstreamPath,
-          status: upstream.status,
-          durationMs: Date.now() - started,
-        });
-      } catch {
-        // A reporting fault is not the caller's problem.
-      }
-    }
+    report(upstream.status);
 
     // Pass the response through, including Set-Cookie so login/refresh/logout
     // keep working. Headers.getSetCookie() preserves multiple cookies, which a
