@@ -30,6 +30,7 @@ import { changeOf } from "../delta";
 import { Meter, Micro, Panel, PanelTitle, RuleRow, Segmented } from "./v2-primitives";
 import { RevenueStrip } from "@/features/revenue";
 
+import { NetworkingSummaryPanel } from "./networking-summary";
 import { PlatformDoorsPanel } from "./platform-doors-panel";
 
 /** The snapshot's two columns, for both the CSV and the Excel file. */
@@ -491,6 +492,9 @@ export function AdminOverviewV2() {
               </RuleRow>
             ))}
           </Panel>
+
+          {/* Its own read: away while it loads, and on an API without networking. */}
+          <NetworkingSummaryPanel className="min-w-0 flex-[1_1_280px]" />
         </div>
       )}
 

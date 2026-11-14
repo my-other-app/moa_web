@@ -19,6 +19,8 @@ let failNext: string | null = null;
 let rerank: Promise<unknown> | null = null;
 /** The platform's request figures (confirm each registration); null: a server that doesn't send them. */
 let requestsBlock: Record<string, unknown> | null = null;
+/** GET /admin/networking/summary; null: a server without it. */
+let networking: Record<string, unknown> | null = null;
 
 const TRENDS: Record<number, unknown> = {
   30: {
@@ -104,6 +106,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       get: vi.fn(async (path: string, init?: { query?: Query }) => {
         calls.push({ path, query: init?.query });
         if (path === "/api/v1/admin/doors") return doorsFixture;
+        if (path === "/api/v1/admin/networking/summary" && networking) return networking;
         if (path === "/api/v1/admin/overview") {
           if (failNext) {
             const message = failNext;
@@ -156,6 +159,7 @@ beforeEach(() => {
   failNext = null;
   rerank = null;
   requestsBlock = null;
+  networking = null;
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -358,6 +362,22 @@ describe("the panels", () => {
     render(<AdminOverviewV2 />);
     expect(await screen.findByText("Doors open now")).toBeInTheDocument();
     expect(calls.some((c) => c.path === "/api/v1/admin/doors")).toBe(true);
+  });
+
+  it("carries the platform's networking beside the averages, once the API has it", async () => {
+    networking = { profiles_completed: 5, profiles_total: 10, codes_active: 4, saves_7d: 2, saves_30d: 9, mutual_rate: 50, reports_open: 0 };
+    render(<AdminOverviewV2 />);
+    const card = await screen.findByRole("region", { name: "Networking" });
+    expect(within(card).getByText("Profiles completed").nextElementSibling).toHaveTextContent("5 of 10 · 50%");
+    expect(within(card).getByText("Mutual saves").nextElementSibling).toHaveTextContent("50%");
+  });
+
+  it("leaves networking out, and the rest whole, on an API without it", async () => {
+    render(<AdminOverviewV2 />);
+    await screen.findByRole("heading", { name: "Is the platform healthy?" });
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/admin/networking/summary")).toBe(true));
+    expect(screen.queryByRole("region", { name: "Networking" })).not.toBeInTheDocument();
+    expect(screen.getByText("Averages")).toBeInTheDocument();
   });
 });
 
