@@ -7,9 +7,9 @@ import { UPSTREAM_TIMEOUT, UPSTREAM_TIMEOUT_MS, createGatewayHandlers, upstreamT
 /**
  * The API has a fixed time to start answering a call through the gateway:
  * a minute for most, three for the slow ones (a big review decision, an
- * import, an export, a bundle, a PDF), none for an event stream or a
- * streamed upload. Once the answer has started, its body is not timed. A
- * call the browser gave up on is cancelled upstream too.
+ * import, an export, a bundle, a PDF, an AI draft), none for an event
+ * stream or a streamed upload. Once the answer has started, its body is not
+ * timed. A call the browser gave up on is cancelled upstream too.
  */
 let server: http.Server;
 let apiUrl = "";
@@ -81,12 +81,12 @@ describe("which calls get how long", () => {
 
   it("gives an ordinary call a minute", () => {
     expect(UPSTREAM_TIMEOUT_MS).toEqual({ standard: 60_000, long: 180_000 });
-    for (const path of ["/api/v1/clubs/overview", "/api/v1/auth/me", "/api/v1/events/42/attendees", "/api/v1/events/42/gate/scan-batch", "/api/v1/clubs/ai/write"]) {
+    for (const path of ["/api/v1/clubs/overview", "/api/v1/auth/me", "/api/v1/events/42/attendees", "/api/v1/events/42/gate/scan-batch", "/api/v1/clubs/aim"]) {
       expect(limit(path)).toBe(60_000);
     }
   });
 
-  it("gives review decisions, imports, exports, bundles and PDFs three minutes", () => {
+  it("gives review decisions, imports, exports, bundles, PDFs and AI drafts three minutes", () => {
     for (const path of [
       // Approvals and bulk confirm: up to 500 at a time.
       "/api/v1/events/registration/7/requests/approve",
@@ -107,6 +107,10 @@ describe("which calls get how long", () => {
       "/api/v1/events/7/idcards/batch.pdf?scope=all",
       "/api/v1/events/7/idcards/31.pdf",
       "/api/v1/events/7/programme.pdf",
+      // An AI draft: the API allows it up to 100 s.
+      "/api/v1/clubs/ai/write",
+      "/api/v1/clubs/ai/event-draft",
+      "/api/v1/events/7/ai/describe",
     ]) {
       expect(limit(path), path).toBe(180_000);
     }

@@ -63,7 +63,7 @@ export interface UpstreamTimeouts {
   long: number;
 }
 
-/** A minute for an ordinary call; three for a big decision, an import, an export, a bundle or a PDF. */
+/** A minute for an ordinary call; three for a big decision, an import, an export, a bundle, a PDF or an AI draft. */
 export const UPSTREAM_TIMEOUT_MS: Readonly<UpstreamTimeouts> = { standard: 60_000, long: 180_000 };
 
 /** What a call the API took too long to answer is answered with (a 504). */
@@ -210,11 +210,13 @@ const STREAMED = [/^\/api\/v1\/clubs\/whatsapp\/conversations\/\d+\/media$/, /^\
 /**
  * The calls that can take minutes: a decision on hundreds of registration
  * requests at once (approve, decline, reopen), an import, an export or
- * statement (CSV or Excel), a bundle of tickets, and a PDF -- a batch of
- * cards, or a single one the render service may try twice.
+ * statement (CSV or Excel), a bundle of tickets, a PDF -- a batch of cards,
+ * or a single one the render service may try twice -- and an AI draft, which
+ * the API gives up to 100 s across its providers.
  */
 const LONG = [
   /\/(?:approve|decline|reopen)$/,
+  /\/ai\//,
   /(?:^|[/_-])bulk(?:[/_.-]|$)/,
   /(?:^|[/_.-])exports?(?:[/_.-]|$)/,
   /(?:^|[/_.-])bundle(?:[/_.-]|$)/,
