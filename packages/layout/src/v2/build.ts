@@ -307,7 +307,14 @@ const imageLayer = (layer: ImageLayerV2, values: Record<string, string>, ctx: Ct
 export const qrSvg = (payload: string, quietZone: number) =>
   qrSvgOf(payload || "MOA", quietZone).replace("<svg", '<svg width="100%" height="100%" style="display:block"');
 
-const qrLayer = (layer: QrLayerV2, ctx: Ctx, paint: Paint) => {
+/** What a QR encodes: the kind's code from the context, or for a bound QR (the Personal QR) its value, trimmed; "" when it has none. */
+export const qrPayloadOf = (layer: Pick<QrLayerV2, "bind">, values: Readonly<Record<string, string>>, qr: string) =>
+  layer.bind ? pyStrip(String(values[layer.bind] ?? "")) : qr;
+
+/** A bound QR with nothing to encode (a guest without a personal QR) is left out. */
+const qrLeftOut = (layer: LayerV2, values: Readonly<Record<string, string>>) => layer.kind === "qr" && !!layer.bind && !qrPayloadOf(layer, values, "");
+
+const qrLayer = (layer: QrLayerV2, payload: string, paint: Paint) => {
   let look = "";
   if (layer.background !== null) look += `;background:${paint.fill(layer.background)}`;
   const r = radiusCss(layer.radius);
@@ -317,7 +324,7 @@ const qrLayer = (layer: QrLayerV2, ctx: Ctx, paint: Paint) => {
   return (
     open(layer, outer(layer, extra)) +
     `<div class="moa-qr" style="width:100%;height:100%;box-sizing:border-box${look}">` +
-    qrSvg(ctx.qr, layer.quietZone) +
+    qrSvg(payload, layer.quietZone) +
     "</div></div>"
   );
 };
@@ -331,9 +338,11 @@ export const onStock = (layer: LayerV2) => {
   return true;
 };
 
-/** Whether a layer is drawn for these values: not hidden, its showIf met, not on the stock when printing on stock. */
-export const layerDrawn = (layer: LayerV2, values: Values, context: BuildContext = {}, opts: BuildOptions = {}) =>
-  !layer.hidden && showV2(layer.showIf, valuesOf(values, contextOf(context)), opts.kind ?? "ticket") && !(opts.skipPreprinted && onStock(layer));
+/** Whether a layer is drawn for these values: not hidden, its showIf met, a bound QR with its value, not on the stock when printing on stock. */
+export const layerDrawn = (layer: LayerV2, values: Values, context: BuildContext = {}, opts: BuildOptions = {}) => {
+  const vals = valuesOf(values, contextOf(context));
+  return !layer.hidden && showV2(layer.showIf, vals, opts.kind ?? "ticket") && !qrLeftOut(layer, vals) && !(opts.skipPreprinted && onStock(layer));
+};
 
 /** One layer's element, or null when it is left out. */
 export const buildLayer = (layout: LayoutV2, layer: LayerV2, values: Values, context: BuildContext = {}, opts: BuildOptions = {}): string | null => {
@@ -341,6 +350,7 @@ export const buildLayer = (layout: LayoutV2, layer: LayerV2, values: Values, con
   const vals = valuesOf(values, ctx);
   const kind = opts.kind ?? "ticket";
   if (layer.hidden || !showV2(layer.showIf, vals, kind)) return null;
+  if (qrLeftOut(layer, vals)) return null;
   if (opts.skipPreprinted && onStock(layer)) return null;
   const paint = new Paint(layout, ctx.colors);
   switch (layer.kind) {
@@ -353,7 +363,7 @@ export const buildLayer = (layout: LayoutV2, layer: LayerV2, values: Values, con
     case "image":
       return imageLayer(layer, vals, ctx, paint, opts);
     case "qr":
-      return qrLayer(layer, ctx, paint);
+      return qrLayer(layer, qrPayloadOf(layer, vals, ctx.qr), paint);
   }
 };
 
