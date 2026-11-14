@@ -36,4 +36,16 @@ describe("the main portal's gateway route", () => {
     expect(sent.headers.get("access-control-allow-origin")).toBeNull();
     expect(upstream).toHaveBeenCalledOnce();
   });
+
+  it("refuses a read the club dashboard or the public website started, and sends one from its own pages", async () => {
+    upstream.mockClear();
+    for (const site of ["same-site", "cross-site"]) {
+      const refused = await route.GET(req("GET", { "sec-fetch-site": site, "sec-fetch-mode": "navigate" }), ctx);
+      expect(refused.status).toBe(403);
+    }
+    expect(upstream).not.toHaveBeenCalled();
+    const sent = await route.GET(req("GET", { "sec-fetch-site": "same-origin" }), ctx);
+    expect(sent.status).toBe(200);
+    expect(upstream).toHaveBeenCalledOnce();
+  });
 });
