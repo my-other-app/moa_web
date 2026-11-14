@@ -23,6 +23,18 @@ type Tab = "checkin" | "find" | "walkup" | "merch";
 
 const TAB_ICON: Record<Tab, React.ComponentType<{ className?: string }>> = { checkin: ScanLineIcon, find: SearchIcon, walkup: UserPlusIcon, merch: PackageIcon };
 
+/**
+ * What the banner says while saved scans are still to send. When the server
+ * has asked for some of them again (it couldn't record them yet), it says so:
+ * the phone keeps trying by itself, but only while this page is open.
+ */
+function stillToSend(queued: number, retrying: number): string {
+  const lead = `${queued} saved ${queued === 1 ? "scan" : "scans"} still to send.`;
+  if (retrying <= 0) return `${lead} Syncing…`;
+  const which = retrying >= queued ? (queued === 1 ? "it" : "them") : `${retrying} of them`;
+  return `${lead} The server couldn’t record ${which} yet; this phone tries again by itself, so keep this page open.`;
+}
+
 const read = (k: string) => {
   try {
     return localStorage.getItem(k);
@@ -159,7 +171,7 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
       }
     }
   }, []);
-  const { online, queued, enqueue } = useOfflineQueue(gateKey, eventId, onDrained);
+  const { online, queued, retrying, enqueue } = useOfflineQueue(gateKey, eventId, onDrained);
   const p = ctx.permissions;
   const allowed: { key: Tab; label: string }[] = [
     ...(p.check_in ? [{ key: "checkin" as Tab, label: "Check-in" }, { key: "find" as Tab, label: "Find" }] : []),
@@ -200,7 +212,7 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
             </DoorBanner>
           ) : queued > 0 ? (
             <DoorBanner tone="info" icon={<RefreshCwIcon className="animate-spin motion-reduce:animate-none" />} title="Back online" className="border-x-0 border-b-0">
-              Syncing {queued} saved {queued === 1 ? "scan" : "scans"}…
+              {stillToSend(queued, retrying)}
             </DoorBanner>
           ) : null}
           {replay ? <ReplayReport report={replay} onDismiss={() => setReplay(null)} /> : null}

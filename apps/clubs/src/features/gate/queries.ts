@@ -5,10 +5,10 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { ApiError } from "@moa/api";
 
 import { captureContact, checkInByHand, fetchGateContext, registerWalkup, saveGateAnswers, scanBatch, scanTicket, searchGuests, undoCheckIn, fetchGateStoreOrders, gateHandOver, fetchGateCatalog } from "./api";
-import { scanQueue, supportsQueue, type QueuedScan } from "./lib/queue";
+import { askedAgainAt, isDue, scanQueue, supportsQueue, type QueuedScan } from "./lib/queue";
 import { looksLikeAdmissionNumber, looksLikeTicketCode } from "./lib/ticket-code";
 import type { ReplayedScan } from "./lib/replay";
-import type { GateContext, ScanBody, ScanResult, WalkupBody } from "./schemas";
+import { askedAgain, type GateContext, type ScanBody, type ScanResult, type WalkupBody } from "./schemas";
 
 export const gateKey = (eventId: number) => ["gate", eventId] as const;
 
@@ -90,9 +90,16 @@ export function useScanMutation(key: string | null, eventId: number, enqueue: (s
 
 /**
  * Online-first with an honest offline path: queued scans drain through the
- * batch route on reconnect. `onDrained` hears the server's answer to each
- * batch, every scan with what was saved for it, so the console can say which
- * of the guests scanned offline the server did not admit.
+ * batch route on reconnect. `onDrained` hears the server's final answers in
+ * each batch, every scan with what was saved for it, so the console can say
+ * which of the guests scanned offline the server did not admit.
+ *
+ * A scan leaves the phone only on a final answer about it: admitted, or
+ * refused for a reason the ticket has. One the server asks for again
+ * (`askedAgain`: it failed on its side) stays, and is sent again after a
+ * wait that grows each time; so does one the server did not answer for, or
+ * answered in a way this console cannot read. `queued` counts every scan
+ * still to send; `retrying` the ones among them the server asked for again.
  */
 export function useOfflineQueue(key: string | null, eventId: number, onDrained?: (results: ReplayedScan[]) => void) {
   const qc = useQueryClient();
@@ -104,12 +111,16 @@ export function useOfflineQueue(key: string | null, eventId: number, onDrained?:
   }, [onDrained]);
   const [online, setOnline] = React.useState(() => (typeof navigator === "object" && typeof navigator.onLine === "boolean" ? navigator.onLine : true));
   const [queued, setQueued] = React.useState(0);
+  const [retrying, setRetrying] = React.useState(0);
   const draining = React.useRef(false);
 
   // The count lands in a callback, never in the effect body itself.
   const refreshCount = React.useCallback((): Promise<void> => {
     if (!supportsQueue()) return Promise.resolve();
-    return scanQueue.count(eventId).then((n) => setQueued(n));
+    return scanQueue.all(eventId).then((all) => {
+      setQueued(all.length);
+      setRetrying(all.filter((s) => (s.attempts ?? 0) > 0).length);
+    });
   }, [eventId]);
 
   const drain = React.useCallback(async () => {
@@ -119,14 +130,19 @@ export function useOfflineQueue(key: string | null, eventId: number, onDrained?:
     // send them twice.
     draining.current = true;
     try {
-      const pending = await scanQueue.all(eventId);
+      const pending = (await scanQueue.all(eventId)).filter((s) => isDue(s, Date.now()));
       if (!pending.length) return;
       for (let i = 0; i < pending.length; i += 200) {
         const slice: QueuedScan[] = pending.slice(i, i + 200);
         const res = await scanBatch(key, eventId, slice.map(({ code, door, scanned_at, client_ref }) => ({ code, door, scanned_at, client_ref })));
-        await scanQueue.remove(res.results.map((r) => r.client_ref));
+        // Only an answer for a scan in this batch counts; one answer per scan.
         const saved = new Map(slice.map((s) => [s.client_ref, s]));
-        onDrainedRef.current?.(res.results.map((r) => ({ ...r, scan: saved.get(r.client_ref) })));
+        const answers = new Map(res.results.filter((r) => saved.has(r.client_ref)).map((r) => [r.client_ref, r]));
+        const final = [...answers.values()].filter((r) => !askedAgain(r));
+        const again = [...answers.values()].filter(askedAgain).map((r) => askedAgainAt(saved.get(r.client_ref)!, Date.now()));
+        await scanQueue.remove(final.map((r) => r.client_ref));
+        await scanQueue.update(again);
+        if (final.length) onDrainedRef.current?.(final.map((r) => ({ client_ref: r.client_ref, response: r.response, scan: saved.get(r.client_ref) })));
       }
       void qc.invalidateQueries({ queryKey: gateKey(eventId) });
     } catch {
@@ -167,7 +183,7 @@ export function useOfflineQueue(key: string | null, eventId: number, onDrained?:
     [eventId, refreshCount]
   );
 
-  return { online, queued, enqueue, drain };
+  return { online, queued, retrying, enqueue, drain };
 }
 
 export function useWalkup(key: string | null, eventId: number) {

@@ -6,6 +6,8 @@ import { act, fireEvent, renderHook, screen, waitFor, within } from "@testing-li
 import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { toast } from "@moa/ui";
 
+import type { QueuedScan } from "./lib/queue";
+
 /**
  * The door keeps scanning without signal. A scan the phone could not send is
  * saved in IndexedDB on the phone (a real IndexedDB here, fake-indexeddb, not
@@ -94,7 +96,7 @@ afterAll(() => vi.unstubAllGlobals());
 const { render } = await import("@/test/render");
 const { GateConsole } = await import("./components/gate-console");
 const { KEY_STORAGE } = await import("./api");
-const { scanQueue } = await import("./lib/queue");
+const { RETRY_FIRST_MS, RETRY_MAX_MS, askedAgainAt, isDue, scanQueue } = await import("./lib/queue");
 const { useOfflineQueue } = await import("./queries");
 
 beforeEach(() => {
@@ -275,7 +277,7 @@ describe("back online", () => {
     net.batch = () => json(503, { message: "Upstream unavailable" });
     await openConsole();
     await waitFor(() => expect(batches()).toHaveLength(1));
-    expect(await screen.findByText("Syncing 1 saved scan…")).toBeInTheDocument();
+    expect(await screen.findByText("1 saved scan still to send. Syncing…")).toBeInTheDocument();
     expect(await scanQueue.count(EVENT)).toBe(1);
   });
 
@@ -414,6 +416,148 @@ describe("what the server said about the saved scans", () => {
     const region = await report();
     await waitFor(() => expect(within(region).getByText(/Checked in: 200 of 201 synced\./)).toBeInTheDocument());
     expect(within(region).getByText("MOA-200")).toBeInTheDocument();
+  });
+});
+
+describe("a scan the server asks for again", () => {
+  /** How the server says it could not record a scan just now: INVALID, with `retry`. */
+  const askAgain = { ...admitted("x"), outcome: "INVALID", attendee: null, capture: { ask: false, required: false, reason: "NOT_ADMITTED" }, retry: true };
+  const notFound = { ...askAgain, retry: false };
+  const fresh = () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return function Wrapper({ children }: { children: React.ReactNode }) {
+      return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    };
+  };
+  const refs = async () => (await scanQueue.all(EVENT)).map((s) => s.client_ref);
+  const sentRefs = () => batches().map((b) => (b.body as { scans: { client_ref: string }[] }).scans.map((s) => s.client_ref));
+
+  it("keeps it on the phone, does not report it, and says it is still to send", async () => {
+    await scanQueue.add(queued("a", "MOA-1", "2026-10-16T13:01:00Z"));
+    await scanQueue.add(queued("b", "MOA-2", "2026-10-16T13:02:00Z"));
+    net.batch = (body) => json(200, { results: body.scans.map((s) => ({ client_ref: s.client_ref, response: s.client_ref === "b" ? askAgain : admitted("Ananya Iyer") })) });
+    const before = Date.now();
+    await openConsole();
+    // Only the admitted one is reported; the one asked for again is not "not found".
+    expect(await screen.findByText("1 saved scan synced, all checked in.")).toBeInTheDocument();
+    expect(screen.queryByText("No ticket matches this code.")).toBeNull();
+    await waitFor(async () => expect(await refs()).toEqual(["b"]));
+    const [kept] = await scanQueue.all(EVENT);
+    expect(kept!.attempts).toBe(1);
+    expect(Date.parse(kept!.retryAt!) - before).toBeGreaterThanOrEqual(RETRY_FIRST_MS);
+    expect(await screen.findByText("1 saved scan still to send. The server couldn’t record it yet; this phone tries again by itself, so keep this page open.")).toBeInTheDocument();
+  });
+
+  it("sends it again only once its wait is over, and forgets it on a final answer", async () => {
+    await scanQueue.add(queued("b", "MOA-2", "2026-10-16T13:02:00Z"));
+    net.batch = (body) => json(200, { results: body.scans.map((s) => ({ client_ref: s.client_ref, response: askAgain })) });
+    const { result } = renderHook(() => useOfflineQueue(KEY, EVENT), { wrapper: fresh() });
+    await waitFor(() => expect(batches()).toHaveLength(1));
+    await waitFor(() => expect(result.current.retrying).toBe(1));
+    expect(result.current.queued).toBe(1);
+
+    // Too soon: nothing is sent.
+    await act(() => result.current.drain());
+    expect(batches()).toHaveLength(1);
+
+    // The wait is over: sent again, and asked for again, it waits twice as long.
+    const [first] = await scanQueue.all(EVENT);
+    await scanQueue.update([{ ...first!, retryAt: new Date(Date.now() - 1).toISOString() }]);
+    const before = Date.now();
+    await act(() => result.current.drain());
+    expect(batches()).toHaveLength(2);
+    const [second] = await scanQueue.all(EVENT);
+    expect(second!.attempts).toBe(2);
+    expect(Date.parse(second!.retryAt!) - before).toBeGreaterThanOrEqual(2 * RETRY_FIRST_MS);
+
+    // Now the server records it: gone from the phone, and reported.
+    const drained = vi.fn();
+    const { result: again } = renderHook(() => useOfflineQueue(KEY, EVENT, drained), { wrapper: fresh() });
+    await scanQueue.update([{ ...second!, retryAt: new Date(Date.now() - 1).toISOString() }]);
+    net.batch = (body) => json(200, { results: body.scans.map((s) => ({ client_ref: s.client_ref, response: admitted("Bala Krishnan") })) });
+    await act(() => again.current.drain());
+    await waitFor(() => expect(again.current.queued).toBe(0));
+    expect(drained).toHaveBeenCalledWith([expect.objectContaining({ client_ref: "b", response: expect.objectContaining({ outcome: "CHECKED_IN" }) })]);
+    expect(sentRefs().flat().every((r) => r === "b")).toBe(true);
+  });
+
+  it("still forgets a real refusal at once", async () => {
+    await scanQueue.add(queued("f", "MOA-TYPO0-00000", "2026-10-16T13:01:00Z"));
+    net.batch = (body) => json(200, { results: body.scans.map((s) => ({ client_ref: s.client_ref, response: notFound })) });
+    await openConsole();
+    const region = await screen.findByRole("region", { name: "Saved scans that need a look" });
+    expect(within(region).getByText("No ticket matches this code.")).toBeInTheDocument();
+    await waitFor(async () => expect(await scanQueue.count(EVENT)).toBe(0));
+  });
+
+  it("reads the ask beside the answer too", async () => {
+    await scanQueue.add(queued("b", "MOA-2", "2026-10-16T13:02:00Z"));
+    net.batch = (body) => json(200, { results: body.scans.map((s) => ({ client_ref: s.client_ref, response: notFound, retry: true })) });
+    const { result } = renderHook(() => useOfflineQueue(KEY, EVENT), { wrapper: fresh() });
+    await waitFor(() => expect(result.current.retrying).toBe(1));
+    expect(await refs()).toEqual(["b"]);
+  });
+
+  it("with an API from before (no retry field), treats every answer it can read as final, as before", async () => {
+    await scanQueue.add(queued("a", "MOA-1", "2026-10-16T13:01:00Z"));
+    await scanQueue.add(queued("b", "MOA-2", "2026-10-16T13:02:00Z"));
+    // Today's answer to a scan that failed on the server's side: INVALID, no retry.
+    const { retry: _, ...before } = askAgain;
+    void _;
+    net.batch = (body) => json(200, { results: body.scans.map((s) => ({ client_ref: s.client_ref, response: s.client_ref === "b" ? { ...before, error: "boom" } : admitted("Ananya Iyer") })) });
+    await openConsole();
+    await screen.findByRole("region", { name: "Saved scans that need a look" });
+    await waitFor(async () => expect(await scanQueue.count(EVENT)).toBe(0));
+  });
+
+  it("keeps a scan whose answer it cannot read, or that has no answer, and ignores answers for scans it did not send", async () => {
+    await scanQueue.add(queued("a", "MOA-1", "2026-10-16T13:01:00Z"));
+    await scanQueue.add(queued("b", "MOA-2", "2026-10-16T13:02:00Z"));
+    await scanQueue.add(queued("c", "MOA-3", "2026-10-16T13:03:00Z"));
+    // Asked for again earlier and still waiting: not in this batch.
+    await scanQueue.add({ ...queued("q", "MOA-9", "2026-10-16T13:04:00Z"), attempts: 1, retryAt: new Date(Date.now() + 60_000).toISOString() });
+    net.batch = () =>
+      json(200, {
+        results: [
+          { client_ref: "a", response: admitted("Ananya Iyer") },
+          // An outcome this console does not know: not an answer it can act on.
+          { client_ref: "b", response: { ...notFound, outcome: "ERROR" } },
+          // No answer for c at all; and one for q, which was not sent.
+          { client_ref: "q", response: admitted("Someone") },
+        ],
+      });
+    const { result } = renderHook(() => useOfflineQueue(KEY, EVENT), { wrapper: fresh() });
+    await waitFor(() => expect(batches()).toHaveLength(1));
+    expect(sentRefs()).toEqual([["a", "b", "c"]]);
+    await waitFor(async () => expect(await refs()).toEqual(["b", "c", "q"]));
+    // b and c were not asked for again: they go with the next tick, no wait.
+    const all = await scanQueue.all(EVENT);
+    expect(all.filter((s) => s.retryAt).map((s) => s.client_ref)).toEqual(["q"]);
+    await waitFor(() => expect(result.current.queued).toBe(3));
+    expect(result.current.retrying).toBe(1);
+  });
+
+  it("says how many of those still to send the server asked for again", async () => {
+    await scanQueue.add({ ...queued("a", "MOA-1", "2026-10-16T13:01:00Z"), attempts: 2, retryAt: new Date(Date.now() + 60_000).toISOString() });
+    await scanQueue.add(queued("b", "MOA-2", "2026-10-16T13:02:00Z"));
+    net.batch = () => json(503, { message: "Upstream unavailable" });
+    await openConsole();
+    expect(await screen.findByText("2 saved scans still to send. The server couldn’t record 1 of them yet; this phone tries again by itself, so keep this page open.")).toBeInTheDocument();
+  });
+
+  it("waits 15 s after the first ask, twice as long after each next one, at most 5 minutes", () => {
+    const now = Date.UTC(2026, 10, 28, 9, 0, 0);
+    let scan: QueuedScan = queued("a", "MOA-1", "2026-11-28T09:00:00Z");
+    expect(isDue(scan, now)).toBe(true);
+    const waits: number[] = [];
+    for (let i = 0; i < 7; i++) {
+      scan = askedAgainAt(scan, now);
+      waits.push(Date.parse(scan.retryAt!) - now);
+    }
+    expect(waits).toEqual([15_000, 30_000, 60_000, 120_000, 240_000, RETRY_MAX_MS, RETRY_MAX_MS]);
+    expect(scan.attempts).toBe(7);
+    expect(isDue(scan, now)).toBe(false);
+    expect(isDue(scan, now + RETRY_MAX_MS)).toBe(true);
   });
 });
 
