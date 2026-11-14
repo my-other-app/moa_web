@@ -204,11 +204,11 @@ describe("two-factor, required", () => {
     expect(isTwoFactorRequired(refusal(403, "Your admin role cannot destroy", "INSUFFICIENT_ADMIN_ROLE"))).toBe(false);
   });
 
-  it("leaves the set-password page of an invited admin unguarded (they have no session yet)", () => {
+  it("leaves the set-password page of an invited admin unguarded (they have no session yet)", async () => {
     const guarded = (path: string) => new RegExp(`^${config.matcher[0]}$`).test(path);
     expect(guarded("/accept-invite")).toBe(false);
     expect(guarded("/setup-2fa")).toBe(true);
-    const response = proxy(new NextRequest("https://main-portal.myotherapp.in/setup-2fa"));
+    const response = await proxy(new NextRequest("https://main-portal.myotherapp.in/setup-2fa"));
     expect(response.headers.get("location")).toContain("/login?next=");
   });
 });

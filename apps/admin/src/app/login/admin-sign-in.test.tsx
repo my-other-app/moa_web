@@ -201,22 +201,22 @@ describe("the two-factor step at admin sign-in", () => {
 });
 
 describe("the guard in front of the portal", () => {
-  const visit = (path: string, cookie?: string) =>
-    proxy(new NextRequest(`https://main-portal.myotherapp.in${path}`, cookie ? { headers: { cookie } } : undefined));
+  const visit = async (path: string, cookie?: string) =>
+    await proxy(new NextRequest(`https://main-portal.myotherapp.in${path}`, cookie ? { headers: { cookie } } : undefined));
 
-  it("sends a visitor without a session to sign-in, remembering where they were going", () => {
-    const response = visit("/users/412?tab=events");
+  it("sends a visitor without a session to sign-in, remembering where they were going", async () => {
+    const response = await visit("/users/412?tab=events");
     expect(response.headers.get("location")).toBe(
       `https://main-portal.myotherapp.in/login?next=${encodeURIComponent("/users/412?tab=events")}`
     );
   });
 
-  it("sends the Overview to plain /login, with nothing to come back to", () => {
-    expect(visit("/").headers.get("location")).toBe("https://main-portal.myotherapp.in/login");
+  it("sends the Overview to plain /login, with nothing to come back to", async () => {
+    expect((await visit("/")).headers.get("location")).toBe("https://main-portal.myotherapp.in/login");
   });
 
-  it("lets a request carrying a session through to the role check", () => {
-    const response = visit("/users", "access_token=abc");
+  it("lets a request carrying a session through to the role check", async () => {
+    const response = await visit("/users", "access_token=abc");
     expect(response.headers.get("location")).toBeNull();
   });
 
