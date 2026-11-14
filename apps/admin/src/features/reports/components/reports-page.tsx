@@ -12,7 +12,7 @@ import { ReportRow } from "./report-row";
 
 export const PAGE_SIZE = 20;
 
-const TYPE_PLURAL: Record<TargetType, string> = { thread: "Threads", comment: "Comments", user: "Users", club: "Clubs" };
+const TYPE_PLURAL: Record<TargetType, string> = { thread: "Threads", comment: "Comments", user: "Users", club: "Clubs", profile: "Profiles" };
 
 const TYPE_FILTERS: ReadonlyArray<{ key: string; label: string }> = [
   { key: "", label: "Everything" },
@@ -47,7 +47,7 @@ export function ReportsPage() {
         <div className="flex-1 basis-[300px]">
           <h2 className="m-0 text-[32px] leading-[1.12] tracking-[-0.015em]">Reports</h2>
           <span className="text-ink-3 text-[13px]">
-            {open !== undefined ? `${formatNumber(open)} open · ` : ""}Threads, comments, people and clubs reported in the app. Decide them promptly.
+            {open !== undefined ? `${formatNumber(open)} open · ` : ""}Threads, comments, people, clubs and profiles reported in the app. Decide them promptly.
           </span>
         </div>
       </header>
