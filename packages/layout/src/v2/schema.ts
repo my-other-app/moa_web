@@ -347,8 +347,13 @@ export type QrBindingV2 = (typeof QR_BINDINGS)[number];
  */
 export const QrLayerV2 = LayerBase.extend({
   kind: z.literal("qr"),
-  /** null (and left off the wire): the kind's own code, the one the gate scans. */
-  bind: z.enum(QR_BINDINGS).nullable().default(null),
+  /**
+   * Absent (or null): the kind's own code, the one the gate scans. No default
+   * on purpose: the board sends the parsed layout as it is, and a server from
+   * before the Personal QR refuses a field it does not know, so an unbound QR
+   * must go out without it.
+   */
+  bind: z.enum(QR_BINDINGS).nullish(),
   dark: z.preprocess(upper, z.literal("#000000")).default("#000000"),
   light: z.preprocess(upper, z.literal("#FFFFFF")).default("#FFFFFF"),
   quietZone: z.number().int().min(0).max(4).default(0),

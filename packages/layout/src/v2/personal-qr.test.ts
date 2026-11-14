@@ -24,13 +24,17 @@ describe("the layer", () => {
     expect(isPersonalQr(l)).toBe(true);
     expect(isCodeQr(l)).toBe(false);
     const c = qrOf(code());
-    expect(c.bind).toBeNull();
+    expect(c.bind).toBeUndefined();
     expect(isCodeQr(c)).toBe(true);
     expect(isPersonalQr(c)).toBe(false);
     expect(isCodeQr(LayerV2.parse(textRaw()))).toBe(false);
   });
 
   it("goes out without the field when unbound, so a design without it is what it always was", () => {
+    // The board sends the parsed layout itself: an unbound QR must not carry the field at all.
+    const parsed = parseLayoutV2(minimal([code(), textRaw()]));
+    expect(parsed.layers[0]).not.toHaveProperty("bind");
+    expect(JSON.stringify(parsed)).not.toContain("bind");
     const dumped = dumpLayoutV2(parseLayoutV2(minimal([code()])));
     expect((dumped.layers as Record<string, unknown>[])[0]).not.toHaveProperty("bind");
     const both = dumpLayoutV2(parseLayoutV2(minimal([code(), personal()])));
