@@ -217,7 +217,7 @@ const STREAMED = [/^\/api\/v1\/clubs\/whatsapp\/conversations\/\d+\/media$/, /^\
 const LONG = [
   /\/(?:approve|decline|reopen)$/,
   /\/ai\//,
-  /(?:^|[/_-])bulk(?:[/_.-]|$)/,
+  /(?:^|[/_-])(?:bulk|import)(?:[/_.-]|$)/,
   /(?:^|[/_.-])exports?(?:[/_.-]|$)/,
   /(?:^|[/_.-])bundle(?:[/_.-]|$)/,
   /\.(?:csv|xlsx|zip|pdf)$/i,

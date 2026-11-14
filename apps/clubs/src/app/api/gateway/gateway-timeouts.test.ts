@@ -94,6 +94,8 @@ describe("which calls get how long", () => {
       "/api/v1/events/registration/7/requests/reopen",
       "/api/v1/clubs/7/approve",
       "/api/v1/events/registration/7/bulk-import",
+      "/api/v1/events/7/import",
+      "/api/v1/admin/leads/import",
       // Exports and statements, CSV or Excel.
       "/api/v1/events/registration/7/export",
       "/api/v1/events/registration/7/requests/export?format=xlsx",
@@ -127,6 +129,7 @@ describe("which calls get how long", () => {
   it("is not fooled by a word inside another", () => {
     expect(limit("/api/v1/clubs/exporters")).toBe(60_000);
     expect(limit("/api/v1/clubs/bulkhead")).toBe(60_000);
+    expect(limit("/api/v1/clubs/important")).toBe(60_000);
     expect(limit("/api/v1/clubs/streams")).toBe(60_000);
   });
 });
