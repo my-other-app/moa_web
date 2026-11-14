@@ -140,8 +140,8 @@ export type LayoutCheck = ReturnType<typeof checkLayout>;
  */
 export const readLayout = (raw: unknown): LayoutV2 => (isV2Layout(raw) ? parseLayoutV2(raw) : fromV1(raw));
 
-/** A personal QR's address in the shape the app hands them out (myotherapp.in/p/ and ten letters and digits). */
-export const SAMPLE_PERSONAL_QR = "https://myotherapp.in/p/k7m2x9q4ta";
+/** The backend's sample personal QR (doc_presets/values.py SAMPLE_PROFILE_QR): the real shape, and never a real code. */
+export const SAMPLE_PERSONAL_QR = "https://myotherapp.in/p/samplecode";
 
 /**
  * What the stage fills a design with: the server's sample values over the

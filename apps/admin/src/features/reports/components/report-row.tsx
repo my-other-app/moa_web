@@ -100,8 +100,9 @@ export function ReportRow({ report: r, now, canModerate }: { report: Report; now
   const open = r.status === "open";
   const quoted = r.target_type === "thread" || r.target_type === "comment";
   const profile = isProfileReport(r);
-  // A hidden profile is the profile's state, not the report's: the report says it, and so does the profile.
-  const hiddenProfile = profile && (r.target_removed || Boolean(r.profile?.suspended));
+  // Hidden by an admin (suspended_at): the profile says so. target_removed is also true for a deleted
+  // account, which is gone, not hidden; without the profile field (an older server) it is all there is.
+  const hiddenProfile = profile && (r.profile ? r.profile.suspended : r.target_removed);
   return (
     <li data-report={r.id} className="flex flex-col gap-2 px-4 py-3.5">
       <div className="flex flex-wrap items-center gap-1.5">

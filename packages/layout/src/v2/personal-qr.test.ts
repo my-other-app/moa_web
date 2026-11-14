@@ -62,8 +62,8 @@ describe("drawn", () => {
     expect(buildLayer(layout, codeLayer, values, { qr: "TK-48213" }, { kind: "badge" })).toContain(qrSvg("TK-48213", 2));
   });
 
-  it("is left out for a holder without one: no value, an empty one, or only spaces", () => {
-    for (const values of [{}, { [PERSONAL_QR]: "" }, { [PERSONAL_QR]: "  " }, { [PERSONAL_QR]: null }]) {
+  it("is left out for a holder without one: no value, an empty one, or null", () => {
+    for (const values of [{}, { [PERSONAL_QR]: "" }, { [PERSONAL_QR]: null }]) {
       expect(buildLayer(layout, personalLayer, values, { qr: "TK-48213" }, { kind: "badge" })).toBeNull();
       expect(layerDrawn(personalLayer, values, { qr: "TK-48213" }, { kind: "badge" })).toBe(false);
       const body = buildBody(layout, values, { qr: "TK-48213" }, { kind: "badge" });
@@ -74,6 +74,13 @@ describe("drawn", () => {
     // The code QR is drawn whatever the holder has.
     expect(layerDrawn(codeLayer, {}, {}, { kind: "badge" })).toBe(true);
   });
+
+  it("is never on the card stock, even marked preprinted (build.py's _on_stock)", () => {
+    const stock = parseLayoutV2(minimal([code({ preprinted: true }), personal({ preprinted: true })]));
+    const body = buildBody(stock, { [PERSONAL_QR]: URL }, { qr: "TK-48213" }, { kind: "badge", skipPreprinted: true });
+    expect(body).toContain('data-layer="personal-qr"');
+    expect(body).not.toContain('data-layer="qr"');
+  });
 });
 
 describe("checked", () => {
@@ -83,13 +90,25 @@ describe("checked", () => {
 
   it("is not the code the gate scans: alone, the badge still needs its QR", () => {
     expect(codes(minimal([personal()]))).toEqual(["qr_missing"]);
-    expect(codes(minimal([personal()]), "ticket")).toEqual(["qr_missing"]);
+  });
+
+  it("is an ID card's: on a ticket or a certificate it is refused (qr_profile_kind)", () => {
+    expect(validate(minimal([code(), personal()]), "ticket")).toEqual([
+      { code: "qr_profile_kind", field: "layers.1", message: "A personal QR code is for ID cards only.", level: "error", layer: "personal-qr" },
+    ]);
+    expect(codes(minimal([personal()]), "certificate")).toEqual(["qr_profile_kind"]);
+    expect(codes(minimal([personal()]), "ticket")).toEqual(["qr_missing", "qr_profile_kind"]);
+    // The check-in code alone is as it always was on every kind.
+    expect(codes(minimal([code()]), "ticket")).toEqual([]);
+    expect(codes(minimal([code()]), "certificate")).toEqual([]);
   });
 
   it("is one at most, said apart from the code QR", () => {
     expect(validate(minimal([code(), personal(), personal({ id: "personal-2", x: 140 })]), "badge")).toEqual([
-      { code: "qr_extra", field: "layers.2", message: "A design has one Personal QR.", level: "error", layer: "personal-2" },
+      { code: "qr_extra", field: "layers.2", message: "A design has one personal QR code.", level: "error", layer: "personal-2" },
     ]);
+    // Off an ID card: the kind first, then the second one.
+    expect(codes(minimal([code(), personal(), personal({ id: "personal-2", x: 140 })]), "ticket")).toEqual(["qr_profile_kind", "qr_extra"]);
   });
 
   it("may be hidden or shown on a condition, unlike the code QR", () => {

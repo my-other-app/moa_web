@@ -332,6 +332,17 @@ describe("a hidden profile", () => {
     expect(within(panelOf(31)).queryByRole("button", { name: "Unhide" })).not.toBeInTheDocument();
   });
 
+  it("calls a deleted account's profile removed, not hidden, and offers no Unhide", async () => {
+    // The server's target_removed is "hidden or the account deleted"; profile.suspended is hidden alone.
+    listItems = [profileReport({ target_removed: true })];
+    render(<ReportsPage />);
+    await screen.findByRole("list", { name: "Open reports" });
+    expect(within(rowOf(31)).getByText("Removed")).toBeInTheDocument();
+    expect(within(rowOf(31)).queryByText("Profile hidden")).not.toBeInTheDocument();
+    expect(within(panelOf(31)).queryByRole("button", { name: "Unhide" })).not.toBeInTheDocument();
+    expect(within(rowOf(31)).queryByRole("button", { name: "Hide profile" })).not.toBeInTheDocument();
+  });
+
   it("offers no Hide profile once it is hidden", async () => {
     listItems = [profileReport({ target_removed: true, profile: { ...profileReport().profile, suspended: true } })];
     render(<ReportsPage />);

@@ -17,7 +17,7 @@ import { canonicalV2, parseV2, showIfNames } from "./tokens";
  * Codes: schema (the shape is wrong: its messages are pydantic's), page_shape,
  * qr_missing, qr_extra, duplicate_id, unknown_token, unknown_font, font_face,
  * template, svg_unsafe, image_missing, photo_preprinted, qr_hidden, qr_small,
- * qr_outside, accent_missing; warnings: off_canvas, empty_text, invisible,
+ * qr_outside, qr_profile_kind (a Personal QR off an ID card), accent_missing; warnings: off_canvas, empty_text, invisible,
  * svg_cleaned, qr_small (under 12 mm), qr_square, font_slanted.
  */
 
@@ -197,7 +197,9 @@ export const layoutProblemsV2 = (lay: LayoutV2, kind: DocKind | string = "ticket
   const personal = lay.layers.flatMap((l, i) => (l.kind === "qr" && l.bind ? [i] : []));
   if (QR_KINDS.includes(kind) && !qrs.length) out.push(p("qr_missing", "layers", "This design needs its QR code: it is what the gate scans."));
   if (qrs.length > 1) out.push(p("qr_extra", `layers.${qrs[1]}`, "A design has one QR code.", "error", lay.layers[qrs[1]!]!.id));
-  if (personal.length > 1) out.push(p("qr_extra", `layers.${personal[1]}`, "A design has one Personal QR.", "error", lay.layers[personal[1]!]!.id));
+  // The Personal QR: an ID card's, at most one, beside the check-in code.
+  if (personal.length && kind !== "badge") out.push(p("qr_profile_kind", `layers.${personal[0]}`, "A personal QR code is for ID cards only.", "error", lay.layers[personal[0]!]!.id));
+  if (personal.length > 1) out.push(p("qr_extra", `layers.${personal[1]}`, "A design has one personal QR code.", "error", lay.layers[personal[1]!]!.id));
   const ids = new Set<string>();
   let usesAccent = false;
   lay.layers.forEach((layer, i) => {

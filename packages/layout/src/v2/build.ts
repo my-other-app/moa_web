@@ -307,9 +307,9 @@ const imageLayer = (layer: ImageLayerV2, values: Record<string, string>, ctx: Ct
 export const qrSvg = (payload: string, quietZone: number) =>
   qrSvgOf(payload || "MOA", quietZone).replace("<svg", '<svg width="100%" height="100%" style="display:block"');
 
-/** What a QR encodes: the kind's code from the context, or for a bound QR (the Personal QR) its value, trimmed; "" when it has none. */
+/** What a QR encodes: the kind's code from the context, or for a bound QR (the Personal QR) its value as it is (build.py's `values.get(bind) or ""`); "" when it has none. */
 export const qrPayloadOf = (layer: Pick<QrLayerV2, "bind">, values: Readonly<Record<string, string>>, qr: string) =>
-  layer.bind ? pyStrip(String(values[layer.bind] ?? "")) : qr;
+  layer.bind ? String(values[layer.bind] ?? "") : qr;
 
 /** A bound QR with nothing to encode (a guest without a personal QR) is left out. */
 const qrLeftOut = (layer: LayerV2, values: Readonly<Record<string, string>>) => layer.kind === "qr" && !!layer.bind && !qrPayloadOf(layer, values, "");
@@ -334,6 +334,8 @@ const qrLayer = (layer: QrLayerV2, payload: string, paint: Paint) => {
 /** Whether a layer is already on the card stock (a text that names a guest never is). */
 export const onStock = (layer: LayerV2) => {
   if (!layer.preprinted) return false;
+  // The holder's own Personal QR is never on the stock.
+  if (layer.kind === "qr" && layer.bind) return false;
   if (layer.kind === "text" && carriesPerGuestToken(layer.text)) return false;
   return true;
 };
