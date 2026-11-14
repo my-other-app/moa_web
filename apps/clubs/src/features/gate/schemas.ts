@@ -54,12 +54,41 @@ export const scanResultSchema = z.object({
   badge: z.object({ auto: z.boolean(), may_print: z.boolean(), printed_at: z.string().nullish(), policy: z.string() }).default({ auto: false, may_print: false, printed_at: null, policy: "anyone" }),
   /** Why a refusal is what it is, when the server says: ADMISSION_NUMBER_HINT. */
   hint: z.string().nullish(),
+  /**
+   * The server could not record this scan just now (it failed on its side,
+   * not on the ticket), and wants it sent again. It comes with the outcome
+   * INVALID, which then is not an answer about the ticket. Absent on an
+   * API from before.
+   */
+  retry: z.boolean().optional().catch(undefined),
 });
 export type ScanResult = z.infer<typeof scanResultSchema>;
 
-export const scanBatchResultSchema = z.object({
-  results: z.array(z.object({ client_ref: z.string(), response: scanResultSchema })),
+const batchItemSchema = z.object({
+  client_ref: z.string(),
+  response: scanResultSchema,
+  /** The same ask as `response.retry`, should the server put it beside the answer. */
+  retry: z.boolean().optional().catch(undefined),
 });
+export type ScanBatchItem = z.infer<typeof batchItemSchema>;
+
+/**
+ * The server's answer to a replayed batch, one scan at a time: an answer
+ * this console cannot read (an outcome it doesn't know, a field missing) is
+ * left out, as if the server had not answered for that scan, so the scan
+ * stays on the phone for the next try rather than being dropped unread.
+ */
+export const scanBatchResultSchema = z.object({
+  results: z.array(z.unknown()).transform((items) =>
+    items.flatMap((item): ScanBatchItem[] => {
+      const read = batchItemSchema.safeParse(item);
+      return read.success ? [read.data] : [];
+    })
+  ),
+});
+
+/** The server asked for this saved scan again: it has no answer about the ticket yet. */
+export const askedAgain = (item: Pick<ScanBatchItem, "retry" | "response">): boolean => item.retry === true || item.response.retry === true;
 
 export const walkupResultSchema = z.object({
   outcome: z.enum(["REGISTERED", "DUPLICATE", "EVENT_NOT_OPEN"]),
