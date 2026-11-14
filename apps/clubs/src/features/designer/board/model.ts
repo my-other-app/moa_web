@@ -1,4 +1,4 @@
-import { type ColorV2, type FillV2, type LayerKindV2, type LayerV2, type LayoutV2, layerV2, shadowsOf } from "@moa/layout";
+import { type ColorV2, type FillV2, type LayerKindV2, type LayerV2, type LayoutV2, isCodeQr, layerV2, PERSONAL_QR, shadowsOf } from "@moa/layout";
 
 /**
  * Making and changing layers on the board, the way the inspector and the
@@ -26,7 +26,8 @@ export const KIND_NAME: Record<LayerKindV2, string> = {
   qr: "QR code",
 };
 
-export type NewLayer = { kind: "text" } | { kind: "shape"; shape: "rect" | "ellipse" } | { kind: "image"; source: "upload" | "org_logo" | "guest_photo" } | { kind: "qr" } | { kind: "svg"; markup: string; name?: string; width?: number; height?: number };
+/** `personal`: the holder's Personal QR (their profile, for others to save), beside the code the gate scans. */
+export type NewLayer = { kind: "text" } | { kind: "shape"; shape: "rect" | "ellipse" } | { kind: "image"; source: "upload" | "org_logo" | "guest_photo" } | { kind: "qr"; personal?: boolean } | { kind: "svg"; markup: string; name?: string; width?: number; height?: number };
 
 /** A new layer of a kind, placed and sized for the canvas, every default filled. */
 export const newLayer = (spec: NewLayer, layout: LayoutV2): LayerV2 => {
@@ -79,6 +80,7 @@ export const newLayer = (spec: NewLayer, layout: LayoutV2): LayerV2 => {
       });
     case "qr": {
       const size = round(short * 0.3);
+      if (spec.personal) return personalQr(layout, taken, size, round(short * 0.04));
       return layerV2({
         kind: "qr",
         id: taken.has("qr") ? freshId("qr", taken) : "qr",
@@ -103,6 +105,35 @@ export const newLayer = (spec: NewLayer, layout: LayoutV2): LayerV2 => {
         height: spec.height ?? round(short * 0.3),
       });
   }
+};
+
+/**
+ * The Personal QR, beside the check-in code: the same size, on its left
+ * when there is room, else on its right; without a code QR, on the left of
+ * the canvas.
+ */
+const personalQr = (layout: LayoutV2, taken: ReadonlySet<string>, size: number, gap: number): LayerV2 => {
+  const { width: W, height: H } = layout.canvas;
+  const code = layout.layers.find(isCodeQr);
+  const side = code ? Math.round(Math.min(code.width, code.height)) : size;
+  let x = Math.round(W * 0.06);
+  let y = Math.round((H - side) / 2);
+  if (code) {
+    const left = code.x - side - gap;
+    x = Math.round(left >= 0 ? left : Math.max(0, Math.min(W - side, code.x + code.width + gap)));
+    y = Math.round(code.y);
+  }
+  return layerV2({
+    kind: "qr",
+    id: taken.has("personal-qr") ? freshId("qr", taken) : "personal-qr",
+    name: "Personal QR",
+    bind: PERSONAL_QR,
+    x,
+    y,
+    width: side,
+    height: side,
+    quietZone: 2,
+  });
 };
 
 /** Copies of layers, with fresh ids and names, nudged so they do not sit exactly on the originals. */

@@ -27,6 +27,7 @@ import {
   PlusIcon,
   QrCodeIcon,
   Redo2Icon,
+  ScanQrCodeIcon,
   SendToBackIcon,
   SparklesIcon,
   SquareIcon,
@@ -108,6 +109,8 @@ export const BoardToolbar = ({
   onAdd,
   onPickSvg,
   canAddQr,
+  personalQr = false,
+  canAddPersonalQr = false,
   guestPhoto,
   hasLogo,
   selection,
@@ -126,6 +129,9 @@ export const BoardToolbar = ({
   onAdd: (spec: NewLayer) => void;
   onPickSvg: () => void;
   canAddQr: boolean;
+  /** The Personal QR is offered here (an ID card, on a server that draws it). */
+  personalQr?: boolean;
+  canAddPersonalQr?: boolean;
   guestPhoto: boolean;
   hasLogo: boolean;
   selection: number;
@@ -180,6 +186,11 @@ export const BoardToolbar = ({
         <DropdownMenuItem disabled={!canAddQr} onSelect={() => onAdd({ kind: "qr" })}>
           <QrCodeIcon /> QR code
         </DropdownMenuItem>
+        {personalQr ? (
+          <DropdownMenuItem disabled={!canAddPersonalQr} onSelect={() => onAdd({ kind: "qr", personal: true })}>
+            <ScanQrCodeIcon /> Personal QR
+          </DropdownMenuItem>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
     <Rule />

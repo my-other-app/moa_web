@@ -425,3 +425,85 @@ describe("the gallery", () => {
     expect(l.layers.map((x) => x.kind)).toEqual(["text", "qr"]);
   });
 });
+
+/**
+ * The Personal QR (profiles and networking contract, "Badges"): on an ID
+ * card, a separate layer beside the check-in code, bound to the holder's
+ * `holder.profile_qr_url` and left out for a guest without one. Offered once
+ * the server's sample guest has one: a server from before profiles would
+ * refuse the layer on save.
+ */
+describe("the Personal QR", () => {
+  const SAMPLE_URL = "https://myotherapp.in/p/r8vw3n6m2c";
+  const BADGE = (layers: unknown[]) => ({ version: 2, page: { widthMm: 101.6, heightMm: 152.4 }, canvas: { width: 384, height: 576 }, vars: { accent: "#FF8A3D" }, layers });
+  const BADGE_LAYERS = [
+    { kind: "text", id: "name", name: "Guest name", x: 24, y: 60, width: 336, height: 50, text: "{{full_name}}", font: { family: "Inter", weight: 700, style: "normal" }, size: 32 },
+    { kind: "qr", id: "qr", name: "QR code", x: 250, y: 440, width: 108, height: 108, quietZone: 2 },
+  ];
+  const badge = (layers: unknown[] = BADGE_LAYERS, values: Record<string, string> = { full_name: "Meera Pillai", "holder.profile_qr_url": SAMPLE_URL }) =>
+    DESIGN(BADGE(layers), { kind: "badge", v2: { ...(DESIGN(BADGE(layers)).v2 as object), values, context: { qr: "MOA-7K3QF-X9PLM", colors: {} } } });
+  const openCard = async () => {
+    render(<DesignerPage scope={EVENT} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "ID card" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open the card in use" }));
+    fireEvent.change(await screen.findByRole("combobox", { name: "Zoom" }), { target: { value: "1" } });
+  };
+  const addMenu = async () => {
+    fireEvent.keyDown(screen.getByRole("button", { name: "Add" }), { key: "Enter" });
+    return screen.findByRole("menu");
+  };
+
+  it("is added beside the check-in code, drawn with the sample guest's, and saved bound to the holder's profile", async () => {
+    state.design = badge();
+    await openCard();
+    const menu = await addMenu();
+    expect(within(menu).getByRole("menuitem", { name: "QR code" })).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Personal QR" }));
+    // Drawn on the stage, with its own element beside the code's.
+    await waitFor(() => expect(doc().querySelector('[data-layer="personal-qr"]')).not.toBeNull());
+    expect(doc().querySelector('[data-layer="qr"]')).not.toBeNull();
+    expect(field("Name")).toHaveValue("Personal QR");
+    expect(props()).toHaveTextContent("It holds the guest's personal QR: their profile on MyOtherApp, which other guests scan to save them.");
+    // Not the code the gate scans: it can go again.
+    expect(within(props()).getByRole("button", { name: "Delete" })).toBeEnabled();
+    // One at most.
+    const again = await addMenu();
+    expect(within(again).getByRole("menuitem", { name: "Personal QR" })).toHaveAttribute("aria-disabled", "true");
+    fireEvent.keyDown(again, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+    const l = await saved();
+    const personal = layerOf(l, "personal-qr");
+    expect(personal).toMatchObject({ kind: "qr", name: "Personal QR", bind: "holder.profile_qr_url", width: 108, height: 108, y: 440 });
+    // On the code's left, a little apart, the same size.
+    expect(personal.x + personal.width).toBeLessThan(250);
+    // The code QR goes out as it always did: no field a server before profiles would refuse.
+    expect(save.mock.calls.at(-1)![0].layers.find((x: { id: string }) => x.id === "qr")).not.toHaveProperty("bind");
+  });
+
+  it("is drawn with a sample on the stage even when the server's sample guest has none", async () => {
+    state.design = badge([...BADGE_LAYERS, { kind: "qr", id: "personal-qr", name: "Personal QR", x: 120, y: 440, width: 108, height: 108, bind: "holder.profile_qr_url" }], { full_name: "Meera Pillai", "holder.profile_qr_url": "" });
+    await openCard();
+    expect(doc().querySelector('[data-layer="personal-qr"]')).not.toBeNull();
+    // Saved with one, it can be deleted and the code stays.
+    click(170, 490);
+    expect(field("Name")).toHaveValue("Personal QR");
+    key("Delete");
+    const l = await saved();
+    expect(l.layers.map((x) => x.id)).toEqual(["name", "qr"]);
+  });
+
+  it("is not offered by a server from before profiles", async () => {
+    state.design = badge(BADGE_LAYERS, { full_name: "Meera Pillai" });
+    await openCard();
+    const menu = await addMenu();
+    expect(within(menu).getByRole("menuitem", { name: "QR code" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: "Personal QR" })).not.toBeInTheDocument();
+  });
+
+  it("is an ID card's: a ticket does not offer it", async () => {
+    state.design = DESIGN(TICKET(LAYERS), { v2: { ...(DESIGN(TICKET(LAYERS)).v2 as object), values: { attendee_name: "Asha Rao", "holder.profile_qr_url": SAMPLE_URL } } });
+    await openBoard();
+    const menu = await addMenu();
+    expect(within(menu).queryByRole("menuitem", { name: "Personal QR" })).not.toBeInTheDocument();
+  });
+});

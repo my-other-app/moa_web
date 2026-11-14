@@ -1,6 +1,6 @@
 "use client";
 
-import { DOC_FONTS, LayerV2, LayoutV2, type TextLayerV2, fontsFromApi } from "@moa/layout";
+import { DOC_FONTS, LayerV2, LayoutV2, type TextLayerV2, fontsFromApi, isCodeQr, isPersonalQr } from "@moa/layout";
 import { z } from "zod";
 import { Button, CardLabel, FigurePanel, Notice, cn, toast } from "@moa/ui";
 import { AlertTriangleIcon, CheckCircle2Icon, ScanEyeIcon } from "lucide-react";
@@ -15,7 +15,7 @@ import { AUDIENCES, type Audience, type BoardDesign, type BoardKind, type Design
 import { PreviewDialog, ResetDialog } from "../components/dialogs";
 import { DesignBar, Provenance, SaveBar, type SaveState } from "../components/shell";
 import { DocumentPanel } from "./document-panel";
-import { boardColors, boardContext, boardValues, checkLayout, imageLinkOf, makeRenderer, readLayout } from "./engine";
+import { boardColors, boardContext, boardValues, checkLayout, imageLinkOf, makeRenderer, personalQrOnServer, readLayout } from "./engine";
 import { type ColorContext, resolveColorV2 } from "./fields";
 import { type Alignment, type OrderMove, align, distribute, reorder } from "./geometry";
 import { useHistory } from "./history";
@@ -159,8 +159,12 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
   // ─── Changes ───────────────────────────────────────────────────────────
 
   const update = history.set;
-  const pinnedQr = (l: LayerV2) => l.kind === "qr" && config.qrRequired;
-  const hasQr = layers.some((l) => l.kind === "qr");
+  // The code the gate scans is pinned; the holder's Personal QR is a layer like any other, one at most.
+  const pinnedQr = (l: LayerV2) => isCodeQr(l) && config.qrRequired;
+  const hasQr = layers.some(isCodeQr);
+  const hasPersonalQr = layers.some(isPersonalQr);
+  // ID cards only, and only on a server that draws it (one from before profiles refuses it on save).
+  const offerPersonalQr = kind === "badge" && personalQrOnServer(design, layout);
 
   const remove = () => {
     const ids = new Set(selectedLayers.filter((l) => !pinnedQr(l)).map((l) => l.id));
@@ -185,11 +189,17 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
     setSel(new Set(fresh.map((f) => f.id)));
   };
 
-  /** Copies of these layers; a QR only when the design has none yet, since it holds one. */
+  /** Copies of these layers; a QR only when the design has none of that QR yet, since it holds one of each. */
   const copyable = (src: readonly LayerV2[]) => {
     let qr = hasQr;
+    let personal = hasPersonalQr;
     return src.filter((l) => {
       if (l.kind !== "qr") return true;
+      if (isPersonalQr(l)) {
+        if (personal) return false;
+        personal = true;
+        return true;
+      }
       if (qr) return false;
       qr = true;
       return true;
@@ -202,7 +212,7 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
   const paste = (src: LayerV2[]) => insert(copiesOf(copyable(src), layout));
 
   const add = (spec: NewLayer) => {
-    if (spec.kind === "qr" && hasQr) return;
+    if (spec.kind === "qr" && (spec.personal ? hasPersonalQr || !offerPersonalQr : hasQr)) return;
     const l = newLayer(spec, layout);
     insert([l]);
   };
@@ -524,6 +534,8 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
             onAdd={add}
             onPickSvg={() => svgInput.current?.click()}
             canAddQr={!hasQr}
+            personalQr={offerPersonalQr}
+            canAddPersonalQr={!hasPersonalQr}
             guestPhoto={config.guestPhoto}
             hasLogo={!!design.brand.logoUrl}
             selection={selectedLayers.length}
@@ -635,7 +647,7 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
               onDuplicate={duplicate}
               onRemove={remove}
               canRemove={!pinnedQr(single)}
-              canDuplicate={single.kind !== "qr" || !hasQr}
+              canDuplicate={single.kind !== "qr"}
               problems={check.byLayer.get(single.id) ?? []}
               ctx={inspectorCtx}
             />
