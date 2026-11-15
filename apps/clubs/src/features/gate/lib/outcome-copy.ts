@@ -71,7 +71,7 @@ export const offlineRepeatCard = (at: string): OutcomeCardModel => ({
 export const outcomeCard = (res: ScanResult, door: string): OutcomeCardModel => {
   const a = res.attendee;
   const who = a ? a.name : "This guest";
-  const sub = a ? [a.ticket_id, (ROLE_LABEL[a.role] ?? a.role).toUpperCase(), door.toUpperCase()].join(" · ") : undefined;
+  const sub = a ? [a.ticket_id, (ROLE_LABEL[a.role] ?? a.role).toUpperCase(), door.toUpperCase()].filter(Boolean).join(" · ") : undefined;
   switch (res.outcome) {
     case "CHECKED_IN":
       return { tone: "admit", tag: res.replayed ? "Already recorded" : "Welcome in", title: `${who} — welcome in.`, sub };
@@ -97,7 +97,7 @@ export const outcomeCard = (res: ScanResult, door: string): OutcomeCardModel => 
         tone: "refuse",
         tag: "Revoked",
         title: "This ticket was revoked.",
-        sub: a ? `${a.ticket_id}${res.revoked_at ? ` · REVOKED ${new Date(res.revoked_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }).toUpperCase()}` : ""}` : undefined,
+        sub: a ? [a.ticket_id, res.revoked_at ? `REVOKED ${new Date(res.revoked_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }).toUpperCase()}` : ""].filter(Boolean).join(" · ") || undefined : undefined,
         note: "The organiser cancelled it, usually because it was lost or passed on. A replacement may have been issued in their name.",
       };
     case "UNPAID":

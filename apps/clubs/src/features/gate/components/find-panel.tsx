@@ -10,7 +10,7 @@ import { formatDateTime } from "@moa/app-kit";
 import { gateHeaders } from "../api";
 import { outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { useCheckInByHand, useGuestSearch } from "../queries";
-import { ROLE_LABEL, missingOf, type GateContext } from "../schemas";
+import { ROLE_LABEL, SEARCH_MIN, missingOf, type GateContext } from "../schemas";
 import { DOOR_LABEL, DoorSpinner } from "./door-kit";
 import { MissingAnswersStrip } from "./missing-answers-sheet";
 import { OutcomeCard } from "./outcome-card";
@@ -52,8 +52,8 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
           <input id="gate-find" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Start typing a name" autoComplete="off" className="text-[16px]" />
         </div>
       </div>
-      {settled.length < 2 ? (
-        <p className="text-ink-3 text-[13px] leading-[1.55]">Two letters is enough. Checking someone in here is recorded as by hand at {door}.</p>
+      {settled.length < SEARCH_MIN ? (
+        <p className="text-ink-3 text-[13px] leading-[1.55]">Three letters is enough. Checking someone in here is recorded as by hand at {door}.</p>
       ) : !results.data && results.isFetching ? (
         <p className="text-ink-2 flex items-center gap-2 text-[13px]">
           <DoorSpinner className="size-3.5" /> Looking through the list…
@@ -65,9 +65,7 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
               <div className="min-w-0 flex-1 basis-[180px]">
                 <div className="text-ink truncate text-[15px] font-medium">{r.name}</div>
                 <div className="text-ink-3 truncate font-mono text-[11px]">
-                  {r.admission_no ? `${r.admission_no} · ` : ""}
-                  {r.ticket_id} · {ROLE_LABEL[r.role] ?? r.role}
-                  {r.email ? ` · ${r.email}` : ""}
+                  {[r.admission_no, r.ticket_id, ROLE_LABEL[r.role] ?? r.role, r.email].filter(Boolean).join(" · ")}
                 </div>
                 {missingOf(r).length ? (
                   <button

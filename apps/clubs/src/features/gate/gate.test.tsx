@@ -226,6 +226,29 @@ describe("the gate console", () => {
     expect(api.byHand).toHaveBeenCalledWith(null, 37, "r1", "Gate A");
   });
 
+  it("searches from three letters, and reads guests door staff see in part", async () => {
+    api.search.mockResolvedValue([
+      { id: "r1", name: "Ananya Iyer", ticket_id: "•••• 4321", role: "attendee", email: "a•••@gmail.com", phone: "•••• 4321", has_contact: true, is_paid: true, checked_in_at: null },
+      { id: "r2", name: "Ananya Rao", ticket_id: null, role: "attendee", email: null, is_paid: true, checked_in_at: null },
+    ]);
+    api.byHand.mockResolvedValue(result({}));
+    render(<GateConsole eventId={37} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Find" }));
+    const box = screen.getByLabelText("Name, email, ticket or admission no.");
+    fireEvent.change(box, { target: { value: "An" } });
+    expect(await screen.findByText(/Three letters is enough/)).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 400));
+    expect(api.search).not.toHaveBeenCalled();
+    fireEvent.change(box, { target: { value: "Ana" } });
+    const rows = await screen.findAllByRole("listitem");
+    expect(api.search).toHaveBeenCalledWith(null, 37, "Ana");
+    expect(within(rows[0]!).getByText("•••• 4321 · Attendee · a•••@gmail.com")).toBeInTheDocument();
+    expect(within(rows[1]!).getByText("Attendee")).toBeInTheDocument();
+    fireEvent.click(within(rows[0]!).getByRole("button", { name: "Check in" }));
+    expect(await screen.findByText("Welcome in")).toBeInTheDocument();
+    expect(api.byHand).toHaveBeenCalledWith(null, 37, "r1", "Gate A");
+  });
+
   it("registers a walk-up, asking for a name first", async () => {
     api.walkup.mockResolvedValue({ outcome: "REGISTERED", attendee: { ...attendee, name: "Devika Menon", role: "attendee" }, duplicate_of: null, duplicate_by: null, checked_in: true, ticket_sent: false });
     render(<GateConsole eventId={37} />);

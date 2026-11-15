@@ -383,7 +383,7 @@ function LogRow({
           {r.name}
         </span>
         <span className="text-ink-3 block truncate font-mono text-[11px]">
-          {r.ticket_id} · {ROLE[r.role] ?? r.role}
+          {[r.ticket_id, ROLE[r.role] ?? r.role].filter(Boolean).join(" · ")}
           <span className="sm:hidden">
             {" "}
             · {r.door.name} · {when}

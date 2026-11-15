@@ -1,6 +1,8 @@
 import { pictureSchema } from "@moa/app-kit";
 import { z } from "zod";
 
+import { partialCode, partialText } from "@/lib/masked";
+
 export const DOOR_KINDS = ["door", "desk", "kiosk"] as const;
 export type DoorKind = (typeof DOOR_KINDS)[number];
 export const DOOR_KIND_META: Record<DoorKind, { label: string; note: string }> = {
@@ -74,8 +76,10 @@ export const checkInRowSchema = z.object({
   id: z.string(),
   registration_id: z.string(),
   name: z.string(),
-  email: z.string().nullish(),
-  ticket_id: z.string(),
+  /** Masked for door staff, or absent (lib/masked). */
+  email: partialText.optional(),
+  /** Masked for door staff ("•••• 4321"), or left out: "" then. */
+  ticket_id: partialCode,
   role: z.string(),
   door: z.object({ id: z.string().nullable(), name: z.string(), kind: z.string() }),
   via: z.string(),
