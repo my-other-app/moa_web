@@ -65,6 +65,8 @@ const FALLBACK_BY_STATUS: Record<number, string> = {
   403: "You do not have permission to do that.",
   404: "We could not find what you were looking for.",
   409: "That conflicts with something that already exists.",
+  // The server in front of the API refuses a request over 10 MB before the API sees it.
+  413: "That's too large to send: one upload can be 10 MB at most. Choose a smaller file, or send fewer at once.",
   422: "Some of the submitted values were not valid.",
   429: "Too many attempts. Please wait a moment and try again.",
 };

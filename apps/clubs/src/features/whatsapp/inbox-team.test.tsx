@@ -375,6 +375,10 @@ describe("what the server says", () => {
     expect(schemas.checkMedia(file("a.gif", "image/gif", 1_000))).toMatchObject({ ok: false, text: expect.stringMatching(/can't send a\.gif/) });
     expect(schemas.checkMedia(file("a.webp", "image/webp", 1_000))).toMatchObject({ ok: false });
     expect(schemas.checkMedia(file("big.pdf", "application/pdf", 100_000_001))).toMatchObject({ ok: false, text: expect.stringMatching(/100 MB at most/) });
+    // Within what WhatsApp takes, but over what one upload through the dashboard's server can carry (10 MB).
+    expect(schemas.checkMedia(file("clip.mp4", "video/mp4", 12_000_000))).toMatchObject({ ok: false, text: expect.stringMatching(/9\.0 MB at most/) });
+    expect(schemas.checkMedia(file("rules.pdf", "application/pdf", 9_500_000))).toMatchObject({ ok: false, text: expect.stringMatching(/from the WhatsApp app/) });
+    expect(schemas.checkMedia(file("clip.mp4", "video/mp4", 8_900_000))).toMatchObject({ ok: true, kind: "video" });
   });
 
   it("fills saved replies and finds them by shortcut", () => {

@@ -351,9 +351,15 @@ describe("Create from poster or message", () => {
     const dialog = await openDraft();
     choose(dialog, new File(["doc"], "poster.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Use a picture (JPG, PNG, WebP, GIF, HEIC, AVIF, SVG, BMP or TIFF) or a PDF.");
+    // A PDF goes as it is: under what one upload through the server in front can carry.
     const big = new File(["x"], "huge.pdf", { type: "application/pdf" });
-    Object.defineProperty(big, "size", { value: 11 * 1024 * 1024 });
+    Object.defineProperty(big, "size", { value: 9.5 * 1024 * 1024 });
     choose(dialog, big);
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("That PDF is over 9 MB.");
+    // A picture is redrawn smaller first, so it may be larger.
+    const photo = new File(["x"], "huge.jpg", { type: "image/jpeg" });
+    Object.defineProperty(photo, "size", { value: 11 * 1024 * 1024 });
+    choose(dialog, photo);
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("That file is over 10 MB.");
     expect(within(dialog).getByRole("button", { name: "Draft my event" })).toBeDisabled();
   });

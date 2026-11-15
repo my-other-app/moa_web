@@ -745,6 +745,13 @@ export function matchReplies(items: SavedReply[], typed: string): SavedReply[] {
 // ─── Files: what WhatsApp takes (Meta's media page) ──────────────────────
 
 export const MB = 1_000_000;
+/**
+ * What the dashboard can send in one upload: the server in front of it
+ * refuses a request over 10 MB, so a file is kept under 9 MB, with room for
+ * the form around it. WhatsApp itself takes a 16 MB video or a 100 MB
+ * document; a larger one goes from the phone.
+ */
+export const SEND_MAX = 9 * MB;
 export const MEDIA_KINDS = {
   image: { types: ["image/jpeg", "image/png"], max: 5 * MB, words: "a JPEG or PNG photo" },
   video: { types: ["video/mp4", "video/3gpp"], max: 16 * MB, words: "an MP4 or 3GP video" },
@@ -796,6 +803,9 @@ export function checkMedia(file: Pick<File, "name" | "type" | "size">): MediaChe
   }
   if (file.size > MEDIA_KINDS[kind].max) {
     return { ok: false, text: `${file.name} is ${bytesText(file.size)}: WhatsApp sends a ${kind} of ${bytesText(MEDIA_KINDS[kind].max)} at most.` };
+  }
+  if (file.size > SEND_MAX) {
+    return { ok: false, text: `${file.name} is ${bytesText(file.size)}: a file sent from the dashboard can be ${bytesText(SEND_MAX)} at most. Send a larger one from the WhatsApp app.` };
   }
   if (file.size === 0) return { ok: false, text: `${file.name} is empty.` };
   return { ok: true, kind, mime };

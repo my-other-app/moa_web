@@ -75,7 +75,7 @@ export interface UploadedFile {
 
 /**
  * One file for a reply or a note, uploaded before it is sent: its key goes
- * in the message's `attachments`. Any kind, 10 MB at most (413
+ * in the message's `attachments`. Any kind, 9 MB at most here (413
  * FILE_TOO_LARGE); only for someone who may answer the case.
  */
 export async function uploadReplyFile(id: number, file: File): Promise<UploadedFile> {

@@ -258,12 +258,12 @@ describe("files with a reply", () => {
     await waitFor(() => expect(posts()[0]?.body).toEqual({ kind: "note", body: "Called her back.", attachments: ["k1"] }));
   });
 
-  it("refuses a file over 10 MB before uploading it", async () => {
+  it("refuses a file over 9 MB before uploading it (the server in front refuses a request over 10 MB)", async () => {
     const said = vi.spyOn(toast, "error");
     render(<CasePage caseId={8} />);
     const box = await screen.findByRole("region", { name: "Reply" });
-    fireEvent.change(within(box).getByLabelText("Attach files"), { target: { files: [file("video.mov", 10 * 1024 * 1024 + 1, "video/quicktime")] } });
-    expect(said).toHaveBeenCalledWith(expect.stringContaining("each file can be 10 MB at most"));
+    fireEvent.change(within(box).getByLabelText("Attach files"), { target: { files: [file("video.mov", 9.5 * 1024 * 1024, "video/quicktime")] } });
+    expect(said).toHaveBeenCalledWith(expect.stringContaining("each file can be 9 MB at most"));
     expect(uploads()).toHaveLength(0);
     said.mockRestore();
   });

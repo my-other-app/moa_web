@@ -246,7 +246,7 @@ function DraftDialog({
             >
               <ImagePlusIcon className="text-ink-3 size-6" aria-hidden="true" />
               <span className="text-ink text-[13px] font-medium">Drop the poster here, or choose a file</span>
-              <span className="text-ink-3 text-[11.5px]">A picture (JPG, PNG, HEIC…) or a PDF, up to 10 MB</span>
+              <span className="text-ink-3 text-[11.5px]">A picture (JPG, PNG, HEIC…) up to 10 MB, or a PDF up to 9 MB</span>
               <input
                 type="file"
                 accept={DRAFT_FILE_ACCEPT}

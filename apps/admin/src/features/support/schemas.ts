@@ -77,11 +77,12 @@ export const attachmentSchema = z.object({ name: z.string().nullish().transform(
 /**
  * Files sent with a reply or a note (support-leads contract, Changes): each
  * uploaded first, one a call, to POST /admin/support/cases/{id}/attachments
- * (multipart `file`, any kind, 10 MB at most), which answers its `key`; the
+ * (multipart `file`, any kind; the API takes 10 MB, the server in front of
+ * it refuses a request over 10 MB, so 9 MB here), which answers its `key`; the
  * keys then go in the message's `attachments`. A key works for a day, once,
  * and only for the admin who uploaded it. Ten files a message at most.
  */
-export const REPLY_FILE_MAX_BYTES = 10 * 1024 * 1024;
+export const REPLY_FILE_MAX_BYTES = 9 * 1024 * 1024;
 export const REPLY_FILES_MAX = 10;
 export const uploadedFileSchema = z.object({ key: z.string().min(1), name: z.string().nullish(), size: z.coerce.number().nullish() });
 

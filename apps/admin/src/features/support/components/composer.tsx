@@ -52,7 +52,7 @@ function PreviewDialog({ preview, files, onClose, onSend, sending }: { preview: 
 }
 
 /**
- * Files for the reply or note: each uploaded as it is picked (any kind, 10 MB
+ * Files for the reply or note: each uploaded as it is picked (any kind, 9 MB
  * at most, ten a message), listed with a way to take it off again before
  * anything is sent. Only someone who may answer the case attaches files.
  */
@@ -123,7 +123,7 @@ export function Composer({ caseId, notDelivered, canReply = true }: { caseId: nu
         break;
       }
       if (file.size > REPLY_FILE_MAX_BYTES) {
-        toast.error(`${file.name} is ${fileSize(file.size)}: each file can be 10 MB at most.`);
+        toast.error(`${file.name} is ${fileSize(file.size)}: each file can be 9 MB at most.`);
         continue;
       }
       if (file.size === 0) {
@@ -204,7 +204,7 @@ export function Composer({ caseId, notDelivered, canReply = true }: { caseId: nu
         {canReply ? (
           <label
             className={cn("btn btn-ghost btn-sm cursor-pointer", files.length + uploading >= REPLY_FILES_MAX && "pointer-events-none opacity-50")}
-            title={`Any file, up to 10 MB each; ${REPLY_FILES_MAX} at most`}
+            title={`Any file, up to 9 MB each; ${REPLY_FILES_MAX} at most`}
           >
             <PaperclipIcon className="size-4" aria-hidden="true" />
             Attach files

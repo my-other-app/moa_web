@@ -77,6 +77,12 @@ export function quotaText(s: AiStatus | null | undefined): string {
 
 export const DRAFT_TEXT_MAX = 6000;
 export const DRAFT_FILE_MAX = 10 * 1024 * 1024;
+/**
+ * A PDF goes as it is (a picture is redrawn under 4 MB first), and the
+ * server in front of the API refuses a request over 10 MB: 9 MB, with room
+ * for the text sent with it.
+ */
+export const DRAFT_PDF_MAX = 9 * 1024 * 1024;
 /** What the poster input offers: any picture (one the API does not keep is converted, lib/images) or a PDF. */
 export const DRAFT_FILE_ACCEPT = `${IMAGE_ACCEPT},application/pdf,.pdf`;
 
@@ -87,6 +93,7 @@ export function isPdf(file: File): boolean {
 /** Why a file cannot be sent, or null when it can. */
 export function draftFileProblem(file: File): string | null {
   if (!isPicture(file) && !isPdf(file)) return `Use a picture (${IMAGE_FORMATS_LABEL}) or a PDF.`;
+  if (isPdf(file) && file.size > DRAFT_PDF_MAX) return "That PDF is over 9 MB. Try a smaller PDF, or a screenshot of the poster.";
   if (file.size > DRAFT_FILE_MAX) return "That file is over 10 MB. Try a smaller image, or a screenshot of the poster.";
   return null;
 }

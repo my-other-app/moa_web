@@ -168,8 +168,12 @@ export function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
 }
 
-/** What may be attached to one mail, together. */
-export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+/**
+ * What may be attached to one mail, together: 9 MB. The API takes 10 MB, but
+ * the server in front of it refuses a request over 10 MB, and the mail's
+ * text and the form go in the same request.
+ */
+export const MAX_ATTACHMENT_BYTES = 9 * 1024 * 1024;
 
 /** A text mail's lines, the quoted ones (">") grouped so they can fold away. */
 export function textBlocks(text: string): { quoted: boolean; lines: string[] }[] {
