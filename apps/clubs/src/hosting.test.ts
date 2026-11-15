@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { hasRemoteMatch } from "next/dist/shared/lib/match-remote-pattern";
+import { hasLocalMatch } from "next/dist/shared/lib/match-local-pattern";
 
 /**
  * How the club dashboard is built and shipped, as far as this repository
@@ -120,5 +122,40 @@ describe("the club dashboard's security headers", () => {
     const { config, rules: all } = await rules({ NEXT_PUBLIC_SENTRY_DSN: "https://k@o1.ingest.sentry.io/1" });
     expect(config.poweredByHeader).toBe(false);
     expect(header(all.find((r) => r.source === "/:path*"), "X-Frame-Options")).toBe("DENY");
+  });
+});
+
+describe("the public image optimizer (/_next/image)", () => {
+  it("fetches only from our media store and the API's static files, over https", async () => {
+    const { images } = await loadNextConfig({ NEXT_OUTPUT: "standalone", NEXT_PUBLIC_SENTRY_DSN: "" });
+    const allowed = (url: string) => hasRemoteMatch([], images!.remotePatterns ?? [], new URL(url));
+    expect(allowed("https://media.myotherapp.in/myotherapp-media/clubs/logos/v-1.png")).toBe(true);
+    expect(allowed("https://api.myotherapp.in/static/site-templates/bento.png")).toBe(true);
+    for (const url of [
+      "https://evil-bucket.s3.amazonaws.com/huge.png",
+      "https://ec2-1-2-3-4.compute-1.amazonaws.com/a.png",
+      "https://some-club.myotherapp.in/logo.png",
+      "https://api.myotherapp.in/api/v1/clubs/1",
+      "http://media.myotherapp.in/a.png",
+      "https://example.com/a.png",
+    ]) {
+      expect(allowed(url)).toBe(false);
+    }
+    // Nothing in the old wildcard form is left.
+    expect(JSON.stringify(images!.remotePatterns)).not.toContain("**.");
+  });
+
+  it("draws only the brand's own files from this app, with no query", async () => {
+    const { images } = await loadNextConfig({ NEXT_OUTPUT: "standalone", NEXT_PUBLIC_SENTRY_DSN: "" });
+    expect(hasLocalMatch(images!.localPatterns, "/brand/icon.png")).toBe(true);
+    expect(hasLocalMatch(images!.localPatterns, "/brand/icon.png?v=2")).toBe(false);
+    expect(hasLocalMatch(images!.localPatterns, "/login")).toBe(false);
+    expect(hasLocalMatch(images!.localPatterns, "/api/gateway/api/v1/auth/me")).toBe(false);
+  });
+
+  it("keeps its work bounded: no redirects, a capped download and disk cache, a few sizes, one quality", async () => {
+    const { images } = await loadNextConfig({ NEXT_OUTPUT: "standalone", NEXT_PUBLIC_SENTRY_DSN: "" });
+    expect(images).toMatchObject({ maximumRedirects: 0, maximumResponseBody: 10_000_000, maximumDiskCacheSize: 100_000_000, minimumCacheTTL: 86_400, qualities: [75] });
+    expect([...(images!.deviceSizes ?? []), ...(images!.imageSizes ?? [])].length).toBeLessThanOrEqual(12);
   });
 });
