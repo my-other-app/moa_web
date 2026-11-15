@@ -23,15 +23,27 @@ import { type DeliveryBrief, verdictOf, viaText } from "@/features/deliveries";
 import { visibility } from "@moa/questions";
 
 import { answerText } from "@/lib/answers";
+import { anyMasked, isMasked } from "@/lib/masked";
 
 import { useRegistration } from "../queries";
 import type { EventField, RegistrationDetail } from "../schemas";
 
 const none = (text = "—") => <span className="text-ink-3">{text}</span>;
 
-/** A value shown in full, with a copy button — names and addresses are cut short in the list, never here. */
+/**
+ * A value shown in full, with a copy button — names and addresses are cut
+ * short in the list, never here. One the API sent in part (door staff see
+ * contacts masked) is shown as it came, with nothing to copy.
+ */
 function Copyable({ value, mono }: { value: string | null | undefined; mono?: boolean }) {
   if (!value) return none();
+  if (isMasked(value)) {
+    return (
+      <span className={mono ? "font-mono text-[12px] break-all" : "break-words"} title="Shown in part for your role">
+        {value}
+      </span>
+    );
+  }
   return (
     <span className="flex items-start gap-2">
       <span className={mono ? "min-w-0 flex-1 font-mono text-[12px] break-all" : "min-w-0 flex-1 break-words"}>{value}</span>
@@ -118,6 +130,8 @@ export function AttendeeDetailDialog({
   const a = detail.data;
   const answers = (a?.additional_details ?? {}) as Record<string, unknown>;
   const missingKeys = a?.missing_answers ?? missing ?? [];
+  // Door staff see contacts in part: nothing here to correct them from.
+  const partial = a ? anyMasked(a.email, a.phone, a.ticket_id) : false;
   // Only what this person was asked: a conditional question their answers
   // hid has no answer and is left out, never shown as missing. One they
   // answered is shown whatever the form says now -- a form changed after
@@ -241,9 +255,13 @@ export function AttendeeDetailDialog({
             </Section>
 
             <div className="border-line-soft flex flex-wrap items-center gap-2 border-t pt-3">
-              <Button size="sm" onClick={() => onEdit(a)}>
-                <PencilIcon /> Correct details
-              </Button>
+              {partial ? (
+                <span className="text-ink-3 text-[12px]">Contact details and the ticket code are shown in part for your role.</span>
+              ) : (
+                <Button size="sm" onClick={() => onEdit(a)}>
+                  <PencilIcon /> Correct details
+                </Button>
+              )}
               <span className="flex-1" />
               <Button size="sm" variant="ghost" danger onClick={() => onRemove(a)}>
                 <Trash2Icon /> Remove from the list

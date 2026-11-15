@@ -8,7 +8,7 @@ import { captureContact, checkInByHand, fetchGateContext, registerWalkup, saveGa
 import { askedAgainAt, isDue, scanQueue, supportsQueue, type QueuedScan } from "./lib/queue";
 import { looksLikeAdmissionNumber, looksLikeTicketCode } from "./lib/ticket-code";
 import type { ReplayedScan } from "./lib/replay";
-import { askedAgain, type GateContext, type ScanBody, type ScanResult, type WalkupBody } from "./schemas";
+import { SEARCH_MIN, askedAgain, type GateContext, type ScanBody, type ScanResult, type WalkupBody } from "./schemas";
 
 export const gateKey = (eventId: number) => ["gate", eventId] as const;
 
@@ -198,7 +198,8 @@ export function useGuestSearch(key: string | null, eventId: number, q: string) {
   return useQuery({
     queryKey: [...gateKey(eventId), "search", q],
     queryFn: () => searchGuests(key, eventId, q),
-    enabled: q.trim().length >= 2,
+    // Three characters at least: the API answers nothing shorter (a whole list, two letters at a time, is not a search).
+    enabled: q.trim().length >= SEARCH_MIN,
     placeholderData: keepPreviousData,
     staleTime: 5_000,
   });

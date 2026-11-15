@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { partialCode, partialText } from "@/lib/masked";
+
 /** The door's answers, as the server speaks them (snake_case, like the rest of the event API). */
 export const SCAN_OUTCOMES = ["CHECKED_IN", "ALREADY_CHECKED_IN", "WRONG_EVENT", "REVOKED", "UNPAID", "INVALID", "EVENT_NOT_OPEN"] as const;
 
@@ -18,10 +20,12 @@ const missingAnswersField = z.array(missingAnswerSchema).nullish().catch(null).t
 export const attendeeSummarySchema = z.object({
   id: z.string(),
   name: z.string(),
-  ticket_id: z.string(),
+  /** Masked for door staff in a search ("•••• 4321"), or left out: "" then (lib/masked). */
+  ticket_id: partialCode,
   role: z.string(),
-  email: z.string().nullish(),
-  phone: z.string().nullish(),
+  /** Masked for door staff in a search, or absent (lib/masked). */
+  email: partialText.optional(),
+  phone: partialText.optional(),
   has_contact: z.boolean().default(false),
   is_paid: z.boolean().default(true),
   checked_in_at: z.string().nullish(),
@@ -34,6 +38,9 @@ export const attendeeSummarySchema = z.object({
   missing_answers: missingAnswersField.optional(),
 });
 export type AttendeeSummary = z.infer<typeof attendeeSummarySchema>;
+
+/** The fewest characters the door search sends: the API answers nothing shorter. */
+export const SEARCH_MIN = 3;
 
 /** What a guest at the door is missing: [] when nothing, or from a server that doesn't say. */
 export const missingOf = (a: { missing_answers?: MissingAnswer[] | null } | null | undefined): MissingAnswer[] => a?.missing_answers ?? [];
