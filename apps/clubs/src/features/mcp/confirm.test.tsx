@@ -149,10 +149,10 @@ const posts = () => calls.filter((c) => c.method === "POST");
 const page = () => render(<ConfirmPage token={TOKEN} />);
 
 describe("the route", () => {
-  it("is guarded at the edge, which sends a visitor with no session to sign in and back", () => {
+  it("is guarded at the edge, which sends a visitor with no session to sign in and back", async () => {
     const guarded = (path: string) => new RegExp(`^${config.matcher[0]}$`).test(path);
     expect(guarded(`/confirm/${TOKEN}`)).toBe(true);
-    const res = proxy(new NextRequest(`https://club-dashboard.myotherapp.in/confirm/${TOKEN}`));
+    const res = await proxy(new NextRequest(`https://club-dashboard.myotherapp.in/confirm/${TOKEN}`));
     expect(res.headers.get("location")).toBe(`https://club-dashboard.myotherapp.in/login?next=${encodeURIComponent(`/confirm/${TOKEN}`)}`);
   });
 

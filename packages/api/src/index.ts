@@ -1,4 +1,4 @@
-export { createApiClient, type ApiClient, type ApiClientOptions, type RequestOptions } from "./client";
+export { createApiClient, isRenewable, type ApiClient, type ApiClientOptions, type RequestOptions, type SessionRenewal } from "./client";
 export { ApiError, isRouteMissing, nullIfRouteMissing, toApiError } from "./errors";
 export {
   type Paginated,

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useUnsavedWork } from "@moa/app-kit";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -449,14 +450,8 @@ function Editor({
   );
   const preview = usePreview(scope, previewBody);
 
-  React.useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Leaving, or a session that ends, asks first (useUnsavedWork).
+  useUnsavedWork(dirty);
 
   const blocks = fields.design.blocks;
   const current = blocks.find((b) => b.id === selected) ?? null;

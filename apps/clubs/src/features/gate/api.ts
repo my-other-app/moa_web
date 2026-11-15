@@ -1,5 +1,6 @@
 import { createApiClient } from "@moa/api";
 import { GATEWAY_PREFIX } from "@moa/auth";
+import { SESSION_RENEWAL, signInAgainPath } from "@moa/app-kit";
 
 import {attendeeSummarySchema,
   captureResultSchema,
@@ -19,6 +20,8 @@ export const gateHeaders = (key: string | null): Record<string, string> | undefi
 
 const clients = new Map<string, ReturnType<typeof createApiClient>>();
 
+const GATE_RENEWAL = { ...SESSION_RENEWAL, onEnded: () => window.location.assign(signInAgainPath(window.location)) };
+
 /**
  * The gate's own client. With a door key it sends the key on every call, so a
  * phone opened on a gate link needs no account; without one, the session
@@ -28,7 +31,14 @@ export const gateClient = (key: string | null) => {
   const k = key ?? "";
   let c = clients.get(k);
   if (!c) {
-    c = createApiClient({ baseUrl: GATEWAY_PREFIX, getHeaders: (): Record<string, string> => (k ? { [GATE_KEY_HEADER]: k } : {}) });
+    c = createApiClient({
+      baseUrl: GATEWAY_PREFIX,
+      getHeaders: (): Record<string, string> => (k ? { [GATE_KEY_HEADER]: k } : {}),
+      // On a session, a long shift outlives the access token: renewed as
+      // everywhere else, and once it can't be, sign in again and come back
+      // (queued scans wait on the phone). A door key is no session: nothing to renew.
+      renew: k ? undefined : GATE_RENEWAL,
+    });
     clients.set(k, c);
   }
   return c;

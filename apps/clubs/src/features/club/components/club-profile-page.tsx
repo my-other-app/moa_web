@@ -16,7 +16,7 @@ import {
   XIcon,
   YoutubeIcon,
   type LucideIcon, ImagePlusIcon } from "lucide-react";
-import { BannerFrame, LogoTile, bannerSizes, PICTURE_SPECS, initials, logoSizes, pickImage } from "@moa/app-kit";
+import { BannerFrame, LogoTile, bannerSizes, PICTURE_SPECS, initials, logoSizes, pickImage, useUnsavedWork } from "@moa/app-kit";
 import {
   CardLabel,
   EmptyState,
@@ -551,6 +551,8 @@ function ProfileForm({ club }: { club: ClubSelf }) {
   const brandPrimary = useWatch({ control, name: "brand_primary" }) ?? "";
   const brandSecondary = useWatch({ control, name: "brand_secondary" }) ?? "";
   const { errors, isDirty } = form.formState;
+  // Leaving, or a session that ends, asks first.
+  useUnsavedWork(isDirty);
   const saving = update.isPending || form.formState.isSubmitting;
   const colour = HEX.test(brandPrimary) ? brandPrimary : "#17a58f";
   // Why the last Save did not take, kept in the bar until the next edit or try.

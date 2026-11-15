@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { CheckIcon, CopyIcon, ExternalLinkIcon, GlobeIcon, Loader2Icon, LockIcon, RefreshCwIcon } from "lucide-react";
-import { formatDateTime } from "@moa/app-kit";
+import { formatDateTime, useUnsavedWork } from "@moa/app-kit";
 import { ApiError } from "@moa/api";
 import { CardLabel, EmptyState, FigurePanel, Notice, Skeleton, TabPanel, TabRail, toast } from "@moa/ui";
 
@@ -199,13 +199,8 @@ export function SitePage() {
   const published = !!site?.published_at;
   const behind = dirty || !!site?.stale;
 
-  // A draft not yet saved is lost with the tab: the browser asks first.
-  React.useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Leaving, or a session that ends, asks first (useUnsavedWork).
+  useUnsavedWork(dirty);
 
   const save = async (): Promise<boolean> => {
     if (!dirty) return true;

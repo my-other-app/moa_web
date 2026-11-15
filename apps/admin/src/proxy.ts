@@ -1,28 +1,17 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { ACCESS_TOKEN_COOKIE } from "@moa/auth";
+import type { NextRequest } from "next/server";
+import { guardSession } from "@moa/auth/guard";
 
 /**
  * Edge guard. (Next 16 renamed `middleware.ts` to `proxy.ts`.)
  *
- * This is a cookie *presence* check, not a validity check -- it cannot verify
- * a signature without the secret, and should not try. Its job is to stop an
- * unauthenticated visitor seeing a flash of dashboard chrome before the data
- * layer 401s. Real enforcement happens upstream on every API call, plus the
- * role check in the dashboard layout.
+ * A cookie presence check, shared by both dashboards (packages/auth/src/guard.ts):
+ * no session goes to sign-in, keeping where it was going; a session whose
+ * access token ran out is renewed from its refresh cookie first, so a tab
+ * left open navigates on. Real enforcement happens upstream on every API
+ * call, plus the role check in the dashboard layout.
  */
 export function proxy(request: NextRequest) {
-  const { pathname, search } = request.nextUrl;
-  const hasSession = request.cookies.has(ACCESS_TOKEN_COOKIE);
-
-  if (!hasSession) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    // Preserve where they were going so sign-in can return them there.
-    url.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname + search)}`;
-    return NextResponse.redirect(url);
-  }
-
-  return NextResponse.next();
+  return guardSession(request);
 }
 
 export const config = {

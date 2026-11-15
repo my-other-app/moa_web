@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Button, CardLabel, FigurePanel, Notice, cn, toast } from "@moa/ui";
 import { AlertTriangleIcon, CheckCircle2Icon, ScanEyeIcon } from "lucide-react";
 import * as React from "react";
+import { useUnsavedWork } from "@moa/app-kit";
 
 import { fitImage, isPicture } from "@/lib/images";
 
@@ -95,12 +96,8 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
       dirtyRef.current = false;
     };
   }, [dirty, dirtyRef]);
-  React.useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Leaving, or a session that ends, asks first (useUnsavedWork).
+  useUnsavedWork(dirty);
 
   // ─── What the stage draws with ─────────────────────────────────────────
 
