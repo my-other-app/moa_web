@@ -65,12 +65,30 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts"],
   },
+  /*
+   * The image optimizer (/_next/image) is public: no session is needed to ask
+   * it to fetch and resize a picture, and it runs in a small container. So
+   * it fetches only from our own hosts -- the media store (pictures the API
+   * stored) and the API's own static files -- over https, follows no
+   * redirect, and keeps its work bounded: a few sizes, one quality, a
+   * capped download and a capped disk cache. Every club picture is shown
+   * `unoptimized` (it was sized at upload), so in practice it draws only
+   * the brand icon from /brand.
+   */
   images: {
-    // Club logos, avatars and badge art are served from the API's S3 bucket.
     remotePatterns: [
-      { protocol: "https", hostname: "**.amazonaws.com" },
-      { protocol: "https", hostname: "**.myotherapp.in" },
+      { protocol: "https", hostname: "media.myotherapp.in", pathname: "/**" },
+      { protocol: "https", hostname: "api.myotherapp.in", pathname: "/static/**" },
     ],
+    localPatterns: [{ pathname: "/brand/**", search: "" }],
+    deviceSizes: [640, 828, 1080, 1200, 1920],
+    imageSizes: [32, 48, 64, 96, 128, 256],
+    qualities: [75],
+    formats: ["image/webp"],
+    maximumRedirects: 0,
+    maximumResponseBody: 10_000_000,
+    minimumCacheTTL: 86_400,
+    maximumDiskCacheSize: 100_000_000,
   },
 };
 

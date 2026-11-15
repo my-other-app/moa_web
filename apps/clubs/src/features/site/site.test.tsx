@@ -278,6 +278,12 @@ describe("the website page: templates and publishing", () => {
     expect(screen.queryByTestId("unpublished")).not.toBeInTheDocument();
   });
 
+  it("draws the preview in a frame with no scripts and no same-origin: nothing it loads rides the dashboard's session", async () => {
+    render(<SitePage />);
+    const frame = await screen.findByTitle("Site preview");
+    expect(frame).toHaveAttribute("sandbox", "");
+  });
+
   it("draws the preview at a desktop's, a tablet's and a phone's width", async () => {
     render(<SitePage />);
     const frame = await screen.findByTitle("Site preview");

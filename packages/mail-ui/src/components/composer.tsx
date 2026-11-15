@@ -53,7 +53,7 @@ export function composeProblems(v: { to: string; cc: string; bcc: string; text: 
   }
   if (!out.to && !out.cc && splitAddresses(v.to).length + splitAddresses(v.cc).length === 0) out.to = "Who is it to? Add an address.";
   if (!v.text.trim() && v.mode !== "forward") out.text = "Write something first.";
-  if (v.bytes > MAX_ATTACHMENT_BYTES) out.files = `Files can weigh 10 MB at most together (these are ${formatBytes(v.bytes)}).`;
+  if (v.bytes > MAX_ATTACHMENT_BYTES) out.files = `Files can weigh 9 MB at most together (these are ${formatBytes(v.bytes)}).`;
   return out;
 }
 

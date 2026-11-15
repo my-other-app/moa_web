@@ -67,10 +67,16 @@ export function SitePreview({ html, address, updating, failed }: { html: string 
         <div ref={box} className={cn("bg-sunken flex justify-center overflow-hidden", device !== "desktop" && "py-4")} style={{ height: HEIGHT + (device !== "desktop" ? 32 : 0) }}>
           {html !== undefined ? (
             <div style={{ width: width * scale, height: HEIGHT }} className={cn("shrink-0 overflow-hidden", device !== "desktop" && "rounded-[18px] shadow-lg ring-1 ring-black/10")}>
+              {/*
+                The club's page, in a frame of its own origin: no scripts, and
+                nothing it loads goes to this dashboard as this dashboard (no
+                session cookie, never "same-origin"). Nothing here reads the
+                frame; its pictures, styles and Google fonts need no more.
+              */}
               <iframe
                 title="Site preview"
                 srcDoc={html}
-                sandbox="allow-same-origin"
+                sandbox=""
                 data-width={width}
                 className="origin-top-left border-0 bg-white"
                 style={{ width, height: HEIGHT / scale, transform: scale === 1 ? undefined : `scale(${scale})` }}

@@ -509,7 +509,7 @@ describe("writing mail", () => {
     expect(defaultRecipients({ mode: "forward", original: inbound, ownAddresses: own })).toEqual({ to: [], cc: [] });
     expect(composeProblems({ to: "", cc: "", bcc: "", text: "", mode: "new", bytes: 0 })).toEqual({ to: "Who is it to? Add an address.", text: "Write something first." });
     expect(composeProblems({ to: "not-an-address", cc: "", bcc: "", text: "x", mode: "new", bytes: 0 }).to).toMatch(/isn't an email address/);
-    expect(composeProblems({ to: "a@x.in", cc: "", bcc: "", text: "", mode: "forward", bytes: 11 * 1024 * 1024 })).toEqual({ files: expect.stringMatching(/10 MB/) });
+    expect(composeProblems({ to: "a@x.in", cc: "", bcc: "", text: "", mode: "forward", bytes: 9.5 * 1024 * 1024 })).toEqual({ files: expect.stringMatching(/9 MB at most together/) });
   });
 
   it("writes new mail as multipart, with the signature by default", async () => {
@@ -538,14 +538,14 @@ describe("writing mail", () => {
     await waitFor(() => expect(screen.queryByRole("form", { name: "New mail" })).toBeNull());
   });
 
-  it("refuses files past 10 MB together before sending", async () => {
+  it("refuses files past 9 MB together before sending (the server in front refuses a request over 10 MB)", async () => {
     render(<MailboxPage readFile={readFile} />);
     fireEvent.click(await screen.findByRole("button", { name: /New mail/ }));
     const form = await screen.findByRole("form", { name: "New mail" });
     const big = new File([new Uint8Array(1)], "video.mp4", { type: "video/mp4" });
-    Object.defineProperty(big, "size", { value: 11 * 1024 * 1024 });
+    Object.defineProperty(big, "size", { value: 9.5 * 1024 * 1024 });
     fireEvent.change(within(form).getByLabelText("Attach files"), { target: { files: [big] } });
-    expect(await within(form).findByText(/10 MB at most together/)).toBeInTheDocument();
+    expect(await within(form).findByText(/9 MB at most together/)).toBeInTheDocument();
   });
 
   it("replies to all with the right people and subject, quoting the mail", async () => {
