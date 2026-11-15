@@ -4,7 +4,7 @@ import { anyMasked, isMasked } from "@/lib/masked";
 import { attendeeSummarySchema, scanResultSchema } from "@/features/gate/schemas";
 import { checkInLogSchema } from "@/features/doors/schemas";
 import { registrationDetailSchema, registrationPageSchema } from "@/features/registrations/schemas";
-import { outcomeCard } from "@/features/gate/lib/outcome-copy";
+import { outcomeCard } from "@/features/gate";
 
 /**
  * Door staff are sent guests' contacts and ticket codes in part
