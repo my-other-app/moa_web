@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { missingKeysSchema } from "@/features/answers/schemas";
 import { deliveryBriefSchema } from "@/features/deliveries";
+import { partialText } from "@/lib/masked";
 
 /**
  * What someone is attending as, which picks the ticket and certificate
@@ -14,20 +15,22 @@ export type RegistrationRole = (typeof REGISTRATION_ROLES)[number];
 export const registrationSchema = z.object({
   // A UUID, not an integer — the attendance endpoint takes it as a path param.
   id: z.string(),
-  ticket_id: z.string().nullish(),
+  /** Masked for door staff ("•••• 4321"), like the email and phone (lib/masked). */
+  ticket_id: partialText.optional(),
   event_id: z.coerce.number().nullish(),
   full_name: z.string().nullish(),
   name: z.string().nullish(),
-  email: z.string().nullish(),
-  phone: z.string().nullish(),
+  email: partialText.optional(),
+  phone: partialText.optional(),
   /** Set by the provider's bounce notice; later sends skip the address until it is corrected. */
   email_bounced_at: z.string().nullish(),
   email_bounce_reason: z.string().nullish(),
   /** The admission number the ticket prints beside the scan code. */
   admission_no: z.string().nullish(),
   institution: z.string().nullish(),
-  actual_amount: z.number().nullish(),
-  paid_amount: z.number().nullish(),
+  // Left out for door staff.
+  actual_amount: z.number().nullish().catch(null),
+  paid_amount: z.number().nullish().catch(null),
   is_paid: z.boolean().default(false),
   is_attended: z.boolean().default(false),
   is_won: z.boolean().default(false),

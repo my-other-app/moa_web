@@ -298,6 +298,29 @@ describe("one guest in full", () => {
     expect(writeText).toHaveBeenCalledWith("participant1@example.com");
   });
 
+  it("shows a guest door staff see in part as it came, with nothing to copy or correct", async () => {
+    state.detail = { ...full, email: "p•••@example.com", phone: "+91 ••••• •4321", ticket_id: "•••• 4321" };
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const onEdit = vi.fn();
+    render(<AttendeeDetailDialog eventId={37} registrationId={ONE} fields={[]} open onOpenChange={() => undefined} onEdit={onEdit} onRemove={() => undefined} />);
+    expect(await screen.findByText("p•••@example.com")).toBeInTheDocument();
+    expect(screen.getByText("+91 ••••• •4321")).toBeInTheDocument();
+    expect(screen.getByText("Ticket •••• 4321")).toBeInTheDocument();
+    for (const value of ["p•••@example.com", "+91 ••••• •4321", "•••• 4321"]) expect(screen.queryByRole("button", { name: `Copy ${value}` })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Correct details" })).toBeNull();
+    expect(screen.getByText(/shown in part for your role/)).toBeInTheDocument();
+    // The name is theirs to copy still.
+    expect(screen.getByRole("button", { name: "Copy Test Participant One" })).toBeInTheDocument();
+  });
+
+  it("lists guests door staff see in part, amounts left out", async () => {
+    state.rows = state.rows.map((r, i) => ({ ...r, email: `p${i}•••@example.com`, phone: "•••• 4321", ticket_id: "•••• 43" + i, paid_amount: null, actual_amount: null }) as unknown as Row);
+    render(<RegistrationsPanel eventId={37} />);
+    expect(await screen.findByText("p0•••@example.com · •••• 4321")).toBeInTheDocument();
+    expect(screen.getByText("•••• 430")).toBeInTheDocument();
+  });
+
   it("hands the record to Correct details and to Remove", async () => {
     state.detail = full;
     const onEdit = vi.fn();
