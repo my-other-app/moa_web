@@ -38,11 +38,50 @@ jobs:
           # public API origin, and the browser never receives it.
           MOA_API_URL: https://api.myotherapp.in
 
-      # Advisory rather than blocking: this reaches the live API, so a network
-      # blip or a deliberate-but-uncommitted backend change should not wedge
-      # every unrelated PR. It still prints exactly what moved.
+  # Compares packages/api/openapi.json with the backend's master branch. The
+  # backend's document is built from its source (the live API does not serve
+  # its docs), so this needs no secrets and no running backend. Its own job,
+  # so it runs alongside `verify` and does not slow it down.
+  openapi-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out the backend
+        uses: actions/checkout@v4
+        with:
+          repository: my-other-app/moa_backend
+          ref: master
+          path: moa_backend
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: moa_backend/backend/requirements*.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Advisory rather than blocking, every step from here: a change on the
+      # backend's side (a new requirement, a new setting) must not wedge every
+      # unrelated dashboards PR. A red step still says what happened.
+      - name: Install the backend's requirements
+        id: backend-install
+        continue-on-error: true
+        working-directory: moa_backend/backend
+        run: pip install -r requirements.txt -r requirements-dev.txt "setuptools<70"
+      - name: Build the backend's OpenAPI document
+        id: backend-openapi
+        if: steps.backend-install.outcome == 'success'
+        continue-on-error: true
+        working-directory: moa_backend/backend
+        run: python "$GITHUB_WORKSPACE/packages/api/scripts/dump-backend-openapi.py" "$RUNNER_TEMP/backend-openapi.json"
+      # Red here means the dashboards' copy of the API (openapi.json and the
+      # types generated from it) is behind the backend's master; the log lists
+      # every path that moved. Refresh it as the log says, in its own PR.
       - name: OpenAPI drift
+        if: steps.backend-openapi.outcome == 'success'
         continue-on-error: true
         run: npm run check:drift -w @moa/api
         env:
-          MOA_API_URL: https://api.myotherapp.in
+          MOA_OPENAPI_FILE: ${{ runner.temp }}/backend-openapi.json
