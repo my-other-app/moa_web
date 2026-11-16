@@ -174,6 +174,30 @@ describe("editing an event that sells several types", () => {
     expect(fd.get("reg_fee")).toBe("120");
   });
 
+  it("copies a saved hidden type's signed link from its row, and says where a newly hidden one's will be", async () => {
+    const SIGNED = "https://myotherapp.in/events/sf-sea-hackathon?ticket_type=12&ticket_key=3f9c0a1b2c3d4e5f60718293";
+    state.types = { ...TYPES, types: [{ ...TYPES.types[0]!, link: "https://myotherapp.in/events/sf-sea-hackathon?ticket_type=11" }, { ...TYPES.types[1]!, is_hidden: true, link: SIGNED }] };
+    const writeText = vi.fn(async () => {});
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<EditEventForm eventId={37} />);
+    const group = await screen.findByRole("group", { name: "Ticket types" });
+    const [general, student] = within(group).getAllByRole("listitem");
+    expect(within(general!).queryByRole("button", { name: /Copy the link/ })).not.toBeInTheDocument();
+    fireEvent.click(within(student!).getByRole("button", { name: "Copy the link for Student" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(SIGNED));
+    // Shown again in the form (not saved): its signed link is no longer offered.
+    fireEvent.click(within(student!).getByRole("switch", { name: "Hide Student" }));
+    expect(within(student!).queryByRole("button", { name: /Copy the link/ })).not.toBeInTheDocument();
+    // Hidden here, not saved yet: its link comes once it is.
+    fireEvent.click(within(general!).getByRole("switch", { name: "Hide General" }));
+    expect(within(general!).getByText("Once saved, its link is on the Tickets tab.")).toBeInTheDocument();
+    // The link is the server's: never sent back with the types.
+    fireEvent.click(screen.getAllByRole("button", { name: /Save changes/ })[0]!);
+    await waitFor(() => expect(puts().length).toBeGreaterThan(0));
+    const body = puts()[0]!.body as { types: Array<Record<string, unknown>> };
+    expect(body.types.every((t) => !("link" in t))).toBe(true);
+  });
+
   it("says why when the types are refused, and saves nothing else", async () => {
     state.putTypes = async () => {
       throw new ApiError({ message: "People hold tickets of “Student”.", status: 409, errorCode: "TICKET_TYPE_HAS_REGISTRATIONS", fieldErrors: { ticket_type_id: 12 } as unknown as Record<string, string[]> });

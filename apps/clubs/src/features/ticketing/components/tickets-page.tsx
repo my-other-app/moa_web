@@ -9,6 +9,7 @@ import { useAccess } from "@/features/access";
 import { useTicketTypes } from "../queries";
 import { priceText, soldText } from "../schemas";
 import { DiscountCodesPanel } from "./discount-codes";
+import { HiddenTypeLinksPanel } from "./hidden-links";
 import { TicketSalesPanel } from "./ticket-sales";
 import { WaitlistPanel } from "./waitlist-panel";
 
@@ -16,7 +17,7 @@ import { WaitlistPanel } from "./waitlist-panel";
  * The event's Tickets tab: what each type sold, its waiting list, and the
  * codes it takes. The types themselves are edited with the rest of the
  * event (Settings → Places and money), so a price and the event's fee are
- * never changed in two places.
+ * never changed in two places. Hidden types' links are copied here.
  */
 export function TicketsPage({ eventId }: { eventId: number }) {
   const types = useTicketTypes(eventId);
@@ -48,6 +49,7 @@ export function TicketsPage({ eventId }: { eventId: number }) {
         ) : null}
       </div>
       <TicketSalesPanel eventId={eventId} />
+      <HiddenTypeLinksPanel types={t.types} />
       <WaitlistPanel eventId={eventId} />
       {/* A code can make a ticket free: door staff don't see them (the server refuses them too). */}
       {can.edit_events ? <DiscountCodesPanel eventId={eventId} title="This event's discount codes" /> : null}

@@ -41,8 +41,24 @@ export const ticketTypeSchema = z.object({
   offered: num.catch(0),
   /** Someone holds a ticket of it: it can be hidden, not removed. */
   has_registrations: z.boolean().catch(false),
+  /**
+   * The event page's address for this type, to copy and send. A hidden
+   * type's carries its key (`ticket_key`): the only way to sell it. Null for
+   * door staff, an event with no page yet, or a server without links.
+   */
+  link: optionalText.catch(null),
 });
 export type TicketType = z.infer<typeof ticketTypeSchema>;
+
+/** The link that sells a hidden type: one that carries its key (never a bare `?ticket_type=`). */
+export function hiddenTypeLink(t: { is_hidden?: boolean | null; link?: string | null }): string | null {
+  if (!t.is_hidden || !t.link) return null;
+  try {
+    return new URL(t.link).searchParams.get("ticket_key") ? t.link : null;
+  } catch {
+    return null;
+  }
+}
 
 export const ticketTypesSchema = z.object({
   types: z.array(ticketTypeSchema),
@@ -245,6 +261,7 @@ export const ticketTypeDraftSchema = z
     /** From the server, read only. */
     sold: z.number().optional(),
     has_registrations: z.boolean().optional(),
+    link: z.string().nullish(),
   })
   .superRefine((v, ctx) => {
     if (v.sales_start && v.sales_end && v.sales_end <= v.sales_start) {
@@ -275,6 +292,7 @@ export function draftOf(t: TicketType): TicketTypeDraft {
     per_person_limit: t.per_person_limit ?? undefined,
     sold: t.sold,
     has_registrations: t.has_registrations,
+    link: t.link,
   };
 }
 
