@@ -27,14 +27,61 @@ const standalone: Partial<NextConfig> =
  *   nothing at all from a page with a credential in its address.
  * - Device features off except what is used: nothing here uses the camera.
  *
- * The CSP is the part that cannot break anything (framing, <base>, plugins).
- * A script/connect allow-list needs Next's inline scripts nonced or hashed
- * and every third party (Google sign-in, Razorpay, Sentry, the media CDN)
- * listed -- tracked separately rather than guessed here.
+ * The enforced CSP is the part that cannot break anything (framing, <base>,
+ * plugins). The script and connection policy goes alongside it as a report
+ * only (reportOnlyPolicy, below).
  */
 // Pages whose address carries a credential: an invited admin's link.
 // Their address is sent nowhere, not even its origin.
 const CREDENTIAL_PAGES = ["/accept-invite/:path*"];
+
+/** The origin a Sentry DSN sends to (https://<key>@<host>/<project> → https://<host>), or null when it is not one. */
+export function sentryOrigin(dsn: string | undefined = process.env.NEXT_PUBLIC_SENTRY_DSN): string | null {
+  if (!dsn?.trim()) return null;
+  try {
+    const u = new URL(dsn.trim());
+    return u.protocol === "https:" && u.username && /^\/\d+\/?$/.test(u.pathname) ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Where the pages' reports go: app/api/csp-report, which scrubs them and passes them to Sentry. */
+export const CSP_REPORT_PATH = "/api/csp-report";
+
+/*
+ * The script and connection policy this portal is heading for, sent only as
+ * Content-Security-Policy-Report-Only: the browser enforces nothing and
+ * reports what it would have blocked (to CSP_REPORT_PATH, when Sentry is
+ * on), so it can be watched for a while and then enforced. 'unsafe-inline'
+ * scripts stay until Next's inline scripts carry a nonce; the host lists
+ * still keep a script from loading from, or sending to, anywhere else.
+ *
+ * What the portal loads from elsewhere: Google sign-in on the sign-in page
+ * (accounts.google.com/gsi), pictures from any https host (club logos,
+ * avatars, an email's images once shown), Google Fonts in some emails
+ * (srcdoc frames inherit this policy), and Sentry's ingest when it is on.
+ * Everything else -- the API, files, exports -- is this origin, through the
+ * gateway.
+ */
+export function reportOnlyPolicy({ dev = process.env.NODE_ENV === "development", sentry = sentryOrigin() }: { dev?: boolean; sentry?: string | null } = {}): string {
+  const parts = [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""} https://accounts.google.com/gsi/client`,
+    "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style https://fonts.googleapis.com",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    `connect-src 'self' https://accounts.google.com/gsi/${sentry ? ` ${sentry}` : ""}`,
+    "media-src 'self' blob: data:",
+    "frame-src 'self' blob: https://accounts.google.com",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ];
+  if (sentry) parts.push(`report-uri ${CSP_REPORT_PATH}`);
+  return parts.join("; ");
+}
 
 const SECURITY_HEADERS = [
   { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
@@ -42,6 +89,7 @@ const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), usb=(), browsing-topics=()" },
+  { key: "Content-Security-Policy-Report-Only", value: reportOnlyPolicy() },
 ];
 
 async function headers() {

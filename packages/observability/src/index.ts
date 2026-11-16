@@ -8,3 +8,13 @@ export {
   type SentryRuntime,
 } from "./options";
 export { maskPII, scrubBreadcrumb, scrubEvent, scrubSpan, scrubText, scrubUrl, FILTERED } from "./scrub";
+export {
+  CSP_REPORT_MAX_BYTES,
+  CSP_REPORT_PATH,
+  cspReportHandler,
+  reportUrl,
+  scrubCspReport,
+  sentrySecurityUrl,
+  type CspReport,
+  type CspReportOptions,
+} from "./csp";

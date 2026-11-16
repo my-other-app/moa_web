@@ -118,6 +118,55 @@ describe("the club dashboard's security headers", () => {
     }
   });
 
+  it("sends the script policy as a report only: what the browser enforces is unchanged", async () => {
+    const { rules: all } = await rules();
+    for (const rule of all) {
+      const enforced = rule.headers.filter((h) => h.key === "Content-Security-Policy").map((h) => h.value);
+      expect(enforced.every((v) => v === "frame-ancestors 'none'; base-uri 'self'; object-src 'none'")).toBe(true);
+    }
+    const report = header(all.find((r) => r.source === "/:path*"), "Content-Security-Policy-Report-Only")!;
+    expect(report).toMatch(/^default-src 'self'; script-src 'self' 'unsafe-inline' /);
+    expect(report).toContain("script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client https://checkout.razorpay.com https://connect.facebook.net;");
+    expect(report).toContain("connect-src 'self' https://media.myotherapp.in https://*.amazonaws.com https://photon.komoot.io https://accounts.google.com/gsi/ https://api.razorpay.com https://lumberjack.razorpay.com https://*.facebook.com;");
+    expect(report).toContain("frame-src 'self' blob: https://accounts.google.com https://api.razorpay.com https://checkout.razorpay.com https://*.facebook.com https://www.google.com;");
+    expect(report).toContain("img-src 'self' data: blob: https:;");
+    expect(report).toContain("font-src 'self' data: https://fonts.gstatic.com;");
+    expect(report).toContain("object-src 'none'; base-uri 'self'");
+    expect(report).not.toContain("unsafe-eval");
+    // Sentry off: nothing to report to, and no Sentry host to allow.
+    expect(report).not.toContain("report-uri");
+    expect(report).not.toContain("sentry");
+  });
+
+  it("reports through this app's own report address when Sentry is on, and allows Sentry's ingest", async () => {
+    const { rules: all } = await rules({ NEXT_PUBLIC_SENTRY_DSN: "https://k@o42.ingest.de.sentry.io/4507" });
+    const report = header(all.find((r) => r.source === "/:path*"), "Content-Security-Policy-Report-Only")!;
+    expect(report).toMatch(/connect-src [^;]* https:\/\/o42\.ingest\.de\.sentry\.io;/);
+    expect(report).toMatch(/; report-uri \/api\/csp-report$/);
+    const mod = await import("../next.config");
+    expect(mod.sentryOrigin("https://k@o42.ingest.de.sentry.io/4507")).toBe("https://o42.ingest.de.sentry.io");
+    for (const dsn of ["", "not a dsn", "https://o42.ingest.sentry.io/4507", "http://k@o42.ingest.sentry.io/1", "https://k@o42.ingest.sentry.io/x"]) expect(mod.sentryOrigin(dsn)).toBeNull();
+    expect(mod.reportOnlyPolicy({ dev: true, sentry: null })).toContain("'unsafe-inline' 'unsafe-eval' ");
+  });
+
+  it("lets a report reach its route without the session guard, and answers it without Sentry by sending nothing", async () => {
+    const { config: proxy } = await import("./proxy");
+    const guarded = (p: string) => new RegExp(`^${proxy.matcher[0]}$`).test(p);
+    expect(guarded("/api/csp-report")).toBe(false);
+    expect(guarded("/settings")).toBe(true);
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", "");
+    const send = vi.fn();
+    vi.stubGlobal("fetch", send);
+    try {
+      const { POST } = await import("./app/api/csp-report/route");
+      const res = await POST(new Request("https://dashboard.test/api/csp-report", { method: "POST", headers: { "content-type": "application/csp-report" }, body: JSON.stringify({ "csp-report": { "document-uri": "https://dashboard.test/", "effective-directive": "img-src" } }) }));
+      expect(res.status).toBe(204);
+      expect(send).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps them when Sentry wraps the config", async () => {
     const { config, rules: all } = await rules({ NEXT_PUBLIC_SENTRY_DSN: "https://k@o1.ingest.sentry.io/1" });
     expect(config.poweredByHeader).toBe(false);
