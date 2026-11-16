@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildBody, buildHtml, buildLayer, fontUses, initialsOf, layerDrawn, pageCss, qrSvg, svgMarkup } from "./build";
-import { esc, gFmt, num, Paint, radiusCss } from "./css";
+import { cssFamily, cssHex, esc, gFmt, num, Paint, radiusCss } from "./css";
 import { parseLayoutV2 } from "./schema";
 import { minimal, textRaw } from "./test-utils";
 
@@ -30,6 +30,22 @@ describe("numbers, escaping and colours", () => {
       "#FF8A3D", "#1B6B47", "#F2C14E", "#7A1FD8", "#ABCDEF", "#ABCDEF80",
     ]);
     expect(new Paint({ vars: { accent: null } }).color("var:accent")).toBe("#000000");
+  });
+
+  it("paints only hex colours: anything else is #000000", () => {
+    expect(["#abc", "#abcd", "#a1b2c3", "#a1b2c3d4"].map((c) => cssHex(c))).toEqual(["#abc", "#abcd", "#a1b2c3", "#a1b2c3d4"]);
+    expect(["red", "#12345", "#1234567", "#ggg", "", "#ABCDEF;x:y", " #ABCDEF", null, undefined].map((c) => cssHex(c))).toEqual(Array(9).fill("#000000"));
+    expect(cssHex("blue", "#FFFFFF")).toBe("#FFFFFF");
+    const paint = new Paint({ vars: { accent: "orange" } }, { primary: "teal", secondary: "#f2c14e", ticketType: "#abc;x" });
+    expect(["var:accent", "brand.primary", "brand.secondary", "ticket_type", "red;x:y", "#abc"].map((c) => paint.color(c))).toEqual([
+      "#000000", "#000000", "#F2C14E", "#000000", "#000000", "#ABC",
+    ]);
+    expect(paint.fill({ type: "linear", angle: 90, stops: [{ offset: 0, color: "x)" }, { offset: 1, color: "#ffffff" }] })).toBe("linear-gradient(90deg, #000000 0%, #FFFFFF 100%)");
+  });
+
+  it("keeps a font family name inside its quotes", () => {
+    for (const name of ["Inter", "Space Mono", "DM Serif Display", "IBM Plex Sans"]) expect(cssFamily(name)).toBe(name);
+    expect(cssFamily(`Inter';x:y"<b>{}()\\`)).toBe("Interxyb");
   });
 
   it("writes fills as CSS gradients", () => {
@@ -126,6 +142,17 @@ describe("text", () => {
     const html = one(textRaw({ spans: [{ text: "for " }, { text: "{{event_name}}", weight: 700, size: 40, color: "brand.primary", letterSpacing: 0.1, transform: "upper", family: "Inter", style: "italic" }] }))!;
     expect(html).toContain(`<span>for </span><span style="font-family:'Inter';font-weight:700;font-style:italic;font-size:1.25em;color:#1B6B47;letter-spacing:0.1em;text-transform:uppercase">Builders Day</span></div>`);
     expect(one(textRaw({ spans: [{ text: "{{organization}}" }] }))).toBeNull();
+  });
+
+  it("writes a family name and a colour it was given unchecked as plain CSS", () => {
+    const layout = parseLayoutV2(minimal([textRaw({ spans: [{ text: "x", family: "Inter" }] })]));
+    const layer = layout.layers[0] as Extract<(typeof layout.layers)[number], { kind: "text" }>;
+    const odd = { ...layer, font: { ...layer.font, family: `Inter'" x<y>` }, color: "red;x:y", spans: [{ ...layer.spans![0]!, family: `Sora"'`, color: "blue" }] };
+    const html = buildLayer(layout, odd, values, ctx)!;
+    expect(html).toContain("font-family:'Inter xy';font-weight:400");
+    expect(html).toContain("color:#000000;text-align:left");
+    expect(html).toContain(`<span style="font-family:'Sora';color:#000000">x</span>`);
+    expect(html).not.toMatch(/red|blue|<y>/);
   });
 
   it("reads a design token as the kind's own", () => {

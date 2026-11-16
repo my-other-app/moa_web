@@ -1,6 +1,6 @@
 "use client";
 
-import { DOC_FONTS, LayerV2, LayoutV2, type TextLayerV2, fontsFromApi, isCodeQr, isPersonalQr } from "@moa/layout";
+import { DOC_FONTS, HEX6, LayerV2, LayoutV2, type TextLayerV2, fontsFromApi, isCodeQr, isPersonalQr } from "@moa/layout";
 import { z } from "zod";
 import { Button, CardLabel, FigurePanel, Notice, cn, toast } from "@moa/ui";
 import { AlertTriangleIcon, CheckCircle2Icon, ScanEyeIcon } from "lucide-react";
@@ -668,7 +668,7 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
               </div>
             </FigurePanel>
           ) : (
-            <DocumentPanel layout={layout} kind={kind} colors={colors} suggestions={[...new Set([design.brand.primary, design.brand.secondary].map((c) => c.toUpperCase()))]} onChange={update} />
+            <DocumentPanel layout={layout} kind={kind} colors={colors} suggestions={[...new Set([design.brand.primary, design.brand.secondary].filter((c) => HEX6.test(c)).map((c) => c.toUpperCase()))]} onChange={update} />
           )}
           {check.general.length ? (
             <Notice tone="refuse" tag="Fix">
