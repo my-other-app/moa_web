@@ -13,19 +13,19 @@ export async function createDoor(eventId: number, body: { name: string; kind: Do
 }
 
 export async function updateDoor(eventId: number, doorId: string, body: { name?: string; kind?: DoorKind; active?: boolean; sort_order?: number; link_can_walkup?: boolean }) {
-  return doorSchema.parse(await api.patch<unknown>(`${base(eventId)}/doors/${doorId}`, body));
+  return doorSchema.parse(await api.patch<unknown>(`${base(eventId)}/doors/${encodeURIComponent(doorId)}`, body));
 }
 
 export async function deleteDoor(eventId: number, doorId: string) {
-  await api.del<unknown>(`${base(eventId)}/doors/${doorId}`);
+  await api.del<unknown>(`${base(eventId)}/doors/${encodeURIComponent(doorId)}`);
 }
 
 export async function issueGateLink(eventId: number, doorId: string, body: { can_walkup: boolean; days?: number }) {
-  return linkSchema.parse(await api.post<unknown>(`${base(eventId)}/doors/${doorId}/link`, body));
+  return linkSchema.parse(await api.post<unknown>(`${base(eventId)}/doors/${encodeURIComponent(doorId)}/link`, body));
 }
 
 export async function revokeGateLink(eventId: number, doorId: string) {
-  await api.del<unknown>(`${base(eventId)}/doors/${doorId}/link`);
+  await api.del<unknown>(`${base(eventId)}/doors/${encodeURIComponent(doorId)}/link`);
 }
 
 export async function updateTeamVolunteer(eventId: number, volunteerId: number, body: { can_check_in?: boolean; can_walkup?: boolean; can_merch?: boolean; door_id?: string | null; clear_door?: boolean }) {
@@ -54,5 +54,5 @@ export async function fetchCheckInLog(q: CheckInLogQuery) {
 }
 
 export async function undoCheckIn(eventId: number, registrationId: string) {
-  await api.del<unknown>(`${base(eventId)}/gate/check-in/${registrationId}`);
+  await api.del<unknown>(`${base(eventId)}/gate/check-in/${encodeURIComponent(registrationId)}`);
 }

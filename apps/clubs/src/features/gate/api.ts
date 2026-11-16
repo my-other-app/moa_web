@@ -67,15 +67,15 @@ export async function searchGuests(key: string | null, eventId: number, q: strin
 }
 
 export async function checkInByHand(key: string | null, eventId: number, registrationId: string, door: string | null) {
-  return scanResultSchema.parse(await gateClient(key).post<unknown>(`${base(eventId)}/check-in/${registrationId}`, { door }));
+  return scanResultSchema.parse(await gateClient(key).post<unknown>(`${base(eventId)}/check-in/${encodeURIComponent(registrationId)}`, { door }));
 }
 
 export async function undoCheckIn(key: string | null, eventId: number, registrationId: string) {
-  await gateClient(key).del<unknown>(`${base(eventId)}/check-in/${registrationId}`);
+  await gateClient(key).del<unknown>(`${base(eventId)}/check-in/${encodeURIComponent(registrationId)}`);
 }
 
 export async function captureContact(key: string | null, eventId: number, registrationId: string, phone: string) {
-  return captureResultSchema.parse(await gateClient(key).post<unknown>(`${base(eventId)}/capture/${registrationId}`, { phone }));
+  return captureResultSchema.parse(await gateClient(key).post<unknown>(`${base(eventId)}/capture/${encodeURIComponent(registrationId)}`, { phone }));
 }
 
 /**
@@ -92,10 +92,10 @@ export const KEY_STORAGE = (eventId: number) => `moa.gate.${eventId}.key`;
 export const DOOR_STORAGE = (eventId: number) => `moa.gate.${eventId}.door`;
 
 export async function fetchGateStoreOrders(key: string | null, eventId: number, registrationId: string) {
-  return z.array(gateStoreOrderSchema).parse(await gateClient(key).get<unknown>(`/api/v1/events/${eventId}/gate/store/${registrationId}`));
+  return z.array(gateStoreOrderSchema).parse(await gateClient(key).get<unknown>(`/api/v1/events/${eventId}/gate/store/${encodeURIComponent(registrationId)}`));
 }
 export async function gateHandOver(key: string | null, eventId: number, orderId: string) {
-  return gateStoreOrderSchema.parse(await gateClient(key).post<unknown>(`/api/v1/events/${eventId}/gate/store/${orderId}/handover`, {}));
+  return gateStoreOrderSchema.parse(await gateClient(key).post<unknown>(`/api/v1/events/${eventId}/gate/store/${encodeURIComponent(orderId)}/handover`, {}));
 }
 export async function fetchGateCatalog(key: string | null, eventId: number) {
   return gateCatalogSchema.parse(await gateClient(key).get<unknown>(`/api/v1/events/${eventId}/store/catalog`));

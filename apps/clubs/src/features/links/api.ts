@@ -12,7 +12,7 @@ export async function fetchLinksOverview(scope: LinkScope, days: number) {
 
 /** One link opened further: its days, hours, devices, and where the openings came from. */
 export async function fetchLinkDetail(scope: LinkScope, id: string, days: number) {
-  const raw = await api.get<unknown>(`${base(scope)}/${id}/detail`, { query: { days } });
+  const raw = await api.get<unknown>(`${base(scope)}/${encodeURIComponent(id)}/detail`, { query: { days } });
   return linkDetailSchema.parse(raw);
 }
 
@@ -41,10 +41,10 @@ export interface LinkPatch {
 }
 
 export async function updateLink(scope: LinkScope, id: string, patch: LinkPatch) {
-  const raw = await api.patch<unknown>(`${base(scope)}/${id}`, patch);
+  const raw = await api.patch<unknown>(`${base(scope)}/${encodeURIComponent(id)}`, patch);
   return linkSchema.parse(raw);
 }
 
 export async function deleteLink(scope: LinkScope, id: string) {
-  await api.del<unknown>(`${base(scope)}/${id}`);
+  await api.del<unknown>(`${base(scope)}/${encodeURIComponent(id)}`);
 }

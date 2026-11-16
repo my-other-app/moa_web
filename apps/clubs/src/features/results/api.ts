@@ -14,5 +14,5 @@ export async function setTeamPlacing(eventId: number, teamId: number, position: 
 
 /** One guest's placing (the winners route the server has had all along). `null` clears it. */
 export async function setGuestPlacing(eventId: number, registrationId: string, position: number | null) {
-  await api.put<unknown>(`/api/v1/events/registration/${eventId}/winners/${registrationId}`, { position });
+  await api.put<unknown>(`/api/v1/events/registration/${eventId}/winners/${encodeURIComponent(registrationId)}`, { position });
 }

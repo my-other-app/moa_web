@@ -8,7 +8,7 @@ export async function fetchSecurity() {
 }
 
 export async function revokeSession(id: string) {
-  await api.del<unknown>(`/api/v1/auth/sessions/${id}`);
+  await api.del<unknown>(`/api/v1/auth/sessions/${encodeURIComponent(id)}`);
 }
 
 export async function signOutOthers(): Promise<number> {

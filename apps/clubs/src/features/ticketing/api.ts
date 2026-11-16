@@ -109,7 +109,7 @@ export async function fetchWaitlist(eventId: number, status?: EntryStatus | null
 
 /** Correct someone's name, email or phone in line; their place is kept and nothing is sent. */
 export async function correctWaitlistEntry(eventId: number, entryId: string, patch: { full_name?: string; email?: string; phone?: string }) {
-  return waitlistEntrySchema.parse(await api.patch<unknown>(`${event(eventId)}/waitlist/${entryId}`, patch));
+  return waitlistEntrySchema.parse(await api.patch<unknown>(`${event(eventId)}/waitlist/${encodeURIComponent(entryId)}`, patch));
 }
 
 export async function putWaitlistSettings(eventId: number, body: { enabled?: boolean; offer_hours?: number }) {
@@ -118,11 +118,11 @@ export async function putWaitlistSettings(eventId: number, body: { enabled?: boo
 
 /** Offer this person a place now: ahead of the line, or again after an offer ran out. */
 export async function offerWaitlistEntry(eventId: number, entryId: string) {
-  return waitlistEntrySchema.parse(await api.post<unknown>(`${event(eventId)}/waitlist/${entryId}/offer`));
+  return waitlistEntrySchema.parse(await api.post<unknown>(`${event(eventId)}/waitlist/${encodeURIComponent(entryId)}/offer`));
 }
 
 export async function removeWaitlistEntry(eventId: number, entryId: string) {
-  await api.del<unknown>(`${event(eventId)}/waitlist/${entryId}`);
+  await api.del<unknown>(`${event(eventId)}/waitlist/${encodeURIComponent(entryId)}`);
 }
 
 /** The list as a CSV, through the dashboard's own gateway (the session's cookie goes with it). */

@@ -17,22 +17,22 @@ export async function createMerchItem(eventId: number, body: MerchItemInput) {
   return merchItemSchema.parse(await api.post<unknown>(base(eventId), body));
 }
 export async function updateMerchItem(eventId: number, itemId: string, body: Partial<MerchItemInput>) {
-  return merchItemSchema.parse(await api.patch<unknown>(`${base(eventId)}/${itemId}`, body));
+  return merchItemSchema.parse(await api.patch<unknown>(`${base(eventId)}/${encodeURIComponent(itemId)}`, body));
 }
 export async function deleteMerchItem(eventId: number, itemId: string, withCollections = false) {
   // The flag is a query parameter (with_collections=Query on the server): as
   // the second argument it went in the body, the server never saw it, and
   // removing an item guests had collected always failed with 409.
-  await api.del<unknown>(`${base(eventId)}/${itemId}`, undefined, { query: { with_collections: withCollections } });
+  await api.del<unknown>(`${base(eventId)}/${encodeURIComponent(itemId)}`, undefined, { query: { with_collections: withCollections } });
 }
 export async function addMerchVariant(eventId: number, itemId: string, body: { label: string; stock: number }) {
-  return merchItemSchema.parse(await api.post<unknown>(`${base(eventId)}/${itemId}/variants`, body));
+  return merchItemSchema.parse(await api.post<unknown>(`${base(eventId)}/${encodeURIComponent(itemId)}/variants`, body));
 }
 export async function updateMerchVariant(eventId: number, itemId: string, variantId: string, body: { label?: string; stock?: number }) {
-  return merchItemSchema.parse(await api.patch<unknown>(`${base(eventId)}/${itemId}/variants/${variantId}`, body));
+  return merchItemSchema.parse(await api.patch<unknown>(`${base(eventId)}/${encodeURIComponent(itemId)}/variants/${encodeURIComponent(variantId)}`, body));
 }
 export async function deleteMerchVariant(eventId: number, itemId: string, variantId: string) {
-  return merchItemSchema.parse(await api.del<unknown>(`${base(eventId)}/${itemId}/variants/${variantId}`));
+  return merchItemSchema.parse(await api.del<unknown>(`${base(eventId)}/${encodeURIComponent(itemId)}/variants/${encodeURIComponent(variantId)}`));
 }
 export async function uploadMerchPhoto(eventId: number, file: File) {
   const fd = new FormData();
@@ -65,12 +65,12 @@ export async function fetchMerchAnalytics(eventId: number) {
 const gate = (eventId: number) => `/api/v1/events/${eventId}/gate/merch`;
 
 export async function fetchAttendeeMerch(key: string | null, eventId: number, registrationId: string) {
-  return attendeeMerchSchema.parse(await gateClient(key).get<unknown>(`${gate(eventId)}/${registrationId}`));
+  return attendeeMerchSchema.parse(await gateClient(key).get<unknown>(`${gate(eventId)}/${encodeURIComponent(registrationId)}`));
 }
 export async function collectMerch(key: string | null, eventId: number, itemId: string, body: { registration_id: string; variant_label?: string; door?: string | null }) {
-  return collectResultSchema.parse(await gateClient(key).post<unknown>(`${gate(eventId)}/${itemId}/collect`, body));
+  return collectResultSchema.parse(await gateClient(key).post<unknown>(`${gate(eventId)}/${encodeURIComponent(itemId)}/collect`, body));
 }
 
 export async function handOutByHand(eventId: number, itemId: string, undo = false) {
-  return merchItemSchema.parse(await api.post<unknown>(`${base(eventId)}/${itemId}/handout${undo ? "/undo" : ""}`, {}));
+  return merchItemSchema.parse(await api.post<unknown>(`${base(eventId)}/${encodeURIComponent(itemId)}/handout${undo ? "/undo" : ""}`, {}));
 }

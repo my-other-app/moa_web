@@ -61,7 +61,7 @@ export async function startConnect(platform: Platform, returnTo: string) {
 }
 
 export async function disconnectAccount(id: string) {
-  await api.del<unknown>(`${SOCIAL_BASE}/accounts/${id}`);
+  await api.del<unknown>(`${SOCIAL_BASE}/accounts/${encodeURIComponent(id)}`);
 }
 
 /** The Pages or Instagram accounts a sign-in came back with, to pick one. */
@@ -111,27 +111,27 @@ export async function createPost(eventId: number, body: PostBody & { draft: bool
 }
 
 export async function updatePost(postId: string, body: PostBody) {
-  return postSchema.parse(await api.patch<unknown>(`${SOCIAL_BASE}/posts/${postId}`, body));
+  return postSchema.parse(await api.patch<unknown>(`${SOCIAL_BASE}/posts/${encodeURIComponent(postId)}`, body));
 }
 
 export async function schedulePost(postId: string) {
-  return postSchema.safeParse(await api.post<unknown>(`${SOCIAL_BASE}/posts/${postId}/schedule`)).data ?? null;
+  return postSchema.safeParse(await api.post<unknown>(`${SOCIAL_BASE}/posts/${encodeURIComponent(postId)}/schedule`)).data ?? null;
 }
 
 export async function approvePost(postId: string) {
-  return postSchema.safeParse(await api.post<unknown>(`${SOCIAL_BASE}/posts/${postId}/approve`)).data ?? null;
+  return postSchema.safeParse(await api.post<unknown>(`${SOCIAL_BASE}/posts/${encodeURIComponent(postId)}/approve`)).data ?? null;
 }
 
 export async function cancelPost(postId: string) {
-  return postSchema.safeParse(await api.post<unknown>(`${SOCIAL_BASE}/posts/${postId}/cancel`)).data ?? null;
+  return postSchema.safeParse(await api.post<unknown>(`${SOCIAL_BASE}/posts/${encodeURIComponent(postId)}/cancel`)).data ?? null;
 }
 
 export async function deletePost(postId: string) {
-  await api.del<unknown>(`${SOCIAL_BASE}/posts/${postId}`);
+  await api.del<unknown>(`${SOCIAL_BASE}/posts/${encodeURIComponent(postId)}`);
 }
 
 export async function retryTarget(targetId: string) {
-  return api.post<unknown>(`${SOCIAL_BASE}/targets/${targetId}/retry`);
+  return api.post<unknown>(`${SOCIAL_BASE}/targets/${encodeURIComponent(targetId)}/retry`);
 }
 
 /** The publish step's one click: the standard Announcement (on publish) and Reminder (2 days before) from the drafts. */

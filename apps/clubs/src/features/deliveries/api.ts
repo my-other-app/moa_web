@@ -31,19 +31,19 @@ export const sendTickets = (eventId: number, only: SendScope = "unsent", registr
 
 /** One guest's document again, delivered before or not. */
 export async function sendOneDocument(eventId: number, kind: DocumentKind, registrationId: string) {
-  const raw = await api.post<unknown>(`${sendBase(eventId, kind)}/${registrationId}/send`);
+  const raw = await api.post<unknown>(`${sendBase(eventId, kind)}/${encodeURIComponent(registrationId)}/send`);
   return sendResponseSchema.parse(raw);
 }
 
 export const sendOneTicket = (eventId: number, registrationId: string) => sendOneDocument(eventId, "ticket", registrationId);
 
 export async function revokeTicket(eventId: number, registrationId: string, reason?: string) {
-  const raw = await api.post<unknown>(`${base(eventId)}/tickets/${registrationId}/revoke`, { reason });
+  const raw = await api.post<unknown>(`${base(eventId)}/tickets/${encodeURIComponent(registrationId)}/revoke`, { reason });
   return ticketStateSchema.parse(raw);
 }
 
 export async function reinstateTicket(eventId: number, registrationId: string) {
-  const raw = await api.post<unknown>(`${base(eventId)}/tickets/${registrationId}/reinstate`);
+  const raw = await api.post<unknown>(`${base(eventId)}/tickets/${encodeURIComponent(registrationId)}/reinstate`);
   return ticketStateSchema.parse(raw);
 }
 

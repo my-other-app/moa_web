@@ -155,4 +155,11 @@ describe("the email endpoints", () => {
     expect(api.templateHref({ kind: "library" }, "t1")).toBe("/emails/t1");
     expect(api.scopeHref({ kind: "library" })).toBe("/emails");
   });
+
+  it("keeps a template id one segment of the path, whatever it holds", async () => {
+    await api.fetchTemplate({ kind: "library" }, "../../clubs/me");
+    await api.fetchTemplate({ kind: "event", eventId: 42 }, "t1?x=1#y");
+    expect(calls.map((c) => c.path)).toEqual(["/api/v1/clubs/me/emails/..%2F..%2Fclubs%2Fme", "/api/v1/events/42/emails/t1%3Fx%3D1%23y"]);
+    expect(api.templateHref({ kind: "library" }, "a/b")).toBe("/emails/a%2Fb");
+  });
 });

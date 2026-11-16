@@ -71,10 +71,10 @@ export async function pairKiosk(eventId: number, body: { name: string; door_id?:
   return pairedKioskSchema.parse(await api.post<unknown>(base(eventId), body));
 }
 export async function rotateKiosk(eventId: number, deviceId: string, shiftHours = 12) {
-  return pairedKioskSchema.parse(await api.post<unknown>(`${base(eventId)}/${deviceId}/rotate`, { shift_hours: shiftHours }));
+  return pairedKioskSchema.parse(await api.post<unknown>(`${base(eventId)}/${encodeURIComponent(deviceId)}/rotate`, { shift_hours: shiftHours }));
 }
 export async function unpairKiosk(eventId: number, deviceId: string) {
-  return kioskDeviceSchema.parse(await api.del<unknown>(`${base(eventId)}/${deviceId}`));
+  return kioskDeviceSchema.parse(await api.del<unknown>(`${base(eventId)}/${encodeURIComponent(deviceId)}`));
 }
 export async function fetchKioskSettings(eventId: number) {
   return kioskSettingsSchema.parse(await api.get<unknown>(`${base(eventId)}/settings`));

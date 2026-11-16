@@ -31,7 +31,7 @@ export async function fetchSessions() {
 }
 
 export async function revokeSession(sessionId: string): Promise<void> {
-  await api.del<void>(`/api/v1/auth/sessions/${sessionId}`);
+  await api.del<void>(`/api/v1/auth/sessions/${encodeURIComponent(sessionId)}`);
 }
 
 /** Ends every session including this one, so the caller must sign out after. */

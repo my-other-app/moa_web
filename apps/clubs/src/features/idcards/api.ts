@@ -34,7 +34,7 @@ const q = (params: Record<string, string | boolean | null | undefined>) => {
  * `?key=` for consoles deployed before this, deprecated.)
  */
 export const cardPdfUrl = (eventId: number, registrationId: string, opts: { source?: string; record?: boolean; override?: boolean; door?: string | null } = {}) =>
-  `${GATEWAY_PREFIX}${base(eventId)}/${registrationId}.pdf${q({ source: opts.source, record: opts.record === undefined ? undefined : opts.record, override: opts.override || undefined, door: opts.door })}`;
+  `${GATEWAY_PREFIX}${base(eventId)}/${encodeURIComponent(registrationId)}.pdf${q({ source: opts.source, record: opts.record === undefined ? undefined : opts.record, override: opts.override || undefined, door: opts.door })}`;
 
 /**
  * A PDF fetched with whatever credential the caller holds -- the session

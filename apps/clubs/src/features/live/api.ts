@@ -43,11 +43,11 @@ export async function addQuizQuestion(eventId: number, body: QuizQuestionBody) {
 }
 
 export async function patchQuizQuestion(eventId: number, id: string, patch: Partial<QuizQuestionBody>) {
-  return quizQuestionSchema.parse(await api.patch<unknown>(`${base(eventId)}/quiz/questions/${id}`, patch));
+  return quizQuestionSchema.parse(await api.patch<unknown>(`${base(eventId)}/quiz/questions/${encodeURIComponent(id)}`, patch));
 }
 
 export async function deleteQuizQuestion(eventId: number, id: string) {
-  await api.del<unknown>(`${base(eventId)}/quiz/questions/${id}`);
+  await api.del<unknown>(`${base(eventId)}/quiz/questions/${encodeURIComponent(id)}`);
 }
 
 export async function fetchHostState(eventId: number) {
@@ -97,7 +97,7 @@ export async function setApproveFirst(eventId: number, approve_first: boolean, n
 export async function moderateQuestion(eventId: number, id: string, action: ModerateAction, notify?: boolean) {
   const opens = action === "approve" || action === "pin";
   const body = opens && notify !== undefined ? { action, notify } : { action };
-  return moderateSchema.parse(await api.post<unknown>(`${base(eventId)}/questions/${id}`, body));
+  return moderateSchema.parse(await api.post<unknown>(`${base(eventId)}/questions/${encodeURIComponent(id)}`, body));
 }
 
 // --- polls ----------------------------------------------------------------------
@@ -117,11 +117,11 @@ export async function createPoll(eventId: number, body: { kind: Poll["kind"]; pr
  */
 export async function setPollStatus(eventId: number, id: string, status: "live" | "closed", notify?: boolean) {
   const body = status === "live" && notify !== undefined ? { status, notify } : { status };
-  return pollStatusSchema.parse(await api.post<unknown>(`${base(eventId)}/polls/${id}/status`, body));
+  return pollStatusSchema.parse(await api.post<unknown>(`${base(eventId)}/polls/${encodeURIComponent(id)}/status`, body));
 }
 
 export async function deletePoll(eventId: number, id: string) {
-  await api.del<unknown>(`${base(eventId)}/polls/${id}`);
+  await api.del<unknown>(`${base(eventId)}/polls/${encodeURIComponent(id)}`);
 }
 
 // --- feedback ----------------------------------------------------------------------

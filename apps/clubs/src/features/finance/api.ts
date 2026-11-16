@@ -46,10 +46,10 @@ export async function createExpense(form: ExpenseForm) {
 }
 
 export async function updateExpense(id: string, form: ExpenseForm) {
-  const raw = await api.patch<unknown>(`/api/v1/clubs/finance/expenses/${id}`, body(form));
+  const raw = await api.patch<unknown>(`/api/v1/clubs/finance/expenses/${encodeURIComponent(id)}`, body(form));
   return expenseSchema.parse(raw);
 }
 
 export async function deleteExpense(id: string) {
-  await api.del<unknown>(`/api/v1/clubs/finance/expenses/${id}`);
+  await api.del<unknown>(`/api/v1/clubs/finance/expenses/${encodeURIComponent(id)}`);
 }

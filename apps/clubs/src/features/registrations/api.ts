@@ -46,7 +46,7 @@ export async function fetchRegistrations(q: RegistrationQuery) {
 }
 
 export async function fetchRegistration(eventId: number, registrationId: string) {
-  const raw = await api.get<unknown>(`/api/v1/events/registration/${eventId}/info/${registrationId}`);
+  const raw = await api.get<unknown>(`/api/v1/events/registration/${eventId}/info/${encodeURIComponent(registrationId)}`);
   return registrationDetailSchema.parse(raw);
 }
 
@@ -60,13 +60,13 @@ export interface RegistrationPatch {
 
 /** A correction: the registration's own name, contact, role and answers. */
 export async function updateRegistration(eventId: number, registrationId: string, patch: RegistrationPatch) {
-  const raw = await api.patch<unknown>(`/api/v1/events/registration/${eventId}/info/${registrationId}`, patch);
+  const raw = await api.patch<unknown>(`/api/v1/events/registration/${eventId}/info/${encodeURIComponent(registrationId)}`, patch);
   return registrationDetailSchema.parse(raw);
 }
 
 /** Takes them off the list. The event's slug is typed to confirm. */
 export async function removeRegistration(eventId: number, registrationId: string, confirmSlug: string) {
-  await api.del<unknown>(`/api/v1/events/registration/${eventId}/info/${registrationId}`, undefined, {
+  await api.del<unknown>(`/api/v1/events/registration/${eventId}/info/${encodeURIComponent(registrationId)}`, undefined, {
     query: { confirm_slug: confirmSlug },
   });
 }
@@ -109,7 +109,7 @@ export async function fetchEventAnalytics(eventId: number) {
  */
 export async function markAttendance(eventId: number, registrationId: string) {
   await api.post<void>(
-    `/api/v1/events/registration/${eventId}/attendance/${registrationId}`,
+    `/api/v1/events/registration/${eventId}/attendance/${encodeURIComponent(registrationId)}`,
     { is_attended: true }
   );
 }
@@ -127,7 +127,7 @@ export async function setRegistrationRole(
   role: RegistrationRole
 ) {
   await api.put<unknown>(
-    `/api/v1/events/registration/${eventId}/role/${registrationId}`,
+    `/api/v1/events/registration/${eventId}/role/${encodeURIComponent(registrationId)}`,
     { role }
   );
 }

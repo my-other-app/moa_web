@@ -21,25 +21,25 @@ export async function createThread(input: ComposeInput, photo: File | null) {
 }
 
 export async function setPinned(id: string, pinned: boolean) {
-  const raw = await api.patch<unknown>(`${BASE}/${id}`, { pinned });
+  const raw = await api.patch<unknown>(`${BASE}/${encodeURIComponent(id)}`, { pinned });
   return threadSchema.parse(raw);
 }
 
 export async function deleteThread(id: string) {
-  await api.del<unknown>(`${BASE}/${id}`);
+  await api.del<unknown>(`${BASE}/${encodeURIComponent(id)}`);
 }
 
 export async function fetchComments(id: string) {
-  const raw = await api.get<unknown>(`${BASE}/${id}/comments`);
+  const raw = await api.get<unknown>(`${BASE}/${encodeURIComponent(id)}/comments`);
   return z.array(commentSchema).parse(raw);
 }
 
 export async function deleteComment(id: string, commentId: string) {
-  await api.del<unknown>(`${BASE}/${id}/comments/${commentId}`);
+  await api.del<unknown>(`${BASE}/${encodeURIComponent(id)}/comments/${encodeURIComponent(commentId)}`);
 }
 
 export async function replyAsClub(id: string, body: string) {
-  const raw = await api.post<unknown>(`${BASE}/${id}/comments`, { body });
+  const raw = await api.post<unknown>(`${BASE}/${encodeURIComponent(id)}/comments`, { body });
   return commentSchema.parse(raw);
 }
 

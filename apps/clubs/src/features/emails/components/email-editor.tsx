@@ -638,8 +638,8 @@ function Editor({
                     onSuccess: (t) =>
                       router.push(
                         scope.kind === "event"
-                          ? `/events/${scope.eventId}/emails/${t.id}`
-                          : `/emails/${t.id}`,
+                          ? `/events/${scope.eventId}/emails/${encodeURIComponent(t.id)}`
+                          : `/emails/${encodeURIComponent(t.id)}`,
                       ),
                   })
                 }

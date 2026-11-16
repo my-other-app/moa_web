@@ -16,7 +16,7 @@ export const fileIdOf = (id: string) => id.slice(id.lastIndexOf("/") + 1);
  * the backend's package is not one: it would resolve against the dashboard.
  */
 export const thumbnailOf = (d: DesignInfo) =>
-  d.previewUrl && /^https:\/\//.test(d.previewUrl) ? d.previewUrl : `/designs/${d.kind}/${fileIdOf(d.id)}.webp`;
+  d.previewUrl && /^https:\/\//.test(d.previewUrl) ? d.previewUrl : `/designs/${d.kind}/${encodeURIComponent(fileIdOf(d.id))}.webp`;
 
 // ─── Colour ─────────────────────────────────────────────────────────────
 
