@@ -2,7 +2,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { CROSS_ORIGIN_REFUSED, createGatewayHandlers, isCrossSite, isSameOrigin, stripTokens } from "@moa/auth/gateway";
+import { BAD_PATH, CROSS_ORIGIN_REFUSED, createGatewayHandlers, isCrossSite, isSameOrigin, isUnsafeSegment, stripTokens } from "@moa/auth/gateway";
 
 /**
  * The gateway is the dashboard's one way to the API, and the boundary that
@@ -255,5 +255,33 @@ describe("session tokens in auth answers", () => {
     expect(stripTokens("[1,2]")).toBe("[1,2]");
     expect(stripTokens('{"a":1}')).toBe('{"a":1}');
     expect(JSON.parse(stripTokens('{"a":1,"access_token":"x","refresh_token":"y"}'))).toEqual({ a: 1 });
+  });
+});
+
+describe("the API path", () => {
+  // The segments as Next hands them to the route: already decoded.
+  const send = (segments: string[]) =>
+    gateway().GET(new Request(`https://${HOST}/api/gateway/x`, { headers: { host: HOST, "sec-fetch-site": "same-origin" } }), { params: Promise.resolve({ path: segments }) });
+
+  it("keeps each segment one segment: one that climbs, holds a slash or starts a query is not sent", async () => {
+    for (const odd of ["..", ".", "a/b", "../x", "a\\b", "x?y=1", "x#y"]) {
+      const res = await send(["api", "v1", "clubs", "emails", odd]);
+      expect(res.status).toBe(400);
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(((await res.json()) as { error_code: string }).error_code).toBe(BAD_PATH);
+    }
+    expect(seen).toEqual([]);
+  });
+
+  it("sends every other segment as it came", async () => {
+    const res = await send(["api", "v1", "admin", "mail", "suppressions", "a+b@example.com"]);
+    expect(res.status).toBe(200);
+    expect(await send(["api", "v1", "clubs", "emails", "tpl_42.v2", "preview"])).toHaveProperty("status", 200);
+    expect(seen.map((s) => s.url)).toEqual(["/api/v1/admin/mail/suppressions/a+b@example.com", "/api/v1/clubs/emails/tpl_42.v2/preview"]);
+  });
+
+  it("knows which segments those are", () => {
+    for (const ok of ["events", "42", "a.b", "...", "MOA-7K3QF", "a b", "a:b", "100%"]) expect(isUnsafeSegment(ok)).toBe(false);
+    for (const odd of [".", "..", "/", "a/b", "a\\b", "?", "#x"]) expect(isUnsafeSegment(odd)).toBe(true);
   });
 });

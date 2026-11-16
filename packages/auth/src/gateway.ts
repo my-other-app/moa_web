@@ -92,6 +92,26 @@ const refused = () =>
     { status: 403, headers: { "cache-control": "no-store" } },
   );
 
+/** What a request whose address has a segment the API path cannot hold is answered with. */
+export const BAD_PATH = "BAD_PATH";
+
+/**
+ * A path segment, as Next hands it over (decoded), that would not stay one
+ * segment of the API path: "." and "..", or one holding "/", a backslash,
+ * "?" or "#" (sent encoded, then decoded on the way in). The dashboards encode
+ * every value they put in a path, so their own requests never have one.
+ */
+export function isUnsafeSegment(segment: string): boolean {
+  return segment === "." || segment === ".." || /[/\\?#]/.test(segment);
+}
+
+/** A 400 for such an address: nothing is sent to the API. */
+const badPath = () =>
+  Response.json(
+    { message: "This address can't be sent to the API.", error_code: BAD_PATH },
+    { status: 400, headers: { "cache-control": "no-store" } },
+  );
+
 /** Body fields that are a session: the HttpOnly cookies carry it instead. */
 const TOKEN_FIELDS = ["access_token", "refresh_token"] as const;
 
@@ -286,6 +306,8 @@ export function createGatewayHandlers(options: GatewayOptions) {
     }
 
     const { path } = await context.params;
+    // Each segment stays one segment upstream: none can climb or start a query.
+    if ((path ?? []).some(isUnsafeSegment)) return badPath();
     const upstreamPath = `/${(path ?? []).join("/")}`;
     const search = new URL(request.url).search;
     const target = `${apiUrl.replace(/\/$/, "")}${upstreamPath}${search}`;
