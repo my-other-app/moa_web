@@ -7,7 +7,8 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage, IconButton, I
 import { LockBadge, useEventPlan, useLimitGate } from "@/features/plan";
 
 import { useTicketingOnServer } from "../queries";
-import { DEFAULT_TYPE_NAME, blankType, priceText, type TicketTypeDraft } from "../schemas";
+import { DEFAULT_TYPE_NAME, blankType, hiddenTypeLink, priceText, type TicketTypeDraft } from "../schemas";
+import { CopyTypeLinkButton } from "./hidden-links";
 
 /**
  * The event's ticket types, in the event form's "Places and money".
@@ -18,6 +19,9 @@ import { DEFAULT_TYPE_NAME, blankType, priceText, type TicketTypeDraft } from ".
  * its own price (0 is free), places, sales window, per-person limit, and
  * whether it is listed. "Places" above becomes an optional total across all
  * of them. Saved with the event (PUT /events/{id}/ticketing/types).
+ *
+ * A hidden type is sold only through its own link (the type and a key the
+ * server made for it): once it is saved hidden, its row copies that link.
  *
  * Shown only when the API has ticket types: editing, once the event's types
  * have loaded; making one, once the server is known to have them.
@@ -46,6 +50,8 @@ function TypeRow({
   const row = useWatch({ control: form.control, name: `ticket_types.${index}` }) as Row | undefined;
   const held = Boolean(row?.has_registrations);
   const name = row?.name?.trim() || `Type ${index + 1}`;
+  // The saved type's link, while the row is still hidden: one made hidden here gets its link once saved.
+  const link = row ? hiddenTypeLink(row) : null;
   return (
     <li className={cn("border-line bg-surface grid gap-3 rounded-xl border p-3.5", row?.is_hidden && "border-dashed")} aria-label={`Ticket type ${index + 1}`}>
       <div className="flex flex-wrap items-start gap-3">
@@ -164,11 +170,16 @@ function TypeRow({
                 <Switch checked={Boolean(f.value)} onCheckedChange={f.onChange} aria-label={`Hide ${name}`} />
               </FormControl>
               <FormLabel className="text-ink-2 flex items-center gap-1.5 text-[12.5px] font-normal">
-                <EyeOffIcon className="size-3.5" /> Hidden: sold only through a link that names it
+                <EyeOffIcon className="size-3.5" /> Hidden: sold only through its own link
               </FormLabel>
             </FormItem>
           )}
         />
+        {link ? (
+          <CopyTypeLinkButton link={link} name={name} className="btn btn-ghost btn-sm" />
+        ) : row?.is_hidden ? (
+          <span className="text-ink-3 text-[11.5px]">Once saved, its link is on the Tickets tab.</span>
+        ) : null}
         {row?.sold ? (
           <span className="text-ink-3 font-mono text-[11.5px] tabular-nums">
             {row.sold.toLocaleString("en-IN")} sold{held ? " · can be hidden, not removed" : ""}

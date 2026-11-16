@@ -264,6 +264,37 @@ describe("the event's Tickets tab", () => {
     render(<TicketsPage eventId={37} />);
     expect(await screen.findByText("Ticket types aren't available yet")).toBeInTheDocument();
   });
+
+  it("lists each hidden type's signed link to copy, and nothing for a shown type or a link without its key", async () => {
+    const SIGNED = "https://myotherapp.in/events/sf-sea-hackathon?ticket_type=14&ticket_key=3f9c0a1b2c3d4e5f60718293";
+    override = {
+      "/api/v1/events/37/ticketing/types": {
+        ...TYPES,
+        types: [
+          { ...TYPES.types[0]!, link: "https://myotherapp.in/events/sf-sea-hackathon?ticket_type=11" },
+          { ...TYPES.types[1]!, id: 14, name: "Speaker", price: 0, is_hidden: true, link: SIGNED },
+          // A hidden type whose link has no key (a server that names it only): not offered.
+          { ...TYPES.types[1]!, id: 15, name: "Staff", is_hidden: true, link: "https://myotherapp.in/events/sf-sea-hackathon?ticket_type=15" },
+        ],
+      },
+    };
+    const writeText = vi.fn(async () => {});
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<TicketsPage eventId={37} />);
+    const list = await screen.findByRole("list", { name: "Links for hidden tickets" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(list).getByText("Speaker")).toBeInTheDocument();
+    expect(within(list).getByText(/Free · https:\/\/myotherapp\.in\/events\/sf-sea-hackathon\?ticket_type=14&ticket_key=/)).toBeInTheDocument();
+    fireEvent.click(within(list).getByRole("button", { name: "Copy the link for Speaker" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(SIGNED));
+  });
+
+  it("shows no links panel when the server sends no links (door staff, or an older server)", async () => {
+    override = { "/api/v1/events/37/ticketing/types": { ...TYPES, types: [{ ...TYPES.types[1]!, is_hidden: true, link: null }, TYPES.types[0]] } };
+    render(<TicketsPage eventId={37} />);
+    expect(await screen.findByRole("heading", { name: "2 ticket types" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Links for hidden tickets" })).not.toBeInTheDocument();
+  });
 });
 
 describe("discount codes", () => {
