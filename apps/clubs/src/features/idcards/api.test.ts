@@ -63,4 +63,15 @@ describe("a card fetched to print", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("is always a PDF to the frame, whatever type the answer named", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("%PDF-1.4 card", { status: 200, headers: { "content-type": "text/html" } })));
+    try {
+      const blob = await api.fetchPdf("/api/gateway/api/v1/events/42/idcards/r1.pdf");
+      expect(blob.type).toBe("application/pdf");
+      expect(blob.size).toBe("%PDF-1.4 card".length);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
