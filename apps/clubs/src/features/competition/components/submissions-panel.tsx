@@ -3,7 +3,7 @@
 import * as React from "react";
 import { CheckCircle2Icon, CircleDashedIcon, LockIcon, LockOpenIcon, MinusIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { formatDateTime } from "@moa/app-kit";
-import { FigurePanel, IconButton, StatusBadge, Switch, cn } from "@moa/ui";
+import { FigurePanel, IconButton, StatusBadge, Switch, cn, safeHref } from "@moa/ui";
 
 import { usePatchSettings, useSubmissionsAction } from "../queries";
 import type { Competition, Requirement } from "../schemas";
@@ -137,10 +137,14 @@ export function SubmissionsPanel({ eventId, c }: { eventId: number; c: Competiti
                     const v = t.submission.fields[r.key];
                     return (
                       <span key={r.key} className="hidden items-center gap-1 sm:flex">
-                        {v ? (
-                          <a href={v} target="_blank" rel="noreferrer" className="text-admit flex items-center gap-1 hover:underline">
+                        {v && safeHref(v) ? (
+                          <a href={safeHref(v)} target="_blank" rel="noreferrer" className="text-admit flex items-center gap-1 hover:underline">
                             <CheckCircle2Icon className="size-3.5" /> Added
                           </a>
+                        ) : v ? (
+                          <span className="text-admit flex items-center gap-1" title={v}>
+                            <CheckCircle2Icon className="size-3.5" /> Added
+                          </span>
                         ) : r.required ? (
                           <span className="text-caution flex items-center gap-1">
                             <CircleDashedIcon className="size-3.5" /> Missing

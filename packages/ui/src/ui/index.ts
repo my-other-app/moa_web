@@ -74,6 +74,7 @@ export { StatusBadge, type StatusBadgeProps, type StatusTone } from "./status-ba
 export { DataTable, type DataTableColumn, type DataTableProps, type DataTableSort, type SortOrder } from "./data-table";
 export { StatCard, type StatCardProps, type StatCardTone } from "./stat-card";
 export { cn } from "../lib/cn";
+export { safeHref } from "../lib/safe-href";
 export { Separator } from "./separator";
 export { Skeleton, skeletonVariants } from "./skeleton";
 export {

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { ExternalLinkIcon } from "lucide-react";
 import { SectionTitle, pickImage } from "@moa/app-kit";
-import { Card, CardContent } from "@moa/ui";
+import { Card, CardContent, safeHref } from "@moa/ui";
 
 import type { EventPartner } from "../schemas";
 
@@ -31,8 +31,8 @@ function Tile({ partner }: { partner: EventPartner }) {
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium">{partner.name}</span>
         {partner.label ? <span className="text-muted-foreground block truncate text-xs">{partner.label}</span> : null}
-        {partner.link ? (
-          <a href={partner.link} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground inline-flex max-w-full items-center gap-1 truncate text-xs underline-offset-2 hover:underline">
+        {partner.link && safeHref(partner.link) ? (
+          <a href={safeHref(partner.link)} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground inline-flex max-w-full items-center gap-1 truncate text-xs underline-offset-2 hover:underline">
             {host(partner.link)} <ExternalLinkIcon className="size-3 shrink-0" />
           </a>
         ) : null}
