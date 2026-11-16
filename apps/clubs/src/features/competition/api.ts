@@ -17,7 +17,7 @@ export const createTeam = async (eventId: number, body: { name: string; track_id
 export const patchTeam = async (eventId: number, id: number, body: { name?: string; track_id?: number | null; stage?: Stage }) => parse(await api.patch<unknown>(`${base(eventId)}/teams/${id}`, body));
 export const deleteTeam = async (eventId: number, id: number) => parse(await api.del<unknown>(`${base(eventId)}/teams/${id}`));
 export const addMember = async (eventId: number, teamId: number, registrationId: string) => parse(await api.post<unknown>(`${base(eventId)}/teams/${teamId}/members`, { registration_id: registrationId }));
-export const removeMember = async (eventId: number, teamId: number, registrationId: string) => parse(await api.del<unknown>(`${base(eventId)}/teams/${teamId}/members/${registrationId}`));
+export const removeMember = async (eventId: number, teamId: number, registrationId: string) => parse(await api.del<unknown>(`${base(eventId)}/teams/${teamId}/members/${encodeURIComponent(registrationId)}`));
 
 export const submissionsAction = async (eventId: number, action: "close" | "reopen") => parse(await api.post<unknown>(`${base(eventId)}/submissions/${action}`, {}));
 

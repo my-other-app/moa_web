@@ -100,7 +100,7 @@ export function DocsLinksPage() {
         <div className="min-w-0">
           <p className="m-0 truncate font-medium">{docsLinkName(l)}</p>
           {l.kind === "club" && l.club ? (
-            <Link href={`/clubs/${l.club.id}`} className="text-muted-foreground block truncate text-[11.5px] hover:underline">
+            <Link href={`/clubs/${encodeURIComponent(l.club.id)}`} className="text-muted-foreground block truncate text-[11.5px] hover:underline">
               {docsLinkFor(l)}
             </Link>
           ) : (

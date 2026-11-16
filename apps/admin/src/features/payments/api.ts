@@ -38,5 +38,5 @@ export async function fetchPaymentTotals() {
 
 /** Full refund only — the service refuses a partial one. */
 export async function refundPayment(paymentId: string): Promise<void> {
-  await api.post<void>(`/api/v1/payments/logs/${paymentId}/refund`);
+  await api.post<void>(`/api/v1/payments/logs/${encodeURIComponent(paymentId)}/refund`);
 }

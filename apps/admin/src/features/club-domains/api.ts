@@ -27,11 +27,11 @@ export async function fetchClubDomains(query: ClubDomainQuery): Promise<Paginate
  * automatic check. The row as it now is, when the server sends it back.
  */
 export async function recheckClubDomain(id: string): Promise<ClubDomainRow | null> {
-  const parsed = clubDomainRowSchema.safeParse(await api.post<unknown>(`${BASE}/${id}/recheck`));
+  const parsed = clubDomainRowSchema.safeParse(await api.post<unknown>(`${BASE}/${encodeURIComponent(id)}/recheck`));
   return parsed.success ? parsed.data : null;
 }
 
 /** Takes the domain off: the club's site is at its MyOtherApp address alone again. */
 export async function removeClubDomain(id: string): Promise<void> {
-  await api.del<unknown>(`${BASE}/${id}`);
+  await api.del<unknown>(`${BASE}/${encodeURIComponent(id)}`);
 }

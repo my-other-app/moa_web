@@ -125,7 +125,7 @@ export async function setEventWinner(
   position: number | null
 ): Promise<void> {
   await api.put<void>(
-    `/api/v1/events/registration/${eventId}/winners/${registrationId}`,
+    `/api/v1/events/registration/${eventId}/winners/${encodeURIComponent(registrationId)}`,
     { position }
   );
 }
@@ -210,10 +210,10 @@ export interface PersonPatch {
  * route the club uses; an admin needs manage_content. Nothing is emailed.
  */
 export async function correctRegistration(eventId: number, registrationId: string, patch: PersonPatch) {
-  await api.patch<unknown>(`/api/v1/events/registration/${eventId}/info/${registrationId}`, patch);
+  await api.patch<unknown>(`/api/v1/events/registration/${eventId}/info/${encodeURIComponent(registrationId)}`, patch);
 }
 
 /** Correct someone under review (or already reviewed): nothing is decided or emailed. */
 export async function correctUnderReview(eventId: number, requestId: string, patch: PersonPatch) {
-  await api.patch<unknown>(`${reviewBase(eventId)}/${requestId}`, patch);
+  await api.patch<unknown>(`${reviewBase(eventId)}/${encodeURIComponent(requestId)}`, patch);
 }

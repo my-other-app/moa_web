@@ -10,6 +10,7 @@ import {
   type LayoutV2,
   buildBody,
   buildLayer,
+  cssFamily,
   fitDoc,
   fontUses,
   fontsCssUrl,
@@ -99,7 +100,7 @@ export const fitLayers = (drawn: { el: HTMLElement; layer: LayerV2 }[]) => {
   const texts = drawn.filter((d) => d.layer.kind === "text");
   if (!texts.length) return;
   const uses = fontUses({ layers: texts.map((d) => d.layer) } as LayoutV2);
-  const faces = new Set(uses.map(([family, weight, style]) => `${style} ${weight} 16px '${family}'`));
+  const faces = new Set(uses.map(([family, weight, style]) => `${style} ${weight} 16px '${cssFamily(family)}'`));
   // Fitting is how long text looks, never whether the stage works: a browser that cannot measure leaves it as built.
   const fit = () =>
     texts.forEach(({ el }) => {

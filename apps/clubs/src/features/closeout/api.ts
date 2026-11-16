@@ -15,7 +15,7 @@ export async function fetchReports(eventId: number) {
 export async function generateReport(eventId: number) {
   return reportSchema.parse(await api.post<unknown>(`${base(eventId)}/reports`, {}));
 }
-export const reportPdfUrl = (eventId: number, reportId: string) => `${GATEWAY_PREFIX}${base(eventId)}/reports/${reportId}.pdf`;
+export const reportPdfUrl = (eventId: number, reportId: string) => `${GATEWAY_PREFIX}${base(eventId)}/reports/${encodeURIComponent(reportId)}.pdf`;
 export async function fetchCloseoutSettings(eventId: number) {
   return closeoutSettingsSchema.parse(await api.get<unknown>(`${base(eventId)}/settings`));
 }

@@ -73,7 +73,7 @@ export async function fetchCertificates(q: CertificateQuery) {
 }
 
 export async function setCertificateRevoked(eventId: number, registrationId: string, revoked: boolean) {
-  const raw = await api.post<unknown>(`${base(eventId)}/${registrationId}/${revoked ? "revoke" : "reinstate"}`);
+  const raw = await api.post<unknown>(`${base(eventId)}/${encodeURIComponent(registrationId)}/${revoked ? "revoke" : "reinstate"}`);
   return certificateStateSchema.parse(raw);
 }
 

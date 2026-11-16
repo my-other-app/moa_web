@@ -56,7 +56,7 @@ export async function fetchRequests(eventId: number, query: RequestQuery) {
 
 /** PATCH …/requests/{id}: correct their name, email, phone or answers; nothing is decided or emailed. */
 export async function correctRequest(eventId: number, requestId: string, patch: RequestCorrection) {
-  const raw = await api.patch<unknown>(`${base(eventId)}/${requestId}`, patch);
+  const raw = await api.patch<unknown>(`${base(eventId)}/${encodeURIComponent(requestId)}`, patch);
   return requestSchema.parse(raw);
 }
 

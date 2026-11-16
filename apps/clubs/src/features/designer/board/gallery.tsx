@@ -37,7 +37,7 @@ const previewOf = (kind: BoardKind, s: StarterMeta) => {
   if (/^https:\/\//.test(p)) return p;
   // The API's own files (/static/doc-designs/...) go through the gateway.
   if (p.startsWith("/static/")) return `${GATEWAY_PREFIX}${p}`;
-  return `/designs/${kind}/${fileIdOf(s.id)}.webp`;
+  return `/designs/${kind}/${encodeURIComponent(fileIdOf(s.id))}.webp`;
 };
 
 const StarterThumb = ({ kind, s }: { kind: BoardKind; s: StarterMeta }) => {

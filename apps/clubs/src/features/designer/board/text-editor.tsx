@@ -1,6 +1,6 @@
 "use client";
 
-import type { TextLayerV2, TokenGroup } from "@moa/layout";
+import { type TextLayerV2, type TokenGroup, cssFamily } from "@moa/layout";
 import { Button } from "@moa/ui";
 import * as React from "react";
 
@@ -96,7 +96,7 @@ export const TextEditor = ({
         }}
         className="ring-brand block size-full resize-none overflow-hidden bg-white/85 ring-2 outline-none"
         style={{
-          fontFamily: `'${layer.font.family}'`,
+          fontFamily: `'${cssFamily(layer.font.family)}'`,
           fontWeight: layer.font.weight,
           fontStyle: layer.font.style,
           fontSize: layer.size * zoom,

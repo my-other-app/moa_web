@@ -14,11 +14,11 @@ export async function createClubItem(body: Record<string, unknown>) {
 }
 
 export async function updateClubItem(id: string, patch: Record<string, unknown>) {
-  return clubStoreItemSchema.parse(await api.patch<unknown>(`${BASE}/${id}`, patch));
+  return clubStoreItemSchema.parse(await api.patch<unknown>(`${BASE}/${encodeURIComponent(id)}`, patch));
 }
 
 export async function deleteClubItem(id: string) {
-  await api.del<unknown>(`${BASE}/${id}`);
+  await api.del<unknown>(`${BASE}/${encodeURIComponent(id)}`);
 }
 
 /** A photo for an item: PNG, JPEG or WebP, up to 5 MB. The key goes on the item. */

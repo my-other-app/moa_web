@@ -303,7 +303,7 @@ function StageCard({
             onToggle={() => setOpen(!open)}
           />
           <Link
-            href={`/events/${eventId}/emails/${t.id}`}
+            href={`/events/${eventId}/emails/${encodeURIComponent(t.id)}`}
             className="btn btn-secondary btn-sm"
           >
             <PencilIcon /> Edit
@@ -352,7 +352,7 @@ function CustomRow({
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const href = `/events/${eventId}/emails/${t.id}`;
+  const href = `/events/${eventId}/emails/${encodeURIComponent(t.id)}`;
   return (
     <li className="border-line-soft border-t px-4 py-3 first:border-t-0">
       <div className="flex items-center gap-3">
@@ -476,7 +476,7 @@ export function EmailsPage({ eventId }: { eventId: number }) {
   // being off touches only people the club adds itself.
   const event = useEventDetail(eventId);
   const reviews = event.data?.requires_approval === true;
-  const editor = (id: string) => `/events/${eventId}/emails/${id}`;
+  const editor = (id: string) => `/events/${eventId}/emails/${encodeURIComponent(id)}`;
 
   const newEmail = () =>
     create.mutate(

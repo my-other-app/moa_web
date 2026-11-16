@@ -24,7 +24,7 @@ export default async function ConfirmActionPage({ params }: { params: Promise<{ 
   const token = decodeURIComponent(raw);
   const { user, refusal } = await checkSession();
   if (!user && refusal === CLUB_NOT_VERIFIED) return <AwaitingApproval />;
-  if (!user) redirect(`/login?next=${encodeURIComponent(`/confirm/${token}`)}`);
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/confirm/${encodeURIComponent(token)}`)}`);
   // An admin account has no club: the page says so from the API's NOT_A_CLUB rather than here.
   return <ConfirmPage token={token} />;
 }

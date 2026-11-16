@@ -32,7 +32,7 @@ export const scopeBase = (s: EmailScope) =>
 
 /** Where the editor for a template lives in the app. */
 export const templateHref = (s: EmailScope, templateId: string) =>
-  s.kind === "event" ? `/events/${s.eventId}/emails/${templateId}` : `/emails/${templateId}`;
+  s.kind === "event" ? `/events/${s.eventId}/emails/${encodeURIComponent(templateId)}` : `/emails/${encodeURIComponent(templateId)}`;
 
 export const scopeHref = (s: EmailScope) => (s.kind === "event" ? `/events/${s.eventId}/emails` : "/emails");
 
@@ -52,7 +52,7 @@ export async function fetchEmailContext(scope: EmailScope) {
 }
 
 export async function fetchTemplate(scope: EmailScope, templateId: string) {
-  const raw = await api.get<unknown>(`${scopeBase(scope)}/${templateId}`);
+  const raw = await api.get<unknown>(`${scopeBase(scope)}/${encodeURIComponent(templateId)}`);
   return emailTemplateSchema.parse(raw);
 }
 
@@ -62,26 +62,26 @@ export async function createTemplate(scope: EmailScope, fields: EmailTemplateFie
 }
 
 export async function saveTemplate(scope: EmailScope, templateId: string, fields: EmailTemplateFields) {
-  const raw = await api.put<unknown>(`${scopeBase(scope)}/${templateId}`, fields);
+  const raw = await api.put<unknown>(`${scopeBase(scope)}/${encodeURIComponent(templateId)}`, fields);
   return emailTemplateSchema.parse(raw);
 }
 
 export async function deleteTemplate(scope: EmailScope, templateId: string) {
-  await api.del<unknown>(`${scopeBase(scope)}/${templateId}`);
+  await api.del<unknown>(`${scopeBase(scope)}/${encodeURIComponent(templateId)}`);
 }
 
 export async function duplicateTemplate(scope: EmailScope, templateId: string) {
-  const raw = await api.post<unknown>(`${scopeBase(scope)}/${templateId}/duplicate`);
+  const raw = await api.post<unknown>(`${scopeBase(scope)}/${encodeURIComponent(templateId)}/duplicate`);
   return emailTemplateSchema.parse(raw);
 }
 
 export async function saveToLibrary(eventId: number, templateId: string) {
-  const raw = await api.post<unknown>(`${scopeBase({ kind: "event", eventId })}/${templateId}/save-to-library`);
+  const raw = await api.post<unknown>(`${scopeBase({ kind: "event", eventId })}/${encodeURIComponent(templateId)}/save-to-library`);
   return emailTemplateSchema.parse(raw);
 }
 
 export async function resetTemplate(eventId: number, templateId: string) {
-  const raw = await api.post<unknown>(`${scopeBase({ kind: "event", eventId })}/${templateId}/reset`);
+  const raw = await api.post<unknown>(`${scopeBase({ kind: "event", eventId })}/${encodeURIComponent(templateId)}/reset`);
   return emailTemplateSchema.parse(raw);
 }
 
@@ -91,7 +91,7 @@ export async function resetTemplate(eventId: number, templateId: string) {
  * the template; 422 for a custom email, which has no default.
  */
 export async function resetLibraryTemplate(templateId: string) {
-  const raw = await api.post<unknown>(`${scopeBase({ kind: "library" })}/${templateId}/reset`);
+  const raw = await api.post<unknown>(`${scopeBase({ kind: "library" })}/${encodeURIComponent(templateId)}/reset`);
   return emailTemplateSchema.parse(raw);
 }
 
@@ -102,7 +102,7 @@ export async function resetLibraryTemplate(templateId: string) {
  * ref reads no body here, and sends as it always did.)
  */
 export async function sendTemplate(eventId: number, templateId: string, clientRef?: string) {
-  const raw = await api.post<unknown>(`${scopeBase({ kind: "event", eventId })}/${templateId}/send`, clientRef ? { clientRef } : undefined);
+  const raw = await api.post<unknown>(`${scopeBase({ kind: "event", eventId })}/${encodeURIComponent(templateId)}/send`, clientRef ? { clientRef } : undefined);
   return messageSchema.parse(raw);
 }
 
@@ -174,7 +174,7 @@ export interface MessageQuery {
 }
 
 export async function fetchMessage(eventId: number, messageId: string, q: MessageQuery) {
-  const raw = await api.get<unknown>(`${messagesBase(eventId)}/${messageId}`, {
+  const raw = await api.get<unknown>(`${messagesBase(eventId)}/${encodeURIComponent(messageId)}`, {
     query: { problem: q.problem || undefined, search: q.search, page: q.page, page_size: q.pageSize },
   });
   return messageDetailSchema.parse(raw);
@@ -190,7 +190,7 @@ export async function fetchLibraryOverview() {
 const reviewBase = (eventId: number) => `${scopeBase({ kind: "event", eventId })}/review`;
 
 /** The editor of an event's own copy of a review email. */
-export const reviewHref = (eventId: number, stage: string) => `/events/${eventId}/emails/review/${stage.toLowerCase()}`;
+export const reviewHref = (eventId: number, stage: string) => `/events/${eventId}/emails/review/${encodeURIComponent(stage.toLowerCase())}`;
 
 /**
  * Whether an error means "this API has no review emails per event yet": its
@@ -218,19 +218,19 @@ export async function fetchReviewEmails(eventId: number) {
 
 /** Saves this event's own words for a stage (PUT /review/{stage}); the first save makes the copy. */
 export async function saveReviewEmail(eventId: number, stage: string, fields: EmailTemplateFields) {
-  const raw = await api.put<unknown>(`${reviewBase(eventId)}/${stage.toUpperCase()}`, emailTemplateFieldsSchema.parse(fields));
+  const raw = await api.put<unknown>(`${reviewBase(eventId)}/${encodeURIComponent(stage.toUpperCase())}`, emailTemplateFieldsSchema.parse(fields));
   return reviewEmailSchema.shape.template.parse(raw);
 }
 
 /** Drops this event's own copy (DELETE /review/{stage}); answers the club's (or the default) template. */
 export async function resetReviewEmail(eventId: number, stage: string) {
-  const raw = await api.del<unknown>(`${reviewBase(eventId)}/${stage.toUpperCase()}`);
+  const raw = await api.del<unknown>(`${reviewBase(eventId)}/${encodeURIComponent(stage.toUpperCase())}`);
   return reviewEmailSchema.shape.template.safeParse(raw).data ?? null;
 }
 
 /** How many a send-again reaches right now, and how many of them have no email. */
 export async function countReviewResend(eventId: number, stage: string) {
-  const raw = await api.post<unknown>(`${reviewBase(eventId)}/${stage.toUpperCase()}/resend/count`);
+  const raw = await api.post<unknown>(`${reviewBase(eventId)}/${encodeURIComponent(stage.toUpperCase())}/resend/count`);
   return reviewResendCountSchema.parse(raw);
 }
 
@@ -240,6 +240,6 @@ export async function countReviewResend(eventId: number, stage: string) {
  * a ref it has seen with that send and mails nobody twice.
  */
 export async function resendReviewEmail(eventId: number, stage: string, clientRef: string) {
-  const raw = await api.post<unknown>(`${reviewBase(eventId)}/${stage.toUpperCase()}/resend`, { clientRef });
+  const raw = await api.post<unknown>(`${reviewBase(eventId)}/${encodeURIComponent(stage.toUpperCase())}/resend`, { clientRef });
   return reviewResendSchema.parse(raw);
 }

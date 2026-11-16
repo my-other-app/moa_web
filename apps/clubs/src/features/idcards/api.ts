@@ -34,17 +34,19 @@ const q = (params: Record<string, string | boolean | null | undefined>) => {
  * `?key=` for consoles deployed before this, deprecated.)
  */
 export const cardPdfUrl = (eventId: number, registrationId: string, opts: { source?: string; record?: boolean; override?: boolean; door?: string | null } = {}) =>
-  `${GATEWAY_PREFIX}${base(eventId)}/${registrationId}.pdf${q({ source: opts.source, record: opts.record === undefined ? undefined : opts.record, override: opts.override || undefined, door: opts.door })}`;
+  `${GATEWAY_PREFIX}${base(eventId)}/${encodeURIComponent(registrationId)}.pdf${q({ source: opts.source, record: opts.record === undefined ? undefined : opts.record, override: opts.override || undefined, door: opts.door })}`;
 
 /**
  * A PDF fetched with whatever credential the caller holds -- the session
  * cookie, a door key or a kiosk token in a header -- as a Blob to frame. A
- * refusal is the API's own error, words and code.
+ * refusal is the API's own error, words and code. The Blob is always typed
+ * as a PDF, whatever type the answer named, so the frame shows it only as
+ * a PDF.
  */
 export async function fetchPdf(url: string, headers: Record<string, string> = {}): Promise<Blob> {
   const response = await fetch(url, { credentials: "include", headers: { Accept: "application/pdf", ...headers } });
   if (!response.ok) throw await toApiError(response);
-  return response.blob();
+  return new Blob([await response.arrayBuffer()], { type: "application/pdf" });
 }
 
 /** Every card in one PDF. */

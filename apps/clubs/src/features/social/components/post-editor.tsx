@@ -200,7 +200,7 @@ function EditorForm({ eventId, request, accounts, drafts, variants, onClose }: {
   const draft = drafts.find((d) => d.platform === platform);
   const variant = variants.find((v) => v.size === current.size) ?? null;
   const poster = pickImage(event.poster, ["large", "original", "medium"]);
-  const link = draft?.link ?? `https://myotherapp.in/events/${event.slug ?? event.id}`;
+  const link = draft?.link ?? `https://myotherapp.in/events/${encodeURIComponent(event.slug ?? event.id)}`;
   const start = event.event_datetime ? new Date(event.event_datetime) : null;
   const values: Partial<Record<FillIn, string>> = {
     event_name: event.name,

@@ -59,7 +59,7 @@ import {
 export function ConfirmPage({ token }: { token: string }) {
   const q = usePendingAction(token);
   const router = useRouter();
-  const signIn = `/login?next=${encodeURIComponent(`/confirm/${token}`)}`;
+  const signIn = `/login?next=${encodeURIComponent(`/confirm/${encodeURIComponent(token)}`)}`;
   const unauthorised = q.error instanceof ApiError && q.error.isUnauthorized;
 
   // A session that ran out between the link and the page: sign in, then come back here.
@@ -210,7 +210,7 @@ function Request({ token, action: a }: { token: string; action: PendingAction })
   const showButtons = pending && a.can_decide && !refused?.off;
 
   React.useEffect(() => {
-    if (decide.error instanceof ApiError && decide.error.isUnauthorized) router.replace(`/login?next=${encodeURIComponent(`/confirm/${token}`)}`);
+    if (decide.error instanceof ApiError && decide.error.isUnauthorized) router.replace(`/login?next=${encodeURIComponent(`/confirm/${encodeURIComponent(token)}`)}`);
   }, [decide.error, router, token]);
 
   const go = (d: "confirm" | "reject") => {

@@ -20,7 +20,7 @@ export async function setStoreSettings(eventId: number, patch: { merch_enabled?:
 
 /** Takes an item off this event only; it stays in the club's merchandise and on other events. */
 export async function removeFromEvent(eventId: number, itemId: string) {
-  await api.del<unknown>(`${base(eventId)}/${itemId}`);
+  await api.del<unknown>(`${base(eventId)}/${encodeURIComponent(itemId)}`);
 }
 
 export async function fetchStoreOrders(eventId: number, params: { q?: string; status?: OrderFilter; page: number; page_size: number; sort?: string }) {
@@ -33,10 +33,10 @@ export async function fetchStoreOrders(eventId: number, params: { q?: string; st
 }
 
 export async function handOverOrder(eventId: number, orderId: string, undo = false) {
-  return orderSchema.parse(await api.post<unknown>(`${base(eventId)}/orders/${orderId}/handover${undo ? "/undo" : ""}`, {}));
+  return orderSchema.parse(await api.post<unknown>(`${base(eventId)}/orders/${encodeURIComponent(orderId)}/handover${undo ? "/undo" : ""}`, {}));
 }
 
 /** Settles an oversold order once its pieces are there again: it becomes a paid order to hand over. */
 export async function fulfilOrder(eventId: number, orderId: string) {
-  return orderSchema.parse(await api.post<unknown>(`${base(eventId)}/orders/${orderId}/fulfil`, {}));
+  return orderSchema.parse(await api.post<unknown>(`${base(eventId)}/orders/${encodeURIComponent(orderId)}/fulfil`, {}));
 }

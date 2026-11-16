@@ -1,6 +1,6 @@
 "use client";
 
-import { type ColorV2, type FillV2, type FontFamilyV2, type GradientStop } from "@moa/layout";
+import { type ColorV2, type FillV2, type FontFamilyV2, type GradientStop, cssFamily, cssHex } from "@moa/layout";
 import { Button, IconButton, NativeSelect, Popover, PopoverContent, PopoverTrigger, cn } from "@moa/ui";
 import { CheckIcon, ChevronDownIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import * as React from "react";
@@ -39,13 +39,13 @@ export interface ColorContext {
   ticketType?: string;
 }
 
-/** A colour as the editor's swatches show it, resolved as the builder resolves it. */
+/** A colour as the editor's swatches show it, resolved as the builder resolves it: a hex colour, else #000000. */
 export const resolveColorV2 = (c: ColorV2, ctx: ColorContext): string => {
-  if (c === "var:accent") return ctx.accent;
-  if (c === "brand.primary") return ctx.primary;
-  if (c === "ticket_type") return ctx.ticketType ?? ctx.primary;
-  if (c === "brand.secondary") return ctx.secondary;
-  return c;
+  if (c === "var:accent") return cssHex(ctx.accent);
+  if (c === "brand.primary") return cssHex(ctx.primary);
+  if (c === "ticket_type") return cssHex(ctx.ticketType ?? ctx.primary);
+  if (c === "brand.secondary") return cssHex(ctx.secondary);
+  return cssHex(c);
 };
 
 /** The swatch's paint: the colour, or a hatch for none. */
@@ -356,7 +356,7 @@ export const FontPicker = ({
             aria-expanded={open}
             className={cn(ui.control, "flex w-full items-center justify-between gap-2 text-left")}
           >
-            <span className="truncate" style={{ fontFamily: `'${value}'` }}>
+            <span className="truncate" style={{ fontFamily: `'${cssFamily(value)}'` }}>
               {value}
             </span>
             <ChevronDownIcon className="text-ink-3 size-4 shrink-0" aria-hidden="true" />
@@ -401,7 +401,7 @@ export const FontPicker = ({
                 className={cn("flex cursor-pointer items-center justify-between gap-2 rounded-[var(--radius-md)] px-2 py-1.5", i === active && "bg-sunken")}
               >
                 <span className="min-w-0">
-                  <span className="text-ink block truncate text-[16px] leading-tight" style={{ fontFamily: `'${f.family}'`, fontWeight: f.normal[0] ?? f.italic[0], fontStyle: f.normal.length ? "normal" : "italic" }}>
+                  <span className="text-ink block truncate text-[16px] leading-tight" style={{ fontFamily: `'${cssFamily(f.family)}'`, fontWeight: f.normal[0] ?? f.italic[0], fontStyle: f.normal.length ? "normal" : "italic" }}>
                     {sample}
                   </span>
                   <span className="text-ink-3 block truncate text-[11px]">{f.family}</span>

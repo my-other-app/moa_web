@@ -231,9 +231,9 @@ export function safePath(path: string | null | undefined): string | null {
 /** The admin pages a case's links open. */
 export function linkTargets(links: CaseLinks): { label: string; href: string }[] {
   const out: { label: string; href: string }[] = [];
-  if (links.user_id) out.push({ label: `User ${links.user_id}`, href: `/users/${links.user_id}` });
-  if (links.club_id) out.push({ label: `Club ${links.club_id}`, href: `/clubs/${links.club_id}` });
-  if (links.event_id) out.push({ label: `Event ${links.event_id}`, href: `/events/${links.event_id}` });
+  if (links.user_id) out.push({ label: `User ${links.user_id}`, href: `/users/${encodeURIComponent(links.user_id)}` });
+  if (links.club_id) out.push({ label: `Club ${links.club_id}`, href: `/clubs/${encodeURIComponent(links.club_id)}` });
+  if (links.event_id) out.push({ label: `Event ${links.event_id}`, href: `/events/${encodeURIComponent(links.event_id)}` });
   if (links.payment_id) out.push({ label: `Payment ${links.payment_id}`, href: `/payments?q=${encodeURIComponent(String(links.payment_id))}` });
   if (links.refund_id) out.push({ label: `Refund ${links.refund_id}`, href: `/payments?q=${encodeURIComponent(String(links.refund_id))}` });
   if (links.dispute_id) out.push({ label: `Dispute ${links.dispute_id}`, href: `/disputes` });

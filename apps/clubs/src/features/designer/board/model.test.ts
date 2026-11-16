@@ -1,6 +1,7 @@
 import { type LayoutV2, parseLayoutV2 } from "@moa/layout";
 import { describe, expect, it } from "vitest";
 
+import { cssFill, resolveColorV2 } from "./fields";
 import { accentLayers, copiesOf, newLayer, svgColors } from "./model";
 
 /** New layers, copies, and what the accent paints. */
@@ -48,5 +49,21 @@ describe("copies", () => {
 describe("the colours in artwork", () => {
   it("lists each hex once, upper-cased, short ones spelled out", () => {
     expect(svgColors('<svg><path fill="#ff8a3d"/><circle stroke="#FFF" fill="#FF8A3D"/></svg>')).toEqual(["#FF8A3D", "#FFFFFF"]);
+  });
+});
+
+describe("the colours the board paints", () => {
+  const ctx = { accent: "#FF8A3D", primary: "#1b6b47", secondary: "#abc", ticketType: "#7A1FD8" };
+
+  it("are the references resolved, as hex", () => {
+    expect(["var:accent", "brand.primary", "brand.secondary", "ticket_type", "#00000040"].map((c) => resolveColorV2(c, ctx))).toEqual(["#FF8A3D", "#1b6b47", "#abc", "#7A1FD8", "#00000040"]);
+    expect(resolveColorV2("ticket_type", { ...ctx, ticketType: undefined })).toBe("#1b6b47");
+  });
+
+  it("are #000000 for anything that is not a hex colour", () => {
+    expect(resolveColorV2("red;x:y", ctx)).toBe("#000000");
+    expect(resolveColorV2("var:accent", { ...ctx, accent: "orange" })).toBe("#000000");
+    expect(resolveColorV2("brand.primary", { ...ctx, primary: "" })).toBe("#000000");
+    expect(cssFill({ type: "linear", angle: 90, stops: [{ offset: 0, color: "x)" }, { offset: 1, color: "#FFFFFF" }] }, ctx)).toBe("linear-gradient(90deg, #000000 0%, #FFFFFF 100%)");
   });
 });

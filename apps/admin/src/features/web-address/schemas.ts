@@ -15,7 +15,7 @@ export const SITE_HOST = "myotherapp.in";
 
 /** Where the public page lives: /clubs/{slug} or /events/{slug}. */
 export function publicPath(kind: SlugKind, slug: string): string {
-  return `/${kind === "club" ? "clubs" : "events"}/${slug}`;
+  return `/${kind === "club" ? "clubs" : "events"}/${encodeURIComponent(slug)}`;
 }
 
 export function publicUrl(kind: SlugKind, slug: string): string {

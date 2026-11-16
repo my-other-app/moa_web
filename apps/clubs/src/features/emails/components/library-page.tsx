@@ -106,7 +106,7 @@ function Queue({ o }: { o: LibraryOverview }) {
               <ClockIcon className="text-ink-3 size-3.5 shrink-0" />
               <span className="min-w-0 flex-1">
                 <Link
-                  href={`/events/${q.event.id}/emails/${q.template_id}`}
+                  href={`/events/${q.event.id}/emails/${encodeURIComponent(q.template_id)}`}
                   className="text-ink block truncate hover:underline"
                 >
                   {q.label} · {q.name}
@@ -290,7 +290,7 @@ function StageCard({ t }: { t: LibraryTemplate }) {
             open={open}
             onToggle={() => setOpen(!open)}
           />
-          <Link href={`/emails/${t.id}`} className="btn btn-secondary btn-sm">
+          <Link href={`/emails/${encodeURIComponent(t.id)}`} className="btn btn-secondary btn-sm">
             <PencilIcon className="size-3.5" /> Edit
           </Link>
         </span>
@@ -368,7 +368,7 @@ function ReviewCard({ t }: { t: LibraryTemplate }) {
             open={open}
             onToggle={() => setOpen(!open)}
           />
-          <Link href={`/emails/${t.id}`} className="btn btn-secondary btn-sm">
+          <Link href={`/emails/${encodeURIComponent(t.id)}`} className="btn btn-secondary btn-sm">
             <PencilIcon className="size-3.5" /> Edit
           </Link>
         </span>
@@ -431,7 +431,7 @@ function CustomRow({
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <Link
-            href={`/emails/${t.id}`}
+            href={`/emails/${encodeURIComponent(t.id)}`}
             className="text-ink block truncate text-[13.5px] font-medium hover:underline"
           >
             {t.name}
@@ -460,7 +460,7 @@ function CustomRow({
             </IconButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => router.push(`/emails/${t.id}`)}>
+            <DropdownMenuItem onSelect={() => router.push(`/emails/${encodeURIComponent(t.id)}`)}>
               <PencilIcon /> Edit
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onDuplicate}>
@@ -530,7 +530,7 @@ export function EmailLibraryPage() {
           onClick={() =>
             create.mutate(
               { fields: blankTemplate() },
-              { onSuccess: (t) => router.push(`/emails/${t.id}`) },
+              { onSuccess: (t) => router.push(`/emails/${encodeURIComponent(t.id)}`) },
             )
           }
         >
@@ -612,7 +612,7 @@ export function EmailLibraryPage() {
               tag="Journey"
               action={
                 <Link
-                  href={`/emails/${(o.templates.find((t) => t.stage === off[0]) ?? journey[0])?.id ?? ""}`}
+                  href={`/emails/${encodeURIComponent((o.templates.find((t) => t.stage === off[0]) ?? journey[0])?.id ?? "")}`}
                   className="btn btn-secondary btn-sm"
                 >
                   Open it

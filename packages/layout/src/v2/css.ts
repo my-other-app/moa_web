@@ -31,6 +31,26 @@ export const f6 = (v: number) => v.toFixed(6);
 export const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
 
+/** A CSS hex colour: #RGB, #RGBA, #RRGGBB or #RRGGBBAA. */
+export const CSS_HEX = /^#(?:[0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/;
+
+/**
+ * A colour as it goes into a style: the hex colour itself, or `fallback`
+ * for anything else. Layouts, brands and styles only ever hold hex colours
+ * (the API checks them on save), so this changes nothing a real design
+ * draws; it keeps a page's styles to plain colours whatever it is given.
+ */
+export const cssHex = (value: string | null | undefined, fallback = "#000000"): string =>
+  typeof value === "string" && CSS_HEX.test(value) ? value : fallback;
+
+/**
+ * A font family name for a quoted CSS string (`font-family:'…'`). The font
+ * list's names (letters, digits and spaces) pass unchanged; quotes,
+ * backslashes and the characters that end a declaration or a tag are
+ * dropped. Inside HTML it is escaped as well: `esc(cssFamily(name))`.
+ */
+export const cssFamily = (family: string): string => family.replace(/["'\\;:{}()<>\r\n]/g, "");
+
 /** The brand colours a layout's references resolve to (the context's `colors`). */
 export type Colors = {
   primary: string;
@@ -47,16 +67,20 @@ export class Paint {
     layout: Pick<LayoutV2, "vars">,
     readonly colors: Readonly<Record<string, string | undefined>> = DEFAULT_COLORS,
   ) {
-    this.accent = layout.vars.accent || "#000000";
+    this.accent = cssHex(layout.vars.accent || "#000000");
   }
 
-  /** A layout colour as CSS: var:accent is vars.accent (#000000 unset), brand refs the context's, hex upper case. */
+  /**
+   * A layout colour as CSS: var:accent is vars.accent (#000000 unset), brand
+   * refs the context's, hex upper case. Only hex colours come out: anything
+   * else paints #000000.
+   */
   color(ref: string): string {
     if (ref === "var:accent") return this.accent;
-    if (ref === "brand.primary") return (this.colors.primary ?? "#000000").toUpperCase();
-    if (ref === "brand.secondary") return (this.colors.secondary ?? "#000000").toUpperCase();
-    if (ref === "ticket_type") return (this.colors.ticketType ?? this.colors.primary ?? "#000000").toUpperCase();
-    return ref.toUpperCase();
+    if (ref === "brand.primary") return cssHex(this.colors.primary ?? "#000000").toUpperCase();
+    if (ref === "brand.secondary") return cssHex(this.colors.secondary ?? "#000000").toUpperCase();
+    if (ref === "ticket_type") return cssHex(this.colors.ticketType ?? this.colors.primary ?? "#000000").toUpperCase();
+    return cssHex(ref).toUpperCase();
   }
 
   stops(stops: readonly { offset: number; color: string }[]): string {

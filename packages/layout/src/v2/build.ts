@@ -1,5 +1,5 @@
 import { carriesPerGuestToken } from "../ticket-tokens";
-import { DEFAULT_COLORS, esc, f6, gFmt, linearEnds, farthestCorner, num, Paint, radiusCss, roundedRectPath } from "./css";
+import { cssFamily, DEFAULT_COLORS, esc, f6, gFmt, linearEnds, farthestCorner, num, Paint, radiusCss, roundedRectPath } from "./css";
 import { BASE_CSS, FIT_SCRIPT } from "./fit";
 import { qrSvgOf } from "./qr";
 import { sanitizeSvg } from "./sanitize";
@@ -129,7 +129,7 @@ export const initialsOf = (values: Readonly<Record<string, string>>): string => 
 
 const span = (layer: TextLayerV2, s: SpanV2, text: string, paint: Paint) => {
   const parts: string[] = [];
-  if (s.family !== null) parts.push(`font-family:'${s.family}'`);
+  if (s.family !== null) parts.push(`font-family:'${esc(cssFamily(s.family))}'`);
   if (s.weight !== null) parts.push(`font-weight:${s.weight}`);
   if (s.style !== null) parts.push(`font-style:${s.style}`);
   if (s.size !== null) parts.push(`font-size:${num(s.size / layer.size)}em`);
@@ -160,7 +160,7 @@ const textLayer = (layer: TextLayerV2, values: Record<string, string>, kind: str
   if (r) box += `;border-radius:${r}`;
   const f = layer.font;
   let style =
-    `font-family:'${f.family}';font-weight:${f.weight};font-style:${f.style};font-size:${num(layer.size)}px;` +
+    `font-family:'${esc(cssFamily(f.family))}';font-weight:${f.weight};font-style:${f.style};font-size:${num(layer.size)}px;` +
     `line-height:${num(layer.lineHeight)};letter-spacing:${num(layer.letterSpacing)}em;` +
     `color:${paint.color(layer.color)};text-align:${layer.align};` +
     `text-transform:${TRANSFORM[layer.transform]};white-space:pre-wrap;overflow-wrap:anywhere`;
@@ -298,7 +298,7 @@ const imageLayer = (layer: ImageLayerV2, values: Record<string, string>, ctx: Ct
   const tile =
     `<div class="moa-initials" style="width:100%;height:100%;box-sizing:border-box;display:flex;` +
     `align-items:center;justify-content:center;container-type:size;color:${color};background:${background};` +
-    `font-family:'${family}';font-weight:${weight}${look}">` +
+    `font-family:'${esc(cssFamily(family))}';font-weight:${weight}${look}">` +
     `<span style="font-size:42cqmin;line-height:1;letter-spacing:-0.02em">${esc(initialsOf(values))}</span></div>`;
   return open(layer, outer(layer, extra)) + tile + "</div>";
 };
