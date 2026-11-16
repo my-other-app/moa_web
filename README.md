@@ -37,6 +37,11 @@ npm run lint
 npm run api:generate # regenerate packages/api types from openapi.json
 ```
 
+`packages/api/openapi.json` is built from the backend's source by
+`packages/api/scripts/dump-backend-openapi.py` (how to run it is at its top).
+CI's `openapi-drift` job does the same on the backend's master and turns red
+when the committed copy is behind.
+
 ## How auth works
 
 The browser only ever talks to this app's own origin. Requests go to
