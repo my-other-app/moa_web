@@ -10,13 +10,17 @@ import { formatDateTime } from "@moa/app-kit";
 import { gateHeaders } from "../api";
 import { outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { useCheckInByHand, useGuestSearch } from "../queries";
-import { ROLE_LABEL, SEARCH_MIN, missingOf, type GateContext } from "../schemas";
+import { ROLE_LABEL, SEARCH_MIN, missingOf, type DoorPurpose, type GateContext } from "../schemas";
+import { DeskGuest } from "./desk-rewards";
 import { DOOR_LABEL, DoorSpinner } from "./door-kit";
 import { MissingAnswersStrip } from "./missing-answers-sheet";
 import { OutcomeCard } from "./outcome-card";
 
-/** A dead phone, a ticket left at home, a name read off a list: find them, check them in by hand. */
-export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx: GateContext; door: string }) {
+/**
+ * A dead phone, a ticket left at home, a name read off a list: find them, check them in by hand.
+ * At a station the same search records a visit by hand; at a swag desk it opens the guest's rewards.
+ */
+export function FindPanel({ gateKey, ctx, door, purpose = null }: { gateKey: string | null; ctx: GateContext; door: string; purpose?: DoorPurpose | null }) {
   const [q, setQ] = React.useState("");
   const [settled, setSettled] = React.useState("");
   React.useEffect(() => {
@@ -29,6 +33,8 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
   const [printing, setPrinting] = React.useState<string | null>(null);
   // The guest whose missing answers are open under their row.
   const [filling, setFilling] = React.useState<string | null>(null);
+  // At a swag desk: the guest whose rewards are open.
+  const [deskGuest, setDeskGuest] = React.useState<string | null>(null);
   const mayPrint = (printedAt: string | null | undefined) => !printedAt || ctx.event.reprint_policy === "anyone" || (ctx.event.reprint_policy === "organiser" && ctx.permissions.full);
   const admit = async (id: string) => {
     try {
@@ -36,9 +42,15 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
       setCard(outcomeCard(res, door));
       void results.refetch();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not check them in");
+      toast.error(err instanceof Error ? err.message : purpose === "station" ? "Could not record the visit" : "Could not check them in");
     }
   };
+  if (purpose === "swag_desk" && deskGuest)
+    return (
+      <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
+        <DeskGuest gateKey={gateKey} eventId={ctx.event.id} door={door} registrationId={deskGuest} canHandOver={ctx.quests?.can_hand_over ?? ctx.permissions.merch} onClose={() => setDeskGuest(null)} />
+      </div>
+    );
   return (
     <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
       {printing ? <PrintFrame key={printing} url={printing} headers={gateHeaders(gateKey)} onDone={() => setTimeout(() => setPrinting(null), 4000)} /> : null}
@@ -53,7 +65,13 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
         </div>
       </div>
       {settled.length < SEARCH_MIN ? (
-        <p className="text-ink-3 text-[13px] leading-[1.55]">Three letters is enough. Checking someone in here is recorded as by hand at {door}.</p>
+        <p className="text-ink-3 text-[13px] leading-[1.55]">
+          {purpose === "station"
+            ? `Three letters is enough. A visit recorded here is by hand at ${door}.`
+            : purpose === "swag_desk"
+              ? "Three letters is enough. Pick them to see the rewards they unlocked."
+              : `Three letters is enough. Checking someone in here is recorded as by hand at ${door}.`}
+        </p>
       ) : !results.data && results.isFetching ? (
         <p className="text-ink-2 flex items-center gap-2 text-[13px]">
           <DoorSpinner className="size-3.5" /> Looking through the list…
@@ -81,7 +99,15 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
                   </button>
                 ) : null}
               </div>
-              {r.checked_in_at ? (
+              {purpose === "station" ? (
+                <Button type="button" size="lg" disabled={byHand.isPending} onClick={() => void admit(r.id)}>
+                  Record visit
+                </Button>
+              ) : purpose === "swag_desk" ? (
+                <Button type="button" size="lg" variant="secondary" onClick={() => setDeskGuest(r.id)}>
+                  Rewards
+                </Button>
+              ) : r.checked_in_at ? (
                 <div className="flex items-center gap-2">
                   <span className="bg-admit-soft text-admit inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium">
                     <CheckIcon aria-hidden="true" className="size-3.5" />
@@ -111,7 +137,7 @@ export function FindPanel({ gateKey, ctx, door }: { gateKey: string | null; ctx:
       ) : (
         <div className="border-line text-ink-2 flex items-start gap-3 rounded-[var(--radius-card)] border border-dashed px-4 py-3.5 text-[13px] leading-[1.55]">
           <UserPlusIcon aria-hidden="true" className="text-ink-3 mt-0.5 size-4 shrink-0" />
-          <p>Nobody on the list matches. If they are at the door with no record, register them under Walk-up.</p>
+          <p>{purpose ? "Nobody on the list matches. Try fewer letters, or their email." : "Nobody on the list matches. If they are at the door with no record, register them under Walk-up."}</p>
         </div>
       )}
     </div>

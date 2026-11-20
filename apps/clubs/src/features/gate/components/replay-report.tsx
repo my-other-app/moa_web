@@ -8,6 +8,15 @@ import type { ReplayReport as Report } from "../lib/replay";
 import { DoorBanner, TONE_SOFT } from "./door-kit";
 
 const scans = (n: number) => (n === 1 ? "scan" : "scans");
+
+/** The all-clear line: at an entrance exactly as before; with station visits, those counted apart. */
+function allClear(r: Report): string {
+  const visits = r.visits ?? 0;
+  if (!visits) return `${r.synced} saved ${scans(r.synced)} synced, all checked in.`;
+  const v = `${visits} station ${visits === 1 ? "visit" : "visits"}`;
+  if (r.admitted === 0) return `${r.synced} saved ${scans(r.synced)} synced: ${v} recorded.`;
+  return `${r.synced} saved ${scans(r.synced)} synced: ${r.admitted} checked in, ${v} recorded.`;
+}
 const time = (iso: string | null) => {
   if (!iso) return null;
   const at = new Date(iso);
@@ -29,7 +38,7 @@ export function ReplayReport({ report, onDismiss }: { report: Report; onDismiss:
       <div role="status" className="text-ink-2 border-line-soft flex items-center gap-2 border-t px-4 py-2 text-[13px]">
         <CheckIcon aria-hidden="true" className="text-admit size-4 shrink-0" />
         <span className="min-w-0 flex-1">
-          {report.synced} saved {scans(report.synced)} synced, all checked in.
+          {allClear(report)}
         </span>
         <Button type="button" size="sm" variant="ghost" onClick={onDismiss}>
           OK
@@ -50,7 +59,7 @@ export function ReplayReport({ report, onDismiss }: { report: Report; onDismiss:
           </Button>
         }
       >
-        Checked in: {report.admitted} of {report.synced} synced. These were scanned offline, and the server did not admit them:
+        Checked in: {report.admitted} of {report.synced} synced{report.visits ? ` (${report.visits} station ${report.visits === 1 ? "visit" : "visits"} recorded)` : ""}. These were scanned offline, and the server did not admit them:
       </DoorBanner>
       <ul aria-label="Not admitted" className="max-h-[40vh] divide-y overflow-y-auto">
         {problems.map((p) => {

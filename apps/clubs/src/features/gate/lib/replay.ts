@@ -1,4 +1,4 @@
-import { ADMISSION_NUMBER_HINT, type ScanResult } from "../schemas";
+import { ADMISSION_NUMBER_HINT, QUEST_STATION_HINT, QUEST_SWAG_DESK_HINT, type ScanResult } from "../schemas";
 import type { QueuedScan } from "./queue";
 import type { DoorTone } from "../components/door-kit";
 
@@ -39,8 +39,13 @@ export interface ReplayReport {
   synced: number;
   /** Of those, the ones it admitted (or had admitted from this phone already). */
   admitted: number;
+  /** Of those, visits saved at a station (nobody is admitted there; never a problem). Absent: none. */
+  visits?: number;
   problems: ReplayProblem[];
 }
+
+/** A saved scan at a station or swag desk: answered for what it is there, never an admission refused. */
+const atQuestDoor = (res: ScanResult) => res.outcome === "STATION_VISIT" || res.outcome === "SWAG_DESK";
 
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
@@ -61,6 +66,8 @@ function why(res: ScanResult): { tag: string; reason: string; tone: DoorTone } {
       return { tone: "caution", tag: "Door shut", reason: "The door was shut when this synced, so nobody was checked in. Scan it again once it is open." };
     case "INVALID":
     default:
+      if (res.hint === QUEST_STATION_HINT || res.hint === QUEST_SWAG_DESK_HINT)
+        return { tone: "caution", tag: res.hint === QUEST_STATION_HINT ? "Station" : "Swag desk", reason: "Scanned at a door that is not an entrance: nobody was checked in. Check them in at an entrance." };
       if (res.hint === ADMISSION_NUMBER_HINT)
         return { tone: "caution", tag: "Admission number", reason: "An admission number, not a ticket: nobody was checked in. If it was them, check them in by hand under Find." };
       return { tone: "refuse", tag: "Not found", reason: "No ticket matches this code." };
@@ -72,6 +79,8 @@ export function replayProblem(r: ReplayedScan): ReplayProblem | null {
   const res = r.response;
   // Admitted now, or this very scan was admitted on an earlier try (replayed).
   if (res.outcome === "CHECKED_IN") return null;
+  // A station's visit (recorded, or recorded before): nobody is let in at a station, so nothing to tell.
+  if (atQuestDoor(res)) return null;
   return {
     ref: r.client_ref,
     name: res.attendee?.name || null,
@@ -85,11 +94,16 @@ export function replayProblem(r: ReplayedScan): ReplayProblem | null {
 /** The report so far with one more batch of answers in it. */
 export function withReplayed(report: ReplayReport | null, results: ReplayedScan[]): ReplayReport {
   const problems = results.map(replayProblem).filter((p): p is ReplayProblem => p !== null);
+  const visits = results.filter((r) => atQuestDoor(r.response)).length;
   const before = report ?? { synced: 0, admitted: 0, problems: [] };
   const known = new Set(before.problems.map((p) => p.ref));
-  return {
+  const out: ReplayReport = {
     synced: before.synced + results.length,
-    admitted: before.admitted + results.length - problems.length,
+    admitted: before.admitted + results.length - problems.length - visits,
     problems: [...before.problems, ...problems.filter((p) => !known.has(p.ref))],
   };
+  // Only a phone that saved visits says so: an entrance's report is exactly what it was.
+  const allVisits = (before.visits ?? 0) + visits;
+  if (allVisits) out.visits = allVisits;
+  return out;
 }

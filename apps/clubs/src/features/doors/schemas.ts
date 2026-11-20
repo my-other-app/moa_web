@@ -1,6 +1,7 @@
 import { pictureSchema } from "@moa/app-kit";
 import { z } from "zod";
 
+import { doorPurpose, type DoorPurpose } from "@/features/gate/schemas";
 import { partialCode, partialText } from "@/lib/masked";
 
 export const DOOR_KINDS = ["door", "desk", "kiosk"] as const;
@@ -32,8 +33,19 @@ export const doorSchema = z.object({
   check_ins: z.number().default(0),
   link: z.object({ prefix: z.string(), can_walkup: z.boolean(), expires_at: z.string().nullish(), expired: z.boolean() }).nullable(),
   created_at: z.string().nullish(),
+  /** Null for an entrance (every door from before quests); "station" or "swag_desk" for a quest door, set when it is made. */
+  purpose: doorPurpose.optional(),
 });
 export type Door = z.infer<typeof doorSchema>;
+
+/** What a quest door is called on the doors list and what it does; entrances have none. */
+export const PURPOSE_META: Record<DoorPurpose, { label: string; note: string }> = {
+  station: { label: "Station", note: "A quest station: a scan here records a visit. Nobody is checked in." },
+  swag_desk: { label: "Swag desk", note: "Quest rewards are handed over here. Nobody is checked in." },
+};
+
+/** An entrance: where guests are admitted (every door that is not a station or swag desk). */
+export const isEntrance = (d: Pick<Door, "purpose">) => !d.purpose;
 
 export const linkSchema = z.object({ url: z.string(), key: z.string(), door_id: z.string(), expires_at: z.string().nullish(), can_walkup: z.boolean() });
 export type GateLink = z.infer<typeof linkSchema>;
