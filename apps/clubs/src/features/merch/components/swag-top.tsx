@@ -47,7 +47,7 @@ import {
   useHandOutByHand,
   useMerchFields,
 } from "../queries";
-import { whoGetsIt, type MerchItem } from "../schemas";
+import { freeOf, whoGetsIt, type MerchItem } from "../schemas";
 import {
   label,
   PhotoField,
@@ -313,7 +313,8 @@ function SwagCard({
   const hand = useHandOutByHand(eventId);
   const remove = useDeleteMerchItem(eventId);
   const [confirm, setConfirm] = React.useState(false);
-  const left = Math.max(0, item.total - item.handed_out);
+  // Units held for quest rewards are not free to give out by hand.
+  const left = freeOf(item);
   const status = statusOf(item, left);
   return (
     <FigurePanel className="flex flex-col gap-3 p-4">
@@ -359,6 +360,7 @@ function SwagCard({
           {item.manual_handed_out
             ? `${formatNumber(item.collected)} scanned at the gate · ${formatNumber(item.manual_handed_out)} by hand`
             : `${formatNumber(item.collected)} scanned at the gate`}
+          {item.reserved ? ` · ${formatNumber(item.reserved)} held for quest rewards, handed over at the swag desk` : ""}
         </p>
       </div>
       {item.variants.length ? (
@@ -366,7 +368,7 @@ function SwagCard({
           {item.variants.map((v) => (
             <span
               key={v.id}
-              title={`${v.label}: ${v.collected} of ${v.stock} handed out`}
+              title={`${v.label}: ${v.collected} of ${v.stock} handed out${v.reserved ? `, ${v.reserved} held for quest rewards` : ""}`}
               className={cn(
                 "rounded-full border px-2 py-0.5 font-mono text-[10.5px] tabular-nums",
                 v.collected >= v.stock
@@ -454,7 +456,7 @@ function attentionOf(items: MerchItem[]) {
   const counted = items.filter(
     (i) => i.handout_rule !== "winners" && i.total > 0,
   );
-  const left = (i: MerchItem) => Math.max(0, i.total - i.handed_out);
+  const left = (i: MerchItem) => freeOf(i);
   const out = counted.filter((i) => left(i) === 0);
   if (out.length) return { tag: "Run out", item: out[0]!, more: out.length - 1, left: 0 };
   const low = counted

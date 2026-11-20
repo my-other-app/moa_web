@@ -68,6 +68,13 @@ describe("swag", () => {
     expect(screen.getByText("At results")).toBeInTheDocument();
   });
 
+  it("keeps what is held for quest rewards out of what is left to give", () => {
+    const shirt = { ...items[0]!, id: "m9", name: "DevFest T-shirt", stock: 200, collected: 12, total: 200, manual_handed_out: 0, handed_out: 12, reserved: 41 };
+    render(<SwagTop eventId={37} items={[shirt] as never} onEdit={() => undefined} />);
+    expect(screen.getByText(/41 held for quest rewards, handed over at the swag desk/)).toBeInTheDocument();
+    expect(screen.getByText("147 left")).toBeInTheDocument();
+  });
+
   it("counts one out by hand, takes it back, and adds a sponsored item for the winners", async () => {
     render(<SwagTop eventId={37} items={items as never} onEdit={() => undefined} />);
     fireEvent.click(screen.getAllByRole("button", { name: /1 handed out/ })[0]!);
