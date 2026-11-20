@@ -29,7 +29,7 @@ import { useFeatureGate } from "@/features/plan";
 
 import { winnersExportUrl } from "../api";
 import { useNotifyChoice } from "../notify";
-import { isQuizRunning, useMarkWinners, useOverall, useRoundHost, useRoundMutations, useWinners } from "../queries";
+import { isQuizRunning, useMarkWinners, useOverall, useRoundHost, useRoundMutations, useScreenControl, useScreenControlMutation, useWinners } from "../queries";
 import { roomAddress, roomUrl } from "../room";
 import { phaseOf, type HostState, type MarkOut, type OverallRow, type TeamRow, type Winner } from "../schemas";
 import { useSecondsUntil } from "../stage/parts";
@@ -291,6 +291,28 @@ function QuestionControls({ eventId, quizId, s }: { eventId: number; quizId: str
   );
 }
 
+/**
+ * The big screen leaves a round the moment it ends when it shows "whatever
+ * is on" (the server's rule): the final board and its podium stay up only
+ * when the screen is set to the quiz. One press puts it there, and one
+ * gives the screen back to whatever comes next.
+ */
+function FinalBoardOnScreen({ eventId }: { eventId: number }) {
+  const control = useScreenControl(eventId);
+  const put = useScreenControlMutation(eventId);
+  if (!control.data) return null;
+  const showing = control.data.mode === "quiz" || control.data.mode === "leaderboard";
+  return showing ? (
+    <Button variant="outline" onClick={() => put.mutate({ mode: "auto" })} disabled={put.isPending}>
+      Screen back to whatever is on
+    </Button>
+  ) : (
+    <Button variant="outline" onClick={() => put.mutate({ mode: "quiz" })} disabled={put.isPending}>
+      Show the final board on the big screen
+    </Button>
+  );
+}
+
 export function HostConsole({ eventId, quizId, checkedIn }: { eventId: number; quizId: string | null; checkedIn?: number | null }) {
   const { host } = useRoundMutations(eventId, quizId);
   const gate = useFeatureGate("quiz", { eventId });
@@ -323,6 +345,9 @@ export function HostConsole({ eventId, quizId, checkedIn }: { eventId: number; q
             <>
               <CardLabel>Finished</CardLabel>
               <p className="text-ink mt-2 text-[15px] font-semibold">That is the quiz. The board on the right stands.</p>
+              <div className="mt-3">
+                <FinalBoardOnScreen eventId={eventId} />
+              </div>
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
                 <div className="flex gap-2">
                   <Button onClick={gate.guard(again.start)} disabled={host.isPending || again.pending}>

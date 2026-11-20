@@ -93,7 +93,7 @@ function TypedResults({ q }: { q: NonNullable<HostState["question"]> }) {
   );
 }
 
-function QuestionBody({ quiz, look, control, revealed }: { quiz: HostState; look: StageLook; control: ScreenControl | null; revealed: boolean }) {
+function QuestionBody({ quiz, look, control, revealed, narrow }: { quiz: HostState; look: StageLook; control: ScreenControl | null; revealed: boolean; narrow: boolean }) {
   const q = quiz.question!;
   const kind = q.kind ?? "single";
   // "Question + live results": the tally fills in as answers land; "question only": it waits for the reveal.
@@ -132,7 +132,7 @@ function QuestionBody({ quiz, look, control, revealed }: { quiz: HostState; look
       options={q.options}
       counts={q.counts}
       style={look.tiles}
-      layout={kind === "true_false" ? "grid" : look.layout}
+      layout={narrow ? "column" : kind === "true_false" ? "grid" : look.layout}
       showCounts={showCounts}
       revealed={revealed}
       correct={correct}
@@ -149,11 +149,11 @@ function Question({ quiz, look, control }: { quiz: HostState; look: StageLook; c
   const closed = phase === "closed";
   const left = useCountdown(q.time_left, phase === "question");
   const kind = q.kind ?? "single";
-  const board = revealed && quiz.board_now && quiz.leaderboard.length > 0;
+  const board = revealed && Boolean(quiz.board_now) && quiz.leaderboard.length > 0;
   const points = q.effective_points;
   return (
     <div className="grid h-full min-h-0 items-start" style={board ? { gridTemplateColumns: "1.35fr 1fr", gap: u(3) } : undefined}>
-      <div className="flex min-w-0 flex-col" style={{ gap: u(1.8) }}>
+      <div className="flex min-w-0 flex-col" style={{ gap: u(1.3) }}>
         <div className="flex items-center justify-between" style={{ gap: u(2) }}>
           <Eyebrow>
             Question {quiz.current_index + 1} of {quiz.total}
@@ -161,20 +161,20 @@ function Question({ quiz, look, control }: { quiz: HostState; look: StageLook; c
             {kind !== "poll" && points ? ` · ${points} points` : ""}
             {q.double ? " · double points" : ""}
           </Eyebrow>
-          {look.timer !== "bar" && !revealed && !closed ? <Timer style={look.timer} left={left} seconds={q.seconds} paused={paused} /> : null}
+          <div className="flex shrink-0 items-center" style={{ gap: u(2) }}>
+            <p className="text-right" style={{ fontSize: t(1.6), color: "var(--lt-muted)" }} aria-live="polite">
+              {q.answered} of {quiz.players} answered
+              {revealed && q.fully_correct != null && kind !== "poll" ? <span className="block">{q.fully_correct} got it fully right</span> : null}
+            </p>
+            {look.timer !== "bar" && !revealed && !closed ? <Timer style={look.timer} left={left} seconds={q.seconds} paused={paused} /> : null}
+          </div>
         </div>
         {look.timer === "bar" && !revealed ? <Timer style="bar" left={left} seconds={q.seconds} paused={paused} /> : null}
-        <h2 className="leading-[1.1] font-semibold tracking-[-0.02em]" style={{ fontSize: t(board ? 3.4 : 4.4), fontFamily: "var(--lt-font-display)" }}>
+        <h2 className="leading-[1.1] font-semibold tracking-[-0.02em]" style={{ fontSize: t(board ? 3.2 : 3.9), fontFamily: "var(--lt-font-display)" }}>
           {q.prompt}
         </h2>
-        {KIND_HINT[kind] && kind !== "type" ? <p style={{ fontSize: t(1.7), color: "var(--lt-muted)" }}>{KIND_HINT[kind]}</p> : null}
-        <QuestionBody quiz={quiz} look={look} control={control} revealed={revealed} />
-        <p className="flex flex-wrap items-center" style={{ gap: u(2), fontSize: t(1.8), color: "var(--lt-muted)" }} aria-live="polite">
-          <span>
-            {q.answered} of {quiz.players} answered
-          </span>
-          {revealed && q.fully_correct != null && kind !== "poll" ? <span>· {q.fully_correct} got it fully right</span> : null}
-        </p>
+        {KIND_HINT[kind] && kind !== "type" ? <p style={{ fontSize: t(1.6), color: "var(--lt-muted)" }}>{KIND_HINT[kind]}</p> : null}
+        <QuestionBody quiz={quiz} look={look} control={control} revealed={revealed} narrow={board} />
       </div>
       {board ? (
         <div className="grid min-w-0" style={{ gap: u(3) }}>
@@ -202,27 +202,31 @@ function Finished({ quiz, look }: { quiz: HostState; look: StageLook }) {
   const rows = quiz.leaderboard;
   const overall = quiz.overall && quiz.overall.length ? quiz.overall : null;
   const teams = quiz.teams && quiz.teams.length ? quiz.teams : null;
+  const side = Boolean(teams || overall);
+  const podium = look.podium && rows.length > 0;
   return (
-    <div className="grid h-full min-h-0 content-center" style={{ gap: u(3) }}>
-      <div className="text-center">
-        <Eyebrow>{quiz.round && quiz.round.count > 1 ? `Round ${quiz.round.index + 1} of ${quiz.round.count}` : quiz.title}</Eyebrow>
-        <p className="font-semibold" style={{ marginTop: u(0.6), fontSize: t(4), fontFamily: "var(--lt-font-display)" }}>
+    <div className="grid h-full min-h-0 content-start" style={{ gap: u(2.2) }}>
+      <div className="flex flex-wrap items-baseline" style={{ gap: u(2) }}>
+        <p className="font-semibold" style={{ fontSize: t(3), fontFamily: "var(--lt-font-display)" }}>
           {quiz.round && quiz.round.count > 1 ? `That's ${quiz.title}` : "That's the quiz"}
         </p>
+        <Eyebrow>{quiz.round && quiz.round.count > 1 ? `Round ${quiz.round.index + 1} of ${quiz.round.count}` : quiz.title}</Eyebrow>
       </div>
-      {look.podium && rows.length > 0 ? <Podium rows={rows} /> : null}
-      <div className="grid items-start" style={{ gridTemplateColumns: [teams, overall].filter(Boolean).length ? "1fr 1fr" : "1fr", gap: u(4) }}>
-        {look.podium && rows.length > 3 ? (
-          <Board rows={rows.slice(3)} size={Math.max(0, look.boardSize - 3)} animate={false} teams={quiz.teams} title="And the rest" />
-        ) : !look.podium ? (
-          <Board rows={rows} size={look.boardSize} animate={look.animate} teams={quiz.teams} />
-        ) : (
-          <span />
-        )}
-        <div className="grid" style={{ gap: u(3) }}>
-          {teams ? <TeamBoard teams={teams} /> : null}
-          {overall ? <Board rows={overall} size={look.boardSize} animate={false} title="Across the rounds" rounds /> : null}
+      <div className="grid min-h-0 items-start" style={{ gridTemplateColumns: side ? "1.25fr 1fr" : "1fr", gap: u(4) }}>
+        <div className="grid min-w-0" style={{ gap: u(2.2) }}>
+          {podium ? <Podium rows={rows} /> : null}
+          {podium && rows.length > 3 ? (
+            <Board rows={rows.slice(3)} size={Math.min(5, Math.max(0, look.boardSize - 3))} animate={false} teams={quiz.teams} title="And the rest" />
+          ) : !podium ? (
+            <Board rows={rows} size={look.boardSize} animate={look.animate} teams={quiz.teams} />
+          ) : null}
         </div>
+        {side ? (
+          <div className="grid min-w-0" style={{ gap: u(3) }}>
+            {teams ? <TeamBoard teams={teams} /> : null}
+            {overall ? <Board rows={overall} size={5} animate={false} title="Across the rounds" rounds /> : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

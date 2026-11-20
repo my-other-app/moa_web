@@ -133,7 +133,7 @@ export function Stage({
   else if (shows === "leaderboard") {
     const rows = s.overall && s.overall.length ? s.overall : (quiz?.leaderboard ?? []);
     main = (
-      <div className="grid h-full content-center" style={{ gap: u(3) }}>
+      <div className="grid h-full content-start" style={{ gap: u(2.5) }}>
         <div className="text-center">
           <Eyebrow>{s.overall && s.overall.length ? "Across the rounds" : (quiz?.title ?? "Leaderboard")}</Eyebrow>
         </div>
@@ -146,7 +146,10 @@ export function Stage({
     empty = true;
     main = <Nothing variant={variant} join={big} />;
   }
-  const corner = joinMode === "corner" && !joinBig && !idleJoin && !(empty && variant === "present");
+  // The board beside a revealed question, and the final board, need the room: answers are closed then, and the corner comes back with the next question.
+  const boardUp =
+    shows === "quiz" && quiz !== null && ((phaseOf(quiz) === "revealed" && Boolean(quiz.board_now) && quiz.leaderboard.length > 0) || phaseOf(quiz) === "ended");
+  const corner = joinMode === "corner" && !joinBig && !idleJoin && !boardUp && !(empty && variant === "present");
   const sponsors = theme?.screen.sponsors ? (s.sponsors ?? []) : [];
   const image = theme?.background.kind === "image" && theme.background.image ? theme : null;
 
@@ -173,7 +176,7 @@ export function Stage({
         }
       >
         <Header name={s.event.name} theme={theme} />
-        <section className="relative grid min-h-0" style={corner ? { gridTemplateColumns: "1fr auto", gap: u(3) } : undefined}>
+        <section className="relative grid min-h-0 overflow-hidden" style={corner ? { gridTemplateColumns: "1fr auto", gap: u(3) } : undefined}>
           <div className="relative min-h-0 min-w-0">{main}</div>
           {corner ? (
             <aside className="flex flex-col justify-end">

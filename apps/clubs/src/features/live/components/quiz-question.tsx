@@ -265,7 +265,7 @@ export function QuestionEditor({
           onBlur={onCommit}
         />
         <NativeSelect
-          className="w-[172px] shrink-0"
+          className="w-[196px] shrink-0"
           value={kind}
           aria-label={`Kind of question ${n}`}
           onChange={(e) => setDraft(withKind(draft, e.target.value as QuestionKind))}

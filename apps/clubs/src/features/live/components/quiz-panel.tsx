@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftIcon, ArrowRightIcon, LockIcon, PlusIcon, Settings2Icon, TrophyIcon, Trash2Icon, ZapIcon } from "lucide-react";
 import {
   Button,
@@ -18,7 +19,7 @@ import {
 import { useFeatureGate } from "@/features/plan";
 
 import { useNotifyChoice } from "../notify";
-import { useQuiz, useRound, useRoundMutations, useRounds, useRoundsMutations } from "../queries";
+import { liveKey, useQuiz, useRound, useRoundMutations, useRounds, useRoundsMutations } from "../queries";
 import type { Quiz, QuizQuestion, RoundSummary } from "../schemas";
 import { HostConsole, OverallPanel, useConfirmed, useStart } from "./quiz-host";
 import { QuestionEditor, blankDraft, bodyOf, changed, draftOfQuestion, problemWith, type Draft } from "./quiz-question";
@@ -319,6 +320,13 @@ export function QuizPanel({
   const target = legacy ? null : picked && list.some((r) => r.id === picked) ? picked : (live?.id ?? current.data?.id ?? null);
   // Asked once the list has answered, so a server from before rounds is never asked for a round by id.
   const round = useRound(eventId, target, !rounds.isPending && (legacy || Boolean(target)));
+  // Another console started or ended the open round: the list says so first; the round follows.
+  const qc = useQueryClient();
+  const listed = list.find((r) => r.id === target)?.status;
+  const shown = round.data?.status;
+  React.useEffect(() => {
+    if (listed && shown && listed !== shown) void qc.invalidateQueries({ queryKey: [...liveKey(eventId), "quiz", "round", target] });
+  }, [listed, shown, qc, eventId, target]);
   if (current.isError || round.isError) return <EmptyState tone="muted" title="The quiz could not load" description="Try again in a moment." />;
   if (!round.data) return <Skeleton className="h-72" />;
   return (

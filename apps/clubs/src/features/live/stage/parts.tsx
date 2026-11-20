@@ -91,7 +91,7 @@ export function Timer({
     const r = 44;
     const c = 2 * Math.PI * r;
     return (
-      <span role="timer" aria-label={label} className={cn("relative inline-grid place-items-center", className)} style={{ width: u(9), height: u(9) }}>
+      <span role="timer" aria-label={label} className={cn("relative inline-grid place-items-center", className)} style={{ width: u(6.5), height: u(6.5) }}>
         <svg viewBox="0 0 100 100" className="absolute inset-0 size-full -rotate-90" aria-hidden="true">
           <circle cx="50" cy="50" r={r} fill="none" stroke="var(--lt-panel-line)" strokeWidth="8" />
           <circle
@@ -184,8 +184,8 @@ export function AnswerTiles({
             className="relative flex items-center overflow-hidden rounded-[1.2em] transition-opacity"
             style={{
               gap: u(1.6),
-              padding: `${u(1.5)} ${u(2.2)}`,
-              fontSize: t(2.3),
+              padding: `${u(1.3)} ${u(2)}`,
+              fontSize: t(2.15),
               background: coloured ? `var(--lt-a${i})` : "var(--lt-panel)",
               color: coloured ? `var(--lt-on-a${i})` : "var(--lt-on-bg)",
               opacity: out ? 0.42 : 1,
@@ -208,7 +208,7 @@ export function AnswerTiles({
                 <Mark index={i} style={style} />
               </span>
             )}
-            <span className="relative min-w-0 flex-1 leading-[1.2]">
+            <span className="relative min-w-0 flex-1 leading-[1.2] [overflow-wrap:anywhere]">
               <span className="sr-only">{order ? `${i + 1}. ` : markName(i, style)}</span>
               {o.label}
             </span>
@@ -321,22 +321,22 @@ export function Board({
 export function Podium({ rows }: { rows: (BoardRow | OverallRow)[] }) {
   const top = rows.slice(0, 3);
   const order = [top[1], top[0], top[2]].filter(Boolean) as (BoardRow | OverallRow)[];
-  const height = (r: BoardRow | OverallRow) => (r === top[0] ? 22 : r === top[1] ? 16 : 11);
+  const height = (r: BoardRow | OverallRow) => (r === top[0] ? 13 : r === top[1] ? 9.5 : 7);
   return (
     <section aria-label="Podium" className="flex items-end justify-center" style={{ gap: u(1.6) }}>
       {order.map((r) => (
-        <div key={`${r.rank}-${r.name}`} className="flex flex-col items-center" style={{ width: u(18) }}>
-          <p className="w-full truncate text-center font-semibold" style={{ fontSize: t(2.4), fontFamily: "var(--lt-font-display)" }}>
+        <div key={`${r.rank}-${r.name}`} className="flex flex-col items-center" style={{ width: u(15) }}>
+          <p className="w-full truncate text-center font-semibold" style={{ fontSize: t(2.1), fontFamily: "var(--lt-font-display)" }}>
             {r.name}
           </p>
-          <p className="font-mono tabular-nums" style={{ fontSize: t(1.7), color: "var(--lt-muted)" }}>
+          <p className="font-mono tabular-nums" style={{ fontSize: t(1.5), color: "var(--lt-muted)" }}>
             {r.score}
           </p>
           <div
             className="grid w-full place-items-start justify-center rounded-t-[0.5em]"
             style={{ marginTop: u(0.8), height: u(height(r)), background: "var(--lt-accent)", color: "var(--lt-on-accent)", paddingTop: u(1) }}
           >
-            <span className="font-mono font-semibold" style={{ fontSize: t(3.6) }} aria-label={`Place ${r.rank}`}>
+            <span className="font-mono font-semibold" style={{ fontSize: t(3) }} aria-label={`Place ${r.rank}`}>
               {r.rank}
             </span>
           </div>

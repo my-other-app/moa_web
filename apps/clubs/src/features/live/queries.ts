@@ -82,8 +82,9 @@ export function useRounds(eventId: number) {
     queryKey: [...liveKey(eventId), "quiz", "rounds"],
     queryFn: () => nullIfRouteMissing(() => fetchRounds(eventId)),
     staleTime: 5_000,
-    // While a round runs, its player count moves.
-    refetchInterval: (q) => (q.state.data?.some((r) => r.status === "live") ? 5_000 : false),
+    // While a round runs its player count moves; otherwise another console
+    // may start or end one, and this one should follow within seconds.
+    refetchInterval: (q) => (q.state.data === null ? false : q.state.data?.some((r) => r.status === "live") ? 5_000 : 10_000),
   });
 }
 

@@ -75,7 +75,7 @@ export function Donut({ choices, show, responses }: { choices: Choice[]; show: P
   const starts = choices.map((_, i) => choices.slice(0, i).reduce((n, ch) => n + ch.count / total, 0));
   return (
     <div className="grid items-center" style={{ gridTemplateColumns: "auto 1fr", gap: u(4) }}>
-      <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: u(26), height: u(26) }} role="img" aria-label="Results as a donut">
+      <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: u(20), height: u(20) }} role="img" aria-label="Results as a donut">
         <circle cx="50" cy="50" r={r} fill="none" stroke="var(--lt-panel-line)" strokeWidth="16" />
         {choices.map((ch, i) => {
           const part = ch.count / total;

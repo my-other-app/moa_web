@@ -137,7 +137,7 @@ export function PhonePreview({ theme, eventName, state }: { theme: Theme; eventN
   const image = !plain && theme.background.kind === "image" && theme.background.image;
   const answer = state === "answer" || state === "podium";
   return (
-    <div className="border-ink/80 relative mx-auto w-[248px] shrink-0 overflow-hidden rounded-[34px] border-[7px] shadow-[0_18px_40px_-24px_rgba(0,0,0,0.55)]" aria-label="A guest's phone">
+    <div className="border-ink/80 relative mx-auto w-[220px] shrink-0 2xl:w-[248px] overflow-hidden rounded-[34px] border-[7px] shadow-[0_18px_40px_-24px_rgba(0,0,0,0.55)]" aria-label="A guest's phone">
       <div
         className="relative flex aspect-[9/19] flex-col"
         style={{ ...vars, ...ground, ...(plain ? { background: LIGHT_BG } : backgroundStyle(theme, "guest")), "--u": "5.6px", "--t": `calc(5.6px * ${g.text_scale})`, color: "var(--lt-on-bg)", fontFamily: "var(--lt-font-body)" } as React.CSSProperties}
@@ -216,7 +216,7 @@ export function LookPreview({ theme, eventName, event, control }: { theme: Theme
         <span className="eyebrow">Preview, with made-up content</span>
         <Segmented label="What the preview shows" value={state} options={PREVIEW_STATES} onChange={setState} className="text-[11.5px]" />
       </div>
-      <div className="grid items-start gap-4 xl:grid-cols-[1fr_auto]">
+      <div className="grid items-start gap-4 2xl:grid-cols-[1fr_auto]">
         <div className={cn("border-line overflow-hidden rounded-xl border shadow-sm")} aria-label="The big screen">
           <div className="aspect-video w-full">
             <Stage screen={sampleScreen(theme, state, eventName, control)} event={event} variant="present" />

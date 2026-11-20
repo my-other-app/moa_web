@@ -44,7 +44,8 @@ const host = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-const state: { rounds: Record<string, ReturnType<typeof round>>; host: Record<string, unknown>; winners: unknown[] } = { rounds: {}, host: host(), winners: [] };
+const CONTROL = { mode: "auto", results: "live", ticker: false, idle_slides: [], slide_seconds: 12, wall_size: 6 };
+const state: { rounds: Record<string, ReturnType<typeof round>>; host: Record<string, unknown>; winners: unknown[]; control: Record<string, unknown> } = { rounds: {}, host: host(), winners: [], control: CONTROL };
 
 vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
@@ -61,6 +62,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       if (/\/quizzes\/r\d\/winners\/mark$/.test(rest))
         return { marked: [{ rank: 1, name: "Kavya R.", registration_id: "reg1", position: 1 }], skipped: [{ rank: 2, name: "Guest 42", reason: "no_registration" }] };
       if (/\/quizzes\/r\d$/.test(rest)) return { ...state.rounds.r1, ...(body as object) };
+      if (rest === "/screen/control") return (state.control = { ...state.control, ...(body as object) });
       return {};
     });
   return {
@@ -75,6 +77,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (m) return state.rounds[m[1]!];
         if (/^\/quizzes\/r\d\/host$/.test(rest)) return state.host;
         if (/^\/quizzes\/r\d\/winners$/.test(rest)) return state.winners;
+        if (rest === "/screen/control") return state.control;
         if (rest === "/leaderboard") return [{ rank: 1, name: "Kavya R.", score: 9100, rounds: 2, saved_ms: 51000, registration: null }];
         if (path === "/api/v1/events/info/37") return { id: 37, name: "Space Night", slug: "space-night" };
         throw new Error(`unstubbed GET ${path}`);
@@ -109,6 +112,7 @@ beforeEach(() => {
   state.rounds = { r1: round("r1", "Warm-up"), r2: round("r2", "Finals", { questions: [] }) };
   state.host = host();
   state.winners = [];
+  state.control = CONTROL;
   vi.restoreAllMocks();
 });
 
@@ -437,6 +441,14 @@ describe("winners", () => {
     expect(await screen.findByText(/Marked: 1\. Kavya R\./)).toBeInTheDocument();
     expect(screen.getByText(/Not marked \(played without a registration\): 2\. Guest 42/)).toBeInTheDocument();
     expect(said).toHaveBeenCalledWith("1 winner marked on their registrations");
+  });
+
+  it("puts the final board on the big screen, which leaves an ended round when it shows whatever is on, and gives it back", async () => {
+    render(<QuizPanel eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Show the final board on the big screen" }));
+    await waitFor(() => expect(sent("PUT", "/live/screen/control")[0]?.body).toEqual({ mode: "quiz" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Screen back to whatever is on" }));
+    await waitFor(() => expect(sent("PUT", "/live/screen/control")[1]?.body).toEqual({ mode: "auto" }));
   });
 
   it("asks for more winners when the host wants a longer list", async () => {

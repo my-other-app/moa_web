@@ -107,7 +107,7 @@ function ColorField({ label, value, onChange, invalid, describe }: { label: stri
 
 function Field({ label, hint, children }: { label: string; hint?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="grid gap-1.5">
+    <div className="grid content-start gap-1.5">
       <span className="text-ink text-[12.5px] font-medium">{label}</span>
       {children}
       {hint ? <span className="text-ink-3 text-[11.5px] leading-snug">{hint}</span> : null}
@@ -310,7 +310,7 @@ function ThemeEditor({
   const verdictId = React.useId();
 
   return (
-    <div className="grid items-start gap-5 2xl:grid-cols-[minmax(380px,460px)_1fr]">
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(360px,430px)_minmax(0,1fr)]">
       <FigurePanel className="grid gap-5 p-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
@@ -578,7 +578,7 @@ function ThemeEditor({
         {resetting.dialog}
       </FigurePanel>
 
-      <div className="grid gap-4 2xl:sticky 2xl:top-4">
+      <div className="grid gap-4 xl:sticky xl:top-4">
         <LookPreview theme={theme} eventName={eventName} event={{ id: eventId, slug: detail.data?.slug }} control={control} />
       </div>
     </div>
