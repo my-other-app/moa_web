@@ -61,6 +61,11 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     api: {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
+        // A server from before rounds: the console plays today's single quiz by today's paths (rounds-console.test.tsx has rounds).
+        if (path.endsWith("/live/quizzes") || path.includes("/live/theme") || path.includes("/live/screen/control") || path.includes("/live/media")) {
+          const { ApiError } = await import("@moa/api");
+          throw new ApiError({ message: "Not Found", status: 404, routeMissing: true });
+        }
         if (path.endsWith("/live/quiz")) return { ...quiz, status: reply.quizStatus };
         if (path.endsWith("/live/quiz/host")) return reply.host;
         if (path.endsWith("/live/questions")) return board;

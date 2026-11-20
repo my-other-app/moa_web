@@ -4,7 +4,9 @@ import { ChevronUpIcon } from "lucide-react";
 import { Skeleton, cn } from "@moa/ui";
 
 import { useScreen } from "../queries";
+import type { Screen } from "../schemas";
 import { PollResults } from "./polls-panel";
+import { StagePage, usesStage } from "./stage-page";
 
 /**
  * The screen at the front of the room, refreshed every few seconds: the
@@ -12,12 +14,31 @@ import { PollResults } from "./polls-panel";
  * runs (its join code in the lobby, the tally during a question, the board
  * at the end), and the last update as a strip along the bottom.
  */
+
+/** A typed answer: what to do before time is up; what the room typed after it. */
+function Typed({ question }: { question: NonNullable<NonNullable<Screen["quiz"]>["question"]> }) {
+  if (question.time_left !== 0)
+    return <p className="text-ink-2 bg-sunken mt-8 rounded-xl px-5 py-4 text-[22px]">Type your answer on your phone.</p>;
+  return (
+    <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+      {(question.texts ?? []).map((x) => (
+        <li key={x.text} className={cn("bg-sunken flex items-center gap-4 rounded-xl px-5 py-4 text-[22px]", x.correct && "ring-admit ring-2")}>
+          <span className="flex-1">{x.text}</span>
+          <span className="text-ink-3 font-mono text-[16px] tabular-nums">{x.count}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 const MARK = ["▲", "◆", "●", "■", "★", "✚"];
 
 export function ScreenPage({ eventId }: { eventId: number }) {
   const screen = useScreen(eventId);
   const s = screen.data;
   if (!s) return <Skeleton className="m-8 h-96" />;
+  // A theme, a layout the host picked or a round of the new kind: the stage draws it (stage-page).
+  if (usesStage(s)) return <StagePage eventId={eventId} screen={s} variant="screen" />;
   const quiz = s.quiz;
   const nothing = !s.pinned && s.board.length === 0 && !s.poll && !quiz;
   return (
@@ -41,9 +62,11 @@ export function ScreenPage({ eventId }: { eventId: number }) {
               <>
                 <p className="eyebrow">
                   Question {quiz.current_index + 1} of {quiz.total} ·{" "}
-                  {quiz.question.time_left === 0
-                    ? "time"
-                    : `${quiz.question.time_left}s`}
+                  {quiz.paused
+                    ? "paused"
+                    : quiz.question.time_left === 0
+                      ? "time"
+                      : `${quiz.question.time_left}s`}
                 </p>
                 <p className="mt-3 text-[40px] leading-[1.15] font-semibold tracking-[-0.02em]">
                   {quiz.question.prompt}

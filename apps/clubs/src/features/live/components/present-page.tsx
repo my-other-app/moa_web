@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { MaximizeIcon, MinimizeIcon } from "lucide-react";
 import { Skeleton, cn } from "@moa/ui";
 
 import { useEventDetail } from "@/features/events/queries";
@@ -9,6 +8,7 @@ import { useEventDetail } from "@/features/events/queries";
 import { useScreen } from "../queries";
 import { roomAddress, roomUrl } from "../room";
 import { JoinQr } from "./join-qr";
+import { FullScreenButton, StagePage, usesStage } from "./stage-page";
 
 /**
  * The present view: what a club casts to the projector while the room fills
@@ -32,31 +32,6 @@ import { JoinQr } from "./join-qr";
 
 /** The marks beside each answer, the same ones the console and the phones use. */
 const MARK = ["▲", "◆", "●", "■", "★", "✚"];
-
-/** The screen is cast from a laptop; this is the one control on it. */
-function FullScreenButton() {
-  const [full, setFull] = React.useState(false);
-  React.useEffect(() => {
-    const sync = () => setFull(Boolean(document.fullscreenElement));
-    document.addEventListener("fullscreenchange", sync);
-    return () => document.removeEventListener("fullscreenchange", sync);
-  }, []);
-  const toggle = () => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen?.().catch(() => undefined);
-  };
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      // Out of the way on the projector; back on a keypress or a nudge of the mouse.
-      className="btn btn-secondary btn-sm fixed top-5 right-5 z-10 opacity-0 transition-opacity focus-visible:opacity-100 hover:opacity-100"
-    >
-      {full ? <MinimizeIcon className="size-3.5" /> : <MaximizeIcon className="size-3.5" />}
-      {full ? "Leave full screen" : "Full screen"}
-    </button>
-  );
-}
 
 /**
  * How big the join QR can be drawn here. A projector is 1920×1080 or
@@ -107,6 +82,8 @@ export function PresentPage({ eventId }: { eventId: number }) {
   const size = useQrSize(asking);
 
   if (!s) return <Skeleton className="m-10 h-[80vh]" />;
+  // A theme, a layout the host picked or a round of the new kind: the stage draws it (stage-page).
+  if (usesStage(s)) return <StagePage eventId={eventId} screen={s} variant="present" />;
 
   const quiz = s.quiz;
   const question = quiz?.question ?? null;
@@ -159,8 +136,8 @@ export function PresentPage({ eventId }: { eventId: number }) {
           </div>
           <aside className="flex flex-col items-center justify-center gap-[3vh]">
             <Counter
-              value={question.time_left === 0 ? "Time" : `${question.time_left}s`}
-              label={question.time_left === 0 ? "Answers in" : "Left"}
+              value={quiz!.paused ? "Paused" : question.time_left === 0 ? "Time" : `${question.time_left}s`}
+              label={quiz!.paused ? "The clock is stopped" : question.time_left === 0 ? "Answers in" : "Left"}
             />
             <Counter value={`${question.answered}/${quiz!.players}`} label="Answered" />
             <JoinQr url={url} address={address} size={size} label="Late? Scan to join" />
