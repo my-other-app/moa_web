@@ -103,10 +103,22 @@ const PosterStarterThumb = ({ s, raw, design, config, format }: { s: StarterMeta
     [layout, design, config.sampleQr]
   );
   const spec = POSTER_FORMAT_SPECS[format];
+  // Drawn as wide as the card is: measured, else the narrowest a card gets.
+  const box = React.useRef<HTMLSpanElement>(null);
+  const [width, setWidth] = React.useState(164);
+  React.useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => el.clientWidth && setWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   return (
-    <span className="bg-sunken relative grid place-items-center overflow-hidden rounded-[var(--radius-md)]" style={{ aspectRatio: `${spec.width} / ${spec.height}` }}>
+    <span ref={box} className="bg-sunken relative grid place-items-center overflow-hidden rounded-[var(--radius-md)]" style={{ aspectRatio: `${spec.width} / ${spec.height}` }}>
       {layout && renderer ? (
-        <DocThumb layout={layout} renderer={renderer} width={240} height={Math.round((240 * spec.height) / spec.width)} className="block" />
+        <DocThumb layout={layout} renderer={renderer} width={width} height={Math.round((width * spec.height) / spec.width)} className="block" />
       ) : (
         <span className="text-ink-3 p-3 text-center text-[15px] leading-tight font-semibold">{s.name}</span>
       )}

@@ -111,8 +111,14 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
     () => boardContext(design, config.sampleQr, urls, kind === "poster" ? samplePhoto : undefined),
     [design, config.sampleQr, urls, kind, samplePhoto]
   );
-  // The token menu: the server's catalogue; a poster's own from the package when a server sends none.
-  const tokens = React.useMemo(() => (design.tokens.length || kind !== "poster" ? design.tokens : tokensV2("poster")), [design.tokens, kind]);
+  // The token menu: the server's catalogue. A poster's offers its own tokens and the form's answers
+  // (not a ticket's seat or a guest's email: a poster is shared), from the package when a server sends none.
+  const tokens = React.useMemo(() => {
+    if (kind !== "poster") return design.tokens;
+    const own = new Set(tokensV2("poster").map((t) => t.key));
+    const offered = design.tokens.filter((t) => own.has(t.key) || t.group === "Guest fields");
+    return offered.some((t) => own.has(t.key)) ? offered : [...tokensV2("poster"), ...offered];
+  }, [design.tokens, kind]);
   const colors: ColorContext = React.useMemo(() => {
     const c = boardColors(design);
     // An accent left unset paints black, as the builder paints it.

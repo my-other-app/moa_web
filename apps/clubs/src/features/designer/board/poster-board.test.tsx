@@ -88,7 +88,11 @@ const DTO = (layout: unknown, more: Record<string, unknown> = {}) => ({
   fonts: [{ family: "Inter", weights: [400, 500, 600, 700], styles: ["normal"] }],
   tokens: [
     { key: "name", group: "Guest", label: "Name (from the registration)", sample: "Asha Nair" },
+    { key: "email", group: "Guest", label: "Email", sample: "asha@example.com" },
+    { key: "seat", group: "Guest", label: "Seat label", sample: "A-014" },
     { key: "moment_phrase", group: "Poster", label: "The moment's phrase (I'm attending)", sample: "I'm attending" },
+    { key: "talk_title", group: "Speaker", label: "Talk title (speakers)", sample: "Building for Bharat" },
+    { key: "field.college", group: "Guest fields", label: "College", sample: "Sample College" },
   ],
   images: { org_logo: null, event_icon: null, guest_photo: null, uploads: {} },
   values: { name: "Asha Nair", initials: "AN", moment_phrase: "I'm attending", event_name: "DevFest 2026" },
@@ -236,6 +240,18 @@ describe("the board", () => {
     fireEvent.click(within(props).getByRole("button", { name: /Delete/ }));
     expect(doc().querySelector('[data-layer="qr"]')).toBeNull();
     expect(screen.getByText("Ready")).toBeInTheDocument();
+  });
+
+  it("offers the poster's own tokens and the form's answers, not a guest's email or a ticket's seat", async () => {
+    await openBoard();
+    fireEvent.click(within(screen.getByRole("region", { name: "Layers" })).getByRole("button", { name: "Name" }));
+    fireEvent.keyDown(within(screen.getByRole("region", { name: "Properties" })).getByRole("button", { name: /Insert token/ }), { key: "Enter" });
+    const menu = await screen.findByRole("menu");
+    const items = within(menu).getAllByRole("menuitem").map((m) => m.textContent);
+    expect(items.some((t) => t?.includes("Name (from the registration)"))).toBe(true);
+    expect(items.some((t) => t?.includes("Talk title"))).toBe(true);
+    expect(items.some((t) => t?.includes("College"))).toBe(true);
+    expect(items.some((t) => t?.includes("Email") || t?.includes("Seat label"))).toBe(false);
   });
 
   it("offers only a poster's pictures for an image", async () => {

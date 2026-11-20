@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ImagePlusIcon, Loader2Icon, PaletteIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { fillTemplate, parseV2, POSTER_FORMAT_SPECS, POSTER_FORMATS, type PosterFormat, samplesV2 } from "@moa/layout";
-import { formatNumber } from "@moa/app-kit";
+import { formatNumber, plural } from "@moa/app-kit";
 import {
   Button,
   CardLabel,
@@ -93,12 +93,15 @@ function SwitchPanel({
   s,
   canEdit,
   previewMoment,
+  previewKey,
   eventName,
 }: {
   eventId: number;
   s: PosterSettings;
   canEdit: boolean;
   previewMoment: Moment;
+  /** Which moment the preview shows: the first one guests reach that is on. */
+  previewKey: MomentKey;
   eventName?: string;
 }) {
   const save = useSavePosterSettings(eventId);
@@ -142,7 +145,9 @@ function SwitchPanel({
             />
           </div>
           <div className="border-line-soft rounded-[var(--radius-md)] border p-3">
-            <div className="text-ink-3 font-mono text-[10px] tracking-[0.06em] uppercase">Shared with it, for a sample guest</div>
+            <div className="text-ink-3 font-mono text-[10px] tracking-[0.06em] uppercase">
+              Shared with it {MOMENT_INFO[previewKey].title.toLowerCase()}, for a sample guest
+            </div>
             <p className="text-ink mt-1 text-[13px] leading-[1.55] break-words whitespace-pre-wrap">{captionPreview(previewMoment, eventName) || "—"}</p>
           </div>
           <p className="text-ink-3 m-0 text-[12px] leading-[1.5]">
@@ -564,7 +569,7 @@ function Numbers({ eventId, st }: { eventId: number; st: PosterStats }) {
         <StatTile
           label="Posters made"
           value={formatNumber(st.posters_made)}
-          note={`of ${formatNumber(st.guests_eligible)} guests who can make one · ${formatNumber(st.with_photo)} with a photo`}
+          note={`of ${plural(st.guests_eligible, "guest")} who can make one · ${formatNumber(st.with_photo)} with a photo`}
           scale="hero"
         />
         <StatTile
@@ -680,7 +685,9 @@ export function PostersPage({ eventId }: { eventId: number }) {
   const [draft, setDraft] = React.useState<Draft | null>(null);
   const onDraft = React.useCallback((d: Draft) => setDraft(d), []);
   const moments = draft?.moments ?? s?.moments;
-  const previewMoment = moments ? (MOMENTS.slice().reverse().map((k) => moments[k]).find((m) => m.enabled) ?? moments.before) : null;
+  // What guests see first: the earliest moment that is on (before, during, after).
+  const previewKey: MomentKey = (moments && MOMENTS.find((k) => moments[k].enabled)) || "before";
+  const previewMoment = moments ? moments[previewKey] : null;
   const st = stats.data;
 
   return (
@@ -726,8 +733,8 @@ export function PostersPage({ eventId }: { eventId: number }) {
               Your role can see the posters&apos; settings and numbers; changing them is for the club&apos;s owner, admins and editors.
             </Notice>
           ) : null}
-          <SwitchPanel eventId={eventId} s={s} canEdit={canEdit} previewMoment={previewMoment!} eventName={eventName} />
-          {s.enabled ? <EmailLink eventId={eventId} token={s.poster_url_token} /> : null}
+          <SwitchPanel eventId={eventId} s={s} canEdit={canEdit} previewMoment={previewMoment!} previewKey={previewKey} eventName={eventName} />
+          {s.enabled && canEdit ? <EmailLink eventId={eventId} token={s.poster_url_token} /> : null}
           {st && (s.enabled || st.posters_made > 0) ? <Numbers eventId={eventId} st={st} /> : null}
           <div className="grid items-start gap-3.5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
             <SettingsForm eventId={eventId} s={s} canEdit={canEdit} eventName={eventName} onDraft={onDraft} />
