@@ -163,6 +163,46 @@ describe("the kiosk", () => {
     }
   });
 
+  it("stays on the attract screen when a later poll gets no answer, and says unpaired when the token ends", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      localStorage.setItem(KIOSK_TOKEN_STORAGE, "kiosk_tok");
+      api.context.mockResolvedValueOnce(ctx).mockRejectedValueOnce(new TypeError("Failed to fetch")).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      render(<KioskApp />);
+      expect(await screen.findByText("Scan your ticket")).toBeInTheDocument();
+      // The next poll (every 20 s) and its one retry both fail.
+      await vi.advanceTimersByTimeAsync(25_000);
+      await waitFor(() => expect(api.context).toHaveBeenCalledTimes(3));
+      expect(screen.queryByText("The kiosk could not open")).toBeNull();
+      expect(screen.getByText("Scan your ticket")).toBeInTheDocument();
+      // A token that has ended still ends it.
+      api.context.mockRejectedValue(new ApiError({ message: "This kiosk is not paired, or its shift has ended.", status: 401, errorCode: "KIOSK_UNPAIRED" }));
+      await vi.advanceTimersByTimeAsync(25_000);
+      expect(await screen.findByText("This kiosk is not paired")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 20000);
+
+  it("offers a card it has just printed again as a reprint, not as the guest's first card", async () => {
+    localStorage.setItem(KIOSK_TOKEN_STORAGE, "kiosk_tok");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new Blob(["%PDF-1.4"], { type: "application/pdf" }), { status: 200 })));
+    api.redeem.mockResolvedValue({ ...matched, auto_print: true, print_url: "/api/v1/kiosk/card.pdf?redemption=rt_1.abcdefghij" });
+    try {
+      render(<KioskApp />);
+      fireEvent.change(await screen.findByLabelText("Ticket code"), { target: { value: "MOA-ABCDE-23456" } });
+      fireEvent.click(screen.getByRole("button", { name: "Check in" }));
+      expect(await screen.findByText("Printing your card…")).toBeInTheDocument();
+      // The frame loads the card and prints it; the kiosk frees it a few seconds later.
+      fireEvent.load(await screen.findByTitle("Print"));
+      expect(await screen.findByRole("button", { name: /Print my card again/ }, { timeout: 9000 })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^Print my card$/ })).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.stubGlobal("localStorage", localStorageStub);
+    }
+  }, 15000);
+
   it("says a kiosk locked by wrong PINs plainly, in the PIN dialog", async () => {
     localStorage.setItem(KIOSK_TOKEN_STORAGE, "kiosk_tok");
     api.staff.mockRejectedValue(new ApiError({ message: "Too many wrong PINs on this kiosk. Try again in a few minutes.", status: 429, errorCode: "PIN_LOCKED" }));

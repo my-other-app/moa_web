@@ -105,7 +105,10 @@ export function KioskApp() {
         <KioskNotice icon={<DoorSpinner className="size-6" />} title="Opening the kiosk…" />
       </Shell>
     );
-  if (ctx.isError)
+  // A poll that fails once the kiosk is open keeps it up on what it last
+  // read, camera running; a token that has ended (401) is said above.
+  const opened = ctx.data;
+  if (ctx.isError && !opened)
     return (
       <Shell>
         <KioskNotice
@@ -123,10 +126,11 @@ export function KioskApp() {
         </KioskNotice>
       </Shell>
     );
+  if (!opened) return null;
   return (
     <Kiosk
       token={token}
-      ctx={ctx.data}
+      ctx={opened}
       onUnpair={() => (write(KIOSK_TOKEN_STORAGE, null), setToken(null))}
     />
   );
@@ -621,7 +625,8 @@ function Kiosk({
                   onClick={printAgain}
                 >
                   <PrinterIcon />
-                  {g.has_card ? "Print my card again" : "Print my card"}
+                  {/* The card this kiosk just printed counts too: `has_card` predates it. */}
+                  {g.has_card || result.auto_print ? "Print my card again" : "Print my card"}
                 </Button>
               ) : null}
               {notMeLeft > 0 && !g.already_checked_in ? (

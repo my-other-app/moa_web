@@ -80,7 +80,16 @@ export function GateConsole({ eventId }: { eventId: number }) {
         </div>
       </div>
     );
-  if (ctxQ.isError) {
+  /*
+   * A poll that fails once the console is open (venue Wi-Fi that carries
+   * nothing, a server restarting) keeps the console up on what it last read:
+   * the camera keeps running, and scans have their own offline path. Only a
+   * refusal closes it: signed out (401), the link switched off or no longer
+   * on the team (403).
+   */
+  const ctx = ctxQ.data;
+  const refused = ctxQ.error instanceof ApiError && (ctxQ.error.status === 401 || ctxQ.error.status === 403);
+  if (ctxQ.isError && (!ctx || refused)) {
     const err = ctxQ.error;
     const status = err instanceof ApiError ? err.status : 0;
     const invalidKey = status === 403 && key;
@@ -128,7 +137,8 @@ export function GateConsole({ eventId }: { eventId: number }) {
       </main>
     );
   }
-  return <Console gateKey={key} ctx={ctxQ.data} />;
+  if (!ctx) return null;
+  return <Console gateKey={key} ctx={ctx} />;
 }
 
 function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext }) {
