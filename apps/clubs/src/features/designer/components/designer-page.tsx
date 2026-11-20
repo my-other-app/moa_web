@@ -9,6 +9,7 @@ import * as React from "react";
 import { useEventDetail } from "@/features/events";
 
 import { DESIGNERS } from "../config";
+import { usePosterVariants } from "../queries";
 import { DESIGN_KINDS, type DesignKind, type DesignScope } from "../schemas";
 import { LeaveDialog } from "./dialogs";
 import { DesignTab } from "./design-tab";
@@ -41,6 +42,9 @@ function Designers({ scope }: { scope: DesignScope }) {
   const eventId = scope.kind === "event" ? scope.eventId : 0;
   const event = useEventDetail(eventId);
   const config = DESIGNERS[kind];
+  // Posters: an event's, once its API has them (an API without answers null). Asked for here, it is open already.
+  const posters = usePosterVariants(eventId);
+  const kinds = DESIGN_KINDS.filter((k) => k !== "poster" || (scope.kind === "event" && (posters.data != null || kind === "poster")));
 
   const go = (next: DesignKind) => {
     dirtyRef.current = false;
@@ -84,7 +88,7 @@ function Designers({ scope }: { scope: DesignScope }) {
         label={scope.kind === "event" ? "What to design" : "Which template"}
         value={kind}
         onChange={choose}
-        items={DESIGN_KINDS.map((k) => ({ key: k, label: DESIGNERS[k].label }))}
+        items={kinds.map((k) => ({ key: k, label: DESIGNERS[k].label }))}
       />
 
       <DesignTab key={kind} scope={scope} kind={kind} dirtyRef={dirtyRef} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { DOC_FONTS, HEX6, LayerV2, LayoutV2, type TextLayerV2, fontsFromApi, isCodeQr, isPersonalQr } from "@moa/layout";
+import { DOC_FONTS, HEX6, LayerV2, LayoutV2, POSTER_FORMAT_SPECS, POSTER_IMAGE_SOURCES, type TextLayerV2, fontsFromApi, isCodeQr, isPersonalQr, tokensV2 } from "@moa/layout";
 import { z } from "zod";
 import { Button, CardLabel, FigurePanel, Notice, cn, toast } from "@moa/ui";
 import { AlertTriangleIcon, CheckCircle2Icon, ScanEyeIcon } from "lucide-react";
@@ -12,9 +12,9 @@ import { fitImage, isPicture } from "@/lib/images";
 import { previewBoard, uploadLayoutImage } from "../api";
 import type { DesignerConfig } from "../config";
 import { useResetLayout, useSaveArtwork, useSaveBoard } from "../queries";
-import { AUDIENCES, type Audience, type BoardDesign, type BoardKind, type DesignScope } from "../schemas";
+import { AUDIENCES, type Audience, type BoardDesign, type BoardKind, type DesignScope, type PosterSlot } from "../schemas";
 import { PreviewDialog, ResetDialog } from "../components/dialogs";
-import { DesignBar, Provenance, SaveBar, type SaveState } from "../components/shell";
+import { DesignBar, PosterProvenance, Provenance, SaveBar, type SaveState } from "../components/shell";
 import { DocumentPanel } from "./document-panel";
 import { boardColors, boardContext, boardValues, checkLayout, imageLinkOf, makeRenderer, personalQrOnServer, readLayout } from "./engine";
 import { type ColorContext, resolveColorV2 } from "./fields";
@@ -63,11 +63,13 @@ export interface BoardProps {
   onDiscard: () => void;
   onReset: () => Promise<void>;
   dirtyRef: React.MutableRefObject<boolean>;
+  /** A poster: which variant and format this layout is (posters have no audiences). */
+  poster?: PosterSlot;
 }
 
-export const Board = ({ config, kind, scope, audience, design, initial, starterName, picker, onGallery, onSaved, onDiscard, onReset, dirtyRef }: BoardProps) => {
-  const save = useSaveBoard(scope, kind, audience);
-  const reset = useResetLayout(scope, kind, audience);
+export const Board = ({ config, kind, scope, audience, design, initial, starterName, picker, onGallery, onSaved, onDiscard, onReset, dirtyRef, poster }: BoardProps) => {
+  const save = useSaveBoard(scope, kind, audience, poster);
+  const reset = useResetLayout(scope, kind, audience, poster);
   const artwork = useSaveArtwork(scope, kind, audience);
   const history = useHistory<LayoutV2>(initial);
   const layout = history.value;
@@ -86,6 +88,8 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
   const [dialog, setDialog] = React.useState<"preview" | "reset" | null>(null);
   const [previewImage, setPreviewImage] = React.useState<Blob | null>(null);
   const [previewBusy, setPreviewBusy] = React.useState<string | null>(null);
+  // A poster's stage shows the sample guest with a photo, or without one (the initials tile).
+  const [samplePhoto, setSamplePhoto] = React.useState(true);
   const viewport = React.useRef<HTMLDivElement>(null);
   const svgInput = React.useRef<HTMLInputElement>(null);
 
@@ -102,8 +106,13 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
   // ─── What the stage draws with ─────────────────────────────────────────
 
   const fonts = React.useMemo(() => (design.fonts.length ? fontsFromApi(design.fonts) : [...DOC_FONTS]), [design.fonts]);
-  const samples = React.useMemo(() => boardValues(design), [design]);
-  const ctx = React.useMemo(() => boardContext(design, config.sampleQr, urls), [design, config.sampleQr, urls]);
+  const samples = React.useMemo(() => boardValues(design, kind), [design, kind]);
+  const ctx = React.useMemo(
+    () => boardContext(design, config.sampleQr, urls, kind === "poster" ? samplePhoto : undefined),
+    [design, config.sampleQr, urls, kind, samplePhoto]
+  );
+  // The token menu: the server's catalogue; a poster's own from the package when a server sends none.
+  const tokens = React.useMemo(() => (design.tokens.length || kind !== "poster" ? design.tokens : tokensV2("poster")), [design.tokens, kind]);
   const colors: ColorContext = React.useMemo(() => {
     const c = boardColors(design);
     // An accent left unset paints black, as the builder paints it.
@@ -353,9 +362,14 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
   const check = React.useMemo(() => checkLayout(layout, kind, { fonts }), [layout, kind, fonts]);
   const flagged = React.useMemo(() => new Set(check.byLayer.keys()), [check]);
 
-  const scopeName = AUDIENCES.find((a) => a.value === audience)?.label ?? "Everyone";
+  const scopeName = poster ? poster.label : (AUDIENCES.find((a) => a.value === audience)?.label ?? "Everyone");
   const Noun = config.noun[0]!.toUpperCase() + config.noun.slice(1);
-  const subject = scope.kind === "club" ? `Your club's ${config.noun} template` : `${Noun} for ${scopeName.toLowerCase()}`;
+  const formatLabel = poster ? POSTER_FORMAT_SPECS[poster.format].label : "";
+  const subject = poster
+    ? `${formatLabel} poster · ${poster.label}`
+    : scope.kind === "club"
+      ? `Your club's ${config.noun} template`
+      : `${Noun} for ${scopeName.toLowerCase()}`;
 
   /** The layout as it goes out: parsed, so every default is there. Null, with the reason shown, when something must be fixed. */
   const ready = (what: string) => {
@@ -402,7 +416,7 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
     if (!body) return;
     setPreviewBusy(ticketId ?? "sample");
     try {
-      setPreviewImage(await previewBoard(scope, kind, audience, body, ticketId ?? null));
+      setPreviewImage(await previewBoard(scope, kind, audience, body, ticketId ?? null, poster));
     } catch (err) {
       toast.error(errorCopy(err));
     } finally {
@@ -411,8 +425,14 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
   };
 
   const issued = `${Noun}s already issued keep the design they were made with.`;
-  const resetCopy =
-    scope.kind === "club"
+  const resetCopy = poster
+    ? {
+        title: `Drop the ${formatLabel.toLowerCase()} layout for ${poster.label}?`,
+        body: `This ${formatLabel.toLowerCase()} layout is removed and ${poster.variant === "default" ? "every guest without a design of their own gets the built-in poster" : "these guests get the next design in line (their ticket type's, then everyone's)"} in this format. Guests' posters are drawn again from the design they follow.`,
+        confirm: "Drop this layout",
+        done: `The ${formatLabel.toLowerCase()} layout for ${poster.label} is dropped`,
+      }
+    : scope.kind === "club"
       ? { title: `Go back to the built-in ${config.noun}?`, body: `Your club's ${config.noun} template is removed and new events start from the built-in design. Events that saved their own keep theirs. ${issued}`, confirm: "Use the built-in design", done: "Back to the built-in design" }
       : audience === "event_default"
         ? { title: "Use your club's template again?", body: `This event's own ${config.noun} is removed and it follows your club's template again. ${issued}`, confirm: "Use the club template", done: "Back to your club's template" }
@@ -437,7 +457,15 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
     dirty: check.errors ? `${subject} · ${check.errors} to fix before it can be saved` : subject,
     starter: `${subject} is not saved yet`,
     saved: `${subject} · version ${version}. ${config.savedNote}`,
-    clean: scope.kind === "club" ? "The built-in design; nothing of your own to save yet" : audience === "event_default" ? "Following your club's template" : "Following the event's design",
+    clean: poster
+      ? design.posterFrom === "starter"
+        ? "The built-in poster; nothing of your own to save yet"
+        : "Following the next design in line; nothing of its own to save yet"
+      : scope.kind === "club"
+        ? "The built-in design; nothing of your own to save yet"
+        : audience === "event_default"
+          ? "Following your club's template"
+          : "Following the event's design",
   }[saveState];
 
   // ─── Panels ────────────────────────────────────────────────────────────
@@ -445,12 +473,13 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
   const inspectorCtx: InspectorContext = {
     colors,
     fonts,
-    tokens: design.tokens,
+    tokens,
     samples,
     groups: config.tokenGroups,
     guestPhoto: config.guestPhoto,
     preprint: kind === "badge",
-    qrHolds: kind === "certificate" ? "the link that proves the certificate is real" : "the guest's ticket code, which the gate scans",
+    qrHolds: config.qrHolds ?? (kind === "certificate" ? "the link that proves the certificate is real" : "the guest's ticket code, which the gate scans"),
+    imageSources: kind === "poster" ? POSTER_IMAGE_SOURCES : undefined,
     imageUrl: (l) => imageLinkOf(ctx, l),
     onUpload: upload,
     onSignature:
@@ -477,7 +506,7 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
         setEditing(null);
         history.seal();
       }}
-      tokens={design.tokens}
+      tokens={tokens}
       samples={samples}
       groups={config.tokenGroups}
     />
@@ -493,7 +522,7 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
         actions={
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Button variant="secondary" onClick={() => setDialog("preview")}>
-              <ScanEyeIcon /> Preview as issued
+              <ScanEyeIcon /> {config.previewLabel ?? "Preview as issued"}
             </Button>
           </div>
         }
@@ -506,8 +535,25 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
       {startedFrom ? (
         <Notice tone="accent" tag="Copy">
           A copy of the {startedFrom} design. Nothing changes until you save; saving makes it{" "}
-          {scope.kind === "club" ? `your club's ${config.noun} template` : audience === "event_default" ? `this event's ${config.noun}` : `the ${config.noun} for ${scopeName.toLowerCase()}`}.
+          {poster
+            ? `the ${formatLabel.toLowerCase()} poster for ${poster.label}. Its other formats are saved from their own tabs`
+            : scope.kind === "club"
+              ? `your club's ${config.noun} template`
+              : audience === "event_default"
+                ? `this event's ${config.noun}`
+                : `the ${config.noun} for ${scopeName.toLowerCase()}`}
+          .
         </Notice>
+      ) : poster ? (
+        <PosterProvenance
+          from={design.posterFrom ?? (design.isOwn ? "saved" : "default")}
+          label={poster.label}
+          format={formatLabel}
+          version={version}
+          dirty={dirty}
+          onReset={() => setDialog("reset")}
+          onGallery={() => onGallery?.()}
+        />
       ) : (
       <Provenance
         scope={scope}
@@ -558,7 +604,7 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
                 </Button>
               ) : (
                 <span className="text-admit inline-flex items-center gap-1.5 text-[12.5px] font-medium">
-                  <CheckCircle2Icon className="size-4" aria-hidden="true" /> Ready to print
+                  <CheckCircle2Icon className="size-4" aria-hidden="true" /> {config.readyLabel ?? "Ready to print"}
                 </span>
               )
             }
@@ -668,7 +714,14 @@ export const Board = ({ config, kind, scope, audience, design, initial, starterN
               </div>
             </FigurePanel>
           ) : (
-            <DocumentPanel layout={layout} kind={kind} colors={colors} suggestions={[...new Set([design.brand.primary, design.brand.secondary].filter((c) => HEX6.test(c)).map((c) => c.toUpperCase()))]} onChange={update} />
+            <DocumentPanel
+              layout={layout}
+              kind={kind}
+              colors={colors}
+              suggestions={[...new Set([design.brand.primary, design.brand.secondary].filter((c) => HEX6.test(c)).map((c) => c.toUpperCase()))]}
+              onChange={update}
+              sample={kind === "poster" ? { photo: samplePhoto, onPhoto: setSamplePhoto } : undefined}
+            />
           )}
           {check.general.length ? (
             <Notice tone="refuse" tag="Fix">

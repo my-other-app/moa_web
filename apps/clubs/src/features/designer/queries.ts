@@ -1,15 +1,19 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { qk } from "@moa/api";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { nullIfRouteMissing, qk } from "@moa/api";
 
 import type { LayoutV2 } from "@moa/layout";
 
 import {
   type ArtworkField,
+  applyPosterStarter,
+  deletePosterVariant,
   fetchArtwork,
   fetchBoard,
   fetchLayout,
+  fetchPosterStarterFormats,
+  fetchPosterVariants,
   fetchStarterLayout,
   resetDesign,
   resetPreset,
@@ -19,7 +23,7 @@ import {
   savePreset,
   type LayoutBody,
 } from "./api";
-import type { Audience, BoardDesign, BoardKind, DesignKind, DesignScope, LayerDesign, PresetChoice } from "./schemas";
+import type { Audience, BoardDesign, BoardKind, DesignKind, DesignScope, LayerDesign, PosterSlot, PosterVariants, PresetChoice } from "./schemas";
 
 const CLUB = ["club-designs"] as const;
 const scopeKey = (scope: DesignScope) => (scope.kind === "event" ? qk.eventDesigns.forEvent(scope.eventId) : CLUB);
@@ -76,10 +80,10 @@ export function useResetPreset(scope: DesignScope, kind: DesignKind, audience: A
   });
 }
 
-export function useResetLayout(scope: DesignScope, kind: DesignKind, audience: Audience) {
+export function useResetLayout(scope: DesignScope, kind: DesignKind, audience: Audience, poster?: PosterSlot) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => resetDesign(scope, kind, audience),
+    mutationFn: () => resetDesign(scope, kind, audience, poster),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: scopeKey(scope) }),
   });
 }
@@ -115,34 +119,94 @@ export function useSaveArtwork(scope: DesignScope, kind: DesignKind, audience: A
 
 // ─── Layout v2: the board ───────────────────────────────────────────────
 
-/** The board's design: the same route as the canvas's, read as v2, so it has its own key. */
-const boardKey = (scope: DesignScope, kind: BoardKind, audience: Audience) => [...layoutKey(scope, kind, audience), "v2"] as const;
+/**
+ * The board's design: the same route as the canvas's, read as v2, so it has its own key. A
+ * poster's is one variant's layout for one format: `[…, "poster", variant, format, "v2"]`.
+ */
+const boardKey = (scope: DesignScope, kind: BoardKind, audience: Audience, poster?: Pick<PosterSlot, "variant" | "format">) =>
+  poster
+    ? ([...scopeKey(scope), "poster", poster.variant, poster.format, "v2"] as const)
+    : ([...layoutKey(scope, kind, audience), "v2"] as const);
 
-export function useBoard(scope: DesignScope, kind: BoardKind, audience: Audience) {
-  return useQuery({ queryKey: boardKey(scope, kind, audience), queryFn: () => fetchBoard(scope, kind, audience), staleTime: 0 });
+export function useBoard(scope: DesignScope, kind: BoardKind, audience: Audience, poster?: PosterSlot) {
+  const slot = poster ? { variant: poster.variant, format: poster.format } : undefined;
+  return useQuery({ queryKey: boardKey(scope, kind, audience, slot), queryFn: () => fetchBoard(scope, kind, audience, poster), staleTime: 0 });
 }
 
-/** A starter's layout, fetched when one is picked; kept a minute so going back and forth does not fetch again. */
-export function useStarterLayout(scope: DesignScope, kind: BoardKind, id: string | null) {
+/** A starter's layout, fetched when one is picked; kept a minute so going back and forth does not fetch again. A poster's, for the format. */
+export function useStarterLayout(scope: DesignScope, kind: BoardKind, id: string | null, format?: string) {
   return useQuery({
-    queryKey: [...boardKey(scope, kind, "event_default"), "starter", id] as const,
-    queryFn: () => fetchStarterLayout(scope, kind, id!),
+    queryKey: [...boardKey(scope, kind, "event_default"), "starter", id, format ?? null] as const,
+    queryFn: () => fetchStarterLayout(scope, kind, id!, format),
     enabled: !!id,
     staleTime: 60_000,
   });
 }
 
 /** Save the board: the answer goes straight into the cache, and the other audiences are read again (the first save forks). */
-export function useSaveBoard(scope: DesignScope, kind: BoardKind, audience: Audience) {
+export function useSaveBoard(scope: DesignScope, kind: BoardKind, audience: Audience, poster?: PosterSlot) {
   const queryClient = useQueryClient();
+  const slot = poster ? { variant: poster.variant, format: poster.format } : undefined;
   return useMutation({
-    mutationFn: (layout: LayoutV2) => saveBoard(scope, kind, audience, layout),
+    mutationFn: (layout: LayoutV2) => saveBoard(scope, kind, audience, layout, poster),
     onSuccess: (data: BoardDesign) => {
-      queryClient.setQueryData(boardKey(scope, kind, audience), data);
+      queryClient.setQueryData(boardKey(scope, kind, audience, slot), data);
       void queryClient.invalidateQueries({
         queryKey: scopeKey(scope),
-        predicate: (query) => !(query.queryKey.at(-1) === "v2" && query.queryKey.at(-3) === audience),
+        predicate: (query) =>
+          slot
+            ? // A poster: the other variants and formats (what they fall back to may be this one), and the variants list.
+              !(query.queryKey.at(-1) === "v2" && query.queryKey.at(-2) === slot.format && query.queryKey.at(-3) === slot.variant)
+            : !(query.queryKey.at(-1) === "v2" && query.queryKey.at(-3) === audience),
       });
     },
+  });
+}
+
+// ─── Posters ────────────────────────────────────────────────────────────
+
+const posterVariantsKey = (eventId: number) => [...qk.eventDesigns.forEvent(eventId), "poster", "variants"] as const;
+
+/** The event's poster variants; null from an API without posters (the poster tab stays away). */
+export function usePosterVariants(eventId: number) {
+  return useQuery({
+    queryKey: posterVariantsKey(eventId),
+    queryFn: () => nullIfRouteMissing(() => fetchPosterVariants(eventId)),
+    enabled: eventId > 0,
+    staleTime: 0,
+    retry: false,
+  });
+}
+
+/** What changes a poster variant: every poster layout and the variants are read again. */
+function usePosterWritten(eventId: number) {
+  const queryClient = useQueryClient();
+  return (data: PosterVariants) => {
+    queryClient.setQueryData(posterVariantsKey(eventId), data);
+    void queryClient.invalidateQueries({ queryKey: [...qk.eventDesigns.forEvent(eventId), "poster"] });
+  };
+}
+
+/** Drop a whole variant. */
+export function useDeletePosterVariant(eventId: number) {
+  const written = usePosterWritten(eventId);
+  return useMutation({ mutationFn: (variant: string) => deletePosterVariant(eventId, variant), onSuccess: written });
+}
+
+/** Save a starter's three layouts as a variant's design. */
+export function useApplyPosterStarter(eventId: number) {
+  const written = usePosterWritten(eventId);
+  return useMutation({ mutationFn: ({ variant, starterId }: { variant: string; starterId: string }) => applyPosterStarter(eventId, variant, starterId), onSuccess: written });
+}
+
+/** Every poster starter's layouts, for their pictures in the gallery: fetched once (copies; nothing is saved). */
+export function usePosterStarterFormats(eventId: number, ids: readonly string[]) {
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: [...qk.eventDesigns.forEvent(eventId), "poster", "starter-formats", id] as const,
+      queryFn: () => fetchPosterStarterFormats(eventId, id),
+      staleTime: Infinity,
+      retry: false,
+    })),
   });
 }

@@ -8,6 +8,7 @@ import { type Audience, type DesignKind, type DesignScope, isBoardKind } from ".
 import { ApplyToIssued } from "./apply-to-issued";
 import { LeaveDialog } from "./dialogs";
 import { LayerDesignerPage } from "./layer-designer";
+import { PosterDesignTab } from "./poster-tab";
 import { AudiencePicker } from "./shell";
 
 /**
@@ -16,7 +17,17 @@ import { AudiencePicker } from "./shell";
  * certificates are on the board (layout v2: the gallery, then every part
  * editable); the programme keeps its canvas editor.
  */
-export const DesignTab = ({ scope, kind, dirtyRef }: { scope: DesignScope; kind: DesignKind; dirtyRef: React.MutableRefObject<boolean> }) => {
+export const DesignTab = ({ scope, kind, dirtyRef }: { scope: DesignScope; kind: DesignKind; dirtyRef: React.MutableRefObject<boolean> }) =>
+  // Posters have variants and formats, not audiences, and are an event's only.
+  kind === "poster" ? (
+    scope.kind === "event" ? (
+      <PosterDesignTab eventId={scope.eventId} dirtyRef={dirtyRef} />
+    ) : null
+  ) : (
+    <AudienceTab scope={scope} kind={kind} dirtyRef={dirtyRef} />
+  );
+
+const AudienceTab = ({ scope, kind, dirtyRef }: { scope: DesignScope; kind: DesignKind; dirtyRef: React.MutableRefObject<boolean> }) => {
   const config = DESIGNERS[kind];
   const [audience, setAudience] = React.useState<Audience>("event_default");
   // A switch that would lose unsaved work waits here until the person says so.

@@ -53,6 +53,10 @@ vi.mock("../queries", async () => {
     useResetPreset: () => ({ mutateAsync: vi.fn(), isPending: false }),
     useArtwork: () => ({ data: undefined }),
     useSaveArtwork: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    // Posters: an API without them (the tab stays away).
+    usePosterVariants: () => ({ data: null, isPending: false, isError: false }),
+    useApplyPosterStarter: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    usePosterStarterFormats: () => [],
   };
 });
 vi.mock("../api", async (importOriginal) => ({

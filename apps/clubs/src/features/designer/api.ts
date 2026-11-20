@@ -7,6 +7,9 @@ import { z } from "zod";
 import {
   boardDesignSchema,
   layerDesignSchema,
+  posterBoardSchema,
+  posterVariantsSchema,
+  type PosterSlot,
   starterSchema,
   uploadedImageSchema,
   type Audience,
@@ -38,8 +41,15 @@ export async function saveLayout(scope: DesignScope, kind: DesignKind, audience:
   return layerDesignSchema.parse(raw);
 }
 
-/** Drop this event's copy so it follows the club default again; or the club's, so events follow the system's. */
-export async function resetDesign(scope: DesignScope, kind: DesignKind, audience: Audience) {
+/**
+ * Drop this event's copy so it follows the club default again; or the club's, so events follow the system's.
+ * A poster: drop this variant's layout for the format, so it follows the chain again.
+ */
+export async function resetDesign(scope: DesignScope, kind: DesignKind, audience: Audience, poster?: PosterSlot) {
+  if (poster) {
+    await api.del<unknown>(`${base(scope, kind)}/layout`, undefined, { query: posterQuery(poster) });
+    return;
+  }
   const path = scope.kind === "event" ? base(scope, kind) : `${base(scope, kind)}/layout`;
   await api.del<unknown>(path, undefined, { query: { audience } });
 }
@@ -161,26 +171,61 @@ export async function saveArtwork(eventId: number, kind: DesignKind, audience: A
 
 // ─── Layout v2: the board ───────────────────────────────────────────────
 
-/** The design as the board edits it: v2, converted on the server when it was saved as v1 or as a preset. */
-export async function fetchBoard(scope: DesignScope, kind: BoardKind, audience: Audience) {
+/** Which poster layout a call is about: its variant and format. */
+const posterQuery = (p: Pick<PosterSlot, "variant" | "format">) => ({ variant: p.variant, format: p.format });
+
+/** The design as the board edits it: v2, converted on the server when it was saved as v1 or as a preset. A poster: one variant's layout for one format. */
+export async function fetchBoard(scope: DesignScope, kind: BoardKind, audience: Audience, poster?: PosterSlot) {
+  if (poster) return posterBoardSchema.parse(await api.get<unknown>(`${base(scope, kind)}/layout`, { query: posterQuery(poster) }));
   const raw = await api.get<unknown>(`${base(scope, kind)}/layout`, { query: { audience } });
   return boardDesignSchema.parse(raw);
 }
 
-/** A starter's layout, copied for this design (copy-on-use): nothing is saved until the board saves. */
-export async function fetchStarterLayout(scope: DesignScope, kind: BoardKind, id: string): Promise<unknown> {
+/** A starter's layout, copied for this design (copy-on-use): nothing is saved until the board saves. A poster's: the one for the format. */
+export async function fetchStarterLayout(scope: DesignScope, kind: BoardKind, id: string, format?: string): Promise<unknown> {
   // Ids may hold a slash ("ticket/03-daylight-boarding-pass"): each part is encoded, the slash kept.
   const path = id.split("/").map(encodeURIComponent).join("/");
-  const raw = await api.post<unknown>(`${base(scope, kind)}/layout/starters/${path}`, {});
+  const raw = await api.post<unknown>(`${base(scope, kind)}/layout/starters/${path}`, {}, format ? { query: { format } } : undefined);
   return raw && typeof raw === "object" && "layout" in raw ? (raw as { layout: unknown }).layout : raw;
 }
 
-/** Save the board's design: v2, which clears any preset saved before. Forks the design onto the event on first save. */
-export async function saveBoard(scope: DesignScope, kind: BoardKind, audience: Audience, layout: LayoutV2) {
+/** A poster starter's layouts, every format (copy-on-use: nothing is saved), for its picture in the gallery. */
+export async function fetchPosterStarterFormats(eventId: number, id: string): Promise<Record<string, unknown>> {
+  const path = id.split("/").map(encodeURIComponent).join("/");
+  const raw = await api.post<unknown>(`/api/v1/events/${eventId}/designs/poster/layout/starters/${path}`, {}, { query: { format: "square" } });
+  const o = raw && typeof raw === "object" ? (raw as { layout?: unknown; formats?: unknown }) : {};
+  if (o.formats && typeof o.formats === "object") return o.formats as Record<string, unknown>;
+  return o.layout ? { square: o.layout } : {};
+}
+
+/** Save the board's design: v2, which clears any preset saved before. Forks the design onto the event on first save. A poster: the variant's layout for the format. */
+export async function saveBoard(scope: DesignScope, kind: BoardKind, audience: Audience, layout: LayoutV2, poster?: PosterSlot) {
+  if (poster) return posterBoardSchema.parse(await api.put<unknown>(`${base(scope, kind)}/layout`, layout, { query: posterQuery(poster) }));
   const raw = await api.put<unknown>(`${base(scope, kind)}/layout`, layout, { query: { audience } });
   return boardDesignSchema.parse(raw);
 }
 
 /** The unsaved design drawn exactly as issued, as a PNG: for the sample guest, or a registration by its ticket. */
-export const previewBoard = (scope: DesignScope, kind: BoardKind, audience: Audience, layout: LayoutV2, ticketId: string | null): Promise<Blob> =>
-  postForImage(`${base(scope, kind)}/layout/preview?format=png&audience=${audience}`, { layout, ticket_id: ticketId });
+export const previewBoard = (scope: DesignScope, kind: BoardKind, audience: Audience, layout: LayoutV2, ticketId: string | null, poster?: PosterSlot): Promise<Blob> =>
+  poster
+    ? postForImage(`${base(scope, kind)}/layout/preview?${new URLSearchParams({ ...posterQuery(poster), as: "png" }).toString()}`, { layout, ticket_id: ticketId })
+    : postForImage(`${base(scope, kind)}/layout/preview?format=png&audience=${audience}`, { layout, ticket_id: ticketId });
+
+// ─── Posters: the variants (feature-register/posters/CONTRACT.md §10.3) ──
+
+const posterBase = (eventId: number) => `/api/v1/events/${eventId}/designs/poster`;
+
+/** The variants with a layout saved, and every variant one could be made for. Null from an API without posters. */
+export async function fetchPosterVariants(eventId: number) {
+  return posterVariantsSchema.parse(await api.get<unknown>(`${posterBase(eventId)}/variants`));
+}
+
+/** Drop a whole variant (every format), so its guests get the next design in the chain. */
+export async function deletePosterVariant(eventId: number, variant: string) {
+  return posterVariantsSchema.parse(await api.del<unknown>(`${posterBase(eventId)}/layout`, undefined, { query: { variant } }));
+}
+
+/** Save a starter's three layouts as this variant's design, at once. */
+export async function applyPosterStarter(eventId: number, variant: string, starterId: string) {
+  return posterVariantsSchema.parse(await api.post<unknown>(`${posterBase(eventId)}/apply`, { starter_id: starterId, variant }));
+}

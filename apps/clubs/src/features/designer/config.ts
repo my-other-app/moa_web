@@ -9,7 +9,6 @@ import {
   type PageSpec,
   type TicketCanvas,
   type TicketLayer,
-  type TokenGroup,
 } from "@moa/layout";
 
 import type { DesignKind } from "./schemas";
@@ -45,7 +44,7 @@ export interface DesignerConfig {
   /** Whether the kind has the gallery of ready designs (the designer's templates) before the canvas. */
   gallery: boolean;
   /** Token groups offered in the insert menu, in order. */
-  tokenGroups: TokenGroup[];
+  tokenGroups: readonly string[];
   /** The guest-photo image source makes sense here. */
   guestPhoto: boolean;
   /** The message on the preview dialog. */
@@ -56,7 +55,16 @@ export interface DesignerConfig {
   guideTitle: string;
   /** Sample QR content -- as long as the real thing, so the sample looks right. */
   sampleQr: string;
+  /** What the QR holds, for the inspector: "the guest's ticket code, which the gate scans". */
+  qrHolds?: string;
+  /** The toolbar's word for a design with nothing to fix. */
+  readyLabel?: string;
+  /** The button that opens the exact render. */
+  previewLabel?: string;
 }
+
+/** A poster's sample share link: the shape of a real one (§8 of the posters contract), never a real code. */
+export const SAMPLE_SHARE_URL = "https://api.myotherapp.in/l/x7k2m9pq";
 
 /** The sample ticket code, in the shape a ticket id is minted in (MOA-XXXXX-XXXXX). */
 const SAMPLE_TICKET_CODE = TOKEN_BY_KEY.get("ticket_code")?.sample ?? "MOA-7K3QF-X9PLM";
@@ -154,5 +162,28 @@ export const DESIGNERS: Record<DesignKind, DesignerConfig> = {
     savedNote: "The kiosk shows it on its attract screen, and the A4 programme prints from it.",
     guideTitle: "Designing a programme in Figma",
     sampleQr: TICKET_QR,
+  },
+  poster: {
+    kind: "poster",
+    label: "Poster",
+    title: "Poster design",
+    description:
+      "The “I'm attending” picture each guest can make with their photo and share. Each design has a square, a portrait and a story layout; pick one, then move or change any part of it.",
+    noun: "poster",
+    qrRequired: false,
+    pages: [],
+    dpi: 96,
+    starters: {},
+    starter: null,
+    gallery: true,
+    tokenGroups: ["Guest", "Speaker", "Event", "Club", "Poster"],
+    guestPhoto: true,
+    previewNote: "Rendered by the same code that makes guests' posters. The link in a preview's QR goes nowhere.",
+    savedNote: "Posters made from now on use it; guests who made one get the new design the next time they open theirs.",
+    guideTitle: "Designing a poster in Figma",
+    sampleQr: SAMPLE_SHARE_URL,
+    qrHolds: "the guest's own link to the event page, so a registration through it counts as theirs",
+    readyLabel: "Ready",
+    previewLabel: "Preview the real poster",
   },
 };
