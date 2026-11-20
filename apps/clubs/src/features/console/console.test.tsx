@@ -6,6 +6,8 @@ import summaryFixture from "../__fixtures__/event-summary.json";
 import topicsFixture from "../__fixtures__/topics.json";
 
 const pathname = { current: "/events/37" };
+/** Whether the stubbed API has guest posters (GET …/posters/settings). */
+const posters = { on: false };
 
 vi.mock("next/navigation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("next/navigation")>();
@@ -26,6 +28,11 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path.includes("/events/info/")) return eventFixture;
         if (/\/events\/\d+\/summary$/.test(path)) return summaryFixture;
         if (path === "/api/v1/interests/list") return topicsFixture;
+        if (/\/events\/\d+\/posters\/settings$/.test(path)) {
+          if (posters.on) return { enabled: false, formats: ["square"], moments: {} };
+          const { ApiError } = await import("@moa/api");
+          throw new ApiError({ status: 404, message: "Not Found", routeMissing: true });
+        }
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(),
@@ -127,6 +134,31 @@ describe("event console", () => {
     expect(screen.getByRole("menuitem", { name: /Duplicate/ })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /Copy public link/ })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /Delete event/ })).toBeInTheDocument();
+  });
+
+  it("has a Posters section and a poster design once the API has guest posters, and neither before", async () => {
+    const draw = async () => {
+      const view = render(
+        <EventConsole eventId={37}>
+          <p />
+        </EventConsole>
+      );
+      const rail = await screen.findByRole("navigation", { name: "Event sections" });
+      return { view, rail };
+    };
+    const before = await draw();
+    await screen.findByRole("heading", { level: 1, name: "SF Sea Hackathon" });
+    expect(within(before.rail).queryByRole("link", { name: /Posters/ })).toBeNull();
+    before.view.unmount();
+    posters.on = true;
+    try {
+      const after = await draw();
+      expect(await within(after.rail).findByRole("link", { name: /Posters/ })).toHaveAttribute("href", "/events/37/posters");
+      fireEvent.keyDown(screen.getByRole("button", { name: "Designs" }), { key: "Enter" });
+      expect(await screen.findByRole("menuitem", { name: /Poster/ })).toBeInTheDocument();
+    } finally {
+      posters.on = false;
+    }
   });
 
   it("steps aside for the designer, which wants the whole width", async () => {

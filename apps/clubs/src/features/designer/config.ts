@@ -64,7 +64,7 @@ export interface DesignerConfig {
 }
 
 /** A poster's sample share link: the shape of a real one (§8 of the posters contract), never a real code. */
-export const SAMPLE_SHARE_URL = "https://api.myotherapp.in/l/x7k2m9pq";
+export const SAMPLE_SHARE_URL = "https://myotherapp.in/l/samplecd";
 
 /** The sample ticket code, in the shape a ticket id is minted in (MOA-XXXXX-XXXXX). */
 const SAMPLE_TICKET_CODE = TOKEN_BY_KEY.get("ticket_code")?.sample ?? "MOA-7K3QF-X9PLM";

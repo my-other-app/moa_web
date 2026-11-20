@@ -115,7 +115,7 @@ const ROWS: readonly (readonly [string, string, string, string, string])[] = [
   ["city", "Event", "City", "Bengaluru", "p"],
   ["club_name", "Club", "Host club", "GDG Cloud Kochi", "p"],
   ["moment_phrase", "Poster", "The moment's phrase (I'm attending)", "I'm attending", "p"],
-  ["share_url", "Poster", "Their own link to the event page", "https://api.myotherapp.in/l/x7k2m9pq", "p"],
+  ["share_url", "Poster", "Their own link to the event page", "https://myotherapp.in/l/x7k2m9pq", "p"],
 ];
 
 const KIND: Record<string, DesignTokenKinds> = { t: "ticket", c: "certificate", b: "badge", p: "poster" };

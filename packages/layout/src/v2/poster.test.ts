@@ -95,7 +95,7 @@ describe("the poster kind", () => {
     ]);
     const s = samplesV2("poster");
     expect([s.name, s.role, s.role_label, s.moment_phrase, s.share_url, s.event_name]).toEqual([
-      "Asha Nair", "speaker", "Speaker", "I'm attending", "https://api.myotherapp.in/l/x7k2m9pq", "DevFest 2026",
+      "Asha Nair", "speaker", "Speaker", "I'm attending", "https://myotherapp.in/l/x7k2m9pq", "DevFest 2026",
     ]);
     expect(new Set(tokensV2("poster").map((t) => t.group))).toEqual(new Set(["Guest", "Speaker", "Event", "Club", "Poster"]));
   });
@@ -168,7 +168,7 @@ describe("a poster's QR and photo", () => {
 
   it("the QR encodes what the context gives it: the guest's share link", () => {
     const layout = parseLayoutV2(poster("square", [qr]));
-    const a = buildBody(layout, {}, { qr: "https://api.myotherapp.in/l/x7k2m9pq" }, { kind: "poster" });
+    const a = buildBody(layout, {}, { qr: "https://myotherapp.in/l/x7k2m9pq" }, { kind: "poster" });
     const b = buildBody(layout, {}, { qr: "https://api.myotherapp.in/l/zzzzzzzz" }, { kind: "poster" });
     expect(a).toContain('data-kind="qr"');
     expect(a).not.toBe(b);
@@ -224,7 +224,7 @@ describe.skipIf(!starters.length)("the poster starters", () => {
     expect(parsed.success ? [] : parsed.error.issues.slice(0, 3)).toEqual([]);
     expect(validate(s.raw, "poster").filter((p) => p.level === "error")).toEqual([]);
     expect(posterFormatOf(parsed.data as LayoutV2)).toBe(s.format);
-    const body = buildBody(parsed.data as LayoutV2, samplesV2("poster"), { qr: "https://api.myotherapp.in/l/x7k2m9pq" }, { kind: "poster" });
+    const body = buildBody(parsed.data as LayoutV2, samplesV2("poster"), { qr: "https://myotherapp.in/l/x7k2m9pq" }, { kind: "poster" });
     expect(body.startsWith('<div class="moa-doc"')).toBe(true);
   });
 });
