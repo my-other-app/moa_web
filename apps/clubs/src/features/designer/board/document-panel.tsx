@@ -1,7 +1,7 @@
 "use client";
 
-import { type LayoutV2, V2_LIMITS } from "@moa/layout";
-import { Button, CardLabel, FigurePanel, Notice, cn } from "@moa/ui";
+import { type LayoutV2, POSTER_FORMAT_SPECS, posterFormatOf, V2_LIMITS } from "@moa/layout";
+import { Button, CardLabel, FigurePanel, Notice, Segmented, cn } from "@moa/ui";
 import * as React from "react";
 
 import { NumberField, Section, SelectField } from "../components/fields";
@@ -85,6 +85,7 @@ export const DocumentPanel = ({
   colors,
   suggestions,
   onChange,
+  sample,
 }: {
   layout: LayoutV2;
   kind: Exclude<DesignKind, "agenda">;
@@ -92,10 +93,12 @@ export const DocumentPanel = ({
   /** Accent colours worth one click: the club's brand. */
   suggestions: string[];
   onChange: (update: (l: LayoutV2) => LayoutV2, group?: string) => void;
+  /** A poster's: whether the sample guest on the stage has a photo. */
+  sample?: { photo: boolean; onPhoto: (on: boolean) => void };
 }) => {
   const { page, canvas, vars } = layout;
   const using = React.useMemo(() => accentLayers(layout).length, [layout]);
-  const pages = PAGES[kind];
+  const pages = kind === "poster" ? [] : PAGES[kind];
   const current = pages.find((p) => Math.abs(p.widthMm - page.widthMm) < 0.2 && Math.abs(p.heightMm - page.heightMm) < 0.2)?.key ?? "custom";
   const gap = aspectGap(layout);
   const off = gap > V2_LIMITS.aspectTolerance;
@@ -138,6 +141,9 @@ export const DocumentPanel = ({
         </p>
       </Section>
 
+      {kind === "poster" ? (
+        <PosterFormatSection layout={layout} sample={sample} />
+      ) : (
       <Section title="Paper">
         <SelectField
           id="doc-page"
@@ -185,10 +191,48 @@ export const DocumentPanel = ({
           </Notice>
         ) : null}
       </Section>
+      )}
 
       <Section title="Background">
         <FillField id="doc-bg" label="Background" value={canvas.background} onChange={(background) => onChange((l) => ({ ...l, canvas: { ...l.canvas, background } }), "background")} ctx={colors} />
       </Section>
     </FigurePanel>
+  );
+};
+
+/**
+ * A poster's size is its format's, fixed (1080 px wide; the tabs above the
+ * stage switch format), and the sample guest can be shown with a photo or
+ * without one, to see the initials tile a guest without a photo gets.
+ */
+const PosterFormatSection = ({ layout, sample }: { layout: LayoutV2; sample?: { photo: boolean; onPhoto: (on: boolean) => void } }) => {
+  const format = posterFormatOf(layout);
+  const spec = format ? POSTER_FORMAT_SPECS[format] : null;
+  return (
+    <Section title="Format">
+      {spec ? (
+        <p className={ui.note}>
+          <span className="text-ink font-medium">{spec.label}</span> · {spec.width} × {spec.height} px · {spec.use}. Every guest&apos;s picture is this size; the other formats are their own layouts.
+        </p>
+      ) : (
+        <Notice tone="refuse" tag="Size">
+          This layout is {layout.canvas.width} × {layout.canvas.height} px, which is not a poster format. Start from a design in the gallery.
+        </Notice>
+      )}
+      {sample ? (
+        <div className="flex flex-col gap-1.5">
+          <Segmented
+            label="Sample guest"
+            value={sample.photo ? "photo" : "initials"}
+            options={[
+              { value: "photo", label: "With a photo" },
+              { value: "initials", label: "No photo" },
+            ]}
+            onChange={(v) => sample.onPhoto(v === "photo")}
+          />
+          <p className={ui.note}>A guest without a photo gets their initials in the photo frame.</p>
+        </div>
+      ) : null}
+    </Section>
   );
 };

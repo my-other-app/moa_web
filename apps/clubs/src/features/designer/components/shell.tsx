@@ -173,6 +173,66 @@ export const Provenance = ({
   );
 };
 
+/**
+ * Where a poster layout comes from, said once above the stage. A poster
+ * design is per variant and format, and a guest gets the first that has a
+ * layout: their role's, their ticket type's, everyone's, then the built-in
+ * one (posters contract §3). `from`: "saved" (this variant's own), "default"
+ * (none here: what the chain gives these guests), "starter" (nothing saved
+ * anywhere: the built-in poster).
+ */
+export const PosterProvenance = ({
+  from,
+  label,
+  format,
+  version,
+  dirty,
+  onReset,
+  onGallery,
+}: {
+  from: string;
+  label: string;
+  format: string;
+  version: number;
+  dirty: boolean;
+  onReset: () => void;
+  onGallery: () => void;
+}) => {
+  const f = format.toLowerCase();
+  if (from === "saved")
+    return (
+      <Notice
+        tag="Saved"
+        action={
+          <Button size="sm" variant="secondary" onClick={onReset}>
+            <RotateCcwIcon /> Drop this layout
+          </Button>
+        }
+      >
+        The {f} poster for {label}
+        {version > 0 ? ` · version ${version}` : ""}. Guests&apos; posters follow it as soon as it is saved.
+      </Notice>
+    );
+  const choose = (
+    <Button size="sm" variant="secondary" onClick={onGallery}>
+      <LayoutTemplateIcon /> Choose a design
+    </Button>
+  );
+  if (from === "starter")
+    return (
+      <Notice tone="accent" tag="Built in" action={choose}>
+        Nothing is designed for this event&apos;s posters yet, so this is the built-in {f} poster. Change it as you like and save, or choose a design.
+      </Notice>
+    );
+  return (
+    <Notice tone="caution" tag="Follows" action={choose}>
+      {dirty
+        ? `Saving now makes this the ${f} poster for ${label}, their own from then on.`
+        : `No ${f} layout of its own for ${label} yet, so this is what those guests get now: the next design in line. Change it and save to give them their own.`}
+    </Notice>
+  );
+};
+
 export type SaveState = "saving" | "error" | "dirty" | "starter" | "saved" | "clean";
 
 const DOT: Record<SaveState, string> = {

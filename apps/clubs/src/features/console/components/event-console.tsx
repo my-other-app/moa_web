@@ -26,6 +26,7 @@ import { CancelEventDialog, useCancelState } from "@/features/event-cancel";
 import { useResults } from "@/features/results";
 import { EventRowMenu, EventStatusBadge, useEventDetail } from "@/features/events";
 import { useEventPlan, usePlan } from "@/features/plan";
+import { usePosterSettings } from "@/features/posters/queries";
 import { AnnouncePrompt, useSocialOnServer } from "@/features/social";
 import { useRequestCounts } from "@/features/requests/queries";
 import { totalOf } from "@/features/requests/schemas";
@@ -98,6 +99,9 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   const pending = requests.data?.counts.pending ?? 0;
   // The Promote tab, once the API has social posting, for those who may write posts (not door staff).
   const social = useSocialOnServer(Boolean(can.edit_events));
+  // The Posters tab and design, once the API has guest posters (null from one without).
+  const posters = usePosterSettings(eventId);
+  const postersOn = posters.data != null;
   // A clock read once per navigation is enough for a "has it started" notice.
   const now = React.useMemo(() => new Date(), [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -133,6 +137,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
     requests: requests.data != null && (Boolean(e?.requires_approval) || totalOf(requests.data.counts) > 0),
     cohosts: cohostsOn,
     promote: social === true && Boolean(can.edit_events),
+    posters: postersOn,
   };
   const cohosts = e?.cohosts ?? [];
   const notices = s ? clockNotices(s, now) : [];
@@ -181,7 +186,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[230px]">
-              {DESIGN_LINKS.map((d) => (
+              {DESIGN_LINKS.filter((d) => d.kind !== "poster" || postersOn).map((d) => (
                 <DropdownMenuItem key={d.kind} onSelect={() => router.push(`${base}/design?kind=${d.kind}`)}>
                   <span className="flex flex-col">
                     <span className="text-ink text-[13px]">{d.label}</span>

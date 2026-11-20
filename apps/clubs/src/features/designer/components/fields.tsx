@@ -1,6 +1,6 @@
 "use client";
 
-import { COLOR_REF_LABEL, type ColorRef, type TokenGroup } from "@moa/layout";
+import { COLOR_REF_LABEL, type ColorRef } from "@moa/layout";
 import {
   Button,
   DropdownMenu,
@@ -281,7 +281,7 @@ export const TokenMenu = ({
   /** The catalogue the server offers for this event -- the fixed tokens and the guest-list columns. */
   tokens: DesignToken[];
   samples: Record<string, string>;
-  groups: TokenGroup[];
+  groups: readonly string[];
 }) => {
   const fields = tokens.filter((t) => t.group === "Guest fields");
   return (

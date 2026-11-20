@@ -33,6 +33,9 @@ vi.mock("../queries", () => ({
   useResetPreset: () => ({ mutateAsync: clearPreset, isPending: false }),
   useArtwork: () => ({ data: undefined }),
   useSaveArtwork: () => ({ mutateAsync: saveArtwork, isPending: false }),
+  usePosterVariants: () => ({ data: null, isPending: false, isError: false }),
+  useApplyPosterStarter: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  usePosterStarterFormats: () => [],
 }));
 vi.mock("@/features/events", () => ({
   useEventDetail: (id: number) => ({ data: id ? { id, name: "Hack Night" } : undefined }),

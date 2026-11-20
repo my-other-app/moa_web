@@ -16,3 +16,4 @@ export * from "./build";
 export * from "./validate";
 export * from "./from-v1";
 export * from "./geometry";
+export * from "./poster";

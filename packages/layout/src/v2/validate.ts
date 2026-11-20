@@ -4,6 +4,7 @@ import { gFmt } from "./css";
 import { DOC_FONTS, facesOf, findFont, type FontFamilyV2, hasFace, nearestFonts } from "./fonts";
 import { checkSvg } from "./sanitize";
 import { type DocKind, type FillV2, type LayerV2, LayoutV2, pyRepr, shadowsOf, V2_LIMITS } from "./schema";
+import { posterFormatOf } from "./poster";
 import { canonicalV2, parseV2, showIfNames } from "./tokens";
 
 /**
@@ -17,7 +18,8 @@ import { canonicalV2, parseV2, showIfNames } from "./tokens";
  * Codes: schema (the shape is wrong: its messages are pydantic's), page_shape,
  * qr_missing, qr_extra, duplicate_id, unknown_token, unknown_font, font_face,
  * template, svg_unsafe, image_missing, photo_preprinted, qr_hidden, qr_small,
- * qr_outside, qr_profile_kind (a Personal QR off an ID card), accent_missing; warnings: off_canvas, empty_text, invisible,
+ * qr_outside, qr_profile_kind (a Personal QR off an ID card), accent_missing, poster_format (a poster
+ * not in one of its three formats); warnings: off_canvas, empty_text, invisible,
  * svg_cleaned, qr_small (under 12 mm), qr_square, font_slanted.
  */
 
@@ -191,6 +193,8 @@ export const layoutProblemsV2 = (lay: LayoutV2, kind: DocKind | string = "ticket
         `The canvas is ${gFmt(c.width)} × ${gFmt(c.height)}, which is not the shape of a ${gFmt(page.widthMm)} × ${gFmt(page.heightMm)} mm page. Resize it, or change the page.`,
       ),
     );
+  if (kind === "poster" && posterFormatOf(lay) === null)
+    out.push(p("poster_format", "canvas", "A poster is 1080 × 1080 (square), 1080 × 1350 (portrait) or 1080 × 1920 (story) pixels, on a page of the same size at 96 dpi."));
   const pxPerMm = c.width / page.widthMm;
   // The code the gate scans and the holder's Personal QR are counted apart: one of each at most.
   const qrs = lay.layers.flatMap((l, i) => (l.kind === "qr" && !l.bind ? [i] : []));

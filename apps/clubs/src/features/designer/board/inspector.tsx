@@ -12,7 +12,6 @@ import {
   type ShapeLayerV2,
   type SvgLayerV2,
   type TextLayerV2,
-  type TokenGroup,
   findFont,
   shadowsOf,
   textFloor,
@@ -43,13 +42,15 @@ export interface InspectorContext {
   fonts: readonly FontFamilyV2[];
   tokens: DesignToken[];
   samples: Record<string, string>;
-  groups: TokenGroup[];
+  groups: readonly string[];
   /** The guest photo is a source on this kind. */
   guestPhoto: boolean;
   /** The kind is printed on stock that may carry pre-printed parts (badges). */
   preprint: boolean;
   /** What a QR holds on this kind, in words. */
   qrHolds: string;
+  /** The pictures an image layer may show on this kind (a poster's four); every source when unset. */
+  imageSources?: readonly ImageSourceV2[];
   imageUrl: (l: ImageLayerV2) => string | null;
   onUpload: (file: File) => Promise<{ key: string; url: string } | null>;
   /** An event's signatures, stored with its design and saved at once; none on the club's templates. */
@@ -413,7 +414,9 @@ const SvgFields = ({ l, patch, ctx, id }: { l: SvgLayerV2; patch: Patch; ctx: In
 const ImageFields = ({ l, patch, ctx, id }: { l: ImageLayerV2; patch: Patch; ctx: InspectorContext; id: (f: string) => string }) => {
   const file = React.useRef<HTMLInputElement>(null);
   const [busy, setBusy] = React.useState(false);
-  const sources = (Object.keys(IMAGE_SOURCE_LABEL_V2) as ImageSourceV2[]).filter((s) => s !== "guest_photo" || ctx.guestPhoto || l.source === s);
+  const sources = (Object.keys(IMAGE_SOURCE_LABEL_V2) as ImageSourceV2[]).filter(
+    (s) => l.source === s || ((s !== "guest_photo" || ctx.guestPhoto) && (!ctx.imageSources || ctx.imageSources.includes(s)))
+  );
   const url = ctx.imageUrl(l);
   return (
     <Section title="Picture">

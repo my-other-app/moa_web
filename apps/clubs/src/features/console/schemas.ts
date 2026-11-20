@@ -22,6 +22,8 @@ export const EVENT_TABS = [
   { key: "links", label: "Links", path: "/links" },
   // Posts to the club's social accounts and the share kit (once the backend has social posting; event-console asks).
   { key: "promote", label: "Promote", path: "/promote" },
+  // Guests' "I'm attending" posters: the switch, the moments, the designs, the numbers (once the API has posters).
+  { key: "posters", label: "Posters", path: "/posters" },
   { key: "finance", label: "Finance", path: "/finance" },
   // Each payment, with refunds (owners and admins; once the backend has club refunds).
   { key: "payments", label: "Payments", path: "/payments" },
@@ -74,6 +76,8 @@ export const DESIGN_LINKS = [
   { kind: "badge", label: "ID card", hint: "Printed at the door and the kiosk" },
   { kind: "certificate", label: "Certificate", hint: "Issued after the event" },
   { kind: "agenda", label: "Programme", hint: "On the kiosk screens and printed as A4" },
+  // Shown once the API has posters (event-console asks).
+  { kind: "poster", label: "Poster", hint: "The picture guests share: I'm attending" },
 ] as const;
 
 /** The standing notice for a status that changes what the console can do. */

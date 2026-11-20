@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PageSpec, TicketCanvas, TicketLayer } from "@moa/layout";
+import { PageSpec, TicketCanvas, TicketLayer, type PosterFormat } from "@moa/layout";
 
 /**
  * Who a design is for.
@@ -16,7 +16,8 @@ export const AUDIENCES = [
 ] as const;
 export type Audience = (typeof AUDIENCES)[number]["value"];
 
-export const DESIGN_KINDS = ["ticket", "badge", "certificate", "agenda"] as const;
+/** Every kind of design. The poster is an event's only, and only once the API has posters (designer-page asks). */
+export const DESIGN_KINDS = ["ticket", "badge", "certificate", "agenda", "poster"] as const;
 export type DesignKind = (typeof DESIGN_KINDS)[number];
 
 /**
@@ -256,7 +257,7 @@ export const uploadedImageSchema = z.object({
 // ─── Layout v2: the board (feature-register/layout-v2-contract.md) ──────────
 
 /** The kinds drawn on the board; the programme keeps the canvas editor. */
-export const BOARD_KINDS = ["ticket", "badge", "certificate"] as const;
+export const BOARD_KINDS = ["ticket", "badge", "certificate", "poster"] as const;
 export type BoardKind = (typeof BOARD_KINDS)[number];
 export const isBoardKind = (k: DesignKind): k is BoardKind => (BOARD_KINDS as readonly string[]).includes(k);
 
@@ -282,6 +283,8 @@ export const starterMetaSchema = z.preprocess(
     /** What it is for, in a line: "For card printers: …". */
     use: z.string().nullish(),
     note: z.string().nullish(),
+    /** A poster's: the formats it has a layout for. */
+    formats: z.array(z.string()).nullish(),
   })
 );
 export type StarterMeta = z.infer<typeof starterMetaSchema>;
@@ -380,6 +383,72 @@ export const boardDesignSchema = z.preprocess(
     active: z.string().nullish(),
     /** What a save may still want looked at (a small QR, a layer off the canvas): saved, but said. */
     warnings: z.array(z.object({ message: z.string() }).passthrough()).default([]),
+    /** A poster's: where the layout came from ("saved", "default": what the chain resolves to, "starter": the platform's). */
+    posterFrom: z.string().nullish(),
   })
 );
 export type BoardDesign = z.infer<typeof boardDesignSchema>;
+
+// ─── Posters (feature-register/posters/CONTRACT.md §10.3) ───────────────────
+
+/**
+ * Which poster the board is on: a variant ("default", "role:speaker",
+ * "type:12") and one of its three formats. `label` is the variant's name
+ * as the API gives it ("Everyone", "Speakers", "Ticket: VIP").
+ */
+export interface PosterSlot {
+  variant: string;
+  format: PosterFormat;
+  label: string;
+}
+
+/**
+ * GET …/designs/poster/layout?variant&format: the v2 block of the other
+ * kinds, flat, with `variant`, `format` and `from` ("saved": this variant's
+ * own layout for the format; "default": none, so what the chain resolves
+ * to; "starter": nothing saved anywhere, the platform's). Read as the
+ * board reads any kind.
+ */
+export const posterBoardSchema = z.preprocess((v) => {
+  const o = camelKeys(v);
+  if (!isMap(o)) return o;
+  const from = typeof o.from === "string" ? o.from : null;
+  return {
+    eventId: typeof o.eventId === "number" ? o.eventId : 0,
+    kind: "poster",
+    audience: typeof o.variant === "string" ? o.variant : "default",
+    layout: o.layout,
+    version: typeof o.revision === "number" ? o.revision : 0,
+    isOwn: from === "saved",
+    fromStarter: from === "starter",
+    starters: o.starters,
+    fonts: o.fonts,
+    tokens: o.tokens,
+    images: o.images ?? null,
+    values: o.values ?? null,
+    context: o.context ?? null,
+    brand: o.brand,
+    warnings: o.warnings,
+    posterFrom: from,
+  };
+}, boardDesignSchema);
+
+/** One poster variant's formats: saved here (with its revision and the starter it came from), or following the chain. */
+const posterFormatStateSchema = z.object({ saved: z.boolean().default(false), revision: z.number().nullish(), starter: z.string().nullish() }).passthrough();
+
+/** GET …/designs/poster/variants: the variants with a layout saved, and every variant one could be made for. */
+export const posterVariantsSchema = z.object({
+  variants: z
+    .array(
+      z.object({
+        variant: z.string(),
+        label: z.string(),
+        formats: z.record(posterFormatStateSchema).default({}),
+        updated_at: z.string().nullish(),
+      })
+    )
+    .default([]),
+  options: z.array(z.object({ variant: z.string(), label: z.string() })).default([]),
+  order: z.string().nullish(),
+});
+export type PosterVariants = z.infer<typeof posterVariantsSchema>;

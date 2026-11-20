@@ -1,6 +1,6 @@
 "use client";
 
-import { type TextLayerV2, type TokenGroup, cssFamily } from "@moa/layout";
+import { type TextLayerV2, cssFamily } from "@moa/layout";
 import { Button } from "@moa/ui";
 import * as React from "react";
 
@@ -34,7 +34,7 @@ export const TextEditor = ({
   onDone: () => void;
   tokens: DesignToken[];
   samples: Record<string, string>;
-  groups: TokenGroup[];
+  groups: readonly string[];
 }) => {
   const area = React.useRef<HTMLTextAreaElement>(null);
   const caret = React.useRef<{ start: number; end: number }>({ start: layer.text.length, end: layer.text.length });

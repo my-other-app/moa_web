@@ -20,11 +20,13 @@ import {
   layoutProblemsV2,
   parseLayoutV2,
   PERSONAL_QR,
+  samplesV2,
 } from "@moa/layout";
 import { GATEWAY_PREFIX } from "@moa/auth";
 
-import { designSamples } from "../config";
+import { designSamples, SAMPLE_SHARE_URL } from "../config";
 import type { BoardDesign } from "../schemas";
+import { SAMPLE_GUEST_PHOTO } from "./sample-photo";
 
 /**
  * The board's one door to the v2 builder in @moa/layout: what the stage
@@ -149,9 +151,23 @@ export const SAMPLE_PERSONAL_QR = "https://myotherapp.in/p/samplecode";
  * catalogue's samples, and the sample guest's personal QR when the server
  * sends none, so a Personal QR layer is always drawn on the stage.
  */
-export const boardValues = (d: Pick<BoardDesign, "values" | "sampleValues">) => {
+export const boardValues = (d: Pick<BoardDesign, "values" | "sampleValues">, kind?: DocKind) => {
+  if (kind === "poster") return posterValues(d);
   const values = designSamples({ ...d.sampleValues, ...(d.values ?? {}) });
   if (!String(values[PERSONAL_QR] ?? "").trim()) values[PERSONAL_QR] = SAMPLE_PERSONAL_QR;
+  return values;
+};
+
+/**
+ * A poster's sample guest: the server's values over the poster catalogue's
+ * samples (v1's under both, for the tokens every kind may use), with the
+ * moment's phrase and a share link always there, so the stage never shows
+ * an empty line where a guest's poster has words.
+ */
+const posterValues = (d: Pick<BoardDesign, "values" | "sampleValues">) => {
+  const values = designSamples({ ...samplesV2("poster"), ...d.sampleValues, ...(d.values ?? {}) });
+  if (!String(values.moment_phrase ?? "").trim()) values.moment_phrase = "I'm attending";
+  if (!String(values.share_url ?? "").trim()) values.share_url = SAMPLE_SHARE_URL;
   return values;
 };
 
@@ -176,7 +192,13 @@ export const boardColors = (d: BoardDesign) => {
  * and the pictures by their signed links -- by source, and uploads as
  * `upload:<key>` -- with this session's uploads over them.
  */
-export const boardContext = (d: BoardDesign, sampleQr: string, uploads: Readonly<Record<string, string>> = {}): BuildContext => {
+export const boardContext = (
+  d: BoardDesign,
+  sampleQr: string,
+  uploads: Readonly<Record<string, string>> = {},
+  /** A poster's stage: the sample guest's drawn photo in the frame (true), or none, for the initials tile (false). */
+  samplePhoto?: boolean
+): BuildContext => {
   const signed = { ...(d.images?.uploads ?? {}), ...d.imageUrls, ...uploads };
   const images: Record<string, string | null> = {
     org_logo: d.images?.org_logo ?? d.brand.logoUrl ?? null,
@@ -186,6 +208,7 @@ export const boardContext = (d: BoardDesign, sampleQr: string, uploads: Readonly
     sponsor: d.images?.sponsor ?? null,
     guest_photo: d.images?.guest_photo ?? null,
   };
+  if (samplePhoto !== undefined) images.guest_photo = samplePhoto ? (images.guest_photo ?? SAMPLE_GUEST_PHOTO) : null;
   for (const [key, url] of Object.entries(signed)) if (url) images[`upload:${key}`] = url;
   return { colors: boardColors(d), qr: d.context?.qr || sampleQr, images };
 };

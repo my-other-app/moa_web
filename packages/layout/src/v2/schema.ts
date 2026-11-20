@@ -436,8 +436,8 @@ export const normaliseLayer = <L extends LayerV2>(layer: L): L => {
   return { ...t, spans, text, minSize } as L;
 };
 
-/** The kinds of document a layout is for. */
-export const DOC_KINDS = ["ticket", "certificate", "badge"] as const;
+/** The kinds of document a layout is for (a poster: a guest's "I'm attending" picture, in three formats). */
+export const DOC_KINDS = ["ticket", "certificate", "badge", "poster"] as const;
 export type DocKind = (typeof DOC_KINDS)[number];
 
 /** A layout from its wire form; throws a ZodError when the shape is wrong (validate() reports it instead). */

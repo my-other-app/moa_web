@@ -51,7 +51,8 @@ for (const t of TICKET_TOKENS) {
   BY_NAME.set(t.key, t.key);
   for (const a of t.aliases ?? []) BY_NAME.set(a, t.key);
 }
-const CLASH = new Set(DESIGN_TOKENS.map((t) => t.key));
+// The kinds a v1 canvas can be (a poster never was one): the poster's own names leave v1 text as it was.
+const CLASH = new Set(DESIGN_TOKENS.filter((t) => t.kinds.some((k) => k !== "poster")).map((t) => t.key));
 
 /** v1 aliases that a design now uses with another meaning, written as their v1 keys. */
 export const v1Text = (src: string): string => {

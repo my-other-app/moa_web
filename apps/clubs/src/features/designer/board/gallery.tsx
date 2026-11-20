@@ -1,15 +1,16 @@
 "use client";
 
 import { GATEWAY_PREFIX } from "@moa/auth";
-import type { LayoutV2 } from "@moa/layout";
+import { isV2Layout, type LayoutV2, parseLayoutV2, POSTER_FORMAT_SPECS, type PosterFormat } from "@moa/layout";
 import { EmptyState, Segmented, StatusBadge, cn } from "@moa/ui";
 import { PencilRulerIcon } from "lucide-react";
 import * as React from "react";
 
 import type { DesignerConfig } from "../config";
 import { fileIdOf, type ColourFilter, type PhotoFilter } from "../presets";
-import type { BoardKind, StarterMeta } from "../schemas";
-import type { DocRenderer } from "./engine";
+import { usePosterStarterFormats } from "../queries";
+import type { BoardDesign, BoardKind, StarterMeta } from "../schemas";
+import { boardContext, boardValues, type DocRenderer, makeRenderer } from "./engine";
 import { DocThumb } from "./stage";
 
 /**
@@ -22,6 +23,7 @@ const GRID: Record<BoardKind, string> = {
   ticket: "grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))]",
   certificate: "grid-cols-[repeat(auto-fill,minmax(min(100%,230px),1fr))]",
   badge: "grid-cols-[repeat(auto-fill,minmax(min(100%,160px),1fr))]",
+  poster: "grid-cols-[repeat(auto-fill,minmax(min(100%,180px),1fr))]",
 };
 
 const cardClass = (on: boolean) =>
@@ -83,6 +85,47 @@ const COLOUR: { value: ColourFilter; label: string }[] = [
   { value: "mono", label: "Black and white" },
 ];
 
+/**
+ * A poster starter's picture: its layout for the format on the board, drawn
+ * by the builder with the sample guest (the starters ship no pictures).
+ * Its name while the layout loads or when it cannot be read.
+ */
+const PosterStarterThumb = ({ s, raw, design, config, format }: { s: StarterMeta; raw: unknown; design: BoardDesign; config: DesignerConfig; format: PosterFormat }) => {
+  const layout = React.useMemo(() => {
+    try {
+      return isV2Layout(raw) ? parseLayoutV2(raw) : null;
+    } catch {
+      return null;
+    }
+  }, [raw]);
+  const renderer = React.useMemo(
+    () => (layout ? makeRenderer({ page: layout.page, canvas: layout.canvas, vars: layout.vars }, boardValues(design, "poster"), boardContext(design, config.sampleQr, {}, true), "poster") : null),
+    [layout, design, config.sampleQr]
+  );
+  const spec = POSTER_FORMAT_SPECS[format];
+  // Drawn as wide as the card is: measured, else the narrowest a card gets.
+  const box = React.useRef<HTMLSpanElement>(null);
+  const [width, setWidth] = React.useState(164);
+  React.useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => el.clientWidth && setWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <span ref={box} className="bg-sunken relative grid place-items-center overflow-hidden rounded-[var(--radius-md)]" style={{ aspectRatio: `${spec.width} / ${spec.height}` }}>
+      {layout && renderer ? (
+        <DocThumb layout={layout} renderer={renderer} width={width} height={Math.round((width * spec.height) / spec.width)} className="block" />
+      ) : (
+        <span className="text-ink-3 p-3 text-center text-[15px] leading-tight font-semibold">{s.name}</span>
+      )}
+    </span>
+  );
+};
+
 export const StarterGallery = ({
   config,
   kind,
@@ -92,6 +135,9 @@ export const StarterGallery = ({
   currentNote,
   onOpen,
   onPick,
+  design,
+  eventId = 0,
+  format,
 }: {
   config: DesignerConfig;
   kind: BoardKind;
@@ -103,7 +149,13 @@ export const StarterGallery = ({
   currentNote: string;
   onOpen: () => void;
   onPick: (s: StarterMeta) => void;
+  /** A poster's: the design (for the sample guest), the event (for the starters' layouts) and the format shown. */
+  design?: BoardDesign;
+  eventId?: number;
+  format?: PosterFormat;
 }) => {
+  const posterThumbs = kind === "poster" && !!design && !!format && eventId > 0;
+  const layouts = usePosterStarterFormats(eventId, posterThumbs ? starters.map((s) => s.id) : []);
   const [photo, setPhoto] = React.useState<PhotoFilter>("all");
   const [colour, setColour] = React.useState<ColourFilter>("all");
   const filterable = kind === "badge" && starters.some((s) => s.hasPhoto != null || s.mono != null);
@@ -143,7 +195,9 @@ export const StarterGallery = ({
               Start from a design
             </h2>
             <p className="text-ink-3 m-0 mt-0.5 text-[12.5px]">
-              {starters.length} designs. Pick one to open a copy; nothing changes until you save.
+              {kind === "poster"
+                ? `${starters.length} designs, each with a square, a portrait and a story layout. Pick one to use it, or to open a copy.`
+                : `${starters.length} designs. Pick one to open a copy; nothing changes until you save.`}
             </p>
           </div>
           {filterable ? (
@@ -158,7 +212,11 @@ export const StarterGallery = ({
             {shown.map((s) => (
               <li key={s.id} className="min-w-0">
                 <button type="button" className={cardClass(false)} onClick={() => onPick(s)} aria-label={`Start from ${s.name}`}>
-                  <StarterThumb kind={kind} s={s} />
+                  {posterThumbs ? (
+                    <PosterStarterThumb s={s} raw={layouts[starters.indexOf(s)]?.data?.[format!]} design={design!} config={config} format={format!} />
+                  ) : (
+                    <StarterThumb kind={kind} s={s} />
+                  )}
                   <Caption title={s.name} meta={s.use ?? s.note ?? (s.page ? `${s.page.widthMm} × ${s.page.heightMm} mm` : "")} />
                 </button>
               </li>

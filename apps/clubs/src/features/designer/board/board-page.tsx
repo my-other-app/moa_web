@@ -1,14 +1,15 @@
 "use client";
 
-import type { LayoutV2 } from "@moa/layout";
-import { Button, EmptyState, Skeleton } from "@moa/ui";
+import { type LayoutV2, POSTER_FORMAT_SPECS } from "@moa/layout";
+import { Button, EmptyState, Skeleton, toast } from "@moa/ui";
 import { RotateCcwIcon } from "lucide-react";
 import * as React from "react";
 
 import { DESIGNERS } from "../config";
-import { useBoard, useStarterLayout } from "../queries";
-import type { Audience, BoardDesign, BoardKind, DesignScope, StarterMeta } from "../schemas";
+import { useApplyPosterStarter, useBoard, useStarterLayout } from "../queries";
+import type { Audience, BoardDesign, BoardKind, DesignScope, PosterSlot, StarterMeta } from "../schemas";
 import { BackToDesigns, DesignBar } from "../components/shell";
+import { PosterStarterDialog } from "../components/poster-starter-dialog";
 import { Board } from "./board";
 import { boardContext, boardValues, makeRenderer, readLayout } from "./engine";
 import { StarterGallery } from "./gallery";
@@ -64,6 +65,7 @@ const opened = (raw: unknown): { layout: LayoutV2 } | { error: unknown } => {
 
 /** Where the design in use comes from, in a few words, for the gallery card. */
 const provenanceOf = (d: BoardDesign, scope: DesignScope) => {
+  if (d.kind === "poster") return d.isOwn ? `Saved${d.version > 0 ? ` · version ${d.version}` : ""}` : d.posterFrom === "starter" ? "The built-in poster" : "The next design in line";
   if (d.isOwn) return d.version > 0 ? `Saved · version ${d.version}` : "Saved";
   if (d.fromStarter) return "The default design";
   if (scope.kind === "club") return "Built in";
@@ -77,6 +79,7 @@ export const BoardPage = ({
   picker,
   dirtyRef,
   ask,
+  poster,
 }: {
   scope: DesignScope;
   kind: BoardKind;
@@ -85,19 +88,25 @@ export const BoardPage = ({
   dirtyRef: React.MutableRefObject<boolean>;
   /** Run a switch that would lose unsaved work only once the person says so. */
   ask: (go: () => void) => void;
+  /** A poster: the variant and format on the board. A new format keeps the board open; a new variant goes back to its gallery. */
+  poster?: PosterSlot;
 }) => {
   const config = DESIGNERS[kind];
   const [view, setView] = React.useState<View>({ mode: "gallery" });
   const [nonce, setNonce] = React.useState(0);
-  const design = useBoard(scope, kind, audience);
+  const design = useBoard(scope, kind, audience, poster);
   const starterId = view.mode === "board" && view.starter && nonce === 0 ? view.starter.id : null;
-  const starter = useStarterLayout(scope, kind, starterId);
+  const starter = useStarterLayout(scope, kind, starterId, poster?.format);
   const d = design.data;
+  // A poster starter picked in the gallery: use it for every format, or open a copy of this one.
+  const [picking, setPicking] = React.useState<StarterMeta | null>(null);
+  const apply = useApplyPosterStarter(scope.kind === "event" ? scope.eventId : 0);
 
-  // The audience changed: back to its gallery.
-  const [seen, setSeen] = React.useState(audience);
-  if (seen !== audience) {
-    setSeen(audience);
+  // The audience (or a poster's variant) changed: back to its gallery.
+  const who = `${audience}|${poster?.variant ?? ""}`;
+  const [seen, setSeen] = React.useState(who);
+  if (seen !== who) {
+    setSeen(who);
     setView({ mode: "gallery" });
     setNonce(0);
   }
@@ -115,7 +124,7 @@ export const BoardPage = ({
   const thumbRenderer = React.useMemo(() => {
     if (!d || !current || !("layout" in current)) return null;
     const l = current.layout;
-    return makeRenderer({ page: l.page, canvas: l.canvas, vars: l.vars }, boardValues(d), boardContext(d, config.sampleQr), kind);
+    return makeRenderer({ page: l.page, canvas: l.canvas, vars: l.vars }, boardValues(d, kind), boardContext(d, config.sampleQr, {}, kind === "poster" ? true : undefined), kind);
   }, [d, current, config.sampleQr, kind]);
 
   if (design.isError) return <Failed bar={bar(picker)} title="Could not load the designs" err={design.error} onRetry={() => void design.refetch()} />;
@@ -146,8 +155,37 @@ export const BoardPage = ({
           renderer={thumbRenderer}
           currentNote={provenanceOf(d, scope)}
           onOpen={() => setView({ mode: "board", starter: null })}
-          onPick={(s) => setView({ mode: "board", starter: s })}
+          onPick={(s) => (poster ? setPicking(s) : setView({ mode: "board", starter: s }))}
+          design={d}
+          eventId={scope.kind === "event" ? scope.eventId : 0}
+          format={poster?.format}
         />
+        {poster ? (
+          <PosterStarterDialog
+            starter={picking}
+            variantLabel={poster.label}
+            format={POSTER_FORMAT_SPECS[poster.format].label}
+            busy={apply.isPending}
+            onClose={() => setPicking(null)}
+            onCopy={() => {
+              if (picking) setView({ mode: "board", starter: picking });
+              setPicking(null);
+            }}
+            onApply={async () => {
+              if (!picking) return;
+              try {
+                await apply.mutateAsync({ variant: poster.variant, starterId: picking.id });
+                toast.success(`${picking.name} is the poster for ${poster.label}`, { description: "Its square, portrait and story layouts are saved. Change any part of them here." });
+                setPicking(null);
+                await design.refetch();
+                setNonce((n) => n + 1);
+                setView({ mode: "board", starter: null });
+              } catch (err) {
+                toast.error(errorCopy(err));
+              }
+            }}
+          />
+        ) : null}
       </>
     );
   }
@@ -169,7 +207,8 @@ export const BoardPage = ({
 
   return (
     <Board
-      key={`${audience}-${nonce}`}
+      key={`${audience}-${poster?.variant ?? ""}-${poster?.format ?? ""}-${nonce}`}
+      poster={poster}
       config={config}
       kind={kind}
       scope={scope}
