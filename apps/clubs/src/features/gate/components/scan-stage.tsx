@@ -7,7 +7,7 @@ import { CameraIcon, CameraOffIcon, DoorClosedIcon, HandIcon, PrinterIcon, ScanL
 import { PrintFrame, cardPdfUrl } from "@/features/idcards";
 
 import { gateHeaders } from "../api";
-import { OFFLINE_ADMISSION_NUMBER_CARD, OFFLINE_DESK_CARD, OFFLINE_NOT_A_TICKET_CARD, STATION_SAVED_CARD, UNVERIFIED_CARD, needsHandCheckIn, offlineRepeatCard, outcomeCard, stationOfflineRepeatCard, type OutcomeCardModel } from "../lib/outcome-copy";
+import { afterHandover, OFFLINE_ADMISSION_NUMBER_CARD, OFFLINE_DESK_CARD, OFFLINE_NOT_A_TICKET_CARD, STATION_SAVED_CARD, UNVERIFIED_CARD, needsHandCheckIn, offlineRepeatCard, outcomeCard, stationOfflineRepeatCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { cameraProblem, startScanner, type Scanner } from "../lib/scanner";
 import { useCheckInByHand, useScanMutation, type Enqueue } from "../queries";
 import { missingOf, newRef, type DoorPurpose, type GateContext, type ScanBody, type ScanResult } from "../schemas";
@@ -175,6 +175,10 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue, purpose = null 
                 guest={card.response.attendee.name}
                 rewards={card.response.swag.rewards}
                 canHandOver={ctx.quests?.can_hand_over ?? ctx.permissions.merch}
+                // The verdict above follows the handovers made here.
+                onChange={(rewards) =>
+                  setCard((c) => (c && c.response?.swag ? { ...c, model: afterHandover({ ...c.response, swag: { ...c.response.swag, rewards } }) } : c))
+                }
               />
             ) : null}
             {mayPrint ? (

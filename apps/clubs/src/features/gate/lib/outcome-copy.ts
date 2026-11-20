@@ -132,6 +132,16 @@ export function swagDeskCard(res: ScanResult): OutcomeCardModel {
   return { tone: "caution", tag: "Nothing unlocked", title: `${who} hasn't unlocked a reward yet.`, sub, note: `Rewards show here once they reach a milestone.${off}` };
 }
 
+/** The swag desk's verdict once a reward was handed over here: all done, or what is still to hand over. */
+export function afterHandover(res: ScanResult): OutcomeCardModel {
+  const rewards = res.swag?.rewards ?? [];
+  if (rewards.length && rewards.every((r) => r.status !== "reserved") && rewards.some((r) => r.status === "collected")) {
+    const card = swagDeskCard(res);
+    return { ...card, tone: "admit", tag: "Handed over", title: `${res.attendee?.name || "This guest"} has everything they unlocked.`, note: undefined };
+  }
+  return swagDeskCard(res);
+}
+
 /** No signal at a station: the visit is saved on the phone, and sent when the signal is back. */
 export const STATION_SAVED_CARD: OutcomeCardModel = {
   tone: "accent",

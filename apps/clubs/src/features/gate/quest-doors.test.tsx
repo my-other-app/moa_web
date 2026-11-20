@@ -280,7 +280,7 @@ describe("at a swag desk", () => {
       return json(200, { result: "HANDED_OVER", claim: reward({ status: "collected", collected_at: "2026-11-28T06:02:00Z", door: "Swag desk", collected_by: "Vani Rao" }), remaining: 54 });
     };
     await openAt("Swag desk");
-    expect(screen.getByText("Swag desk · Swag desk")).toBeInTheDocument();
+    expect(screen.getByText(/shows the quest rewards the guest unlocked, to hand over/)).toBeInTheDocument();
     await scan("MOA-7K3QF-X9PWM", "Look up");
     const c = await card("Rewards to collect");
     expect(within(c).getByText("Asha Kumar — 1 reward to hand over.")).toBeInTheDocument();
@@ -289,6 +289,10 @@ describe("at a swag desk", () => {
     await waitFor(() => expect(body).toEqual({ variant_label: null, door: "Swag desk" }));
     expect(await within(c).findByText("Collected")).toBeInTheDocument();
     expect(within(c).getByText(/Collected · \d\d:\d\d · Swag desk · by Vani Rao/)).toBeInTheDocument();
+    // The verdict follows: everything they unlocked is handed over.
+    expect(within(c).getByText("Handed over")).toBeInTheDocument();
+    expect(within(c).getByText("Asha Kumar has everything they unlocked.")).toBeInTheDocument();
+    expect(c).toHaveAttribute("data-tone", "admit");
     expect(screen.getByText("412")).toBeInTheDocument();
   });
 

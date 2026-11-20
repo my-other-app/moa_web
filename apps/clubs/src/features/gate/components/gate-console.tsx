@@ -40,7 +40,7 @@ function QuestDoorBanner({ purpose, door, ctx }: { purpose: DoorPurpose; door: s
       {off ? " Quests are off right now: visits are recorded and count once the organiser turns them on." : ""}
     </DoorBanner>
   ) : (
-    <DoorBanner tone="info" icon={<GiftIcon />} title={`Swag desk · ${door}`} className="border-x-0 border-b-0">
+    <DoorBanner tone="info" icon={<GiftIcon />} title={/swag desk/i.test(door) ? door : `Swag desk · ${door}`} className="border-x-0 border-b-0">
       Scanning a ticket shows the quest rewards the guest unlocked, to hand over. Nobody is checked in here.
       {off ? " Quests are off right now: rewards already held can still be handed over." : ""}
     </DoorBanner>
