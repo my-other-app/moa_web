@@ -47,7 +47,7 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue, purpose = null 
   const scan = useScanMutation(gateKey, ctx.event.id, enqueue, purpose);
   const copy = STAGE_COPY[purpose ?? "entrance"];
   const byHand = useCheckInByHand(gateKey, ctx.event.id);
-  const [card, setCard] = React.useState<{ model: OutcomeCardModel; response: ScanResult | null; captureAsk: boolean } | null>(null);
+  const [card, setCard] = React.useState<{ model: OutcomeCardModel; response: ScanResult | null; captureAsk: boolean; n?: number } | null>(null);
   const [printing, setPrinting] = React.useState<string | null>(null);
   const printCard = React.useCallback(
     (registrationId: string, source: "checkin" | "manual") => setPrinting(cardPdfUrl(ctx.event.id, registrationId, { source, record: true, door })),
@@ -59,12 +59,15 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue, purpose = null 
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const scannerRef = React.useRef<Scanner | null>(null);
   const dismissTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Counts the server's answers: a swag desk's rewards start afresh from each one, even for the same guest.
+  const answers = React.useRef(0);
 
   const show = React.useCallback(
     (r: ScanResult) => {
       clearTimeout(dismissTimer.current);
       const ask = r.capture.ask && !!r.attendee;
-      setCard({ model: outcomeCard(r, door), response: r, captureAsk: ask });
+      answers.current += 1;
+      setCard({ model: outcomeCard(r, door), response: r, captureAsk: ask, n: answers.current });
       // A first admission prints the card when the event says so.
       if (r.outcome === "CHECKED_IN" && r.badge.auto && r.attendee) printCard(r.attendee.id, "checkin");
       // Admissions clear themselves so the card never blocks the next scan; anything needing a decision stays.
@@ -165,7 +168,7 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue, purpose = null 
             ) : null}
             {card.response?.outcome === "SWAG_DESK" && card.response.swag && card.response.attendee ? (
               <DeskRewards
-                key={card.response.attendee.id}
+                key={`${card.response.attendee.id}-${card.n ?? 0}`}
                 gateKey={gateKey}
                 eventId={ctx.event.id}
                 door={door}
