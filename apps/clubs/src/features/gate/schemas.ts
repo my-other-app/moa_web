@@ -109,6 +109,25 @@ export type WalkupResult = z.infer<typeof walkupResultSchema>;
 
 export const doorOptionSchema = z.object({ id: z.string(), name: z.string(), kind: z.string() });
 
+/** A value a stored question may hold as `null`, read as absent. */
+const absentIfNull = <T extends z.ZodTypeAny>(schema: T) => schema.nullish().transform((v): z.infer<T> | undefined => v ?? undefined);
+
+/**
+ * One of the event's own questions, as the door reads it. A question can be
+ * stored with `null` where it has nothing (a text question's `options`): read
+ * as absent, never as a reason the console cannot open. It only shapes the
+ * walk-up form and the missing answers; the door must open whatever it says.
+ */
+export const guestFieldSchema = z
+  .object({
+    key: z.string(),
+    label: z.string().nullish().transform((v) => v ?? ""),
+    field_type: absentIfNull(z.string()),
+    options: absentIfNull(z.array(z.string())),
+    required: absentIfNull(z.boolean()),
+  })
+  .passthrough();
+
 export const gateContextSchema = z.object({
   event: z.object({
     id: z.number(),
@@ -132,7 +151,7 @@ export const gateContextSchema = z.object({
   walkup_roles: z.array(z.string()),
   doors: z.array(doorOptionSchema),
   expected_door_id: z.string().nullable(),
-  guest_fields: z.array(z.object({ key: z.string(), label: z.string(), field_type: z.string().optional(), options: z.array(z.string()).optional(), required: z.boolean().optional() }).passthrough()),
+  guest_fields: z.array(guestFieldSchema),
   me: z.object({ name: z.string(), kind: z.enum(["user", "door"]) }),
   /** Whether there is anything to hand out; the console shows the merch tab only then. */
   has_merch: z.boolean().default(false),
