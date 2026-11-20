@@ -163,6 +163,27 @@ describe("the kiosk", () => {
     }
   });
 
+  it("stays on the attract screen when a later poll gets no answer, and says unpaired when the token ends", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      localStorage.setItem(KIOSK_TOKEN_STORAGE, "kiosk_tok");
+      api.context.mockResolvedValueOnce(ctx).mockRejectedValueOnce(new TypeError("Failed to fetch")).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      render(<KioskApp />);
+      expect(await screen.findByText("Scan your ticket")).toBeInTheDocument();
+      // The next poll (every 20 s) and its one retry both fail.
+      await vi.advanceTimersByTimeAsync(25_000);
+      await waitFor(() => expect(api.context).toHaveBeenCalledTimes(3));
+      expect(screen.queryByText("The kiosk could not open")).toBeNull();
+      expect(screen.getByText("Scan your ticket")).toBeInTheDocument();
+      // A token that has ended still ends it.
+      api.context.mockRejectedValue(new ApiError({ message: "This kiosk is not paired, or its shift has ended.", status: 401, errorCode: "KIOSK_UNPAIRED" }));
+      await vi.advanceTimersByTimeAsync(25_000);
+      expect(await screen.findByText("This kiosk is not paired")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 20000);
+
   it("offers a card it has just printed again as a reprint, not as the guest's first card", async () => {
     localStorage.setItem(KIOSK_TOKEN_STORAGE, "kiosk_tok");
     vi.stubGlobal("fetch", vi.fn(async () => new Response(new Blob(["%PDF-1.4"], { type: "application/pdf" }), { status: 200 })));

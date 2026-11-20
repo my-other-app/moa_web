@@ -195,6 +195,32 @@ describe("the gate console", () => {
     }
   });
 
+  it("stays open on what it last read when a later poll gets no answer", async () => {
+    // Venue Wi-Fi that carries nothing: the browser still says online, and the fetch fails.
+    api.context.mockResolvedValueOnce(ctx).mockRejectedValue(new TypeError("Failed to fetch"));
+    api.scan.mockResolvedValue(result({}));
+    render(<GateConsole eventId={37} />);
+    fireEvent.change(await screen.findByLabelText("Or type the ticket code (MOA-XXXXX-XXXXX)"), { target: { value: "MOA-ABCDE-23456" } });
+    // An admission reads the context again: that read fails, and keeps failing on its retries.
+    fireEvent.click(screen.getByRole("button", { name: "Check in" }));
+    expect(await screen.findByText("Welcome in")).toBeInTheDocument();
+    await waitFor(() => expect(api.context.mock.calls.length).toBeGreaterThanOrEqual(5), { timeout: 12000 });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByText("The gate could not open")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Hack Night 04" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Or type the ticket code (MOA-XXXXX-XXXXX)")).toBeInTheDocument();
+  }, 20000);
+
+  it("still closes when a later poll is refused: the gate link was switched off", async () => {
+    store.set("moa.gate.37.key", "door-key-123");
+    api.context.mockResolvedValueOnce(ctx).mockRejectedValue(new ApiError({ message: "This gate link is no longer valid.", status: 403, errorCode: "GATE_LINK_INVALID" }));
+    api.scan.mockResolvedValue(result({}));
+    render(<GateConsole eventId={37} />);
+    fireEvent.change(await screen.findByLabelText("Or type the ticket code (MOA-XXXXX-XXXXX)"), { target: { value: "MOA-ABCDE-23456" } });
+    fireEvent.click(screen.getByRole("button", { name: "Check in" }));
+    expect(await screen.findByText("This gate link no longer works")).toBeInTheDocument();
+  });
+
   it("says plainly when the door is shut", async () => {
     api.context.mockResolvedValue({ ...ctx, event: { ...ctx.event, door_open: false, door_mode: "closed" } });
     render(<GateConsole eventId={37} />);
