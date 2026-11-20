@@ -151,7 +151,12 @@ export function Stage({
   const image = theme?.background.kind === "image" && theme.background.image ? theme : null;
 
   return (
-    <div className={cn("relative h-full w-full overflow-hidden", className)} style={{ containerType: "size", ...(theme ? themeVars(theme, "screen") : nativeVars()) }}>
+    <div
+      className={cn("relative h-full w-full overflow-hidden", className)}
+      style={{ containerType: "size", ...(theme ? themeVars(theme, "screen") : nativeVars()) }}
+      data-shows={shows}
+      data-theme={theme ? theme.preset : "own"}
+    >
       <div aria-hidden="true" className="absolute inset-0" style={backgroundStyle(theme, "screen")} />
       {image ? <div aria-hidden="true" className="absolute inset-0" style={{ background: image.colors.background, opacity: image.background.dim }} /> : null}
       <div
@@ -166,8 +171,6 @@ export function Stage({
             gap: u(2.2),
           } as React.CSSProperties
         }
-        data-shows={shows}
-        data-theme={theme ? theme.preset : "own"}
       >
         <Header name={s.event.name} theme={theme} />
         <section className="relative grid min-h-0" style={corner ? { gridTemplateColumns: "1fr auto", gap: u(3) } : undefined}>
