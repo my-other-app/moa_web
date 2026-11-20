@@ -62,6 +62,12 @@ export interface RequestOptions {
    * must not bring the session back to end it).
    */
   renew?: boolean;
+  /**
+   * Headers for this request only, on top of the client's own: a feature
+   * that says which version of an endpoint's body it reads (the live room's
+   * X-Live-Version).
+   */
+  headers?: HeadersInit;
 }
 
 /**
@@ -215,6 +221,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   async function send(method: string, path: string, body: unknown, reqOptions: RequestOptions): Promise<Response> {
     const headers = new Headers(await options.getHeaders?.());
+    new Headers(reqOptions.headers).forEach((value, key) => headers.set(key, value));
     const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
     const isUrlEncoded = body instanceof URLSearchParams;
     const isRawBody = isFormData || isUrlEncoded;
