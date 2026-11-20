@@ -262,7 +262,8 @@ describe("tasks", () => {
     expect(screen.getByText("Required")).toBeInTheDocument();
     expect(screen.getByText("20 pts")).toBeInTheDocument();
     // A code is hidden until asked: screens get shared.
-    expect(screen.queryByText("CLOUD24")).toBeNull();
+    expect(screen.queryByText(/CLOUD24/)).toBeNull();
+    expect(screen.getByText(/^Typed the secret code/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show the code of Keynote code" }));
     expect(screen.getByText("CLOUD24")).toBeInTheDocument();
   });
@@ -429,6 +430,10 @@ describe("stations and swag desks", () => {
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("radio", { name: /Swag desk/ }));
     expect(within(dialog).queryByLabelText("Task title")).toBeNull();
+    // "Desk" stays the hand check-in's door: refused as a name.
+    fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: " desk " } });
+    expect(within(dialog).getByText(/“Desk” is kept for check-ins by hand/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /Add swag desk/ })).toBeDisabled();
     fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: "Swag desk" } });
     fireEvent.click(within(dialog).getByRole("button", { name: /Add swag desk/ }));
     await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.path.endsWith("/quests/stations"))).toMatchObject({ body: { name: "Swag desk", purpose: "swag_desk", link: { days: 3 } } }));

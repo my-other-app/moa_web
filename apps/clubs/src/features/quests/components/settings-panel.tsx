@@ -12,7 +12,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
-  CardLabel,
   FigurePanel,
   NativeSelect,
   Segmented,
@@ -230,11 +229,11 @@ export function SettingsPanel({ eventId, q, canEdit }: { eventId: number; q: Que
           </div>
         </fieldset>
         <div className="border-line-soft flex flex-wrap items-center gap-3 border-t pt-3 md:col-span-2" role="region" aria-label="Save">
-          <CardLabel>
+          <p className="text-ink-3 text-[12px] leading-[1.5]">
             {required
               ? `${plural(required, "required task")}: every one must be done before any reward unlocks.`
               : "No required tasks: any tasks count towards a milestone. Mark a task required to make it a must."}
-          </CardLabel>
+          </p>
           {canEdit ? (
             <span className="ml-auto flex gap-2">
               {dirty ? (

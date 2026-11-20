@@ -173,7 +173,8 @@ export function ruleLine(task: Pick<QuestTask, "kind" | "config" | "target"> & {
       return name ? `Scanned at ${name}` : "Scanned at a station";
     }
     case "code":
-      return typeof c.code === "string" && c.code ? `Code ${c.code}` : "A secret code";
+      // Never the code itself: it stays hidden until the organiser asks for it (screens get shared).
+      return "Typed the secret code";
     default:
       return KIND_META[task.kind]?.label ?? "";
   }

@@ -91,6 +91,8 @@ function NewStationDialog({ eventId, q, open, onClose }: { eventId: number; q: Q
   const id = React.useId();
   const title = taskTitle.trim() || (name.trim() ? `Visit ${name.trim()}` : "");
   const pointsOk = q.mode !== "points" || (Number.isInteger(Number(points)) && Number(points) >= 0 && Number(points) <= 1000);
+  // "Desk" is where a check-in by hand is recorded when a console names no door: it stays an entrance (§7.1).
+  const nameProblem = name.trim().toLowerCase() === "desk" ? "“Desk” is kept for check-ins by hand: pick another name." : null;
   const close = () => {
     setMade(null);
     setName("");
@@ -98,7 +100,7 @@ function NewStationDialog({ eventId, q, open, onClose }: { eventId: number; q: Q
     onClose();
   };
   const submit = async () => {
-    if (!name.trim() || !pointsOk) return;
+    if (!name.trim() || !pointsOk || nameProblem) return;
     try {
       const res = await create.mutateAsync({
         name: name.trim(),
@@ -155,6 +157,7 @@ function NewStationDialog({ eventId, q, open, onClose }: { eventId: number; q: Q
                 Name
               </label>
               <input id={`${id}-name`} className="input" value={name} maxLength={STATION_NAME_MAX} placeholder={purpose === "station" ? "Google Cloud booth" : "Swag desk"} onChange={(e) => setName(e.target.value)} />
+              {nameProblem ? <p className="text-refuse mt-1 text-[11.5px]">{nameProblem}</p> : null}
             </div>
             {purpose === "station" ? (
               <div className="bg-sunken grid gap-3 rounded-xl p-3">
@@ -205,7 +208,7 @@ function NewStationDialog({ eventId, q, open, onClose }: { eventId: number; q: Q
               <Button type="button" variant="ghost" onClick={close}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!name.trim() || !pointsOk || create.isPending}>
+              <Button type="submit" disabled={!name.trim() || !pointsOk || !!nameProblem || create.isPending}>
                 <PlusIcon /> {create.isPending ? "Adding…" : purpose === "station" ? "Add station" : "Add swag desk"}
               </Button>
             </DialogFooter>

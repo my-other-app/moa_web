@@ -174,7 +174,7 @@ export function LivePanel({ eventId, q }: { eventId: number; q: QuestAdmin }) {
                 <React.Fragment key={s.door_id || s.name}>
                   <dt className="text-ink-2 truncate">
                     {s.name}
-                    {s.purpose === "swag_desk" ? <span className="text-ink-3"> · swag desk</span> : null}
+                    {s.purpose === "swag_desk" && !/desk/i.test(s.name) ? <span className="text-ink-3"> · swag desk</span> : null}
                   </dt>
                   <dd className="text-ink m-0 text-right font-mono tabular-nums">{s.purpose === "swag_desk" ? "—" : formatNumber(s.visits)}</dd>
                 </React.Fragment>
