@@ -140,7 +140,7 @@ function SponsorsSlide({ sponsors }: { sponsors: Sponsor[] }) {
             {s.logo?.large || s.logo?.medium ? (
               <span className="grid place-items-center rounded-[0.8em] bg-white" style={{ width: u(16), height: u(16), padding: u(1.4) }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={(s.logo.large ?? s.logo.medium)!} alt={s.name} className="max-h-full max-w-full object-contain" />
+                <img src={s.logo.large ?? s.logo.medium ?? undefined} alt={s.name} className="max-h-full max-w-full object-contain" />
               </span>
             ) : (
               <span className="font-semibold" style={{ fontSize: t(3) }}>
@@ -192,7 +192,7 @@ export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
         s.logo?.medium || s.logo?.thumbnail ? (
           <span key={s.name} className="grid shrink-0 place-items-center rounded-[0.4em] bg-white" style={{ height: u(4), padding: `${u(0.4)} ${u(0.8)}` }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={(s.logo.medium ?? s.logo.thumbnail)!} alt={s.name} className="h-full w-auto object-contain" />
+            <img src={s.logo.medium ?? s.logo.thumbnail ?? undefined} alt={s.name} className="h-full w-auto object-contain" />
           </span>
         ) : (
           <span key={s.name} className="shrink-0 font-semibold" style={{ fontSize: t(1.6) }}>

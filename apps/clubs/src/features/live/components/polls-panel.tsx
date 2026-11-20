@@ -357,8 +357,8 @@ function PollSettingsDialog({ eventId, poll, open, onOpenChange }: { eventId: nu
                     key={`${i}-${label}`}
                     eventId={eventId}
                     label={label}
-                    value={id}
-                    url={id ? url : null}
+                    value={id ?? null}
+                    url={id ? (url ?? null) : null}
                     onChange={(v) => setS((x) => ({ ...x, option_images: poll.options.map((_, j) => (j === i ? v : (x.option_images[j] ?? null))) }))}
                   />
                 );
