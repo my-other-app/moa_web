@@ -106,11 +106,42 @@ export const FALLBACK_CONFIG: Record<string, Record<string, unknown>> = {
 export function fieldsOf(kind: string, templates?: TaskTemplate[] | null): TemplateField[] {
   const t = templates?.find((x) => x.kind === kind);
   if (t && t.fields.length) {
-    // The template's labels and limits, with ours where it leaves a label out.
+    // The template's fields and limits; our fuller labels where we have one ("People to meet", not "People"),
+    // and our words for its choices ("They saved them", not "saved").
     const ours = FALLBACK_FIELDS[kind] ?? [];
-    return t.fields.map((f) => ({ ...f, label: f.label || ours.find((o) => o.key === f.key)?.label || f.key.replace(/_/g, " ") }));
+    return t.fields.map((f) => {
+      const mine = ours.find((o) => o.key === f.key);
+      return {
+        ...f,
+        label: mine?.label || f.label || f.key.replace(/_/g, " "),
+        options: f.options.map((o) => ({ value: o.value, label: o.label ?? mine?.options.find((m) => m.value === o.value)?.label ?? null })),
+      };
+    });
   }
   return FALLBACK_FIELDS[kind] ?? [];
+}
+
+/**
+ * The title a new task suggests while the organiser hasn't typed one: the
+ * template's ("Meet 3 people") following the rule as it is set ("Meet 5
+ * people"), a station's name ("Visit Cloud Labs booth").
+ */
+export function suggestTitle(kind: string, templates: TaskTemplate[] | null | undefined, config: Record<string, string>, stations: QuestStation[] = []): string {
+  const t = templates?.find((x) => x.kind === kind);
+  if (kind === "station") {
+    const s = stations.find((x) => x.id === config.door_id);
+    if (s) return `Visit ${s.name}`;
+  }
+  let title = t?.default_title || KIND_META[kind]?.label || "";
+  const defaults = t?.default_config ?? FALLBACK_CONFIG[kind] ?? {};
+  for (const [key, value] of Object.entries(config)) {
+    const was = defaults[key];
+    if (value && (typeof was === "number" || typeof was === "string") && String(was) !== value) {
+      const at = title.indexOf(String(was));
+      if (at >= 0) title = title.slice(0, at) + value + title.slice(at + String(was).length);
+    }
+  }
+  return title;
 }
 
 const n = (v: unknown, fallback = 0) => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() && Number.isFinite(Number(v)) ? Number(v) : fallback);

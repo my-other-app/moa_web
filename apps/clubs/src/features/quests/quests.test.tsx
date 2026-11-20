@@ -66,7 +66,8 @@ const QUEST = {
 };
 
 const TEMPLATES = [
-  { kind: "checked_in", label: "Checked in", description: "Ticked at check-in.", default_title: "Check in", default_config: { before: null }, fields: [{ key: "before", type: "datetime", min: null, max: null, options: null }] },
+  // As the server sends them (app/api/quests/kinds.py templates()): short labels, plain choices.
+  { kind: "checked_in", label: "Checked in", description: "Ticked at check-in.", default_title: "Check in", action: "ticket", automatic: true, default_config: {}, fields: [{ key: "before", type: "datetime", label: "Before", required: false, min: null, max: null, options: [], default: null }] },
   {
     kind: "network",
     label: "Met people in Network",
@@ -74,12 +75,12 @@ const TEMPLATES = [
     default_title: "Meet 3 people",
     default_config: { count: 3, direction: "either", per_minute: 2 },
     fields: [
-      { key: "count", type: "int", min: 1, max: 50, options: null },
-      { key: "direction", type: "choice", min: null, max: null, options: ["saved", "saved_by", "either"] },
-      { key: "per_minute", type: "int", min: 1, max: 10, options: null },
+      { key: "count", type: "int", label: "People", required: false, min: 1, max: 50, options: [], default: 3 },
+      { key: "direction", type: "choice", label: "Who scans", required: false, min: null, max: null, options: ["saved", "saved_by", "either"], default: "either" },
+      { key: "per_minute", type: "int", label: "At most per minute", required: false, min: 1, max: 10, options: [], default: 2 },
     ],
   },
-  { kind: "code", label: "Secret code", description: "They type a code you show.", default_title: "Find the code", default_config: {}, fields: [{ key: "code", type: "str", min: 3, max: 40, options: null }] },
+  { kind: "code", label: "Secret code", description: "They type a code you show.", default_title: "Find the code", default_config: {}, fields: [{ key: "code", type: "text", label: "Code", required: true, min: null, max: null, options: [], default: null }] },
   { kind: "manual", label: "Marked done by you", description: "You tick it per guest.", default_title: "Hackathon submitted", default_config: {}, fields: [] },
 ];
 
@@ -184,8 +185,8 @@ vi.mock("@/features/events", () => ({ useEventDetail: (id: number) => ({ data: i
 
 const { render } = await import("@/test/render");
 const { QuestsPage } = await import("./components/quests-page");
-const { codeSheetHtml, codeProblem, generateCode, normalizeCode, ruleLine } = await import("./lib/kinds");
-const { questAdminSchema } = await import("./schemas");
+const { codeSheetHtml, codeProblem, generateCode, normalizeCode, ruleLine, suggestTitle } = await import("./lib/kinds");
+const { questAdminSchema, templatesSchema } = await import("./schemas");
 const { thresholdProblem } = await import("./components/milestones-panel");
 
 const parsed = () => questAdminSchema.parse(QUEST);
@@ -277,14 +278,17 @@ describe("tasks", () => {
     expect(within(dialog).getByText("At most 50.")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Add task" })).toBeDisabled();
     fireEvent.change(within(dialog).getByLabelText("People to meet"), { target: { value: "5" } });
-    fireEvent.change(within(dialog).getByLabelText("Who counts"), { target: { value: "saved" } });
+    const who = within(dialog).getByLabelText("Who counts");
+    expect(within(who).getByRole("option", { name: "They saved them (scanned their QR)" })).toBeInTheDocument();
+    fireEvent.change(who, { target: { value: "saved" } });
     fireEvent.change(within(dialog).getByLabelText("Points"), { target: { value: "25" } });
     fireEvent.click(within(dialog).getByRole("checkbox", { name: "Required" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add task" }));
     await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.path.endsWith("/quests/tasks"))).toBeTruthy());
     expect(calls.find((c) => c.method === "POST")!.body).toEqual({
       kind: "network",
-      title: "Meet 3 people",
+      // The suggested title followed the count.
+      title: "Meet 5 people",
       description: null,
       points: 25,
       required: true,
@@ -347,6 +351,9 @@ describe("tasks", () => {
     expect(codeProblem("CLOUD 24", ["cloud24"])).toMatch(/Another code task/);
     expect(codeProblem("KEYNOTE", ["cloud24"])).toBeNull();
     expect(ruleLine({ kind: "network", config: { count: 3, direction: "saved_by", per_minute: 1 }, target: 3 })).toBe("3 people who saved them by QR · at most 1 a minute");
+    const tpl = templatesSchema.parse(TEMPLATES);
+    expect(suggestTitle("network", tpl, { count: "8", direction: "either", per_minute: "2" })).toBe("Meet 8 people");
+    expect(suggestTitle("station", tpl, { door_id: "st1" }, parsed().stations)).toBe("Visit Google Cloud booth");
   });
 });
 

@@ -43,7 +43,7 @@ import {
   toast,
 } from "@moa/ui";
 
-import { CODE_MAX, GROUP_LABEL, KIND_META, codeProblem, codeSheetHtml, fieldsOf, FALLBACK_CONFIG, generateCode, inputOf, kindLabel, ruleLine } from "../lib/kinds";
+import { CODE_MAX, GROUP_LABEL, KIND_META, codeProblem, codeSheetHtml, fieldsOf, FALLBACK_CONFIG, generateCode, inputOf, kindLabel, ruleLine, suggestTitle } from "../lib/kinds";
 import { errorCodeOf, errorText, fieldProblems, fromLocalInput, toLocalInput, windowText } from "../lib/time";
 import { useCreateTask, useDeleteTask, useOrderTasks, useUpdateTask } from "../queries";
 import { TASK_KINDS, TASK_TITLE_MAX, type QuestAdmin, type QuestTask, type TaskInput, type TaskTemplate, type TemplateField } from "../schemas";
@@ -124,7 +124,8 @@ export function taskProblems(fields: TemplateField[], d: TaskDraft, otherCodes: 
     const v = (d.config[f.key] ?? "").trim();
     const input = inputOf(f);
     if (!v) {
-      if (f.required !== false && input !== "datetime") out[f.key] = input === "station" ? "Pick the station." : "Fill this in.";
+      // Only a time may be left empty ("checked in before" is optional); every other rule needs its value.
+      if (input !== "datetime") out[f.key] = input === "station" ? "Pick the station." : "Fill this in.";
       continue;
     }
     if (input === "number") {
@@ -241,7 +242,10 @@ function TaskForm({
 }) {
   const create = useCreateTask(eventId);
   const update = useUpdateTask(eventId);
-  const [draft, setDraft] = React.useState<TaskDraft>(() => draftFor(kind, templates, task));
+  const [typed, setDraft] = React.useState<TaskDraft>(() => draftFor(kind, templates, task));
+  // A new task's title follows its rule ("Meet 5 people") until the organiser types one of their own.
+  const [titleTouched, setTitleTouched] = React.useState(Boolean(task));
+  const draft = titleTouched ? typed : { ...typed, title: suggestTitle(kind, templates, typed.config, q.stations) };
   const [server, setServer] = React.useState<Record<string, string>>({});
   const id = React.useId();
   const fields = fieldsOf(kind, templates);
@@ -300,7 +304,7 @@ function TaskForm({
           <label htmlFor={`${id}-title`} className="eyebrow mb-1.5 block">
             Title guests see
           </label>
-          <input id={`${id}-title`} className="input" value={draft.title} maxLength={TASK_TITLE_MAX} onChange={(e) => set({ title: e.target.value })} />
+          <input id={`${id}-title`} className="input" value={draft.title} maxLength={TASK_TITLE_MAX} onChange={(e) => (setTitleTouched(true), set({ title: e.target.value }))} />
           {problems.title ? <p className="text-refuse mt-1 text-[11.5px]">{problems.title}</p> : null}
         </div>
         {q.mode === "points" ? (
