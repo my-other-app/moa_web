@@ -186,6 +186,9 @@ describe("the gate console", () => {
       expect((init.headers as Record<string, string>)["X-Gate-Key"]).toBe("door-key-123");
       expect(api.scan).toHaveBeenCalledWith("door-key-123", 37, expect.anything());
       expect((await screen.findByTitle("Print")).getAttribute("src")).toMatch(/^blob:/);
+      // The card it just printed counts: a reprint is offered as one, not as their first card.
+      expect(screen.getByRole("button", { name: /Print the card again/ })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Print their card/ })).toBeNull();
     } finally {
       vi.unstubAllGlobals();
       vi.stubGlobal("localStorage", localStorageStub);

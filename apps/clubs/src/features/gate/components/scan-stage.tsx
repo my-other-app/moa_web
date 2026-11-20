@@ -135,7 +135,8 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue }: Props) {
             {mayPrint ? (
               <div className="border-line-soft border-t px-4 py-3">
                 <Button type="button" variant="secondary" size="lg" onClick={() => printCard(card.response!.attendee!.id, "manual")}>
-                  <PrinterIcon /> {card.response!.badge.printed_at ? "Print the card again" : "Print their card"}
+                  {/* The card printed at this admission counts too: the scan's answer predates it. */}
+                  <PrinterIcon /> {card.response!.badge.printed_at || card.response!.badge.auto ? "Print the card again" : "Print their card"}
                 </Button>
               </div>
             ) : null}

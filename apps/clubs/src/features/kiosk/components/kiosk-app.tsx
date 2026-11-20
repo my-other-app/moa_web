@@ -621,7 +621,8 @@ function Kiosk({
                   onClick={printAgain}
                 >
                   <PrinterIcon />
-                  {g.has_card ? "Print my card again" : "Print my card"}
+                  {/* The card this kiosk just printed counts too: `has_card` predates it. */}
+                  {g.has_card || result.auto_print ? "Print my card again" : "Print my card"}
                 </Button>
               ) : null}
               {notMeLeft > 0 && !g.already_checked_in ? (
