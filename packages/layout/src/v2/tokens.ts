@@ -10,7 +10,7 @@ import type { DocKind } from "./schema";
  * `app/core/layout_v2/vocabulary.py`, row for row.
  */
 
-export type DesignTokenKinds = "ticket" | "certificate" | "badge";
+export type DesignTokenKinds = "ticket" | "certificate" | "badge" | "poster";
 
 export interface DesignToken {
   key: string;
@@ -22,7 +22,7 @@ export interface DesignToken {
   v1: boolean;
 }
 
-// key, group, label, sample, kinds ("t" ticket, "c" certificate, "b" badge)
+// key, group, label, sample, kinds ("t" ticket, "c" certificate, "b" badge, "p" poster)
 const ROWS: readonly (readonly [string, string, string, string, string])[] = [
   ["app_name", "Event", "Organiser (the club's name)", "EVENTLY", "t"],
   ["tagline", "Event", "Tagline (hidden unless set)", "An evening of live music", "t"],
@@ -95,9 +95,30 @@ const ROWS: readonly (readonly [string, string, string, string, string])[] = [
   ["bib_number", "Badge", "Bib number", "2047", "b"],
   ["category", "Badge", "Category (hidden unless set)", "10K", "b"],
   ["wave", "Badge", "Wave (hidden unless set)", "B", "b"],
+  // "I'm attending" posters (feature-register/posters/CONTRACT.md §2): entries of their own,
+  // so every other kind's catalogue reads exactly as before.
+  ["name", "Guest", "Name (from the registration)", "Asha Nair", "p"],
+  ["first_name", "Guest", "First name", "Asha", "p"],
+  ["last_name", "Guest", "Last name", "Nair", "p"],
+  ["initials", "Guest", "Initials", "AN", "p"],
+  ["role", "Guest", "Role: attendee, speaker, volunteer or organiser", "speaker", "p"],
+  ["role_label", "Guest", "Role, in words", "Speaker", "p"],
+  ["ticket_type", "Guest", "Ticket type (hidden without types)", "General admission", "p"],
+  ["organisation", "Guest", "Their company or college", "Sahyadri College", "p"],
+  ["talk_title", "Speaker", "Talk title (speakers)", "Building for Bharat", "p"],
+  ["talk_time", "Speaker", "Talk time (speakers)", "11:30", "p"],
+  ["talk_hall", "Speaker", "Talk hall (speakers)", "Hall B", "p"],
+  ["event_name", "Event", "Event name", "DevFest 2026", "p"],
+  ["event_date", "Event", "Event date", "28 Nov 2026", "p"],
+  ["event_time", "Event", "Start time", "08:30", "p"],
+  ["venue", "Event", "Venue (or Online)", "KTPO, Bengaluru", "p"],
+  ["city", "Event", "City", "Bengaluru", "p"],
+  ["club_name", "Club", "Host club", "GDG Cloud Kochi", "p"],
+  ["moment_phrase", "Poster", "The moment's phrase (I'm attending)", "I'm attending", "p"],
+  ["share_url", "Poster", "Their own link to the event page", "https://api.myotherapp.in/l/x7k2m9pq", "p"],
 ];
 
-const KIND: Record<string, DesignTokenKinds> = { t: "ticket", c: "certificate", b: "badge" };
+const KIND: Record<string, DesignTokenKinds> = { t: "ticket", c: "certificate", b: "badge", p: "poster" };
 
 /** Pictures a showIf may name: present when the context carries that picture. */
 export const IMAGE_TOKENS: Readonly<Record<string, string>> = {
