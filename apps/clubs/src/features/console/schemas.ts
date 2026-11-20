@@ -31,6 +31,8 @@ export const EVENT_TABS = [
   { key: "team", label: "Doors", path: "/team" },
   { key: "agenda", label: "Agenda", path: "/agenda" },
   { key: "live", label: "Live", path: "/live" },
+  // Tasks, milestones and swag rewards for guests (once the API has quests; event-console asks).
+  { key: "quests", label: "Quests", path: "/quests" },
   { key: "competition", label: "Competition", path: "/competition" },
   // 1st, 2nd and 3rd, per guest or per competition track (once the backend has results).
   { key: "results", label: "Results", path: "/results" },
