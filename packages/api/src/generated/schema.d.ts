@@ -10694,6 +10694,127 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{event_id}/designs/poster/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Put a starter's three formats on a variant */
+        post: operations["apply_starter_api_v1_events__event_id__designs_poster_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/designs/poster/layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One variant's poster in one format, as the board opens it */
+        get: operations["get_layout_api_v1_events__event_id__designs_poster_layout_get"];
+        /** Save one variant's poster in one format */
+        put: operations["put_layout_api_v1_events__event_id__designs_poster_layout_put"];
+        post?: never;
+        /** Drop one format of a variant, or the whole variant */
+        delete: operations["delete_layout_api_v1_events__event_id__designs_poster_layout_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/designs/poster/layout/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A picture for a poster design */
+        post: operations["upload_image_api_v1_events__event_id__designs_poster_layout_images_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/designs/poster/layout/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A poster drawn exactly, for the sample guest or a registration */
+        post: operations["preview_api_v1_events__event_id__designs_poster_layout_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/designs/poster/layout/starters/{starter_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A poster starter to begin from (nothing is saved) */
+        post: operations["use_starter_api_v1_events__event_id__designs_poster_layout_starters__starter_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/designs/poster/starters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The poster starters, for the gallery */
+        get: operations["list_starters_api_v1_events__event_id__designs_poster_starters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/designs/poster/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The event's poster variants, and the ones it could have */
+        get: operations["list_variants_api_v1_events__event_id__designs_poster_variants_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/designs/{kind}": {
         parameters: {
             query?: never;
@@ -10983,7 +11104,9 @@ export interface paths {
         /**
          * What a discount code does to the price
          * @description Only the price: never the code's limits, uses or other events. 422
-         *     DISCOUNT_CODE_INVALID for any code this event does not take.
+         *     DISCOUNT_CODE_INVALID for any code this event does not take. A hidden
+         *     type is priced with its link's key (`ticket_key`), or on the claim page
+         *     for the type its standing offer is for (`offer_token`).
          */
         post: operations["check_code_api_v1_events__event_id__discount_codes_check_post"];
         delete?: never;
@@ -11615,6 +11738,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{event_id}/gate/quests/claims/{claim_id}/handover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hand a reward over */
+        post: operations["handover_api_v1_events__event_id__gate_quests_claims__claim_id__handover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/gate/quests/{registration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A guest's rewards and station visits, at the desk */
+        get: operations["gate_guest_api_v1_events__event_id__gate_quests__registration_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/gate/scan": {
         parameters: {
             query?: never;
@@ -12048,6 +12205,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{event_id}/live/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The board across the event's rounds */
+        get: operations["overall_board_api_v1_events__event_id__live_leaderboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/leaderboard/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The board across the rounds as a spreadsheet (CSV or Excel) */
+        get: operations["export_overall_api_v1_events__event_id__live_leaderboard_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/leaderboard/mark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark the top players across the rounds as the event's winners */
+        post: operations["mark_overall_api_v1_events__event_id__live_leaderboard_mark_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The live room's pictures, newest first */
+        get: operations["list_media_api_v1_events__event_id__live_media_get"];
+        put?: never;
+        /** Upload a picture for the live room (a logo, a background, a poll option) */
+        post: operations["upload_media_api_v1_events__event_id__live_media_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/media/{media_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a picture of the live room */
+        delete: operations["delete_media_api_v1_events__event_id__live_media__media_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/live/polls": {
         parameters: {
             query?: never;
@@ -12080,7 +12323,7 @@ export interface paths {
         delete: operations["delete_poll_api_v1_events__event_id__live_polls__poll_id__delete"];
         options?: never;
         head?: never;
-        /** Change a draft poll */
+        /** Change a draft poll (its display settings any time) */
         patch: operations["patch_poll_api_v1_events__event_id__live_polls__poll_id__patch"];
         trace?: never;
     };
@@ -12098,6 +12341,40 @@ export interface paths {
          * @description One answer per person: a caller signed in answers as the account (room.person_key).
          */
         post: operations["respond_api_v1_events__event_id__live_polls__poll_id__respond_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/polls/{poll_id}/responses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** An open-text poll's answers, to moderate */
+        get: operations["poll_responses_api_v1_events__event_id__live_polls__poll_id__responses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/polls/{poll_id}/responses/{response_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve or reject an open-text answer */
+        post: operations["moderate_poll_response_api_v1_events__event_id__live_polls__poll_id__responses__response_id__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -12223,14 +12500,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The quiz with its questions and answers */
+        /** The quiz (the event's current round) with its questions and answers */
         get: operations["get_quiz_api_v1_events__event_id__live_quiz_get"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Rename the quiz or change its intro */
+        /** Rename the quiz, change its intro or its settings */
         patch: operations["patch_quiz_api_v1_events__event_id__live_quiz_patch"];
         trace?: never;
     };
@@ -12354,6 +12631,197 @@ export interface paths {
         patch: operations["patch_question_api_v1_events__event_id__live_quiz_questions__question_id__patch"];
         trace?: never;
     };
+    "/api/v1/events/{event_id}/live/quizzes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The event's quiz rounds, in order */
+        get: operations["list_rounds_api_v1_events__event_id__live_quizzes_get"];
+        put?: never;
+        /** A new quiz round, at the end */
+        post: operations["create_round_api_v1_events__event_id__live_quizzes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/quizzes/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put the rounds in a new order */
+        put: operations["order_rounds_api_v1_events__event_id__live_quizzes_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/quizzes/{quiz_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A round with its questions and settings */
+        get: operations["get_round_api_v1_events__event_id__live_quizzes__quiz_id__get"];
+        put?: never;
+        post?: never;
+        /** Remove a round */
+        delete: operations["delete_round_api_v1_events__event_id__live_quizzes__quiz_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename a round, change its intro or its settings */
+        patch: operations["patch_round_api_v1_events__event_id__live_quizzes__quiz_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/quizzes/{quiz_id}/host": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the host sees of a round */
+        get: operations["round_host_state_api_v1_events__event_id__live_quizzes__quiz_id__host_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/quizzes/{quiz_id}/host/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** start · next · end · reset · reveal · pause · resume · skip · reopen */
+        post: operations["round_host_action_api_v1_events__event_id__live_quizzes__quiz_id__host__action__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/quizzes/{quiz_id}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a question to a round */
+        post: operations["add_round_question_api_v1_events__event_id__live_quizzes__quiz_id__questions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/quizzes/{quiz_id}/questions/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put a round's questions in a new order */
+        put: operations["order_round_questions_api_v1_events__event_id__live_quizzes__quiz_id__questions_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/quizzes/{quiz_id}/questions/{question_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a round's question */
+        delete: operations["delete_round_question_api_v1_events__event_id__live_quizzes__quiz_id__questions__question_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change a round's question */
+        patch: operations["patch_round_question_api_v1_events__event_id__live_quizzes__quiz_id__questions__question_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/quizzes/{quiz_id}/winners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A round's top players, with their registrations */
+        get: operations["round_winners_api_v1_events__event_id__live_quizzes__quiz_id__winners_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/quizzes/{quiz_id}/winners/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A round's top players as a spreadsheet (CSV or Excel) */
+        get: operations["export_round_winners_api_v1_events__event_id__live_quizzes__quiz_id__winners_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/quizzes/{quiz_id}/winners/mark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a round's top players as the event's winners */
+        post: operations["mark_round_winners_api_v1_events__event_id__live_quizzes__quiz_id__winners_mark_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/live/schedule/shift": {
         parameters: {
             query?: never;
@@ -12388,6 +12856,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{event_id}/live/screen/control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The big screen's controls */
+        get: operations["get_screen_control_api_v1_events__event_id__live_screen_control_get"];
+        /** Change the big screen's controls (any of them) */
+        put: operations["put_screen_control_api_v1_events__event_id__live_screen_control_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/live/stream": {
         parameters: {
             query?: never;
@@ -12407,6 +12893,79 @@ export interface paths {
          *     changes. 404 while APP_LIVE_SSE is off: the client polls.
          */
         get: operations["live_stream_api_v1_events__event_id__live_stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/theme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The live room's theme (as it would be drawn when never customised) */
+        get: operations["get_theme_api_v1_events__event_id__live_theme_get"];
+        /** Save the live room's theme */
+        put: operations["put_theme_api_v1_events__event_id__live_theme_put"];
+        post?: never;
+        /** Back to the room's own look */
+        delete: operations["delete_theme_api_v1_events__event_id__live_theme_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/theme/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check a theme without saving it: the contrast verdict and the theme as it would be */
+        post: operations["check_theme_api_v1_events__event_id__live_theme_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/theme/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The four presets, the club's colours resolved */
+        get: operations["theme_presets_api_v1_events__event_id__live_theme_presets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/live/theme/public": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The live room's theme, for the guests' pages
+         * @description The same for everyone; a weak ETag (304 while unchanged) and a short shared cache.
+         */
+        get: operations["public_theme_api_v1_events__event_id__live_theme_public_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12847,6 +13406,453 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{event_id}/posters/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The event's poster switch, moments and formats */
+        get: operations["get_settings_api_v1_events__event_id__posters_settings_get"];
+        /** Switch posters on or off; the moments' phrases and captions; the formats */
+        put: operations["put_settings_api_v1_events__event_id__posters_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/posters/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Posters made, shared, and the people their links brought */
+        get: operations["get_stats_api_v1_events__event_id__posters_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The quest card: tasks, progress, milestones, rewards */
+        get: operations["card_api_v1_events__event_id__quest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quest/claims/{claim_id}/size": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Choose the size of a reward */
+        post: operations["size_api_v1_events__event_id__quest_claims__claim_id__size_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quest/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enter a secret code */
+        post: operations["code_api_v1_events__event_id__quest_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quest/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The leaderboard, when the organiser shows it */
+        get: operations["leaderboard_api_v1_events__event_id__quest_leaderboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The quest: settings, tasks, milestones, rewards, stations */
+        get: operations["get_quest_api_v1_events__event_id__quests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Switch the quest on or off, and its settings */
+        patch: operations["patch_quest_api_v1_events__event_id__quests_patch"];
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every grant, revoke, release, re-offer and handover */
+        get: operations["audit_api_v1_events__event_id__quests_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The quest live: people per task and milestone, rewards and stock */
+        get: operations["dashboard_api_v1_events__event_id__quests_dashboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who earned what, as CSV or Excel */
+        get: operations["export_api_v1_events__event_id__quests_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/guests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Guests and what they earned */
+        get: operations["guests_api_v1_events__event_id__quests_guests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/guests/{registration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One guest's quest, and what was granted or revoked */
+        get: operations["guest_detail_api_v1_events__event_id__quests_guests__registration_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/guests/{registration_id}/tasks/{task_id}/grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a task done for a guest (audited) */
+        post: operations["grant_api_v1_events__event_id__quests_guests__registration_id__tasks__task_id__grant_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/guests/{registration_id}/tasks/{task_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Take a task back from a guest (audited) */
+        post: operations["revoke_api_v1_events__event_id__quests_guests__registration_id__tasks__task_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The leaderboard, full names (the big screen) */
+        get: operations["club_leaderboard_api_v1_events__event_id__quests_leaderboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/milestones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A new milestone */
+        post: operations["create_milestone_api_v1_events__event_id__quests_milestones_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/milestones/{milestone_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a milestone and its rewards */
+        delete: operations["delete_milestone_api_v1_events__event_id__quests_milestones__milestone_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change a milestone */
+        patch: operations["update_milestone_api_v1_events__event_id__quests_milestones__milestone_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/milestones/{milestone_id}/rewards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A swag item as a milestone's reward */
+        post: operations["add_reward_api_v1_events__event_id__quests_milestones__milestone_id__rewards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/recompute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Work everyone's progress out again */
+        post: operations["recompute_api_v1_events__event_id__quests_recompute_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/rewards/{reward_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a reward (its held units go back to stock) */
+        delete: operations["delete_reward_api_v1_events__event_id__quests_rewards__reward_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change a reward */
+        patch: operations["update_reward_api_v1_events__event_id__quests_rewards__reward_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/rewards/{reward_id}/reoffer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hold free units for guests it was sold out for */
+        post: operations["reoffer_api_v1_events__event_id__quests_rewards__reward_id__reoffer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/stations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A station or swag desk: a door, its link and its task */
+        post: operations["create_station_api_v1_events__event_id__quests_stations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A new task */
+        post: operations["create_task_api_v1_events__event_id__quests_tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/tasks/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** The tasks' order */
+        put: operations["order_tasks_api_v1_events__event_id__quests_tasks_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a task (kept for the record when guests have it) */
+        delete: operations["delete_task_api_v1_events__event_id__quests_tasks__task_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change a task */
+        patch: operations["update_task_api_v1_events__event_id__quests_tasks__task_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/quests/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every kind of task, with its details */
+        get: operations["templates_api_v1_events__event_id__quests_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/refunds/{refund_id}/retry": {
         parameters: {
             query?: never;
@@ -13239,7 +14245,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The event's ticket types, with what sold */
+        /**
+         * The event's ticket types, with what sold
+         * @description Each type's `link` is the event page's address for it, a hidden
+         *     type's with its key (ticketing.hidden); door staff get none.
+         */
         get: operations["list_types_api_v1_events__event_id__ticketing_types_get"];
         /**
          * Save the event's ticket types as a list
@@ -13702,8 +14712,9 @@ export interface paths {
          *     Answers: 200 `{"action": "accept"}` (kept, or kept before); 200
          *     `{"action": "reject", "reason", "text"}` -- the Worker rejects the mail
          *     in the SMTP session with `text` (no such address, a closed mailbox,
-         *     too large); 401 unsigned, stale or another key's; 400 a body that isn't
-         *     the signed size; 503 the hook isn't set up (APP_MAILBOX_HOOK_SECRET) or
+         *     too large); 401 unsigned, stale or another key's (or, with
+         *     APP_MAILBOX_HOOK_REQUIRE_BODY_SIGNATURE on, signed only the older way);
+         *     400 a body that isn't the signed size (or, v2, the signed body); 503 the hook isn't set up (APP_MAILBOX_HOOK_SECRET) or
          *     the mail couldn't be kept now: the Worker gives the sender a temporary
          *     error, and the mail comes again. Never a mail, an address or the body in
          *     the log.
@@ -14204,6 +15215,27 @@ export interface paths {
          *     person (that account or key) and, generously, per address.
          */
         post: operations["join_quiz_api_v1_live_quiz_join_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/live/quiz/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The round running with a code: its title and teams, before joining
+         * @description For a team picker: the round's teams (when it plays in teams) and the
+         *     rules a join meets. Limited as joining is (per address).
+         */
+        get: operations["lookup_quiz_api_v1_live_quiz_lookup_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -15210,6 +16242,127 @@ export interface paths {
         };
         /** The maintenance banner, if any (public) */
         get: operations["platform_banner_api_v1_platform_banner_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posters/{ticket_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether this guest has a poster now, and everything the poster page shows */
+        get: operations["availability_api_v1_posters__ticket_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posters/{ticket_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** What the guest did with their poster (counted, nothing else) */
+        post: operations["record_event_api_v1_posters__ticket_id__events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posters/{ticket_id}/framing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Where the photo sits in the frame: zoom, and the photo's point at the frame's centre */
+        put: operations["put_framing_api_v1_posters__ticket_id__framing_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posters/{ticket_id}/image/{fmt}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The poster's PNG, once drawn */
+        get: operations["image_api_v1_posters__ticket_id__image__fmt__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posters/{ticket_id}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The guest's own photo */
+        get: operations["get_photo_api_v1_posters__ticket_id__photo_get"];
+        put?: never;
+        /** The guest's photo for their poster (cleaned; metadata removed) */
+        post: operations["upload_photo_api_v1_posters__ticket_id__photo_post"];
+        /** Remove the guest's photo and every poster made with it, now */
+        delete: operations["delete_photo_api_v1_posters__ticket_id__photo_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posters/{ticket_id}/render": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask for the poster's PNG in a format: ready, or being drawn */
+        post: operations["ask_render_api_v1_posters__ticket_id__render_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posters/{ticket_id}/render/{fmt}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the poster in a format is drawn yet */
+        get: operations["render_state_api_v1_posters__ticket_id__render__fmt__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -16815,7 +17968,7 @@ export interface paths {
          *     counted. Limited per address, generously: a poster's QR in a hall is
          *     many phones on one address.
          */
-        get: operations["open_link_l__code__head"];
+        get: operations["open_link_l__code__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -16826,7 +17979,7 @@ export interface paths {
          *     counted. Limited per address, generously: a poster's QR in a hall is
          *     many phones on one address.
          */
-        head: operations["open_link_l__code__head"];
+        head: operations["open_link_l__code__get"];
         patch?: never;
         trace?: never;
     };
@@ -18338,10 +19491,19 @@ export interface components {
             /** Starts At */
             starts_at?: string | unknown;
         };
-        /** AnswerIn */
+        /**
+         * AnswerIn
+         * @description Exactly one, by the question's kind (CONTRACT 5.3).
+         */
         AnswerIn: {
             /** Option Key */
-            option_key: string;
+            option_key?: string | null;
+            /** Option Keys */
+            option_keys?: string[] | null;
+            /** Order */
+            order?: string[] | null;
+            /** Text */
+            text?: string | null;
         };
         /**
          * AnswerOut
@@ -18463,6 +19625,16 @@ export interface components {
              * @description User's name (only on first sign in)
              */
             user_name?: string | null;
+        };
+        /** ApplyBody */
+        ApplyBody: {
+            /** Starter Id */
+            starter_id: string;
+            /**
+             * Variant
+             * @default default
+             */
+            variant: string;
         };
         /**
          * ApplyDesignRequest
@@ -20071,6 +21243,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_upload_image_api_v1_events__event_id__designs_poster_layout_images_post */
+        Body_upload_image_api_v1_events__event_id__designs_poster_layout_images_post: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_image_api_v1_events__event_id__emails_images_post */
         Body_upload_image_api_v1_events__event_id__emails_images_post: {
             /** File */
@@ -20088,6 +21265,21 @@ export interface components {
         };
         /** Body_upload_library_image_api_v1_clubs_me_emails_images_post */
         Body_upload_library_image_api_v1_clubs_me_emails_images_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_media_api_v1_events__event_id__live_media_post */
+        Body_upload_media_api_v1_events__event_id__live_media_post: {
+            /** File */
+            file: string;
+            /**
+             * Kind
+             * @default logo
+             */
+            kind: string;
+        };
+        /** Body_upload_photo_api_v1_posters__ticket_id__photo_post */
+        Body_upload_photo_api_v1_posters__ticket_id__photo_post: {
             /** File */
             file: string;
         };
@@ -20828,8 +22020,12 @@ export interface components {
             code: string;
             /** Email */
             email?: string | null;
+            /** Offer Token */
+            offer_token?: string | null;
             /** Phone */
             phone?: string | null;
+            /** Ticket Key */
+            ticket_key?: string | null;
             /** Ticket Type Id */
             ticket_type_id?: number | null;
         };
@@ -21958,6 +23154,11 @@ export interface components {
             /** Profile Pic */
             profile_pic?: string | unknown;
         };
+        /** CodeIn */
+        CodeIn: {
+            /** Code */
+            code: string;
+        };
         /** CodeSales */
         CodeSales: {
             /** Code */
@@ -22762,6 +23963,8 @@ export interface components {
             kind: "door" | "desk" | "kiosk";
             /** Name */
             name: string;
+            /** Purpose */
+            purpose?: ("station" | "swag_desk") | null;
         };
         /** DoorFigures */
         DoorFigures: {
@@ -22817,6 +24020,8 @@ export interface components {
             link?: components["schemas"]["DoorLink"] | null;
             /** Name */
             name: string;
+            /** Purpose */
+            purpose?: ("station" | "swag_desk") | null;
             /** Sort Order */
             sort_order: number;
             /** Volunteers */
@@ -23500,6 +24705,13 @@ export interface components {
             /** Is Attended */
             is_attended: boolean;
         };
+        /** EventBody */
+        EventBody: {
+            /** Action */
+            action: string;
+            /** Format */
+            format?: string | null;
+        };
         /** EventBrief */
         EventBrief: {
             /** Id */
@@ -23907,6 +25119,8 @@ export interface components {
             poster?: string | unknown;
             /** Prize Amount */
             prize_amount?: string | unknown;
+            /** Quest */
+            quest?: string | unknown;
             /** Rating */
             rating: string | unknown;
             /** Reg Enddate */
@@ -24342,6 +25556,10 @@ export interface components {
              * @default []
              */
             partners: components["schemas"]["PagePartner"][];
+            /** Quest */
+            quest?: {
+                [key: string]: unknown;
+            } | null;
             /** Similar */
             similar: components["schemas"]["EventCard"][];
             /** Speakers */
@@ -24703,6 +25921,8 @@ export interface components {
             ref?: string | null;
             /** Store */
             store?: components["schemas"]["StorePick"][] | null;
+            /** Ticket Key */
+            ticket_key?: string | null;
             /** Ticket Type Id */
             ticket_type_id?: number | null;
             /**
@@ -25490,6 +26710,29 @@ export interface components {
              */
             sent: boolean;
         };
+        /** FramingBody */
+        FramingBody: {
+            /**
+             * Format
+             * @description square, portrait or story; omitted: every format
+             */
+            format?: string | null;
+            /**
+             * X
+             * @default 0.5
+             */
+            x: number;
+            /**
+             * Y
+             * @default 0.45
+             */
+            y: number;
+            /**
+             * Zoom
+             * @default 1
+             */
+            zoom: number;
+        };
         /** FromClubIn */
         FromClubIn: {
             /** Club Partner Ids */
@@ -25545,6 +26788,10 @@ export interface components {
             permissions: {
                 [key: string]: unknown;
             };
+            /** Quests */
+            quests?: {
+                [key: string]: unknown;
+            } | null;
             /** Walkup Roles */
             walkup_roles: string[];
         };
@@ -25747,6 +26994,13 @@ export interface components {
             /** Message */
             message?: string | null;
         };
+        /** HandoverIn */
+        HandoverIn: {
+            /** Door */
+            door?: string | null;
+            /** Variant Label */
+            variant_label?: string | null;
+        };
         /** HeadingBlock */
         HeadingBlock: {
             /** Id */
@@ -25832,6 +27086,11 @@ export interface components {
              */
             expected_index?: number | null;
             /**
+             * Index
+             * @description reopen only: the question to open again (the current one when not given).
+             */
+            index?: number | null;
+            /**
              * Notify
              * @description start only: tell everyone checked in. Not given: yes.
              */
@@ -25844,6 +27103,11 @@ export interface components {
         };
         /** HostActionOut */
         HostActionOut: {
+            /**
+             * Board Now
+             * @default false
+             */
+            board_now: boolean;
             /** Current Index */
             current_index: number;
             /** Join Code */
@@ -25852,15 +27116,42 @@ export interface components {
             leaderboard: {
                 [key: string]: unknown;
             }[];
+            /** Next At */
+            next_at?: string | null;
             notified?: components["schemas"]["Notified"] | null;
+            /** Overall */
+            overall?: {
+                [key: string]: unknown;
+            }[] | null;
+            /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
+            /** Phase */
+            phase?: string | null;
             /** Players */
             players: number;
             /** Question */
             question?: {
                 [key: string]: unknown;
             } | null;
+            /** Quiz Id */
+            quiz_id?: string | null;
+            /** Round */
+            round?: {
+                [key: string]: unknown;
+            } | null;
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            } | null;
             /** Status */
             status: string;
+            /** Teams */
+            teams?: {
+                [key: string]: unknown;
+            }[] | null;
             /** Title */
             title: string;
             /** Total */
@@ -25868,6 +27159,11 @@ export interface components {
         };
         /** HostState */
         HostState: {
+            /**
+             * Board Now
+             * @default false
+             */
+            board_now: boolean;
             /** Current Index */
             current_index: number;
             /** Join Code */
@@ -25876,14 +27172,41 @@ export interface components {
             leaderboard: {
                 [key: string]: unknown;
             }[];
+            /** Next At */
+            next_at?: string | null;
+            /** Overall */
+            overall?: {
+                [key: string]: unknown;
+            }[] | null;
+            /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
+            /** Phase */
+            phase?: string | null;
             /** Players */
             players: number;
             /** Question */
             question?: {
                 [key: string]: unknown;
             } | null;
+            /** Quiz Id */
+            quiz_id?: string | null;
+            /** Round */
+            round?: {
+                [key: string]: unknown;
+            } | null;
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            } | null;
             /** Status */
             status: string;
+            /** Teams */
+            teams?: {
+                [key: string]: unknown;
+            }[] | null;
             /** Title */
             title: string;
             /** Total */
@@ -25902,6 +27225,11 @@ export interface components {
             clicks: number;
             /** Hour */
             hour: number;
+        };
+        /** IdsIn */
+        IdsIn: {
+            /** Ids */
+            ids: string[];
         };
         /** ImageBlock */
         ImageBlock: {
@@ -26466,6 +27794,11 @@ export interface components {
              * @description The client's stable key (the browser's, the install's): joining again with it in the same quiz run returns the same player. A signed-in caller is the account instead, on any device.
              */
             player_key?: string | null;
+            /**
+             * Team
+             * @description A round played in teams the players pick: the team's key. Not given: assigned.
+             */
+            team?: string | null;
         };
         /** JoinOut */
         JoinOut: {
@@ -26485,6 +27818,12 @@ export interface components {
              * Format: uuid
              */
             quiz_id: string;
+            /** Tag */
+            tag?: string | null;
+            /** Team */
+            team?: {
+                [key: string]: unknown;
+            } | null;
             /** Title */
             title: string;
         };
@@ -27481,6 +28820,17 @@ export interface components {
             /** Updated Count */
             updated_count: number;
         };
+        /** MarkOut */
+        MarkOut: {
+            /** Marked */
+            marked: {
+                [key: string]: unknown;
+            }[];
+            /** Skipped */
+            skipped: {
+                [key: string]: unknown;
+            }[];
+        };
         /** MarkReadIn */
         MarkReadIn: {
             /** Ids */
@@ -27562,15 +28912,6 @@ export interface components {
             type: "api_key" | "partner_app";
         } & {
             [key: string]: unknown;
-        };
-        /** MediaOut */
-        MediaOut: {
-            /** Filename */
-            filename?: string | unknown;
-            /** Mime */
-            mime?: string | unknown;
-            /** Url */
-            url: string | unknown;
         };
         /** MemberIn */
         MemberIn: {
@@ -27751,6 +29092,11 @@ export interface components {
             photo_key: string | null;
             /** Photo Url */
             photo_url: string | null;
+            /**
+             * Reserved
+             * @default 0
+             */
+            reserved: number;
             /** Sponsor */
             sponsor?: string | null;
             /** Stock */
@@ -28003,6 +29349,22 @@ export interface components {
             /** Tier */
             tier?: string | unknown;
         };
+        /** MilestoneIn */
+        MilestoneIn: {
+            /** Threshold */
+            threshold: number;
+            /** Title */
+            title: string;
+        };
+        /** MilestonePatch */
+        MilestonePatch: {
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Threshold */
+            threshold?: number | null;
+            /** Title */
+            title?: string | null;
+        };
         /** MissingBrief */
         MissingBrief: {
             /** Key */
@@ -28058,6 +29420,15 @@ export interface components {
             voted: boolean;
             /** Votes */
             votes: number;
+        };
+        /** MomentBody */
+        MomentBody: {
+            /** Caption */
+            caption?: string | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Phrase */
+            phrase?: string | null;
         };
         /** Money */
         Money: {
@@ -28711,11 +30082,6 @@ export interface components {
             razorpay_order_id: string | unknown;
             /** Status */
             status: string | unknown;
-        };
-        /** OrderIn */
-        OrderIn: {
-            /** Pack Id */
-            pack_id: number;
         };
         /** OrdersPage */
         OrdersPage: {
@@ -30191,11 +31557,23 @@ export interface components {
              * @default choice
              * @enum {string}
              */
-            kind: "choice" | "words" | "rating";
+            kind: "choice" | "words" | "rating" | "ranking" | "text";
             /** Options */
             options?: string[];
             /** Prompt */
             prompt: string;
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** PollModerateIn */
+        PollModerateIn: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "approve" | "reject";
         };
         /** PollOptionOut */
         PollOptionOut: {
@@ -30208,14 +31586,85 @@ export interface components {
             /** Votes */
             votes: number;
         };
+        /**
+         * PollOutV2
+         * @description The poll as this release's clients read it: its settings, its timer,
+         *     its options' pictures, whether guests see its results, and a browser's
+         *     own answer as labels.
+         */
+        PollOutV2: {
+            /** Closed At */
+            closed_at?: string | null;
+            /** Closes At */
+            closes_at?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Launched At */
+            launched_at?: string | null;
+            /** My Response */
+            my_response?: string | null;
+            /** My Values */
+            my_values?: string[] | null;
+            /** Option Images */
+            option_images?: unknown[];
+            /** Options */
+            options: string[];
+            /** Prompt */
+            prompt: string;
+            /** Results */
+            results: {
+                [key: string]: unknown;
+            };
+            /**
+             * Results Hidden
+             * @default false
+             */
+            results_hidden: boolean;
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            };
+            /** Sort Order */
+            sort_order: number;
+            /** Status */
+            status: string;
+        };
         /** PollPatch */
         PollPatch: {
             /** Kind */
-            kind?: ("choice" | "words" | "rating") | null;
+            kind?: ("choice" | "words" | "rating" | "ranking" | "text") | null;
             /** Options */
             options?: string[] | null;
             /** Prompt */
             prompt?: string | null;
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** PollResponseOut */
+        PollResponseOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Text */
+            text: string;
         };
         /** PollStatusIn */
         PollStatusIn: {
@@ -30234,6 +31683,8 @@ export interface components {
         PollStatusOut: {
             /** Closed At */
             closed_at?: string | null;
+            /** Closes At */
+            closes_at?: string | null;
             /**
              * Id
              * Format: uuid
@@ -30245,13 +31696,26 @@ export interface components {
             launched_at?: string | null;
             /** My Response */
             my_response?: string | null;
+            /** My Values */
+            my_values?: string[] | null;
             notified?: components["schemas"]["Notified"] | null;
+            /** Option Images */
+            option_images?: unknown[];
             /** Options */
             options: string[];
             /** Prompt */
             prompt: string;
             /** Results */
             results: {
+                [key: string]: unknown;
+            };
+            /**
+             * Results Hidden
+             * @default false
+             */
+            results_hidden: boolean;
+            /** Settings */
+            settings?: {
                 [key: string]: unknown;
             };
             /** Sort Order */
@@ -30392,6 +31856,15 @@ export interface components {
              * Ticket Id
              * @description Preview with this registration; the sample guest without one
              */
+            ticket_id?: string | null;
+        };
+        /** PreviewBody */
+        PreviewBody: {
+            /** Layout */
+            layout?: {
+                [key: string]: unknown;
+            } | null;
+            /** Ticket Id */
             ticket_id?: string | null;
         };
         /** PreviewIn */
@@ -30662,6 +32135,17 @@ export interface components {
             }[];
             /** Submitted */
             submitted: boolean;
+        };
+        /** PublicTheme */
+        PublicTheme: {
+            /** Custom */
+            custom: boolean;
+            /** Theme */
+            theme: {
+                [key: string]: unknown;
+            };
+            /** Version */
+            version: string;
         };
         /** PublicTicketType */
         PublicTicketType: {
@@ -30940,6 +32424,27 @@ export interface components {
             /** Source */
             source: string | unknown;
         };
+        /** QuestPatch */
+        QuestPatch: {
+            /** Code Attempts Per Hour */
+            code_attempts_per_hour?: number | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Intro */
+            intro?: string | null;
+            /** Leaderboard */
+            leaderboard?: boolean | null;
+            /** Leaderboard Names */
+            leaderboard_names?: ("initial" | "full") | null;
+            /** Mode */
+            mode?: ("checkmarks" | "points") | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Title */
+            title?: string | null;
+        };
         /** Question */
         Question: {
             /** Label */
@@ -31027,6 +32532,19 @@ export interface components {
             players: number;
             /** Questions */
             questions: components["schemas"]["QuizQuestionOut"][];
+            /** Round */
+            round?: {
+                [key: string]: unknown;
+            } | null;
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
             /** Status */
             status: string;
             /** Title */
@@ -31036,15 +32554,42 @@ export interface components {
         QuizPatch: {
             /** Intro */
             intro?: string | null;
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            } | null;
             /** Title */
             title?: string | null;
         };
-        /** QuizQuestionIn */
+        /**
+         * QuizQuestionIn
+         * @description A question (CONTRACT 3.2). With no kind it is today's: two to six
+         *     options and the right one's key; each kind checks its own fields.
+         */
         QuizQuestionIn: {
+            /** Accepted */
+            accepted?: string[] | null;
             /** Correct Key */
-            correct_key: string;
+            correct_key?: string | null;
+            /** Correct Keys */
+            correct_keys?: string[] | null;
+            /**
+             * Double
+             * @default false
+             */
+            double: boolean;
+            /** Kind */
+            kind?: ("single" | "multi" | "true_false" | "type" | "order" | "poll") | null;
+            /** Match */
+            match?: ("exact" | "close") | null;
+            /** Multi Rule */
+            multi_rule?: ("all" | "proportional" | "subtract") | null;
             /** Options */
-            options: components["schemas"]["QuizOption"][];
+            options?: components["schemas"]["QuizOption"][] | null;
+            /** Order Rule */
+            order_rule?: ("all" | "partial") | null;
+            /** Points */
+            points?: number | null;
             /** Prompt */
             prompt: string;
             /**
@@ -31055,17 +32600,41 @@ export interface components {
         };
         /** QuizQuestionOut */
         QuizQuestionOut: {
+            /** Accepted */
+            accepted?: string[] | null;
             /** Correct Key */
             correct_key?: string | null;
+            /** Correct Keys */
+            correct_keys?: string[] | null;
+            /**
+             * Double
+             * @default false
+             */
+            double: boolean;
+            /** Effective Points */
+            effective_points?: number | null;
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /**
+             * Kind
+             * @default single
+             */
+            kind: string;
+            /** Match */
+            match?: string | null;
+            /** Multi Rule */
+            multi_rule?: string | null;
             /** Options */
             options: {
                 [key: string]: unknown;
             }[];
+            /** Order Rule */
+            order_rule?: string | null;
+            /** Points */
+            points?: number | null;
             /** Prompt */
             prompt: string;
             /** Seconds */
@@ -31075,10 +32644,26 @@ export interface components {
         };
         /** QuizQuestionPatch */
         QuizQuestionPatch: {
+            /** Accepted */
+            accepted?: string[] | null;
             /** Correct Key */
             correct_key?: string | null;
+            /** Correct Keys */
+            correct_keys?: string[] | null;
+            /** Double */
+            double?: boolean | null;
+            /** Kind */
+            kind?: ("single" | "multi" | "true_false" | "type" | "order" | "poll") | null;
+            /** Match */
+            match?: ("exact" | "close") | null;
+            /** Multi Rule */
+            multi_rule?: ("all" | "proportional" | "subtract") | null;
             /** Options */
             options?: components["schemas"]["QuizOption"][] | null;
+            /** Order Rule */
+            order_rule?: ("all" | "partial") | null;
+            /** Points */
+            points?: number | null;
             /** Prompt */
             prompt?: string | null;
             /** Seconds */
@@ -31586,6 +33171,11 @@ export interface components {
             /** Saved Me */
             saved_me: string | unknown;
         };
+        /** RenderBody */
+        RenderBody: {
+            /** Format */
+            format: string;
+        };
         /** ReopenIn */
         ReopenIn: {
             /** Ids */
@@ -31943,10 +33533,20 @@ export interface components {
             /** Note */
             note?: string | null;
         };
-        /** RespondIn */
+        /**
+         * RespondIn
+         * @description `value` as always (a choice's label, a word, a rating, a text); a
+         *     multiple-choice poll's labels in `values`; a ranking's in `order`.
+         */
         RespondIn: {
+            /** Name */
+            name?: string | null;
+            /** Order */
+            order?: string[] | null;
             /** Value */
-            value: string;
+            value?: string | null;
+            /** Values */
+            values?: string[] | null;
         };
         /** Results */
         Results: {
@@ -32228,6 +33828,25 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** RewardIn */
+        RewardIn: {
+            /**
+             * Merch Item Id
+             * Format: uuid
+             */
+            merch_item_id: string;
+            /**
+             * Sold Out Mode
+             * @default first_come
+             * @enum {string}
+             */
+            sold_out_mode: "first_come" | "waitlist";
+        };
+        /** RewardPatch */
+        RewardPatch: {
+            /** Sold Out Mode */
+            sold_out_mode?: ("first_come" | "waitlist") | null;
+        };
         /** RewriteIn */
         RewriteIn: {
             /**
@@ -32283,6 +33902,43 @@ export interface components {
              * @description How long the old secret still signs too (default 24)
              */
             keep_previous_hours?: number | null;
+        };
+        /** RoundIn */
+        RoundIn: {
+            /** Intro */
+            intro?: string | null;
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            } | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** RoundSummary */
+        RoundSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Intro */
+            intro?: string | null;
+            /** Join Code */
+            join_code?: string | null;
+            /** Players */
+            players: number;
+            /** Questions */
+            questions: number;
+            /** Settings */
+            settings: {
+                [key: string]: unknown;
+            };
+            /** Sort Order */
+            sort_order: number;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
         };
         /** Rounds */
         Rounds: {
@@ -32368,6 +34024,8 @@ export interface components {
             new_encounter: string | unknown;
             person: string | unknown;
             profile: string | unknown;
+            /** Quest */
+            quest?: string | unknown;
         };
         /** SavedMeItem */
         SavedMeItem: {
@@ -32441,6 +34099,8 @@ export interface components {
             checked_in_by: {
                 [key: string]: unknown;
             } | null;
+            /** Error */
+            error?: string | null;
             /** Hint */
             hint?: string | null;
             /** Other Event */
@@ -32451,7 +34111,7 @@ export interface components {
              * Outcome
              * @enum {string}
              */
-            outcome: "CHECKED_IN" | "ALREADY_CHECKED_IN" | "WRONG_EVENT" | "REVOKED" | "UNPAID" | "INVALID" | "EVENT_NOT_OPEN";
+            outcome: "CHECKED_IN" | "ALREADY_CHECKED_IN" | "WRONG_EVENT" | "REVOKED" | "UNPAID" | "INVALID" | "EVENT_NOT_OPEN" | "STATION_VISIT" | "SWAG_DESK";
             /**
              * Replayed
              * @default false
@@ -32459,6 +34119,14 @@ export interface components {
             replayed: boolean;
             /** Revoked At */
             revoked_at: string | null;
+            /** Station */
+            station?: {
+                [key: string]: unknown;
+            } | null;
+            /** Swag */
+            swag?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** ScoreIn */
         ScoreIn: {
@@ -32486,16 +34154,96 @@ export interface components {
         };
         /** Screen */
         Screen: {
+            /** Agenda */
+            agenda?: {
+                [key: string]: unknown;
+            }[];
             /** Board */
             board: components["schemas"]["QuestionOut"][];
+            /** Control */
+            control?: {
+                [key: string]: unknown;
+            } | null;
             /** Event */
             event: {
                 [key: string]: unknown;
             };
+            /** Overall */
+            overall?: {
+                [key: string]: unknown;
+            }[] | null;
             pinned?: components["schemas"]["QuestionOut"] | null;
-            poll?: components["schemas"]["app__api__live__schemas__PollOut"] | null;
+            poll?: components["schemas"]["PollOutV2"] | null;
             quiz?: components["schemas"]["HostState"] | null;
+            /** Shows */
+            shows?: string | null;
+            /** Sponsors */
+            sponsors?: {
+                [key: string]: unknown;
+            }[];
+            /** Theme */
+            theme?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Theme Custom
+             * @default false
+             */
+            theme_custom: boolean;
+            /** Theme Version */
+            theme_version?: string | null;
             update?: components["schemas"]["UpdateOut"] | null;
+            /** Updates */
+            updates?: components["schemas"]["UpdateOut"][];
+            /** Wall */
+            wall?: components["schemas"]["QuestionOut"][];
+        };
+        /** ScreenControl */
+        ScreenControl: {
+            /** Idle Slides */
+            idle_slides?: string[];
+            /**
+             * Mode
+             * @default auto
+             * @enum {string}
+             */
+            mode: "auto" | "quiz" | "poll" | "qa" | "idle" | "leaderboard";
+            /**
+             * Results
+             * @default live
+             * @enum {string}
+             */
+            results: "live" | "hidden";
+            /**
+             * Slide Seconds
+             * @default 12
+             */
+            slide_seconds: number;
+            /**
+             * Ticker
+             * @default false
+             */
+            ticker: boolean;
+            /**
+             * Wall Size
+             * @default 6
+             */
+            wall_size: number;
+        };
+        /** ScreenControlPatch */
+        ScreenControlPatch: {
+            /** Idle Slides */
+            idle_slides?: string[] | null;
+            /** Mode */
+            mode?: ("auto" | "quiz" | "poll" | "qa" | "idle" | "leaderboard") | null;
+            /** Results */
+            results?: ("live" | "hidden") | null;
+            /** Slide Seconds */
+            slide_seconds?: number | null;
+            /** Ticker */
+            ticker?: boolean | null;
+            /** Wall Size */
+            wall_size?: number | null;
         };
         /** SearchCategory */
         SearchCategory: {
@@ -32877,6 +34625,17 @@ export interface components {
             /** Teams Locked */
             teams_locked: boolean;
         };
+        /** SettingsBody */
+        SettingsBody: {
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Formats */
+            formats?: string[] | null;
+            /** Moments */
+            moments?: {
+                [key: string]: components["schemas"]["MomentBody"];
+            } | null;
+        };
         /** ShareKitListItem */
         ShareKitListItem: {
             /** Date */
@@ -33093,6 +34852,11 @@ export interface components {
             page: number;
             /** Updated At */
             updated_at?: string | null;
+        };
+        /** SizeIn */
+        SizeIn: {
+            /** Variant Label */
+            variant_label: string;
         };
         /** SizeRow */
         SizeRow: {
@@ -33366,6 +35130,41 @@ export interface components {
             rate_paise?: string | unknown;
             /** Used */
             used?: string | unknown;
+        };
+        /** StationIn */
+        StationIn: {
+            link?: components["schemas"]["StationLink"] | null;
+            /** Name */
+            name: string;
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "station" | "swag_desk";
+            task?: components["schemas"]["StationTask"] | null;
+        };
+        /** StationLink */
+        StationLink: {
+            /**
+             * Days
+             * @default 30
+             */
+            days: number;
+        };
+        /** StationTask */
+        StationTask: {
+            /**
+             * Points
+             * @default 10
+             */
+            points: number;
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+            /** Title */
+            title?: string | null;
         };
         /** Stats */
         Stats: {
@@ -33886,6 +35685,52 @@ export interface components {
             /** Variant Id */
             variant_id?: string | null;
         };
+        /** TaskIn */
+        TaskIn: {
+            /** Config */
+            config?: {
+                [key: string]: unknown;
+            };
+            /** Description */
+            description?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Kind */
+            kind: string;
+            /**
+             * Points
+             * @default 10
+             */
+            points: number;
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** TaskPatch */
+        TaskPatch: {
+            /** Config */
+            config?: {
+                [key: string]: unknown;
+            } | null;
+            /** Description */
+            description?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Points */
+            points?: number | null;
+            /** Required */
+            required?: boolean | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Title */
+            title?: string | null;
+        };
         /** TeamIn */
         TeamIn: {
             /** Name */
@@ -34147,6 +35992,53 @@ export interface components {
             subject: string;
             /** To */
             to: string;
+        };
+        /** ThemeCheckOut */
+        ThemeCheckOut: {
+            /** Errors */
+            errors: {
+                [key: string]: unknown;
+            }[];
+            /** Ok */
+            ok: boolean;
+            /** Theme */
+            theme: {
+                [key: string]: unknown;
+            };
+            /** Version */
+            version: string;
+            /** Warnings */
+            warnings: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** ThemeOut */
+        ThemeOut: {
+            /** Custom */
+            custom: boolean;
+            /** Theme */
+            theme: {
+                [key: string]: unknown;
+            };
+            /** Updated At */
+            updated_at?: string | null;
+            /** Version */
+            version: string;
+            /** Warnings */
+            warnings?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** ThemePreset */
+        ThemePreset: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Theme */
+            theme: {
+                [key: string]: unknown;
+            };
         };
         /** ThreadInsights */
         ThreadInsights: {
@@ -34655,6 +36547,14 @@ export interface components {
             platform: string;
             /** User Id */
             user_id: number;
+        };
+        /** TopIn */
+        TopIn: {
+            /**
+             * Top
+             * @default 3
+             */
+            top: number;
         };
         /** TopicDeleteResponse */
         TopicDeleteResponse: {
@@ -35645,6 +37545,8 @@ export interface components {
             full_name: string;
             /** Phone */
             phone?: string | null;
+            /** Ticket Key */
+            ticket_key?: string | null;
             /** Ticket Type Id */
             ticket_type_id?: number | null;
             /**
@@ -36319,6 +38221,15 @@ export interface components {
             /** Wa Id */
             wa_id?: string | unknown;
         };
+        /** MediaOut */
+        app__api__club_whatsapp__schemas__MediaOut: {
+            /** Filename */
+            filename?: string | unknown;
+            /** Mime */
+            mime?: string | unknown;
+            /** Url */
+            url: string | unknown;
+        };
         /** MessageOut */
         app__api__club_whatsapp__schemas__MessageOut: {
             /** Body */
@@ -36743,6 +38654,25 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** MediaOut */
+        app__api__live__schemas__MediaOut: {
+            /** Height */
+            height?: number | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Large */
+            large?: string | null;
+            /** Medium */
+            medium?: string | null;
+            /** Original */
+            original?: string | null;
+            /** Thumbnail */
+            thumbnail?: string | null;
+            /** Width */
+            width?: number | null;
+        };
         /** PollOut */
         app__api__live__schemas__PollOut: {
             /** Closed At */
@@ -36789,8 +38719,18 @@ export interface components {
             id: string;
             /** Label */
             label: string;
+            /**
+             * Reserved
+             * @default 0
+             */
+            reserved: number;
             /** Stock */
             stock: number;
+        };
+        /** OrderIn */
+        app__api__message_quota__schemas__OrderIn: {
+            /** Pack Id */
+            pack_id: number;
         };
         /** OrderOut */
         app__api__message_quota__schemas__OrderOut: {
@@ -37125,6 +39065,8 @@ export interface components {
         };
         /** ClubOut */
         app__api__profiles__schemas__ClubOut: {
+            /** Logo */
+            logo?: string | unknown;
             /** Name */
             name: string | unknown;
             /** Slug */
@@ -37181,6 +39123,16 @@ export interface components {
             visibility?: {
                 [key: string]: "everyone" | "met" | "mutual" | "me";
             } | null;
+        };
+        /** NoteIn */
+        app__api__quests__schemas__NoteIn: {
+            /** Note */
+            note?: string | null;
+        };
+        /** OrderIn */
+        app__api__quests__schemas__OrderIn: {
+            /** Ids */
+            ids: string[];
         };
         /** ReportOut */
         app__api__reports__schemas__ReportOut: {
@@ -37480,6 +39432,8 @@ export interface components {
             is_default?: string | unknown;
             /** Is Hidden */
             is_hidden?: string | unknown;
+            /** Link */
+            link?: string | unknown;
             /** Name */
             name: string | unknown;
             /** Offered */
@@ -51901,7 +53855,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["OrderIn"];
+                "application/json": components["schemas"]["app__api__message_quota__schemas__OrderIn"];
             };
         };
         responses: {
@@ -63168,6 +65122,400 @@ export interface operations {
             };
         };
     };
+    apply_starter_api_v1_events__event_id__designs_poster_apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_layout_api_v1_events__event_id__designs_poster_layout_get: {
+        parameters: {
+            query?: {
+                variant?: string;
+                format?: string;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_layout_api_v1_events__event_id__designs_poster_layout_put: {
+        parameters: {
+            query?: {
+                variant?: string;
+                format?: string;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_layout_api_v1_events__event_id__designs_poster_layout_delete: {
+        parameters: {
+            query: {
+                variant: string;
+                format?: string | null;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_image_api_v1_events__event_id__designs_poster_layout_images_post: {
+        parameters: {
+            query?: {
+                purpose?: string;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_image_api_v1_events__event_id__designs_poster_layout_images_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_v1_events__event_id__designs_poster_layout_preview_post: {
+        parameters: {
+            query?: {
+                variant?: string;
+                format?: string;
+                as?: string;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    use_starter_api_v1_events__event_id__designs_poster_layout_starters__starter_id__post: {
+        parameters: {
+            query?: {
+                format?: string;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+                starter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_starters_api_v1_events__event_id__designs_poster_starters_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_variants_api_v1_events__event_id__designs_poster_variants_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_design_api_v1_events__event_id__designs__kind__get: {
         parameters: {
             query?: {
@@ -65553,6 +67901,92 @@ export interface operations {
             };
         };
     };
+    handover_api_v1_events__event_id__gate_quests_claims__claim_id__handover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                claim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gate_guest_api_v1_events__event_id__gate_quests__registration_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                registration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     gate_scan_api_v1_events__event_id__gate_scan_post: {
         parameters: {
             query?: never;
@@ -66684,6 +69118,253 @@ export interface operations {
             };
         };
     };
+    overall_board_api_v1_events__event_id__live_leaderboard_get: {
+        parameters: {
+            query?: {
+                top?: number;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_overall_api_v1_events__event_id__live_leaderboard_export_get: {
+        parameters: {
+            query?: {
+                /** @description csv (the default) or xlsx: the same rows as an Excel workbook */
+                format?: "csv" | "xlsx";
+                top?: number;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_overall_api_v1_events__event_id__live_leaderboard_mark_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarkOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_media_api_v1_events__event_id__live_media_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__api__live__schemas__MediaOut"][];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_media_api_v1_events__event_id__live_media_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_media_api_v1_events__event_id__live_media_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__api__live__schemas__MediaOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_media_api_v1_events__event_id__live_media__media_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_polls_api_v1_events__event_id__live_polls_get: {
         parameters: {
             query?: never;
@@ -66701,7 +69382,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__api__live__schemas__PollOut"][];
+                    "application/json": components["schemas"]["PollOutV2"][];
                 };
             };
             /** @description Not found */
@@ -66743,7 +69424,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__api__live__schemas__PollOut"];
+                    "application/json": components["schemas"]["PollOutV2"];
                 };
             };
             /** @description Not found */
@@ -66827,7 +69508,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__api__live__schemas__PollOut"];
+                    "application/json": components["schemas"]["PollOutV2"];
                 };
             };
             /** @description Not found */
@@ -66871,6 +69552,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["app__api__live__schemas__PollOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    poll_responses_api_v1_events__event_id__live_polls__poll_id__responses_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+                poll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PollResponseOut"][];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    moderate_poll_response_api_v1_events__event_id__live_polls__poll_id__responses__response_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                poll_id: string;
+                response_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PollModerateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PollResponseOut"];
                 };
             };
             /** @description Not found */
@@ -67505,6 +70272,635 @@ export interface operations {
             };
         };
     };
+    list_rounds_api_v1_events__event_id__live_quizzes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundSummary"][];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_round_api_v1_events__event_id__live_quizzes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    order_rounds_api_v1_events__event_id__live_quizzes_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundSummary"][];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_round_api_v1_events__event_id__live_quizzes__quiz_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_round_api_v1_events__event_id__live_quizzes__quiz_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_round_api_v1_events__event_id__live_quizzes__quiz_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuizPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    round_host_state_api_v1_events__event_id__live_quizzes__quiz_id__host_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostState"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    round_host_action_api_v1_events__event_id__live_quizzes__quiz_id__host__action__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+                action: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["HostActionIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostActionOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_round_question_api_v1_events__event_id__live_quizzes__quiz_id__questions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuizQuestionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizQuestionOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    order_round_questions_api_v1_events__event_id__live_quizzes__quiz_id__questions_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_round_question_api_v1_events__event_id__live_quizzes__quiz_id__questions__question_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_round_question_api_v1_events__event_id__live_quizzes__quiz_id__questions__question_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuizQuestionPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizQuestionOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    round_winners_api_v1_events__event_id__live_quizzes__quiz_id__winners_get: {
+        parameters: {
+            query?: {
+                top?: number;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_round_winners_api_v1_events__event_id__live_quizzes__quiz_id__winners_export_get: {
+        parameters: {
+            query?: {
+                /** @description csv (the default) or xlsx: the same rows as an Excel workbook */
+                format?: "csv" | "xlsx";
+                top?: number;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_round_winners_api_v1_events__event_id__live_quizzes__quiz_id__winners_mark_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                quiz_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarkOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     shift_api_v1_events__event_id__live_schedule_shift_post: {
         parameters: {
             query?: never;
@@ -67585,6 +70981,86 @@ export interface operations {
             };
         };
     };
+    get_screen_control_api_v1_events__event_id__live_screen_control_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreenControl"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_screen_control_api_v1_events__event_id__live_screen_control_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScreenControlPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreenControl"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     live_stream_api_v1_events__event_id__live_stream_get: {
         parameters: {
             query?: {
@@ -67611,6 +71087,246 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": unknown;
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_theme_api_v1_events__event_id__live_theme_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThemeOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_theme_api_v1_events__event_id__live_theme_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThemeOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_theme_api_v1_events__event_id__live_theme_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThemeOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_theme_api_v1_events__event_id__live_theme_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThemeCheckOut"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    theme_presets_api_v1_events__event_id__live_theme_presets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThemePreset"][];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_theme_api_v1_events__event_id__live_theme_public_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicTheme"];
                 };
             };
             /** @description Not found */
@@ -68906,6 +72622,1332 @@ export interface operations {
             };
         };
     };
+    get_settings_api_v1_events__event_id__posters_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_settings_api_v1_events__event_id__posters_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_stats_api_v1_events__event_id__posters_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    card_api_v1_events__event_id__quest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    size_api_v1_events__event_id__quest_claims__claim_id__size_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                claim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SizeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    code_api_v1_events__event_id__quest_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    leaderboard_api_v1_events__event_id__quest_leaderboard_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_quest_api_v1_events__event_id__quests_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_quest_api_v1_events__event_id__quests_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    audit_api_v1_events__event_id__quests_audit_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dashboard_api_v1_events__event_id__quests_dashboard_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_api_v1_events__event_id__quests_export_get: {
+        parameters: {
+            query?: {
+                /** @description csv (the default) or xlsx: the same rows as an Excel workbook */
+                format?: "csv" | "xlsx";
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    guests_api_v1_events__event_id__quests_guests_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                milestone_id?: string | null;
+                task_id?: string | null;
+                claim_status?: string | null;
+                sort?: string;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    guest_detail_api_v1_events__event_id__quests_guests__registration_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                registration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grant_api_v1_events__event_id__quests_guests__registration_id__tasks__task_id__grant_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                registration_id: string;
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__quests__schemas__NoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_api_v1_events__event_id__quests_guests__registration_id__tasks__task_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                registration_id: string;
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__quests__schemas__NoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    club_leaderboard_api_v1_events__event_id__quests_leaderboard_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_milestone_api_v1_events__event_id__quests_milestones_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MilestoneIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_milestone_api_v1_events__event_id__quests_milestones__milestone_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                milestone_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_milestone_api_v1_events__event_id__quests_milestones__milestone_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                milestone_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MilestonePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_reward_api_v1_events__event_id__quests_milestones__milestone_id__rewards_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                milestone_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RewardIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recompute_api_v1_events__event_id__quests_recompute_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_reward_api_v1_events__event_id__quests_rewards__reward_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                reward_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_reward_api_v1_events__event_id__quests_rewards__reward_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                reward_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RewardPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reoffer_api_v1_events__event_id__quests_rewards__reward_id__reoffer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                reward_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_station_api_v1_events__event_id__quests_stations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StationIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_task_api_v1_events__event_id__quests_tasks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    order_tasks_api_v1_events__event_id__quests_tasks_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__quests__schemas__OrderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_task_api_v1_events__event_id__quests_tasks__task_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_task_api_v1_events__event_id__quests_tasks__task_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    templates_api_v1_events__event_id__quests_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     retry_refund_api_v1_events__event_id__refunds__refund_id__retry_post: {
         parameters: {
             query?: never;
@@ -69757,8 +74799,10 @@ export interface operations {
     public_types_api_v1_events__event_id__ticket_types_get: {
         parameters: {
             query?: {
-                /** @description A hidden type a link names, shown too */
+                /** @description A hidden type a link names, shown too (with its key) */
                 ticket_type?: number | null;
+                /** @description The key the hidden type's link carries */
+                ticket_key?: string | null;
             };
             header?: never;
             path: {
@@ -71974,6 +77018,46 @@ export interface operations {
             };
         };
     };
+    lookup_quiz_api_v1_live_quiz_lookup_get: {
+        parameters: {
+            query: {
+                code: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_my_profile_api_v1_me_profile_get: {
         parameters: {
             query?: never;
@@ -74096,6 +79180,396 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    availability_api_v1_posters__ticket_id__get: {
+        parameters: {
+            query?: {
+                s?: string | null;
+            };
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_event_api_v1_posters__ticket_id__events_post: {
+        parameters: {
+            query?: {
+                s?: string | null;
+            };
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_framing_api_v1_posters__ticket_id__framing_put: {
+        parameters: {
+            query?: {
+                s?: string | null;
+            };
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FramingBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_api_v1_posters__ticket_id__image__fmt__get: {
+        parameters: {
+            query?: {
+                s?: string | null;
+                v?: string | null;
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                ticket_id: string;
+                fmt: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_photo_api_v1_posters__ticket_id__photo_get: {
+        parameters: {
+            query?: {
+                s?: string | null;
+            };
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_photo_api_v1_posters__ticket_id__photo_post: {
+        parameters: {
+            query?: {
+                s?: string | null;
+            };
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_photo_api_v1_posters__ticket_id__photo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_photo_api_v1_posters__ticket_id__photo_delete: {
+        parameters: {
+            query?: {
+                s?: string | null;
+            };
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ask_render_api_v1_posters__ticket_id__render_post: {
+        parameters: {
+            query?: {
+                s?: string | null;
+            };
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenderBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    render_state_api_v1_posters__ticket_id__render__fmt__get: {
+        parameters: {
+            query?: {
+                s?: string | null;
+            };
+            header?: never;
+            path: {
+                ticket_id: string;
+                fmt: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -77728,7 +83202,7 @@ export interface operations {
             };
         };
     };
-    open_link_l__code__head: {
+    open_link_l__code__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -77759,7 +83233,7 @@ export interface operations {
             };
         };
     };
-    open_link_l__code__head: {
+    open_link_l__code__get: {
         parameters: {
             query?: never;
             header?: never;
