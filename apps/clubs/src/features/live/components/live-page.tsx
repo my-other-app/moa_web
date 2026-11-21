@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   BarChart3Icon,
   LockIcon,
+  PaletteIcon,
   MessageCircleQuestionIcon,
   RadioIcon,
   StarIcon,
@@ -15,26 +16,28 @@ import { LockedNotice, useEventPlan } from "@/features/plan";
 
 import {
   useFeedback,
-  useHostState,
   usePolls,
   useQuestions,
   useQuiz,
+  useRoundHost,
+  useRounds,
   useUpdates,
 } from "../queries";
 import { ConsoleBar, liveNow } from "./console-bar";
 import { FeedbackPanel } from "./feedback-panel";
 import { LockedRoom } from "./locked-room";
+import { LookPanel } from "./look-panel";
 import { PollsPanel } from "./polls-panel";
 import { QAPanel } from "./qa-panel";
 import { QuizPanel } from "./quiz-panel";
 import { UpdatesPanel } from "./updates-panel";
 
 /**
- * The Live tab: five rooms behind five pills. Each pill carries the one
+ * The Live tab: five rooms and the look behind six pills. Each pill carries the one
  * number the host glances at — questions written, questions waiting, a poll
  * up — so the state of the night reads from the row alone.
  */
-export const VIEWS = ["quiz", "qa", "polls", "feedback", "updates"] as const;
+export const VIEWS = ["quiz", "qa", "polls", "feedback", "updates", "look"] as const;
 export type View = (typeof VIEWS)[number];
 
 /** The rooms that are plan features; feedback and live updates come with every plan. */
@@ -164,8 +167,12 @@ export function LivePage({ eventId }: { eventId: number }) {
    * drives, so the two share one cache entry and one poll; it only runs while
    * the quiz is on, and the band falls back to the quiz's own figures otherwise.
    */
-  const running = quiz.data?.status === "live";
-  const host = useHostState(eventId, running);
+  const rounds = useRounds(eventId);
+  const liveRound = rounds.data?.find((r) => r.status === "live") ?? null;
+  const running = Boolean(liveRound) || quiz.data?.status === "live";
+  // The live round by id; against a server from before rounds, the one quiz by today's path.
+  const host = useRoundHost(eventId, liveRound?.id ?? null, running, running && (Boolean(liveRound) || rounds.data === null));
+  const nRounds = rounds.data?.length ?? 0;
   const livePoll = polls.data?.find((p) => p.status === "live") ?? null;
   const onAir = liveNow({
     quizRunning: running,
@@ -194,8 +201,8 @@ export function LivePage({ eventId }: { eventId: number }) {
           locked={locked("quiz")}
           icon={<ZapIcon className="size-4" />}
           label="Quiz"
-          badge={quiz.data?.status === "live" ? "live" : nQ ? `${nQ} Qs` : null}
-          tone={quiz.data?.status === "live" ? "live" : undefined}
+          badge={running ? "live" : nRounds > 1 ? `${nRounds} rounds` : nQ ? `${nQ} Qs` : null}
+          tone={running ? "live" : undefined}
         />
         <Pill
           active={view === "qa"}
@@ -231,6 +238,12 @@ export function LivePage({ eventId }: { eventId: number }) {
           label="Live updates"
           badge={sent ? `${sent} sent` : null}
         />
+        <Pill
+          active={view === "look"}
+          onClick={() => go("look")}
+          icon={<PaletteIcon className="size-4" />}
+          label="Look"
+        />
       </div>
       {/*
        * A room the plan does not include: with nothing in it yet, the whole
@@ -251,6 +264,8 @@ export function LivePage({ eventId }: { eventId: number }) {
             <PollsPanel eventId={eventId} checkedIn={checkedIn} />
           ) : view === "feedback" ? (
             <FeedbackPanel eventId={eventId} />
+          ) : view === "look" ? (
+            <LookPanel eventId={eventId} />
           ) : (
             <UpdatesPanel eventId={eventId} />
           )}

@@ -14,6 +14,7 @@ import {
 import { cn } from "@moa/ui";
 
 import { useNotifyBudget } from "../notify";
+import { ScreenModeSelect } from "./look-panel";
 import { NOTIFY_PER_DAY, NOTIFY_RULE } from "../schemas";
 
 /**
@@ -161,7 +162,8 @@ export function ConsoleBar({
           )}
         </ul>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <ScreenModeSelect eventId={eventId} />
           <Link href={`/present/${eventId}`} target="_blank" className="btn btn-primary btn-sm">
             <PresentationIcon className="size-3.5" /> Present
           </Link>

@@ -49,6 +49,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
     api: {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
+        // A server from before rounds: today's single quiz, by today's paths.
+        if (path === "/api/v1/events/37/live/quizzes") throw new ApiError({ message: "Not Found", status: 404, routeMissing: true });
         if (path === "/api/v1/events/37/live/quiz") return state.quiz;
         if (path === "/api/v1/events/37/live/quiz/host") return state.host;
         throw new Error(`unstubbed GET ${path}`);
