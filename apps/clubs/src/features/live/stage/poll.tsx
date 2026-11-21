@@ -4,7 +4,7 @@ import * as React from "react";
 import { StarIcon } from "lucide-react";
 
 import type { Poll, PollSettings } from "../schemas";
-import { Eyebrow, Panel, Timer, t, u, useSecondsUntil } from "./parts";
+import { Eyebrow, Panel, Timer, t, u, useFit, useSecondsUntil } from "./parts";
 
 /**
  * A poll on the big screen: its question and its results drawn the way the
@@ -49,9 +49,10 @@ export function Bars({ choices, show, images }: { choices: Choice[]; show: PollS
 }
 
 export function Columns({ choices, show }: { choices: Choice[]; show: PollSettings["show"] }) {
+  const { level } = useFit();
   const max = Math.max(1, ...choices.map((c) => c.pct));
   return (
-    <ul className="flex items-end justify-center" style={{ gap: u(2), height: u(26) }}>
+    <ul className="flex items-end justify-center" style={{ gap: u(2), height: u(level >= 1 ? 19 : 26) }}>
       {choices.map((c, i) => (
         <li key={c.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end" style={{ gap: u(0.6), maxWidth: u(16) }}>
           <span className="font-mono tabular-nums" style={{ fontSize: t(1.8) }}>
@@ -68,6 +69,7 @@ export function Columns({ choices, show }: { choices: Choice[]; show: PollSettin
 }
 
 export function Donut({ choices, show, responses }: { choices: Choice[]; show: PollSettings["show"]; responses: number }) {
+  const { level } = useFit();
   const total = Math.max(1, choices.reduce((n, c) => n + c.count, 0));
   const r = 40;
   const c = 2 * Math.PI * r;
@@ -75,7 +77,7 @@ export function Donut({ choices, show, responses }: { choices: Choice[]; show: P
   const starts = choices.map((_, i) => choices.slice(0, i).reduce((n, ch) => n + ch.count / total, 0));
   return (
     <div className="grid items-center" style={{ gridTemplateColumns: "auto 1fr", gap: u(4) }}>
-      <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: u(20), height: u(20) }} role="img" aria-label="Results as a donut">
+      <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: u(level >= 1 ? 15 : 20), height: u(level >= 1 ? 15 : 20) }} role="img" aria-label="Results as a donut">
         <circle cx="50" cy="50" r={r} fill="none" stroke="var(--lt-panel-line)" strokeWidth="16" />
         {choices.map((ch, i) => {
           const part = ch.count / total;
@@ -94,9 +96,9 @@ export function Donut({ choices, show, responses }: { choices: Choice[]; show: P
           );
         })}
       </svg>
-      <ul className="grid" style={{ gap: u(1) }}>
+      <ul className="grid" style={{ gap: u(level >= 1 ? 0.6 : 1) }}>
         {choices.map((ch, i) => (
-          <li key={ch.label} className="flex items-center" style={{ gap: u(1.2), fontSize: t(2) }}>
+          <li key={ch.label} className="flex items-center" style={{ gap: u(1.2), fontSize: t(level >= 1 ? 1.8 : 2) }}>
             <span aria-hidden="true" className="inline-block shrink-0 rounded-full" style={{ width: "0.7em", height: "0.7em", background: fill(i) }} />
             <span className="min-w-0 flex-1 truncate">{ch.label}</span>
             <span className="font-mono tabular-nums" style={{ color: "var(--lt-muted)" }}>
@@ -219,12 +221,13 @@ const heldBack = (poll: Poll) =>
   poll.status === "live" && !poll.results.choices && !poll.results.words && !poll.results.rating && !poll.results.ranking && !poll.results.texts;
 
 export function PollStage({ poll, timer }: { poll: Poll; timer: "bar" | "ring" | "number" | "hidden" }) {
+  const { level } = useFit();
   const live = poll.status === "live";
   const left = useSecondsUntil(live ? poll.closes_at : null, "nearest");
   const seconds = poll.settings?.seconds ?? null;
   const max = poll.settings?.max_choices ?? 1;
   return (
-    <div className="flex h-full min-h-0 flex-col" style={{ gap: u(2) }}>
+    <div className="flex h-full min-h-0 flex-col" style={{ gap: u(level >= 1 ? 1.4 : 2) }}>
       <div className="flex items-center justify-between" style={{ gap: u(2) }}>
         <Eyebrow>
           {live ? "Poll" : "Poll · closed"} · {poll.results.responses} answered
@@ -233,7 +236,7 @@ export function PollStage({ poll, timer }: { poll: Poll; timer: "bar" | "ring" |
         {left !== null && seconds && timer !== "hidden" && timer !== "bar" ? <Timer style={timer} left={left} seconds={seconds} /> : null}
       </div>
       {left !== null && seconds && timer === "bar" ? <Timer style="bar" left={left} seconds={seconds} /> : null}
-      <h2 className="leading-[1.12] font-semibold tracking-[-0.02em]" style={{ fontSize: t(4), fontFamily: "var(--lt-font-display)" }}>
+      <h2 className="leading-[1.12] font-semibold tracking-[-0.02em]" style={{ fontSize: t(level >= 1 ? 3.2 : 4), fontFamily: "var(--lt-font-display)" }}>
         {poll.prompt}
       </h2>
       <div className="min-h-0 flex-1">
