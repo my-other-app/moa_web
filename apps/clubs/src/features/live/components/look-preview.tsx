@@ -147,9 +147,10 @@ export function PhonePreview({ theme, eventName, state }: { theme: Theme; eventN
           <div className="flex items-center gap-2">
             {logo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logo} alt="" className="h-6 w-auto max-w-[70px] object-contain" />
+              <img src={logo} alt="" className="h-6 w-auto max-w-[56px] shrink-0 object-contain" />
             ) : null}
-            <p className="truncate text-[11px] font-semibold" style={{ fontSize: `calc(11px * ${g.text_scale})` }}>
+            {/* Beside a logo the name has half the phone: two lines, broken between words, as the website's top of the room. */}
+            <p className="line-clamp-2 min-w-0 leading-[1.15] font-semibold [overflow-wrap:break-word]" style={{ fontSize: `calc(${logo ? 10 : 11}px * ${g.text_scale})` }}>
               {eventName}
             </p>
           </div>
@@ -167,6 +168,7 @@ export function PhonePreview({ theme, eventName, state }: { theme: Theme; eventN
                 revealed={false}
                 correct={new Set()}
                 answered={0}
+                tight
               />
             </>
           ) : state === "lobby" ? (
@@ -195,6 +197,7 @@ export function PhonePreview({ theme, eventName, state }: { theme: Theme; eventN
                 revealed={answer}
                 correct={new Set(["a"])}
                 answered={0}
+                tight
               />
               <p className="mt-auto text-center" style={{ fontSize: `calc(11px * ${g.text_scale})`, color: "var(--lt-muted)" }}>
                 {answer ? `Right! +875 · ${theme.leaderboard.own_rank ? "you're 4th" : "nice"}` : "Tap your answer"}
