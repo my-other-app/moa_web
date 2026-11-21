@@ -334,6 +334,21 @@ describe("a round's rules", () => {
     });
   });
 
+  it("says the streak bonus's answer in proper English", async () => {
+    render(<QuizPanel eventId={37} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Rules/ }));
+    const from = await screen.findByLabelText("Streak from");
+    for (const [n, said] of [
+      ["2", "+100 on the 2nd right answer in a row, and each one after."],
+      ["3", "+100 on the 3rd right answer in a row, and each one after."],
+      ["4", "+100 on the 4th right answer in a row, and each one after."],
+    ] as const) {
+      fireEvent.change(from, { target: { value: n } });
+      expect(screen.getByText(said)).toBeInTheDocument();
+    }
+    expect(screen.queryByText(/3th|2th/)).toBeNull();
+  });
+
   it("will not save teams without two names", async () => {
     render(<QuizPanel eventId={37} />);
     fireEvent.click(await screen.findByRole("button", { name: /Rules/ }));

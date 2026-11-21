@@ -15,6 +15,8 @@ import {
   Switch,
 } from "@moa/ui";
 
+import { ordinal } from "@/lib/ordinal";
+
 import type { SettingsPatch } from "../api";
 import { DEFAULT_QUIZ_SETTINGS, type QuizSettings, type Team } from "../schemas";
 
@@ -282,7 +284,7 @@ export function RoundSettings({
               onChange={(allow_negative) => set("scoring", { allow_negative })}
             />
           ) : null}
-          <Row label="Streak bonus" hint={sc.streak_from ? `+${sc.streak_bonus} on the ${sc.streak_from}th right answer in a row, and each one after.` : "Off."}>
+          <Row label="Streak bonus" hint={sc.streak_from ? `+${sc.streak_bonus} on the ${ordinal(sc.streak_from)} right answer in a row, and each one after.` : "Off."}>
             <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
               <NativeSelect
                 size="sm"
