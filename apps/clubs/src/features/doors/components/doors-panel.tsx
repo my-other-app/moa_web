@@ -1,11 +1,14 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import QRCode from "qrcode";
 import {
   CopyIcon,
   DoorOpenIcon,
+  GiftIcon,
   LinkIcon,
+  MapPinIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
@@ -49,6 +52,7 @@ import {
 import {
   DOOR_KINDS,
   DOOR_KIND_META,
+  PURPOSE_META,
   type Door,
   type DoorKind,
   type GateLink,
@@ -71,7 +75,9 @@ function GateLinkBody({
   onClose: () => void;
 }) {
   const issue = useIssueGateLink(eventId);
-  const [walkup, setWalkup] = React.useState(door.link?.can_walkup ?? false);
+  // A station or swag desk registers nobody: its link scans tickets only.
+  const quest = door.purpose ?? null;
+  const [walkup, setWalkup] = React.useState(quest ? false : (door.link?.can_walkup ?? false));
   const [link, setLink] = React.useState<GateLink | null>(null);
   const [png, setPng] = React.useState<string | null>(null);
   const make = () =>
@@ -99,8 +105,11 @@ function GateLinkBody({
         <DialogHeader>
           <DialogTitle>A gate link for {door.name}</DialogTitle>
           <DialogDescription>
-            A phone that opens it runs the gate console at {door.name}, with no
-            account.
+            {quest === "station"
+              ? `A phone that opens it records visits at ${door.name}, with no account: hand it to the staff there. It shows a guest’s name only.`
+              : quest === "swag_desk"
+                ? `A phone that opens it runs the swag desk at ${door.name}, with no account: it shows the quest rewards a guest unlocked and hands them over.`
+                : `A phone that opens it runs the gate console at ${door.name}, with no account.`}
             {live(door)
               ? " Making a new one switches the current link off."
               : ""}
@@ -110,6 +119,7 @@ function GateLinkBody({
           role="radiogroup"
           aria-label="What the link may do"
           className="grid gap-2"
+          hidden={quest !== null}
         >
           <ChoiceCard
             checked={!walkup}
@@ -142,9 +152,11 @@ function GateLinkBody({
         <DialogDescription>
           Shown once: scan the code from the phone at the door, or copy the
           link.{" "}
-          {link.can_walkup
-            ? "It may register walk-ups."
-            : "It scans tickets only."}
+          {quest
+            ? "Nobody is checked in with it."
+            : link.can_walkup
+              ? "It may register walk-ups."
+              : "It scans tickets only."}
           {link.expires_at
             ? ` It stops working ${formatDateTime(link.expires_at)}.`
             : ""}
@@ -263,7 +275,13 @@ function DoorRow({
           )}
           aria-hidden="true"
         >
-          {KIND_ICON[door.kind]}
+          {door.purpose === "station" ? (
+            <MapPinIcon className="size-[18px]" />
+          ) : door.purpose === "swag_desk" ? (
+            <GiftIcon className="size-[18px]" />
+          ) : (
+            KIND_ICON[door.kind]
+          )}
         </span>
         <div className="min-w-[180px] flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -276,7 +294,9 @@ function DoorRow({
               {door.name}
             </span>
             <span className="tag tag-neutral">
-              {DOOR_KIND_META[door.kind].label}
+              {door.purpose
+                ? PURPOSE_META[door.purpose].label
+                : DOOR_KIND_META[door.kind].label}
             </span>
             {!door.active ? <StatusBadge label="Retired" /> : null}
             {link ? (
@@ -292,12 +312,22 @@ function DoorRow({
             {linkLine}
           </p>
         </div>
-        <span className="w-[72px] text-right">
-          <span className="text-ink block font-mono text-[13px] tabular-nums">
-            {formatNumber(door.check_ins)}
+        {door.purpose ? (
+          // Nobody is admitted at a quest door: its visits and handovers are on the Quests tab.
+          <Link
+            href={`/events/${eventId}/quests`}
+            className="text-ink-2 hover:text-ink w-[72px] text-right text-[12px] underline underline-offset-2"
+          >
+            On Quests
+          </Link>
+        ) : (
+          <span className="w-[72px] text-right">
+            <span className="text-ink block font-mono text-[13px] tabular-nums">
+              {formatNumber(door.check_ins)}
+            </span>
+            <span className="text-ink-3 block text-[11px]">admitted</span>
           </span>
-          <span className="text-ink-3 block text-[11px]">admitted</span>
-        </span>
+        )}
         <span className="flex items-center gap-1.5">
           {door.active ? (
             <Button variant="secondary" size="sm" onClick={() => onLink(door)}>
@@ -328,7 +358,14 @@ function DoorRow({
 
       {editing ? (
         <div className="bg-sunken mt-3 rounded-xl p-3">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_170px_auto] sm:items-end">
+          <div
+            className={cn(
+              "grid gap-3 sm:items-end",
+              door.purpose
+                ? "sm:grid-cols-[minmax(0,1fr)_auto]"
+                : "sm:grid-cols-[minmax(0,1fr)_170px_auto]",
+            )}
+          >
             <div>
               <label htmlFor={`${id}-name`} className="eyebrow mb-1.5 block">
                 Name
@@ -348,22 +385,24 @@ function DoorRow({
                 }
               />
             </div>
-            <div>
-              <label htmlFor={`${id}-kind`} className="eyebrow mb-1.5 block">
-                Kind
-              </label>
-              <NativeSelect
-                id={`${id}-kind`}
-                value={kind}
-                onChange={(e) => setKind(e.target.value as DoorKind)}
-              >
-                {DOOR_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {DOOR_KIND_META[k].label}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
+            {door.purpose ? null : (
+              <div>
+                <label htmlFor={`${id}-kind`} className="eyebrow mb-1.5 block">
+                  Kind
+                </label>
+                <NativeSelect
+                  id={`${id}-kind`}
+                  value={kind}
+                  onChange={(e) => setKind(e.target.value as DoorKind)}
+                >
+                  {DOOR_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {DOOR_KIND_META[k].label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
+            )}
             <div className="flex gap-2">
               <Button onClick={save} disabled={update.isPending}>
                 Save
@@ -374,7 +413,9 @@ function DoorRow({
             </div>
           </div>
           <p className="text-ink-3 mt-2 text-[11.5px]">
-            {DOOR_KIND_META[kind].note}
+            {door.purpose
+              ? PURPOSE_META[door.purpose].note
+              : DOOR_KIND_META[kind].note}
           </p>
           <div className="border-line mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
             <Button
@@ -470,6 +511,9 @@ export function DoorsPanel({
           Every place guests are admitted. Volunteers pick one on the console
           and each scan is recorded against it; a gate link opens the console at
           one door on a phone, with no account.
+          {doors.some((d) => d.purpose)
+            ? " Quest stations and swag desks are listed too: they admit nobody, and are made under Quests."
+            : ""}
         </p>
       </div>
       {doors.length === 0 ? (

@@ -1,4 +1,4 @@
-import { ADMISSION_NUMBER_HINT, ROLE_LABEL, type ScanResult, type WalkupResult } from "../schemas";
+import { ADMISSION_NUMBER_HINT, QUEST_STATION_HINT, QUEST_SWAG_DESK_HINT, ROLE_LABEL, type ScanResult, type StationVisit, type SwagDesk, type WalkupResult } from "../schemas";
 
 export type Tone = "admit" | "caution" | "refuse" | "accent";
 
@@ -67,6 +67,109 @@ export const offlineRepeatCard = (at: string): OutcomeCardModel => ({
   note: `A ticket lets one person in. Unless this is the person who came through at ${clock(at)}, don't let them in on it.`,
 });
 
+/*
+ * Stations and swag desks (quests contract §7). Nobody is checked in at
+ * either: a station records a visit, a swag desk shows what the guest is
+ * owed. Station staff see the guest's name only.
+ */
+
+/** Why a visit was recorded but earns nothing right now. */
+const NOT_COUNTED_NOTE: Record<string, string> = {
+  QUESTS_OFF: "Quests are off for this event, so the visit earns nothing yet. It counts once the organiser turns them on.",
+  OUTSIDE_WINDOW: "Outside the quest's hours, so the visit earns nothing for now. It counts if the organiser widens them.",
+  NO_TASK: "No quest task names this station yet, so the visit earns nothing for now. It counts once one does.",
+};
+
+/** STATION_VISIT: recorded, already recorded, or recorded without earning anything. */
+export function stationCard(res: ScanResult, door: string): OutcomeCardModel {
+  const v: StationVisit | null | undefined = res.station;
+  const who = res.attendee?.name || "This guest";
+  const place = v?.name || door;
+  // Points only when the quest scores by points: in checkmarks mode every task counts one.
+  const points = v?.mode === "points" && v.task?.points ? `+${v.task.points} POINTS` : null;
+  switch (v?.result) {
+    case "VISITED":
+      return {
+        tone: "admit",
+        tag: res.replayed ? "Already recorded" : "Visit recorded",
+        title: `${who} — visit recorded ✓`,
+        sub: [place.toUpperCase(), points].filter(Boolean).join(" · "),
+        note: v.task?.title ? `Ticks “${v.task.title}” on their quest.` : undefined,
+      };
+    case "ALREADY_VISITED":
+      return {
+        tone: "caution",
+        tag: "Already visited",
+        title: `${who} already visited ${place}.`,
+        sub: [v.visited_at ? `FIRST VISIT ${clock(v.visited_at)}` : null, place.toUpperCase()].filter(Boolean).join(" · "),
+        note: "One visit per guest counts here, so nothing changes. Wave them on.",
+      };
+    default:
+      return {
+        tone: "accent",
+        tag: "Visit recorded",
+        title: `${who} — visit recorded.`,
+        sub: place.toUpperCase(),
+        note: NOT_COUNTED_NOTE[v?.reason ?? ""] ?? "It doesn't count towards the quest right now.",
+      };
+  }
+}
+
+/** SWAG_DESK: the card's verdict; the rewards themselves are listed under it, each with its handover. */
+export function swagDeskCard(res: ScanResult): OutcomeCardModel {
+  const s: SwagDesk | null | undefined = res.swag;
+  const who = res.attendee?.name || "This guest";
+  const rewards = s?.rewards ?? [];
+  const toHand = rewards.filter((r) => r.status === "reserved").length;
+  const collected = rewards.filter((r) => r.status === "collected").length;
+  const sub = s ? [`${s.tasks_done} ${s.tasks_done === 1 ? "TASK" : "TASKS"} DONE`, s.mode === "points" && s.points ? `${s.points} POINTS` : null].filter(Boolean).join(" · ") : undefined;
+  const off = s && !s.enabled ? " Quests are off for this event; rewards already held can still be handed over." : "";
+  if (toHand > 0)
+    return { tone: "admit", tag: "Rewards to collect", title: `${who} — ${toHand === 1 ? "1 reward" : `${toHand} rewards`} to hand over.`, sub, note: off.trim() || undefined };
+  if (collected > 0 && collected === rewards.length)
+    return { tone: "caution", tag: "Already collected", title: `${who} already collected ${collected === 1 ? "their reward" : "their rewards"}.`, sub, note: `Nothing more to hand over.${off}` };
+  if (rewards.length > 0)
+    return { tone: "caution", tag: "Nothing to hand over", title: `Nothing is held for ${who} right now.`, sub, note: `What they unlocked is sold out or on the waiting list: it's listed below.${off}` };
+  return { tone: "caution", tag: "Nothing unlocked", title: `${who} hasn't unlocked a reward yet.`, sub, note: `Rewards show here once they reach a milestone.${off}` };
+}
+
+/** The swag desk's verdict once a reward was handed over here: all done, or what is still to hand over. */
+export function afterHandover(res: ScanResult): OutcomeCardModel {
+  const rewards = res.swag?.rewards ?? [];
+  if (rewards.length && rewards.every((r) => r.status !== "reserved") && rewards.some((r) => r.status === "collected")) {
+    const card = swagDeskCard(res);
+    return { ...card, tone: "admit", tag: "Handed over", title: `${res.attendee?.name || "This guest"} has everything they unlocked.`, note: undefined };
+  }
+  return swagDeskCard(res);
+}
+
+/** No signal at a station: the visit is saved on the phone, and sent when the signal is back. */
+export const STATION_SAVED_CARD: OutcomeCardModel = {
+  tone: "accent",
+  tag: "Saved",
+  title: "No signal — the visit is saved on this phone.",
+  sub: "NOT SENT YET · WILL SYNC",
+  note: "It is sent when the signal is back. Nobody is checked in at a station either way.",
+};
+
+/** No signal at a station, and this ticket's visit here is already waiting on the phone. */
+export const stationOfflineRepeatCard = (at: string): OutcomeCardModel => ({
+  tone: "caution",
+  tag: "Already scanned",
+  title: `Already scanned here at ${clock(at)}.`,
+  sub: "NO SIGNAL · NOT SAVED AGAIN",
+  note: "One visit per guest counts at a station, and the first one is waiting to sync.",
+});
+
+/** No signal at a swag desk: a handover needs the server, so nothing is saved for later. */
+export const OFFLINE_DESK_CARD: OutcomeCardModel = {
+  tone: "caution",
+  tag: "No signal",
+  title: "No signal — their rewards can't be looked up.",
+  sub: "NOTHING HANDED OVER · NOT SAVED",
+  note: "Handing a reward over needs the server. Try again when the signal is back.",
+};
+
 /** Every outcome card in one place: plain, direct, and it says what to do next. */
 export const outcomeCard = (res: ScanResult, door: string): OutcomeCardModel => {
   const a = res.attendee;
@@ -104,8 +207,21 @@ export const outcomeCard = (res: ScanResult, door: string): OutcomeCardModel => 
       return { tone: "refuse", tag: "Not paid", title: `${who} has not paid for this ticket.`, sub, note: "Take the payment at the desk and record it on their registration, then scan again." };
     case "EVENT_NOT_OPEN":
       return { tone: "caution", tag: "Door shut", title: "This event's door is closed.", note: "The organiser opens it under Team & doors. Nothing is wrong with the ticket." };
+    case "STATION_VISIT":
+      return stationCard(res, door);
+    case "SWAG_DESK":
+      return swagDeskCard(res);
     case "INVALID":
     default:
+      // Only a console from before stations hears these; nobody was checked in.
+      if (res.hint === QUEST_STATION_HINT || res.hint === QUEST_SWAG_DESK_HINT)
+        return {
+          tone: "refuse",
+          tag: res.hint === QUEST_STATION_HINT ? "Station" : "Swag desk",
+          title: `This door is a ${res.hint === QUEST_STATION_HINT ? "station" : "swag desk"}, not an entrance.`,
+          sub: "NOBODY IS CHECKED IN HERE",
+          note: "Reload this page to use it as one, or pick an entrance from the door menu to check guests in.",
+        };
       if (needsHandCheckIn(res))
         return {
           tone: "caution",

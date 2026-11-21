@@ -27,6 +27,7 @@ import { useResults } from "@/features/results";
 import { EventRowMenu, EventStatusBadge, useEventDetail } from "@/features/events";
 import { useEventPlan, usePlan } from "@/features/plan";
 import { usePosterSettings } from "@/features/posters/queries";
+import { useQuestTemplates } from "@/features/quests/queries";
 import { AnnouncePrompt, useSocialOnServer } from "@/features/social";
 import { useRequestCounts } from "@/features/requests/queries";
 import { totalOf } from "@/features/requests/schemas";
@@ -102,6 +103,8 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
   // The Posters tab and design, once the API has guest posters (null from one without).
   const posters = usePosterSettings(eventId);
   const postersOn = posters.data != null;
+  // The Quests tab, once the API has quests: its templates answer null from one without.
+  const quests = useQuestTemplates(eventId);
   // A clock read once per navigation is enough for a "has it started" notice.
   const now = React.useMemo(() => new Date(), [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -138,6 +141,7 @@ export function EventConsole({ eventId, children }: { eventId: number; children:
     cohosts: cohostsOn,
     promote: social === true && Boolean(can.edit_events),
     posters: postersOn,
+    quests: quests.data != null,
   };
   const cohosts = e?.cohosts ?? [];
   const notices = s ? clockNotices(s, now) : [];

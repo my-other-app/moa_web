@@ -6,9 +6,13 @@ import {attendeeSummarySchema,
   captureResultSchema,
   gateAnswersResultSchema,
   gateContextSchema,
+  gateQuestGuestSchema,
+  handoverResultSchema,
   scanBatchResultSchema,
   scanResultSchema,
   walkupResultSchema,
+  GATE_FEATURES,
+  GATE_FEATURES_HEADER,
   type ScanBody,
   type WalkupBody, gateCatalogSchema, gateStoreOrderSchema } from "./schemas";
 import { z } from "zod";
@@ -33,7 +37,8 @@ export const gateClient = (key: string | null) => {
   if (!c) {
     c = createApiClient({
       baseUrl: GATEWAY_PREFIX,
-      getHeaders: (): Record<string, string> => (k ? { [GATE_KEY_HEADER]: k } : {}),
+      // This console knows stations and swag desks: said on every call (quests contract §7.5).
+      getHeaders: (): Record<string, string> => ({ [GATE_FEATURES_HEADER]: GATE_FEATURES, ...(k ? { [GATE_KEY_HEADER]: k } : {}) }),
       // On a session, a long shift outlives the access token: renewed as
       // everywhere else, and once it can't be, sign in again and come back
       // (queued scans wait on the phone). A door key is no session: nothing to renew.
@@ -97,6 +102,16 @@ export async function fetchGateStoreOrders(key: string | null, eventId: number, 
 export async function gateHandOver(key: string | null, eventId: number, orderId: string) {
   return gateStoreOrderSchema.parse(await gateClient(key).post<unknown>(`/api/v1/events/${eventId}/gate/store/${encodeURIComponent(orderId)}/handover`, {}));
 }
+/** At a swag desk, after a search: the guest's quest rewards and the stations they visited (§7.3). */
+export async function fetchGateQuestGuest(key: string | null, eventId: number, registrationId: string) {
+  return gateQuestGuestSchema.parse(await gateClient(key).get<unknown>(`${base(eventId)}/quests/${encodeURIComponent(registrationId)}`));
+}
+
+/** Hand one quest reward over at the swag desk; a size is sent when one is still to pick (or changes). */
+export async function handOverQuestReward(key: string | null, eventId: number, claimId: string, body: { variant_label: string | null; door: string | null }) {
+  return handoverResultSchema.parse(await gateClient(key).post<unknown>(`${base(eventId)}/quests/claims/${encodeURIComponent(claimId)}/handover`, body));
+}
+
 export async function fetchGateCatalog(key: string | null, eventId: number) {
   return gateCatalogSchema.parse(await gateClient(key).get<unknown>(`/api/v1/events/${eventId}/store/catalog`));
 }

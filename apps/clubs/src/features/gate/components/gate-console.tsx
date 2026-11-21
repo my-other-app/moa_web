@@ -5,13 +5,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ApiError } from "@moa/api";
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, EmptyState, FigurePanel, InitialsAvatar, Skeleton, cn } from "@moa/ui";
-import { ChevronDownIcon, DoorOpenIcon, LockIcon, PackageIcon, RefreshCwIcon, ScanLineIcon, SearchIcon, ServerCrashIcon, Link2OffIcon, UserPlusIcon, UserXIcon, WifiOffIcon } from "lucide-react";
+import { ChevronDownIcon, DoorOpenIcon, GiftIcon, LockIcon, MapPinIcon, PackageIcon, RefreshCwIcon, ScanLineIcon, SearchIcon, ServerCrashIcon, Link2OffIcon, UserPlusIcon, UserXIcon, WifiOffIcon } from "lucide-react";
 
 import { DOOR_STORAGE, KEY_STORAGE } from "../api";
 import { HAPTIC } from "../lib/outcome-copy";
-import { withReplayed, type ReplayReport as ReplayReportModel, type ReplayedScan } from "../lib/replay";
+import { replayProblem, withReplayed, type ReplayReport as ReplayReportModel, type ReplayedScan } from "../lib/replay";
 import { useGateContext, useOfflineQueue } from "../queries";
-import type { GateContext } from "../schemas";
+import { purposeOf, type DoorPurpose, type GateContext } from "../schemas";
 import { DOOR_FIELD, DoorBanner, DoorCount, DoorProgress, TouchChoice } from "./door-kit";
 import { FindPanel } from "./find-panel";
 import { ReplayReport } from "./replay-report";
@@ -28,6 +28,25 @@ const TAB_ICON: Record<Tab, React.ComponentType<{ className?: string }>> = { che
  * has asked for some of them again (it couldn't record them yet), it says so:
  * the phone keeps trying by itself, but only while this page is open.
  */
+/** The tag a station or swag desk carries in the door picker. */
+const PURPOSE_TAG: Record<DoorPurpose, string> = { station: "Station", swag_desk: "Swag desk" };
+
+/** What a station or swag desk does, said once under the header: nobody is checked in there. */
+function QuestDoorBanner({ purpose, door, ctx }: { purpose: DoorPurpose; door: string; ctx: GateContext }) {
+  const off = ctx.quests && !ctx.quests.enabled;
+  return purpose === "station" ? (
+    <DoorBanner tone="info" icon={<MapPinIcon />} title={`Station · ${door}`} className="border-x-0 border-b-0">
+      Scanning a ticket records the guest&apos;s visit here for the quest. Nobody is checked in at a station.
+      {off ? " Quests are off right now: visits are recorded and count once the organiser turns them on." : ""}
+    </DoorBanner>
+  ) : (
+    <DoorBanner tone="info" icon={<GiftIcon />} title={/swag desk/i.test(door) ? door : `Swag desk · ${door}`} className="border-x-0 border-b-0">
+      Scanning a ticket shows the quest rewards the guest unlocked, to hand over. Nobody is checked in here.
+      {off ? " Quests are off right now: rewards already held can still be handed over." : ""}
+    </DoorBanner>
+  );
+}
+
 function stillToSend(queued: number, retrying: number): string {
   const lead = `${queued} saved ${queued === 1 ? "scan" : "scans"} still to send.`;
   if (retrying <= 0) return `${lead} Syncing…`;
@@ -173,7 +192,8 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
   const [replay, setReplay] = React.useState<ReplayReportModel | null>(null);
   const onDrained = React.useCallback((results: ReplayedScan[]) => {
     setReplay((report) => withReplayed(report, results));
-    if (results.some((r) => r.response.outcome !== "CHECKED_IN")) {
+    // Only a scan the server did not admit buzzes (a station's visit is no refusal).
+    if (results.some((r) => replayProblem(r) !== null)) {
       try {
         navigator.vibrate?.(HAPTIC.refuse);
       } catch {
@@ -183,9 +203,12 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
   }, []);
   const { online, queued, retrying, enqueue } = useOfflineQueue(gateKey, eventId, onDrained);
   const p = ctx.permissions;
+  // What the door is for: an entrance (null) behaves exactly as it always has.
+  const purpose = door ? purposeOf(ctx, door) : null;
   const allowed: { key: Tab; label: string }[] = [
-    ...(p.check_in ? [{ key: "checkin" as Tab, label: "Check-in" }, { key: "find" as Tab, label: "Find" }] : []),
-    ...(p.walkup ? [{ key: "walkup" as Tab, label: "Walk-up" }] : []),
+    ...(p.check_in ? [{ key: "checkin" as Tab, label: purpose ? "Scan" : "Check-in" }, { key: "find" as Tab, label: "Find" }] : []),
+    // Nobody is registered at a station or swag desk (the server refuses it there too).
+    ...(p.walkup && !purpose ? [{ key: "walkup" as Tab, label: "Walk-up" }] : []),
     ...(p.merch && (ctx.has_merch || ctx.has_store) ? [{ key: "merch" as Tab, label: "Merch" }] : []),
   ];
   const [tab, setTab] = React.useState<Tab>("checkin");
@@ -218,13 +241,18 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
           <DoorProgress checkedIn={ctx.counters.checked_in} registered={ctx.counters.registered} />
           {!online ? (
             <DoorBanner tone="caution" icon={<WifiOffIcon />} title="No signal" className="border-x-0 border-b-0" action={<span className="bg-surface text-caution rounded-full px-2.5 py-1 font-mono text-[12px] font-semibold tabular-nums">{queued} waiting</span>}>
-              Tickets can’t be checked: scans are saved on this phone and sync when you’re back. Check each guest’s name or ID.
+              {purpose === "station"
+                ? "Visits are saved on this phone and sent when you’re back."
+                : purpose === "swag_desk"
+                  ? "Rewards can’t be looked up and nothing can be handed over until you’re back."
+                  : "Tickets can’t be checked: scans are saved on this phone and sync when you’re back. Check each guest’s name or ID."}
             </DoorBanner>
           ) : queued > 0 ? (
             <DoorBanner tone="info" icon={<RefreshCwIcon className="animate-spin motion-reduce:animate-none" />} title="Back online" className="border-x-0 border-b-0">
               {stillToSend(queued, retrying)}
             </DoorBanner>
           ) : null}
+          {purpose && door ? <QuestDoorBanner purpose={purpose} door={door} ctx={ctx} /> : null}
           {replay ? <ReplayReport report={replay} onDismiss={() => setReplay(null)} /> : null}
         </header>
 
@@ -269,8 +297,8 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
                 />
               </FigurePanel>
             ) : null}
-            {current === "checkin" && door ? <ScanStage key={door} gateKey={gateKey} ctx={ctx} door={door} online={online} enqueue={enqueue} /> : null}
-            {current === "find" && door ? <FindPanel gateKey={gateKey} ctx={ctx} door={door} /> : null}
+            {current === "checkin" && door ? <ScanStage key={door} gateKey={gateKey} ctx={ctx} door={door} online={online} enqueue={enqueue} purpose={purpose} /> : null}
+            {current === "find" && door ? <FindPanel gateKey={gateKey} ctx={ctx} door={door} purpose={purpose} /> : null}
             {current === "walkup" && door ? <WalkupPanel gateKey={gateKey} ctx={ctx} door={door} /> : null}
             {current === "merch" && door ? <MerchPanel gateKey={gateKey} ctx={ctx} door={door} /> : null}
           </main>
@@ -297,11 +325,26 @@ function Console({ gateKey, ctx }: { gateKey: string | null; ctx: GateContext })
             <DialogDescription>Set once per device. Every scan from here is attributed to it, so the check-in log shows who came through where.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Doors">
-            {[...new Set([...ctx.doors.map((d) => d.name), ...(door ? [door] : [])])].map((g) => (
-              <TouchChoice key={g} checked={door === g} onClick={() => chooseDoor(g)} aside={expected === g ? <span className="tag tag-accent">Yours</span> : null}>
-                {g}
-              </TouchChoice>
-            ))}
+            {[...new Set([...ctx.doors.map((d) => d.name), ...(door ? [door] : [])])].map((g) => {
+              const what = ctx.doors.find((d) => d.name === g)?.purpose;
+              return (
+                <TouchChoice
+                  key={g}
+                  checked={door === g}
+                  onClick={() => chooseDoor(g)}
+                  aside={
+                    expected === g || what ? (
+                      <span className="flex gap-1">
+                        {what ? <span className="tag tag-neutral">{PURPOSE_TAG[what]}</span> : null}
+                        {expected === g ? <span className="tag tag-accent">Yours</span> : null}
+                      </span>
+                    ) : null
+                  }
+                >
+                  {g}
+                </TouchChoice>
+              );
+            })}
           </div>
           {p.full ? (
             <div className="mt-1 flex gap-2">

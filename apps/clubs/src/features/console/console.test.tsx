@@ -8,6 +8,8 @@ import topicsFixture from "../__fixtures__/topics.json";
 const pathname = { current: "/events/37" };
 /** Whether the stubbed API has guest posters (GET …/posters/settings). */
 const posters = { on: false };
+/** Whether the stubbed API has quests (GET …/quests/templates). */
+const quests = { on: false };
 
 vi.mock("next/navigation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("next/navigation")>();
@@ -30,6 +32,11 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path === "/api/v1/interests/list") return topicsFixture;
         if (/\/events\/\d+\/posters\/settings$/.test(path)) {
           if (posters.on) return { enabled: false, formats: ["square"], moments: {} };
+          const { ApiError } = await import("@moa/api");
+          throw new ApiError({ status: 404, message: "Not Found", routeMissing: true });
+        }
+        if (/\/events\/\d+\/quests\/templates$/.test(path)) {
+          if (quests.on) return [{ kind: "checked_in", label: "Checked in", default_title: "Check in", default_config: {}, fields: [] }];
           const { ApiError } = await import("@moa/api");
           throw new ApiError({ status: 404, message: "Not Found", routeMissing: true });
         }
@@ -158,6 +165,29 @@ describe("event console", () => {
       expect(await screen.findByRole("menuitem", { name: /Poster/ })).toBeInTheDocument();
     } finally {
       posters.on = false;
+    }
+  });
+
+  it("has a Quests section once the API has quests, and none before", async () => {
+    const draw = async () => {
+      const view = render(
+        <EventConsole eventId={37}>
+          <p />
+        </EventConsole>
+      );
+      const rail = await screen.findByRole("navigation", { name: "Event sections" });
+      return { view, rail };
+    };
+    const before = await draw();
+    await screen.findByRole("heading", { level: 1, name: "SF Sea Hackathon" });
+    expect(within(before.rail).queryByRole("link", { name: /Quests/ })).toBeNull();
+    before.view.unmount();
+    quests.on = true;
+    try {
+      const after = await draw();
+      expect(await within(after.rail).findByRole("link", { name: /Quests/ })).toHaveAttribute("href", "/events/37/quests");
+    } finally {
+      quests.on = false;
     }
   });
 

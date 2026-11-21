@@ -178,6 +178,34 @@ describe("doors", () => {
     expect(await within(dialog).findByLabelText("Gate link")).toHaveValue("https://clubs.myotherapp.in/gate/37?key=k-front");
   });
 
+  it("lists a quest station apart: no kind, no admissions, a link that scans tickets only", async () => {
+    const station = { id: "st1", event_id: 37, name: "Google Cloud booth", kind: "door", sort_order: 2, active: true, volunteers: [], check_ins: 0, link: null, created_at: null, purpose: "station" };
+    doors.push(station as (typeof doors)[number]);
+    try {
+      render(<TeamPage eventId={37} />);
+      await screen.findByText("On check-in duty");
+      // The entrances are counted; the station is said apart.
+      expect(screen.getByText("1 with a gate link · 1 quest door")).toBeInTheDocument();
+      expect(screen.getByText(/Quest stations and swag desks are listed too/)).toBeInTheDocument();
+      // Its row on the doors list (volunteers can be put on it too, so the name is in their door pickers).
+      const row = screen
+        .getAllByText("Google Cloud booth")
+        .map((e) => e.closest("li"))
+        .find((li): li is HTMLLIElement => !!li && within(li).queryByRole("link", { name: "On Quests" }) !== null)!;
+      expect(within(row).getByText("Station")).toBeInTheDocument();
+      expect(within(row).getByRole("link", { name: "On Quests" })).toHaveAttribute("href", "/events/37/quests");
+      expect(within(row).queryByText("admitted")).toBeNull();
+      fireEvent.click(within(row).getByRole("button", { name: "Edit Google Cloud booth" }));
+      expect(within(row).queryByLabelText("Kind")).toBeNull();
+      fireEvent.click(within(row).getByRole("button", { name: /^Gate link$/ }));
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByText(/records visits at Google Cloud booth/)).toBeInTheDocument();
+      expect(within(dialog).queryByRole("radio", { name: /register walk-ups/ })).toBeNull();
+    } finally {
+      doors.pop();
+    }
+  });
+
   it("switches a duty, shuts the door, and takes a volunteer off only after asking", async () => {
     render(<TeamPage eventId={37} />);
     await screen.findByText("On check-in duty");

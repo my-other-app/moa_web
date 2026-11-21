@@ -16,7 +16,7 @@ import { useEventSummary } from "@/features/console";
 import { KiosksPanel } from "@/features/kiosk";
 
 import { useTeam, useUpdateGateSettings } from "../queries";
-import type { Team } from "../schemas";
+import { isEntrance, type Team } from "../schemas";
 import { DoorSettingsPanel } from "./door-settings";
 import { DoorsPanel } from "./doors-panel";
 import { PeoplePanel } from "./people-panel";
@@ -61,9 +61,12 @@ function Ready({
   s: EventSummary | undefined;
 }) {
   const door = doorState(team, s);
-  const open = team.doors.filter((d) => d.active);
+  // Entrances only: a quest station or swag desk admits nobody (said apart in the note).
+  const entrances = team.doors.filter(isEntrance);
+  const quest = team.doors.filter((d) => d.active && !isEntrance(d)).length;
+  const open = entrances.filter((d) => d.active);
   const linked = open.filter((d) => d.link && !d.link.expired).length;
-  const retired = team.doors.length - open.length;
+  const retired = entrances.length - open.length;
   const onDuty = team.volunteers.filter((v) => v.can_check_in).length;
   const pending = team.volunteers.filter((v) => !v.is_approved).length;
   const admitted =
@@ -82,8 +85,10 @@ function Ready({
         value={formatNumber(open.length)}
         note={
           open.length
-            ? `${linked} with a gate link${retired ? ` · ${retired} retired` : ""}`
-            : "none named yet"
+            ? `${linked} with a gate link${retired ? ` · ${retired} retired` : ""}${quest ? ` · ${plural(quest, "quest door")}` : ""}`
+            : quest
+              ? `none named yet · ${plural(quest, "quest door")}`
+              : "none named yet"
         }
       />
       <StatTile
@@ -209,7 +214,8 @@ export function TeamPage({ eventId }: { eventId: number }) {
             />
           </div>
           <PeoplePanel eventId={eventId} team={team.data} />
-          <KiosksPanel eventId={eventId} doors={team.data.doors} />
+          {/* A kiosk checks guests in, so it stands at an entrance. */}
+          <KiosksPanel eventId={eventId} doors={team.data.doors.filter(isEntrance)} />
         </>
       )}
     </div>
