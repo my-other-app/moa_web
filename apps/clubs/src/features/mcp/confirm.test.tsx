@@ -82,6 +82,38 @@ const ANNOUNCEMENT_ACTION = {
   },
 };
 
+/** issue_certificates, as actions.describe answers it: the event's fields and `certificates`. */
+const CERTIFICATES_ACTION = {
+  ...EVENT_ACTION,
+  id: "c3a1f000-1111-2222-3333-444455556666",
+  kind: "issue_certificates",
+  title: "Issue certificates for “Draft Demo Day”",
+  effects: [
+    "40 people get a certificate for “Draft Demo Day”: everyone who checked in who have none yet.",
+    "They see it in the MyOtherApp app and on its public check page. Emailing it is a separate step in the dashboard.",
+    "Nobody is issued twice, and certificates already issued keep their design.",
+  ],
+  target: { ...EVENT_ACTION.target, status: "completed", certificates: { audience: "checked_in", roles: [], to_issue: 40, already_issued: 3 } },
+};
+
+/** resend_review_email: the event's fields and `email`. */
+const RESEND_ACTION = {
+  ...EVENT_ACTION,
+  id: "r3a1f000-1111-2222-3333-444455556666",
+  kind: "resend_review_email",
+  title: "Send “Not confirmed” again",
+  effects: [
+    "The “Not confirmed” email, in its current words, goes again by email to everyone you declined of “Draft Demo Day”: 12 people now.",
+    "Anyone whose registration moves on before their copy goes is skipped.",
+    "It counts toward the club's emails this month, as a message to the guests does.",
+  ],
+  target: {
+    ...EVENT_ACTION.target,
+    status: "published",
+    email: { stage: "REQUEST_DECLINED", label: "Not confirmed", who: "everyone you declined", eligible: 12 },
+  },
+};
+
 const OWNER = { name: null, email: null, role: "owner" };
 const CONFIRMED_EVENT = {
   ...EVENT_ACTION,
@@ -378,6 +410,310 @@ describe("when deciding is refused", () => {
     page();
     fireEvent.click(await screen.findByRole("button", { name: /Approve/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent("AI connections are turned off right now, so this can't be approved.");
+    expect(screen.queryByRole("button", { name: /Approve/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("a request to issue certificates", () => {
+  const confirmed = {
+    ...CERTIFICATES_ACTION,
+    status: "confirmed",
+    can_decide: false,
+    decided: { at: "2026-10-20T02:00:00+05:30", by: OWNER },
+    result: { event_id: 2, issued: 40, refreshed: 1, already_issued: 2 },
+  };
+  const rejected = { ...CERTIFICATES_ACTION, status: "rejected", can_decide: false, decided: { at: "2026-10-20T02:00:00+05:30", by: OWNER } };
+
+  beforeEach(() => Object.assign(state, { get: CERTIFICATES_ACTION, confirm: confirmed, reject: rejected }));
+
+  it("says which event, how many people and who they are, then offers Approve and Turn down", async () => {
+    page();
+    expect(await screen.findByRole("heading", { level: 1, name: "Issue certificates for “Draft Demo Day”" })).toBeInTheDocument();
+    expect(screen.getByText("Claude wants to issue certificates for this event. Check it, then approve.")).toBeInTheDocument();
+
+    const certs = screen.getByRole("region", { name: "The certificates" });
+    expect(within(certs).getByText("To issue").nextSibling).toHaveTextContent("40");
+    expect(within(certs).getByText("Already have one").nextSibling).toHaveTextContent("3");
+    expect(certs).toHaveTextContent("To: Everyone who checked in, if they have none yet");
+    expect(within(certs).getByRole("link", { name: "Open the event's certificates" })).toHaveAttribute("href", "/events/2/certificates");
+
+    const event = screen.getByRole("region", { name: "The event" });
+    expect(within(event).getByText("Draft Demo Day")).toBeInTheDocument();
+    expect(within(event).getByText("Completed")).toBeInTheDocument();
+
+    const effects = screen.getByRole("region", { name: "What approving does" });
+    expect(
+      within(effects)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(CERTIFICATES_ACTION.effects);
+    expect(screen.getByRole("button", { name: /Approve/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Turn down/ })).toBeEnabled();
+  });
+
+  it.each([
+    [{ audience: "everyone", roles: [] }, "To: Everyone registered"],
+    [{ audience: "roles", roles: ["speaker", "staff"] }, "To: Only speakers and staff"],
+    [{ audience: "roles", roles: ["attendee", "speaker", "staff"] }, "To: Only attendees, speakers and staff"],
+  ])("names who gets one: %j", async (who, line) => {
+    state.get = { ...CERTIFICATES_ACTION, target: { ...CERTIFICATES_ACTION.target, certificates: { ...CERTIFICATES_ACTION.target.certificates, ...who } } };
+    page();
+    expect(await screen.findByRole("region", { name: "The certificates" })).toHaveTextContent(line);
+  });
+
+  it("approves with no body, then says how many were issued and where to send them", async () => {
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: /Approve/ }));
+    const done = await screen.findByRole("region", { name: "What happened" });
+    expect(posts()).toEqual([{ method: "POST", path: `/api/v1/clubs/pending-actions/${TOKEN}/confirm`, body: undefined }]);
+    expect(within(done).getByRole("heading", { name: "Approved" })).toBeInTheDocument();
+    // Refreshed ones already had one too: 1 + 2.
+    expect(done).toHaveTextContent("Issued 40 certificates. 3 people already had one. They aren't emailed yet: send them from the Certificates page.");
+    expect(within(done).getByRole("link", { name: "Open the certificates" })).toHaveAttribute("href", "/events/2/certificates");
+    expect(within(done).queryByRole("link", { name: /See the public page/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Approve/ })).not.toBeInTheDocument();
+  });
+
+  it("says when approving issued nobody new", async () => {
+    state.get = { ...confirmed, result: { event_id: 2, issued: 0, refreshed: 0, already_issued: 43 } };
+    page();
+    expect(await screen.findByRole("region", { name: "What happened" })).toHaveTextContent("No new certificates: everyone in this group already had one.");
+  });
+
+  it("once approved, shows the counts as they stand, not as what approving would do", async () => {
+    // The server counts again on every read: after the issue, nobody is left to issue.
+    state.get = { ...confirmed, target: { ...CERTIFICATES_ACTION.target, certificates: { audience: "checked_in", roles: [], to_issue: 0, already_issued: 43 } } };
+    page();
+    const certs = await screen.findByRole("region", { name: "The certificates" });
+    expect(within(certs).getByText("Already have one").nextSibling).toHaveTextContent("43");
+    expect(certs).not.toHaveTextContent("approving issues none");
+  });
+
+  it("turns it down with no body, and says nothing was issued", async () => {
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: /Turn down/ }));
+    const done = await screen.findByRole("region", { name: "What happened" });
+    expect(posts()).toEqual([{ method: "POST", path: `/api/v1/clubs/pending-actions/${TOKEN}/reject`, body: undefined }]);
+    expect(within(done).getByRole("heading", { name: "Turned down" })).toBeInTheDocument();
+    expect(done).toHaveTextContent("Nothing was issued.");
+  });
+
+  it("says when everyone in the group already has one", async () => {
+    state.get = { ...CERTIFICATES_ACTION, target: { ...CERTIFICATES_ACTION.target, certificates: { audience: "checked_in", roles: [], to_issue: 0, already_issued: 43 } } };
+    page();
+    expect(await screen.findByRole("region", { name: "The certificates" })).toHaveTextContent("Everyone in this group already has one, so approving issues none.");
+  });
+
+  it("shows a deleted event as deleted, with nothing to issue", async () => {
+    state.get = {
+      ...CERTIFICATES_ACTION,
+      effects: [],
+      target: { ...CERTIFICATES_ACTION.target, deleted: true, certificates: { audience: "checked_in", roles: [], to_issue: 0, already_issued: null } },
+    };
+    page();
+    const certs = await screen.findByRole("region", { name: "The certificates" });
+    expect(certs).toHaveTextContent("This event was deleted, so nothing can be issued.");
+    expect(within(certs).getByText("Already have one").nextSibling).toHaveTextContent("—");
+    expect(within(certs).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "The event" })).getByText("Deleted")).toBeInTheDocument();
+  });
+
+  it("reads an event that no longer exists ({}) as gone, and offers no buttons", async () => {
+    state.get = { ...CERTIFICATES_ACTION, title: "Approve an assistant's request", effects: [], target: {}, can_decide: false, cannot_decide_reason: "This action is no longer possible." };
+    page();
+    expect(await screen.findByRole("region", { name: "The event" })).toHaveTextContent("The event this was about no longer exists.");
+    expect(screen.getByText("This action is no longer possible.")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "The certificates" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Approve/ })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["confirmed", confirmed, "Approved", "Issued 40 certificates."],
+    ["rejected", rejected, "Turned down", "Nothing was issued."],
+    ["expired", { ...CERTIFICATES_ACTION, status: "expired", expired: true, can_decide: false }, "This request expired", "Ask the assistant again"],
+    ["superseded", { ...CERTIFICATES_ACTION, status: "superseded", can_decide: false }, "A newer request replaced this one", "Open the newest link"],
+    ["failed", { ...CERTIFICATES_ACTION, status: "failed", can_decide: false, result: { error: "EVENT_NOT_FOUND", message: "The event no longer exists." } }, "This couldn't be done", "The event no longer exists."],
+    ["disconnected", { ...CERTIFICATES_ACTION, status: "rejected", can_decide: false, result: { reason: "app_disconnected" } }, "Turned down", "The app was disconnected"],
+  ])("shows %s", async (_name, action, title, line) => {
+    state.get = action;
+    page();
+    const done = await screen.findByRole("region", { name: "What happened" });
+    expect(within(done).getByRole("heading", { name: title })).toBeInTheDocument();
+    expect(done).toHaveTextContent(line);
+    expect(screen.queryByRole("button", { name: /Approve/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "What approving does" })).not.toBeInTheDocument();
+  });
+
+  it("reloads one whose event was deleted while it waited, which failed (404 EVENT_NOT_FOUND)", async () => {
+    let failed = false;
+    state.get = () => (failed ? { ...CERTIFICATES_ACTION, status: "failed", can_decide: false, result: { error: "EVENT_NOT_FOUND", message: "The event no longer exists." } } : CERTIFICATES_ACTION);
+    state.confirm = () => {
+      failed = true;
+      return refusal(404, "EVENT_NOT_FOUND", "The event no longer exists.");
+    };
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: /Approve/ }));
+    expect(await screen.findByRole("heading", { name: "This couldn't be done" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("The event no longer exists. It changed while this was waiting, so nothing was done.");
+  });
+});
+
+describe("a request to send a review email again", () => {
+  const confirmed = {
+    ...RESEND_ACTION,
+    status: "confirmed",
+    can_decide: false,
+    decided: { at: "2026-10-20T02:00:00+05:30", by: OWNER },
+    result: { event_id: 2, stage: "REQUEST_DECLINED", resend_id: "5d1c0000-aaaa-bbbb-cccc-ddddeeeeffff", people: 12 },
+  };
+  const rejected = { ...RESEND_ACTION, status: "rejected", can_decide: false, decided: { at: "2026-10-20T02:00:00+05:30", by: OWNER } };
+
+  beforeEach(() => Object.assign(state, { get: RESEND_ACTION, confirm: confirmed, reject: rejected }));
+
+  it("says which email, to whom and how many, then offers Approve and Turn down", async () => {
+    page();
+    expect(await screen.findByRole("heading", { level: 1, name: "Send “Not confirmed” again" })).toBeInTheDocument();
+    expect(screen.getByText("Claude wants to send this email again. Check it, then approve.")).toBeInTheDocument();
+
+    const email = screen.getByRole("region", { name: "The email" });
+    expect(within(email).getByText("Registration review email")).toBeInTheDocument();
+    expect(within(email).getByRole("heading", { name: "“Not confirmed”" })).toBeInTheDocument();
+    expect(email).toHaveTextContent("To: Everyone you declined");
+    expect(email).toHaveTextContent("Reaches 12 people now, by email only");
+    expect(within(email).getByRole("link", { name: "Read the email as it is now" })).toHaveAttribute("href", "/events/2/emails/review/request_declined");
+
+    expect(within(screen.getByRole("region", { name: "The event" })).getByText("Draft Demo Day")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "What approving does" }))
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(RESEND_ACTION.effects);
+    expect(screen.getByRole("button", { name: /Approve/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Turn down/ })).toBeEnabled();
+  });
+
+  it("approves with no body, then says it is going out and where to follow it", async () => {
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: /Approve/ }));
+    const done = await screen.findByRole("region", { name: "What happened" });
+    expect(posts()).toEqual([{ method: "POST", path: `/api/v1/clubs/pending-actions/${TOKEN}/confirm`, body: undefined }]);
+    expect(within(done).getByRole("heading", { name: "Approved" })).toBeInTheDocument();
+    expect(done).toHaveTextContent("It's going out again to 12 people, by email.");
+    expect(within(done).getByRole("link", { name: "See it going out" })).toHaveAttribute("href", "/events/2/emails");
+    expect(within(done).queryByRole("link", { name: /See the public page/ })).not.toBeInTheDocument();
+    // Sent: the card says which email, not that it would reach anyone again.
+    const email = screen.getByRole("region", { name: "The email" });
+    expect(email).toHaveTextContent("To: Everyone you declined");
+    expect(email).not.toHaveTextContent("Reaches");
+  });
+
+  it("turns it down with no body, and says nothing was sent", async () => {
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: /Turn down/ }));
+    const done = await screen.findByRole("region", { name: "What happened" });
+    expect(posts()).toEqual([{ method: "POST", path: `/api/v1/clubs/pending-actions/${TOKEN}/reject`, body: undefined }]);
+    expect(done).toHaveTextContent("Nothing was sent.");
+  });
+
+  it("says when nobody is at that step any more", async () => {
+    state.get = { ...RESEND_ACTION, target: { ...RESEND_ACTION.target, email: { ...RESEND_ACTION.target.email, eligible: 0 } } };
+    page();
+    const email = await screen.findByRole("region", { name: "The email" });
+    expect(email).toHaveTextContent("Reaches 0 people now");
+    expect(email).toHaveTextContent("Nobody is at this step right now, so there's no one to send it to.");
+  });
+
+  it("shows a deleted event as deleted, with nothing to send", async () => {
+    state.get = { ...RESEND_ACTION, target: { ...RESEND_ACTION.target, deleted: true, email: { ...RESEND_ACTION.target.email, eligible: 0 } } };
+    page();
+    const email = await screen.findByRole("region", { name: "The email" });
+    expect(email).toHaveTextContent("This event was deleted, so nothing can be sent.");
+    expect(within(email).queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("reads an event or email that no longer exists ({}) as gone, and offers no buttons", async () => {
+    state.get = { ...RESEND_ACTION, title: "Approve an assistant's request", effects: [], target: {}, can_decide: false, cannot_decide_reason: "This action is no longer possible." };
+    page();
+    expect(await screen.findByRole("region", { name: "The email" })).toHaveTextContent("The event or the email this was about no longer exists.");
+    expect(screen.getByText("This action is no longer possible.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Approve/ })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["confirmed", confirmed, "Approved", "It's going out again to 12 people"],
+    ["rejected", rejected, "Turned down", "Nothing was sent."],
+    ["expired", { ...RESEND_ACTION, status: "expired", expired: true, can_decide: false }, "This request expired", "Ask the assistant again"],
+    ["superseded", { ...RESEND_ACTION, status: "superseded", can_decide: false }, "A newer request replaced this one", "Open the newest link"],
+    ["failed", { ...RESEND_ACTION, status: "failed", can_decide: false, result: { error: "NOBODY", message: "Nobody to send this to right now." } }, "This couldn't be done", "Nobody to send this to right now."],
+    ["disconnected", { ...RESEND_ACTION, status: "rejected", can_decide: false, result: { reason: "app_disconnected" } }, "Turned down", "The app was disconnected"],
+  ])("shows %s", async (_name, action, title, line) => {
+    state.get = action;
+    page();
+    const done = await screen.findByRole("region", { name: "What happened" });
+    expect(within(done).getByRole("heading", { name: title })).toBeInTheDocument();
+    expect(done).toHaveTextContent(line);
+    expect(screen.queryByRole("button", { name: /Approve/ })).not.toBeInTheDocument();
+  });
+
+  it("explains the club's emails are used up, and keeps the request waiting (402 MESSAGE_QUOTA_EXCEEDED)", async () => {
+    state.confirm = () =>
+      refusal(402, "MESSAGE_QUOTA_EXCEEDED", "This would send 12 emails and your club has 4 left this month. Buy credits to send it, or send it next month.", {
+        needed: 12,
+        available: 4,
+      });
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: /Approve/ }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("This sends 12 emails and the club has 4 left this month. Buy credits, then come back and approve: the request is still waiting.");
+    expect(within(alert).getByRole("link", { name: "Buy credits" })).toHaveAttribute("href", "/billing#credits");
+    expect(screen.getByRole("button", { name: /Approve/ })).toBeEnabled();
+    // Still waiting: nothing to read again.
+    expect(calls.filter((c) => c.method === "GET" && c.path.includes("pending-actions"))).toHaveLength(1);
+  });
+
+  it("reloads one that failed because nobody is at that step any more (422 NOBODY)", async () => {
+    let failed = false;
+    state.get = () => (failed ? { ...RESEND_ACTION, status: "failed", can_decide: false, result: { error: "NOBODY", message: "Nobody to send this to right now." } } : RESEND_ACTION);
+    state.confirm = () => {
+      failed = true;
+      return refusal(422, "NOBODY", "Nobody to send this to right now.");
+    };
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: /Approve/ }));
+    expect(await screen.findByRole("heading", { name: "This couldn't be done" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "What happened" })).toHaveTextContent("Nobody to send this to right now.");
+  });
+});
+
+describe("a request this page doesn't know", () => {
+  it.each([
+    ["an unknown kind", { ...EVENT_ACTION, kind: "delete_club" }],
+    ["certificates without their figures", { ...CERTIFICATES_ACTION, target: EVENT_ACTION.target }],
+    ["certificates for an audience it doesn't know", { ...CERTIFICATES_ACTION, target: { ...CERTIFICATES_ACTION.target, certificates: { ...CERTIFICATES_ACTION.target.certificates, audience: "vips" } } }],
+    ["a review email without its details", { ...RESEND_ACTION, target: { ...RESEND_ACTION.target, email: { stage: "REQUEST_DECLINED" } } }],
+    ["a review email about an announcement", { ...RESEND_ACTION, target: ANNOUNCEMENT_ACTION.target }],
+    ["an event target it can't read", { ...CERTIFICATES_ACTION, target: { ...CERTIFICATES_ACTION.target, id: "2" } }],
+  ])("is shown as such for %s, never approvable", async (_name, action) => {
+    expect(pendingActionSchema.safeParse(action).success).toBe(false);
+    state.get = action;
+    page();
+    expect(await screen.findByRole("heading", { name: "This page can't show this request" })).toBeInTheDocument();
+    expect(screen.getByText(/so it can't be approved here. Nothing has been done./)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Approve/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Turn down/ })).not.toBeInTheDocument();
+    expect(posts()).toEqual([]);
+  });
+
+  it("reads the request again when an answer to a decision can't be read", async () => {
+    let decided = false;
+    state.get = () => (decided ? { ...CERTIFICATES_ACTION, kind: "something_new", status: "confirmed" } : CERTIFICATES_ACTION);
+    state.confirm = () => {
+      decided = true;
+      return { ...CERTIFICATES_ACTION, kind: "something_new", status: "confirmed" };
+    };
+    page();
+    fireEvent.click(await screen.findByRole("button", { name: /Approve/ }));
+    expect(await screen.findByRole("heading", { name: "This page can't show this request" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Approve/ })).not.toBeInTheDocument();
   });
 });

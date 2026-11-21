@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangleIcon,
+  AwardIcon,
   BotIcon,
   CalendarDaysIcon,
   CheckCircle2Icon,
@@ -14,6 +15,7 @@ import {
   ExternalLinkIcon,
   IndianRupeeIcon,
   Loader2Icon,
+  MailIcon,
   MapPinIcon,
   MegaphoneIcon,
   PlugZapIcon,
@@ -34,27 +36,38 @@ import { useDecide, usePendingAction } from "../queries";
 import {
   ACTION_NOT_FOUND,
   AUDIENCE_LABEL,
+  MESSAGE_QUOTA_EXCEEDED,
   TARGET_CHANGED,
   askLine,
+  certificateAudienceLine,
   isMcpOff,
+  isUnreadable,
   personLabel,
+  quotaShortfall,
   resultLine,
+  reviewEmailHref,
+  sentenceCase,
   upgradeHref,
+  type ActionKind,
   type ActionStatus,
   type AnnouncementTarget,
+  type CertificatesAsk,
   type EventTarget,
   type PendingAction,
+  type ReviewEmailAsk,
 } from "../schemas";
 
 /**
  * /confirm/{token}: where an assistant's "Confirm in dashboard" link lands.
  *
  * An assistant (Claude, ChatGPT…) can draft an event or an announcement but
- * never publish or send one; it asks, and this page is the asking. It says,
- * plainly enough for a volunteer opening it from a chat app on a phone,
- * what will happen, to what, who asked and until when, then offers Approve
- * and Turn down to someone whose role may decide. Once decided, expired or
- * replaced, it says what became of it instead.
+ * never publish or send one, and never issue certificates or mail guests;
+ * it asks, and this page is the asking. It says, plainly enough for a
+ * volunteer opening it from a chat app on a phone, what will happen, to
+ * what, who asked and until when, then offers Approve and Turn down to
+ * someone whose role may decide. Once decided, expired or replaced, it says
+ * what became of it instead. A request it can't read (a kind it doesn't
+ * know yet) is never offered for approval.
  */
 export function ConfirmPage({ token }: { token: string }) {
   const q = usePendingAction(token);
@@ -136,7 +149,14 @@ function LoadError({ error, onRetry }: { error: unknown; onRetry: () => void }) 
   if (isMcpOff(error))
     return (
       <Stop icon={PlugZapIcon} title="AI connections are turned off">
-        MyOtherApp has connected assistants switched off right now, so nothing they ask for can be approved. Nothing has been published or sent.
+        MyOtherApp has connected assistants switched off right now, so nothing they ask for can be approved. Nothing has been done.
+      </Stop>
+    );
+  // A kind of request this page doesn't know yet, or one it can't show: never offered for approval.
+  if (isUnreadable(error))
+    return (
+      <Stop icon={AlertTriangleIcon} tone="caution" title="This page can't show this request">
+        It&apos;s a kind of request the dashboard doesn&apos;t know yet, so it can&apos;t be approved here. Nothing has been done.
       </Stop>
     );
   if (error instanceof ApiError && error.errorCode === ACTION_NOT_FOUND)
@@ -182,14 +202,29 @@ const STATUS_BADGE: Record<ActionStatus, { label: string; tone: StatusTone }> = 
 };
 
 /** A decision the server refused, in the club's words. */
-function refusalText(error: unknown): { text: string; plan?: boolean; off?: boolean } {
-  if (isMcpOff(error)) return { text: "AI connections are turned off right now, so this can't be approved. Nothing has been published or sent.", off: true };
+function refusalText(error: unknown, kind: ActionKind): { text: string; plan?: boolean; credits?: boolean; off?: boolean } {
+  if (isMcpOff(error)) return { text: "AI connections are turned off right now, so this can't be approved. Nothing has been done.", off: true };
+  if (isUnreadable(error)) return { text: "This page couldn't read the answer, so it may have gone through. Reload the page to see where it stands." };
   if (!(error instanceof ApiError)) return { text: "That didn't go through. Check your connection and try again." };
   switch (error.errorCode) {
     case "ROLE_FORBIDDEN":
       return { text: "Your role can't approve this. Ask an admin or the club's owner." };
     case "PLAN_LIMIT_REACHED":
-      return { text: "Your plan's announcements for this month are used up. Upgrade, then come back and approve: the request is still waiting.", plan: true };
+      return {
+        text:
+          kind === "send_announcement"
+            ? "Your plan's announcements for this month are used up. Upgrade, then come back and approve: the request is still waiting."
+            : "Your plan doesn't cover this right now. Upgrade, then come back and approve: the request is still waiting.",
+        plan: true,
+      };
+    case MESSAGE_QUOTA_EXCEEDED: {
+      // 402: the club's emails this month can't cover everyone. Nothing went; the request stays waiting.
+      const short = quotaShortfall(error);
+      const why = short
+        ? `This sends ${short.needed.toLocaleString("en-IN")} ${short.needed === 1 ? "email" : "emails"} and the club has ${short.available.toLocaleString("en-IN")} left this month.`
+        : "The club's emails for this month are used up.";
+      return { text: `${why} Buy credits, then come back and approve: the request is still waiting.`, credits: true };
+    }
     case "ACTION_DECIDED":
       return { text: "Someone has already decided this one. Here is what happened." };
     case "ACTION_EXPIRED":
@@ -204,7 +239,7 @@ function Request({ token, action: a }: { token: string; action: PendingAction })
   const decide = useDecide(token);
   const [choice, setChoice] = React.useState<"confirm" | "reject" | null>(null);
   const outcomeRef = React.useRef<HTMLHeadingElement>(null);
-  const refused = decide.isError && !(decide.error instanceof ApiError && decide.error.isUnauthorized) ? refusalText(decide.error) : null;
+  const refused = decide.isError && !(decide.error instanceof ApiError && decide.error.isUnauthorized) ? refusalText(decide.error, a.kind) : null;
   const router = useRouter();
   const pending = a.status === "pending";
   const showButtons = pending && a.can_decide && !refused?.off;
@@ -224,12 +259,16 @@ function Request({ token, action: a }: { token: string; action: PendingAction })
   const badge = STATUS_BADGE[a.status];
   const refusedNotice = refused ? (
     <Notice
-      tone={refused.plan ? "caution" : "refuse"}
-      tag={refused.plan ? "Plan" : "Not done"}
+      tone={refused.plan || refused.credits ? "caution" : "refuse"}
+      tag={refused.plan ? "Plan" : refused.credits ? "Emails" : "Not done"}
       action={
         refused.plan ? (
           <Link href={upgradeHref(decide.error)} className="btn btn-secondary btn-sm">
             See plans
+          </Link>
+        ) : refused.credits ? (
+          <Link href="/billing#credits" className="btn btn-secondary btn-sm">
+            Buy credits
           </Link>
         ) : null
       }
@@ -256,7 +295,7 @@ function Request({ token, action: a }: { token: string; action: PendingAction })
       {/* Decided, expired or replaced: what became of it comes first, then what it was about. */}
       {!pending ? <Outcome a={a} headingRef={outcomeRef} /> : null}
 
-      {a.target?.type === "event" ? <EventCard event={a.target} /> : a.target?.type === "announcement" ? <AnnouncementCard note={a.target} /> : <GoneCard kind={a.kind} />}
+      <Subject a={a} />
 
       {pending && a.effects.length ? (
         <FigurePanel className="p-4 sm:p-5" role="region" aria-label="What approving does">
@@ -321,12 +360,118 @@ function localPath(url: string | null): string | null {
   }
 }
 
+/**
+ * What the request is about: the event or the announcement, and for
+ * certificates or a review email, who gets what first, then the event.
+ * The parse made sure a target carries its kind's details (schemas).
+ */
+function Subject({ a }: { a: PendingAction }) {
+  const t = a.target;
+  if (t?.type === "announcement") return <AnnouncementCard note={t} />;
+  if (t?.type !== "event") return <GoneCard kind={a.kind} />;
+  // Counted again on every read: once decided, the counts are how things stand, not what approving would do.
+  const pending = a.status === "pending";
+  return (
+    <>
+      {a.kind === "issue_certificates" && t.certificates ? <CertificatesCard event={t} ask={t.certificates} pending={pending} /> : null}
+      {a.kind === "resend_review_email" && t.email ? <ReviewEmailCard event={t} ask={t.email} pending={pending} /> : null}
+      <EventCard event={t} />
+    </>
+  );
+}
+
 function Fact({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
   return (
     <li className="text-ink flex items-start gap-2 text-[13.5px] leading-[1.45]">
       <Icon className="text-ink-3 mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <span className="min-w-0">{children}</span>
     </li>
+  );
+}
+
+/** A count as the Certificates page shows one: an eyebrow, then the number. */
+function Figure({ label, value, tone }: { label: string; value: number | null; tone?: string }) {
+  return (
+    <div>
+      <dt className="eyebrow">{label}</dt>
+      <dd className={cn("m-0 mt-1 font-mono text-[22px] leading-none tabular-nums", tone ?? "text-ink")}>{value === null ? "—" : value.toLocaleString("en-IN")}</dd>
+    </div>
+  );
+}
+
+const cardLink = "text-brand inline-flex items-center gap-1 text-[13px] font-medium underline-offset-2 hover:underline";
+
+function CertificatesCard({ event: e, ask: c, pending }: { event: EventTarget; ask: CertificatesAsk; pending: boolean }) {
+  return (
+    <FigurePanel className="overflow-hidden p-0" role="region" aria-label="The certificates">
+      <div className="p-4 sm:p-5">
+        <div className="flex items-center gap-1.5">
+          <AwardIcon className="text-ink-3 size-3.5" aria-hidden="true" />
+          <span className="eyebrow">Certificates</span>
+        </div>
+        <dl className="m-0 mt-3 flex flex-wrap gap-x-8 gap-y-3">
+          <Figure label="To issue" value={c.to_issue} tone="text-brand" />
+          <Figure label="Already have one" value={c.already_issued} />
+        </dl>
+        <ul className="m-0 mt-3 flex list-none flex-col gap-1.5 p-0">
+          <Fact icon={UsersIcon}>To: {certificateAudienceLine(c)}, if they have none yet</Fact>
+        </ul>
+        {e.deleted ? (
+          <Notice className="mt-3" tag="Deleted">
+            This event was deleted, so nothing can be issued.
+          </Notice>
+        ) : pending && c.to_issue === 0 ? (
+          <Notice className="mt-3" tag="Nobody new">
+            Everyone in this group already has one, so approving issues none.
+          </Notice>
+        ) : null}
+      </div>
+      {e.deleted ? null : (
+        <div className="border-line-soft border-t px-4 py-2.5 sm:px-5">
+          <Link href={`/events/${e.id}/certificates`} className={cardLink}>
+            Open the event&apos;s certificates
+          </Link>
+        </div>
+      )}
+    </FigurePanel>
+  );
+}
+
+function ReviewEmailCard({ event: e, ask: m, pending }: { event: EventTarget; ask: ReviewEmailAsk; pending: boolean }) {
+  return (
+    <FigurePanel className="overflow-hidden p-0" role="region" aria-label="The email">
+      <div className="p-4 sm:p-5">
+        <div className="flex items-center gap-1.5">
+          <MailIcon className="text-ink-3 size-3.5" aria-hidden="true" />
+          <span className="eyebrow">Registration review email</span>
+        </div>
+        <h2 className="text-ink m-0 mt-1.5 text-[17px] leading-[1.3] font-semibold tracking-[-0.01em] break-words">“{m.label}”</h2>
+        <ul className="m-0 mt-2.5 flex list-none flex-col gap-1.5 p-0">
+          <Fact icon={UsersIcon}>To: {sentenceCase(m.who)}</Fact>
+          {pending ? (
+            <Fact icon={MailIcon}>
+              Reaches {m.eligible.toLocaleString("en-IN")} {m.eligible === 1 ? "person" : "people"} now, by email only
+            </Fact>
+          ) : null}
+        </ul>
+        {e.deleted ? (
+          <Notice className="mt-3" tag="Deleted">
+            This event was deleted, so nothing can be sent.
+          </Notice>
+        ) : pending && m.eligible === 0 ? (
+          <Notice className="mt-3" tag="Nobody">
+            Nobody is at this step right now, so there&apos;s no one to send it to.
+          </Notice>
+        ) : null}
+      </div>
+      {e.deleted ? null : (
+        <div className="border-line-soft border-t px-4 py-2.5 sm:px-5">
+          <Link href={reviewEmailHref(e.id, m.stage)} className={cardLink}>
+            Read the email as it is now
+          </Link>
+        </div>
+      )}
+    </FigurePanel>
   );
 }
 
@@ -368,7 +513,7 @@ function EventCard({ event: e }: { event: EventTarget }) {
       </div>
       {dash ? (
         <div className="border-line-soft flex flex-wrap gap-x-4 gap-y-1 border-t px-4 py-2.5 sm:px-5">
-          <Link href={dash} className="text-brand inline-flex items-center gap-1 text-[13px] font-medium underline-offset-2 hover:underline">
+          <Link href={dash} className={cardLink}>
             Check the whole event in the dashboard
           </Link>
         </div>
@@ -404,10 +549,18 @@ function AnnouncementCard({ note: n }: { note: AnnouncementTarget }) {
   );
 }
 
-function GoneCard({ kind }: { kind: PendingAction["kind"] }) {
+/** The server answers `{}` when what a request was about no longer exists. */
+const GONE: Record<ActionKind, { label: string; text: string }> = {
+  publish_event: { label: "The event", text: "The event this was about no longer exists." },
+  send_announcement: { label: "The announcement", text: "The announcement draft this was about no longer exists." },
+  issue_certificates: { label: "The event", text: "The event this was about no longer exists." },
+  resend_review_email: { label: "The email", text: "The event or the email this was about no longer exists." },
+};
+
+function GoneCard({ kind }: { kind: ActionKind }) {
   return (
-    <FigurePanel className="text-ink-2 p-4 text-[13.5px] sm:p-5" role="region" aria-label={kind === "publish_event" ? "The event" : "The announcement"}>
-      {kind === "publish_event" ? "The event this was about no longer exists." : "The announcement draft this was about no longer exists."}
+    <FigurePanel className="text-ink-2 p-4 text-[13.5px] sm:p-5" role="region" aria-label={GONE[kind].label}>
+      {GONE[kind].text}
     </FigurePanel>
   );
 }
@@ -474,8 +627,19 @@ function Outcome({ a, headingRef }: { a: PendingAction; headingRef: React.Ref<HT
         ? "Nothing was done with this one. Open the newest link the assistant gave you."
         : resultLine(a);
   const r = a.result ?? {};
-  const publicUrl = typeof r.public_url === "string" ? r.public_url : a.target?.type === "event" && a.status === "confirmed" ? a.target.public_url : null;
+  // Only a published event has a public page worth opening from here.
+  const publicUrl =
+    a.kind !== "publish_event" ? null : typeof r.public_url === "string" ? r.public_url : a.target?.type === "event" && a.status === "confirmed" ? a.target.public_url : null;
   const eventId = typeof r.event_id === "number" ? r.event_id : null;
+  // Where to carry on: send the certificates by email, follow the resend, or the event itself.
+  const next =
+    eventId === null
+      ? null
+      : a.kind === "issue_certificates"
+        ? { href: `/events/${eventId}/certificates`, label: "Open the certificates", style: "btn-secondary" }
+        : a.kind === "resend_review_email"
+          ? { href: `/events/${eventId}/emails`, label: "See it going out", style: "btn-secondary" }
+          : { href: `/events/${eventId}`, label: "Open the event", style: "btn-ghost" };
   return (
     <FigurePanel className="flex flex-col gap-3 p-4 sm:p-5" role="region" aria-label="What happened">
       <div className="flex items-start gap-3">
@@ -494,16 +658,16 @@ function Outcome({ a, headingRef }: { a: PendingAction; headingRef: React.Ref<HT
           ) : null}
         </div>
       </div>
-      {a.status === "confirmed" && (publicUrl || eventId) ? (
+      {a.status === "confirmed" && (publicUrl || next) ? (
         <div className="flex flex-wrap gap-2">
           {publicUrl ? (
             <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
               <ExternalLinkIcon className="size-3.5" /> See the public page
             </a>
           ) : null}
-          {eventId ? (
-            <Link href={`/events/${eventId}`} className="btn btn-ghost btn-sm">
-              Open the event
+          {next ? (
+            <Link href={next.href} className={cn("btn btn-sm", next.style)}>
+              {next.label}
             </Link>
           ) : null}
         </div>
