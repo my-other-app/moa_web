@@ -54,6 +54,23 @@ export function takenItems(q: QuestAdmin): Set<string> {
   return new Set(q.milestones.flatMap((m) => m.rewards.map((r) => r.merch_item_id)));
 }
 
+/**
+ * A reward picked with nothing free to hold: the API accepts it (stock can be
+ * added later under Swag), but everyone who unlocks it before then is put on
+ * the waiting list, or finds it sold out. Said plainly, and the form asks
+ * before adding it. Null when there is stock (or the server didn't say).
+ */
+export function noStockWarning(item: { free: number | null; stock?: { total: number } | undefined } | undefined, mode: SoldOutMode): string | null {
+  if (!item || item.free == null || item.free > 0) return null;
+  const what = (item.stock?.total ?? 0) > 0 ? "None of it is free" : "No stock yet";
+  return mode === "waitlist"
+    ? `${what} — everyone who unlocks this goes on the waiting list until you add stock.`
+    : `${what} — everyone who unlocks this finds it sold out (first come, first served: nobody is queued) until you add stock.`;
+}
+
+/** "· 12 free", "· no stock yet", "· none free": an item's stock in the picker. */
+const freeText = (i: SwagItem) => (i.free == null ? "" : i.free > 0 ? ` · ${formatNumber(i.free)} free` : (i.stock?.total ?? 0) > 0 ? " · none free" : " · no stock yet");
+
 /** The swag items that can still become a reward: not already one. */
 export const offerable = (q: QuestAdmin): SwagItem[] => {
   const taken = takenItems(q);
@@ -217,26 +234,35 @@ function AddReward({ eventId, q, milestone }: { eventId: number; q: QuestAdmin; 
   const items = offerable(q);
   const [item, setItem] = React.useState("");
   const [mode, setMode] = React.useState<SoldOutMode>("waitlist");
+  const [confirming, setConfirming] = React.useState(false);
   const id = React.useId();
   if (q.swag_items.length === 0) return null;
   if (items.length === 0) return <p className="text-ink-3 px-3 pt-2 pb-3 text-[11.5px]">Every swag item is a reward already. An item can be the reward of one milestone.</p>;
   const picked = items.find((i) => i.id === item);
+  const warning = noStockWarning(picked, mode);
+  const submit = () =>
+    add.mutate(
+      { milestoneId: milestone.id, body: { merch_item_id: item, sold_out_mode: mode } },
+      {
+        onSuccess: () => {
+          toast.success(`${picked?.name ?? "Reward"} added to ${milestone.title}`, {
+            description: warning ? "Add its stock under Swag: units are held for guests as soon as there are some." : "Guests who already reached it have one held now.",
+          });
+          setItem("");
+          setConfirming(false);
+        },
+        onError: (err) => (errorCodeOf(err) === "QUEST_ITEM_ALREADY_A_REWARD" ? toast.error("That item is already a reward of this quest") : undefined),
+      }
+    );
   return (
     <form
       className="border-line-soft grid gap-2 border-t px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
       onSubmit={(e) => {
         e.preventDefault();
         if (!item) return;
-        add.mutate(
-          { milestoneId: milestone.id, body: { merch_item_id: item, sold_out_mode: mode } },
-          {
-            onSuccess: () => {
-              toast.success(`${picked?.name ?? "Reward"} added to ${milestone.title}`, { description: "Guests who already reached it have one held now." });
-              setItem("");
-            },
-            onError: (err) => (errorCodeOf(err) === "QUEST_ITEM_ALREADY_A_REWARD" ? toast.error("That item is already a reward of this quest") : undefined),
-          }
-        );
+        // Nothing to hold: ask first (the API accepts it, and stock can come later).
+        if (warning) setConfirming(true);
+        else submit();
       }}
     >
       <div>
@@ -248,7 +274,7 @@ function AddReward({ eventId, q, milestone }: { eventId: number; q: QuestAdmin; 
           {items.map((i) => (
             <option key={i.id} value={i.id}>
               {i.name}
-              {i.free != null ? ` · ${formatNumber(i.free)} free` : ""}
+              {freeText(i)}
               {i.sizes ? " · sizes" : ""}
             </option>
           ))}
@@ -269,9 +295,44 @@ function AddReward({ eventId, q, milestone }: { eventId: number; q: QuestAdmin; 
       <Button type="submit" variant="secondary" disabled={!item || add.isPending}>
         <PlusIcon /> Add
       </Button>
+      {warning ? (
+        <div className="sm:col-span-3">
+          <Notice
+            tone="caution"
+            tag="No stock"
+            action={
+              <Button asChild size="sm" variant="secondary">
+                <Link href={`/events/${eventId}/merch`}>Add stock</Link>
+              </Button>
+            }
+          >
+            {warning}
+          </Notice>
+        </div>
+      ) : null}
       <p className="text-ink-3 text-[11.5px] sm:col-span-3">
         {SOLD_OUT_META[mode].hint} A unit is held the moment a guest unlocks the milestone, so the swag desk always has theirs.
       </p>
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add {picked?.name ?? "this item"} with no stock?</AlertDialogTitle>
+            <AlertDialogDescription>{warning} You can add stock under Swag at any time; units are then held for guests in order.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="secondary">Not yet</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                submit();
+              }}
+              disabled={add.isPending}
+            >
+              Add it anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }

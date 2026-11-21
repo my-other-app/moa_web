@@ -91,7 +91,9 @@ function Board({ eventId, on, mode, names }: { eventId: number; on: boolean; mod
       ) : (
         <p className="text-ink-3 mt-2 text-[12.5px]">Nobody has scored yet.</p>
       )}
-      <p className="text-ink-3 mt-2 text-[11px]">Full names here; guests see {names === "full" ? "full names too" : "first names and an initial"}.</p>
+      <p className="text-ink-3 mt-2 text-[11px]">
+        Ties go to whoever got there first. Full names here; guests see {names === "full" ? "full names too" : "first names and an initial"}.
+      </p>
     </FigurePanel>
   );
 }

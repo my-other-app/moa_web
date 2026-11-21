@@ -27,13 +27,13 @@ const visit = (result: string, extra: Record<string, unknown> = {}) => ({
   ...base,
   outcome: "STATION_VISIT",
   attendee: ATTENDEE,
-  station: { door_id: "st1", name: "Google Cloud booth", result, reason: null, visited_at: "2026-11-28T05:12:00Z", task: { id: "t1", title: "Visit the Google Cloud booth", points: 10 }, ...extra },
+  station: { door_id: "st1", name: "Google Cloud booth", result, reason: null, visited_at: "2026-11-28T05:12:00Z", task: { id: "t1", title: "Visit the Google Cloud booth", points: 10 }, mode: "points", ...extra },
 });
 const reward = (over: Record<string, unknown> = {}) => ({
   claim_id: "c1", reward_id: "rw1", milestone: "Tier 1", item_id: "i1", name: "DevFest T-shirt", photo_url: null,
   status: "reserved", needs_size: false, variant_label: "M", choices: [{ label: "S", free: 4 }, { label: "M", free: 9 }], collected_at: null, collected_by: null, door: null, ...over,
 });
-const desk = (rewards: unknown[]) => ({ ...base, outcome: "SWAG_DESK", attendee: ATTENDEE, swag: { door_id: "sd1", name: "Swag desk", enabled: true, points: 40, tasks_done: 5, rewards } });
+const desk = (rewards: unknown[], mode = "points") => ({ ...base, outcome: "SWAG_DESK", attendee: ATTENDEE, swag: { door_id: "sd1", name: "Swag desk", enabled: true, mode, points: 40, tasks_done: 5, rewards } });
 const admitted = { ...base, outcome: "CHECKED_IN", attendee: { ...ATTENDEE, ticket_id: "MOA-1" }, capture: { ask: false, required: false, reason: "DISABLED" } };
 
 type Ctx = Record<string, unknown>;
@@ -288,7 +288,7 @@ describe("at a swag desk", () => {
     fireEvent.click(within(c).getByRole("button", { name: "Handed over" }));
     await waitFor(() => expect(body).toEqual({ variant_label: null, door: "Swag desk" }));
     expect(await within(c).findByText("Collected")).toBeInTheDocument();
-    expect(within(c).getByText(/Collected · \d\d:\d\d · Swag desk · by Vani Rao/)).toBeInTheDocument();
+    expect(within(c).getByText(/Collected · \d\d:\d\d · at Swag desk · by Vani Rao/)).toBeInTheDocument();
     // The verdict follows: everything they unlocked is handed over.
     expect(within(c).getByText("Handed over")).toBeInTheDocument();
     expect(within(c).getByText("Asha Kumar has everything they unlocked.")).toBeInTheDocument();
@@ -376,5 +376,64 @@ describe("the words", () => {
   it("tell a console from before that a quest door admits nobody", () => {
     const old = outcomeCard(scanResultSchema.parse({ ...base, outcome: "INVALID", attendee: null, hint: "QUEST_STATION" }), "Booth");
     expect(old).toMatchObject({ tone: "refuse", tag: "Station", title: "This door is a station, not an entrance." });
+  });
+});
+
+describe("tidy-ups after the screenshots", () => {
+  it("show a station's points only when the quest scores by points", () => {
+    expect(stationCard(scanResultSchema.parse(visit("VISITED")), "Booth").sub).toBe("GOOGLE CLOUD BOOTH · +10 POINTS");
+    const ticks = stationCard(scanResultSchema.parse(visit("VISITED", { mode: "checkmarks" })), "Booth");
+    expect(ticks.sub).toBe("GOOGLE CLOUD BOOTH");
+    expect(ticks.note).toBe("Ticks “Visit the Google Cloud booth” on their quest.");
+    // A server that doesn't say how the quest scores: no points either.
+    expect(stationCard(scanResultSchema.parse(visit("VISITED", { mode: undefined })), "Booth").sub).toBe("GOOGLE CLOUD BOOTH");
+  });
+
+  it("show a guest's points at the swag desk only in points mode", () => {
+    expect(swagDeskCard(scanResultSchema.parse(desk([reward()]))).sub).toBe("5 TASKS DONE · 40 POINTS");
+    expect(swagDeskCard(scanResultSchema.parse(desk([reward()], "checkmarks"))).sub).toBe("5 TASKS DONE");
+  });
+
+  it("say where a reward was collected, and by whom only when a person did it", async () => {
+    net.scan = () =>
+      json(
+        200,
+        desk([
+          // From a door link: nobody signed in (the server names no one).
+          reward({ claim_id: "c1", name: "Sticker pack", status: "collected", collected_at: "2026-11-28T06:02:00Z", door: "Swag desk", collected_by: null }),
+          // An older answer that named the desk as the person: still no "by Swag desk".
+          reward({ claim_id: "c2", name: "DevFest T-shirt", status: "collected", collected_at: "2026-11-28T06:03:00Z", door: "Swag desk", collected_by: "Swag desk" }),
+          reward({ claim_id: "c3", name: "Cloud hoodie", status: "collected", collected_at: "2026-11-28T06:04:00Z", door: "Swag desk", collected_by: "Vani Rao" }),
+        ]),
+      );
+    await openAt("Swag desk");
+    await scan("MOA-7K3QF-X9PWM", "Look up");
+    const c = await card("Already collected");
+    const lines = within(c).getAllByText(/^Collected · /).map((n) => n.textContent);
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toMatch(/^Collected · \d\d:\d\d · at Swag desk$/);
+    expect(lines[1]).toMatch(/^Collected · \d\d:\d\d · at Swag desk$/);
+    expect(lines[2]).toMatch(/^Collected · \d\d:\d\d · at Swag desk · by Vani Rao$/);
+    expect(within(c).queryByText(/by Swag desk/)).toBeNull();
+  });
+
+  it("show points for a guest found by name only in points mode", async () => {
+    const before = net.guest;
+    const found = (mode: string) => () => json(200, { door_id: null, name: null, enabled: true, mode, points: 40, tasks_done: 5, attendee: { id: "r1", name: "Asha Kumar" }, rewards: [reward()], stations: [] });
+    try {
+      for (const [mode, line] of [["checkmarks", "5 tasks done"], ["points", "5 tasks done · 40 points"]] as const) {
+        net.guest = found(mode);
+        store.set(DOOR_STORAGE(EVENT), "Swag desk");
+        const { unmount } = render(<GateConsole eventId={EVENT} />);
+        fireEvent.click(await screen.findByRole("tab", { name: /Find/ }));
+        fireEvent.change(screen.getByLabelText("Name, email, ticket or admission no."), { target: { value: "Asha" } });
+        fireEvent.click(await screen.findByRole("button", { name: "Rewards" }));
+        const panel = await screen.findByRole("region", { name: "Their rewards" });
+        expect(await within(panel).findByText(line)).toBeInTheDocument();
+        unmount();
+      }
+    } finally {
+      net.guest = before;
+    }
   });
 });

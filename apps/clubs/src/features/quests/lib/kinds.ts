@@ -37,6 +37,32 @@ export const KIND_META: Record<string, KindMeta> = {
   manual: { label: "Marked done by you", group: "you", proof: "For what the platform can't see (a hackathon submission, a talk given): you tick it per guest, logged with who and when." },
 };
 
+/**
+ * A short example for "How to do it", one per kind (the field's
+ * placeholder): what an organiser might write for that kind of task, so
+ * the form never shows the Network line under a code or a booth.
+ */
+export const HOW_EXAMPLE: Record<string, string> = {
+  checked_in: "Show your ticket's QR at the entrance before 10:00.",
+  network: "Scan the QR codes of people you meet, in the app's Network tab.",
+  quiz_played: "Join the quiz in the live room after the keynote, signed in.",
+  quiz_score: "Play the live quiz and score 500 or more.",
+  quiz_top: "Finish in the top 10 of the live quiz.",
+  polls: "Answer the polls in the live room during the talks.",
+  qa_question: "Ask the speakers a question in the live room's Q&A.",
+  feedback: "Fill in the feedback form we send near the end.",
+  poster_made: "Make your “I'm attending” poster from your ticket.",
+  poster_link: "Share your poster's link: every friend who opens it counts.",
+  follow_club: "Follow our club on MyOtherApp.",
+  profile_complete: "Add a headline, a photo, a link and a project to your profile.",
+  station: "Get your ticket scanned at the booth.",
+  code: "Watch for the code on the closing talk's last slide.",
+  manual: "Submit your hackathon project at the help desk.",
+};
+
+/** The placeholder for a task's "How to do it": its kind's example, or a plain prompt for a kind this dashboard doesn't know. */
+export const howExample = (kind: string) => HOW_EXAMPLE[kind] ?? "What guests do for it, in a line.";
+
 export const GROUP_LABEL: Record<KindMeta["group"], string> = {
   event: "At the event",
   live: "Live room",

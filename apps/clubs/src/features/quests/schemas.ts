@@ -360,6 +360,8 @@ const cardClaimSchema = z
     variant_label: maybeText,
     waitlist_position: z.number().nullish().catch(null),
     collected_at: when,
+    /** Where a collected reward was handed over (contract v1.3). */
+    door: maybeText.optional(),
   })
   .nullish()
   .catch(null)
@@ -374,6 +376,8 @@ export const auditRowSchema = z.object({
   task: z.object({ id: z.string(), title: text }).nullish().catch(null),
   reward: z.object({ id: z.string(), name: text }).nullish().catch(null),
   note: maybeText,
+  /** A handover's door ("Swag desk"). `by.name` is null when it went through a door link: nobody signed in. */
+  detail: z.object({ door: maybeText.optional() }).nullish().catch(null),
 });
 export type AuditRow = z.infer<typeof auditRowSchema>;
 

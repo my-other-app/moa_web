@@ -120,7 +120,8 @@ const GUEST = {
   audit: [{ at: "2026-11-28T05:30:00Z", by: { id: 2, name: "Meera" }, action: "grant", registration_id: "r1", name: "Asha Kumar", task: { id: "t9", title: "Talk given" }, reward: null, note: "Gave the lightning talk" }],
 };
 
-const state = { quest: structuredClone(QUEST) as Record<string, unknown>, routeMissing: false };
+const BOARD = { mode: "points", rows: [{ rank: 1, name: "Asha Kumar", score: 120 }, { rank: 2, name: "Ben Thomas", score: 95 }] };
+const state = { quest: structuredClone(QUEST) as Record<string, unknown>, routeMissing: false, board: BOARD as unknown, guest: GUEST as unknown };
 
 vi.mock("@moa/app-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@moa/app-kit")>();
@@ -135,10 +136,10 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path.endsWith(`/events/${EVENT}/quests`)) return state.quest;
         if (path.endsWith("/quests/templates")) return TEMPLATES;
         if (path.endsWith("/quests/dashboard")) return DASHBOARD;
-        if (path.endsWith("/quests/leaderboard")) return { mode: "points", rows: [{ rank: 1, name: "Asha Kumar", score: 120 }, { rank: 2, name: "Ben Thomas", score: 95 }] };
+        if (path.endsWith("/quests/leaderboard")) return state.board;
         if (path.endsWith("/quests/guests")) return GUESTS;
-        if (path.endsWith("/quests/guests/r1")) return GUEST;
-        if (path.endsWith("/quests/audit")) return { items: GUEST.audit, total: 1 };
+        if (path.endsWith("/quests/guests/r1")) return state.guest;
+        if (path.endsWith("/quests/audit")) return { items: (state.guest as typeof GUEST).audit, total: (state.guest as typeof GUEST).audit.length };
         throw new Error(`unstubbed GET ${path}`);
       }),
       patch: vi.fn(async (path: string, body: Record<string, unknown>) => {
@@ -187,7 +188,9 @@ const { render } = await import("@/test/render");
 const { QuestsPage } = await import("./components/quests-page");
 const { codeSheetHtml, codeProblem, generateCode, normalizeCode, ruleLine, suggestTitle } = await import("./lib/kinds");
 const { questAdminSchema, templatesSchema } = await import("./schemas");
-const { thresholdProblem } = await import("./components/milestones-panel");
+const { noStockWarning, thresholdProblem } = await import("./components/milestones-panel");
+const { auditWhen } = await import("./components/guests-panel");
+const { howExample } = await import("./lib/kinds");
 
 const parsed = () => questAdminSchema.parse(QUEST);
 const on = () => (state.quest = { ...structuredClone(QUEST), enabled: true });
@@ -196,6 +199,8 @@ beforeEach(() => {
   calls.length = 0;
   state.quest = structuredClone(QUEST);
   state.routeMissing = false;
+  state.board = BOARD;
+  state.guest = GUEST;
   access.can = { edit_events: true, exports: true };
 });
 
@@ -510,3 +515,82 @@ describe("for door staff", () => {
   });
 });
 
+
+describe("tidy-ups after the screenshots", () => {
+  it("gives each kind of task its own example under How to do it", async () => {
+    render(<QuestsPage eventId={EVENT} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Add a task/ }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("radio", { name: /Secret code/ }));
+    const how = within(dialog).getByLabelText("How to do it (optional)");
+    expect(how).toHaveAttribute("placeholder", "Watch for the code on the closing talk's last slide.");
+    expect(how.getAttribute("placeholder")).not.toMatch(/Network/);
+    // Every kind has one of its own, and no two say the same.
+    const kinds = ["checked_in", "network", "quiz_played", "quiz_score", "quiz_top", "polls", "qa_question", "feedback", "poster_made", "poster_link", "follow_club", "profile_complete", "station", "code", "manual"];
+    const lines = kinds.map(howExample);
+    expect(new Set(lines).size).toBe(kinds.length);
+    expect(lines.filter((l) => /Network/.test(l))).toEqual([howExample("network")]);
+    expect(howExample("something_new")).toBe("What guests do for it, in a line.");
+  });
+
+  it("warns about a reward with no stock, and adds it only once the organiser says so", async () => {
+    state.quest = { ...structuredClone(QUEST), swag_items: [...QUEST.swag_items, { id: "i3", name: "Speaker mug", photo_url: null, sizes: false, stock: stock(0, 0, 0), reward_id: null }] };
+    render(<QuestsPage eventId={EVENT} />);
+    const picker = await screen.findByLabelText("Add a reward");
+    expect(within(picker).getByRole("option", { name: "Speaker mug · no stock yet" })).toBeInTheDocument();
+    fireEvent.change(picker, { target: { value: "i3" } });
+    expect(screen.getByRole("alert")).toHaveTextContent("No stock yet — everyone who unlocks this goes on the waiting list until you add stock.");
+    fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
+    const ask = await screen.findByRole("alertdialog");
+    expect(within(ask).getByText("Add Speaker mug with no stock?")).toBeInTheDocument();
+    expect(calls.some((c) => c.method === "POST" && c.path.endsWith("/rewards"))).toBe(false);
+    fireEvent.click(within(ask).getByRole("button", { name: "Not yet" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(calls.some((c) => c.method === "POST" && c.path.endsWith("/rewards"))).toBe(false);
+    // First come, first served says what that means with nothing to give.
+    fireEvent.change(screen.getByLabelText("When it runs out"), { target: { value: "first_come" } });
+    expect(screen.getByRole("alert")).toHaveTextContent(/finds it sold out \(first come, first served: nobody is queued\) until you add stock/);
+    fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Add it anyway" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.path.endsWith("/milestones/m1/rewards"))).toMatchObject({ body: { merch_item_id: "i3", sold_out_mode: "first_come" } }));
+  });
+
+  it("adds a reward with stock at once, with no warning", () => {
+    expect(noStockWarning({ free: 12, stock: stock(12, 0, 0) }, "waitlist")).toBeNull();
+    expect(noStockWarning({ free: null, stock: undefined }, "waitlist")).toBeNull();
+    expect(noStockWarning({ free: 0, stock: stock(5, 3, 2) }, "waitlist")).toBe("None of it is free — everyone who unlocks this goes on the waiting list until you add stock.");
+  });
+
+  it("says where a reward was handed over, and by whom only when a person did it", async () => {
+    const at = "2026-11-28T06:02:00Z";
+    const door = { door: "Swag desk" };
+    expect(auditWhen({ at, by: { id: null, name: null }, detail: door })).toMatch(/ · at Swag desk$/);
+    // A row from before that stored the desk as the person.
+    expect(auditWhen({ at, by: { id: null, name: "Swag desk" }, detail: door })).toMatch(/ · at Swag desk$/);
+    expect(auditWhen({ at, by: { id: 7, name: "Vani Rao" }, detail: door })).toMatch(/ · at Swag desk · by Vani Rao$/);
+    expect(auditWhen({ at, by: { id: 2, name: "Meera" }, detail: null })).toMatch(/ · by Meera$/);
+
+    on();
+    state.guest = {
+      ...GUEST,
+      milestones: [{ ...GUEST.milestones[0]!, rewards: [{ reward_id: "rw1", name: "DevFest T-shirt", claim: { claim_id: "c1", status: "collected", needs_size: false, variant_label: "M", collected_at: at, door: "Swag desk" } }] }],
+      audit: [{ at, by: { id: null, name: null }, action: "handover", registration_id: "r1", name: "Asha Kumar", task: null, reward: { id: "rw1", name: "DevFest T-shirt" }, note: null, detail: door }],
+    };
+    render(<QuestsPage eventId={EVENT} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Asha Kumar" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText(/DevFest T-shirt: Collected \(M\) at Swag desk/)).toBeInTheDocument();
+    // The log: when, and where; nobody named.
+    expect(within(dialog).getByText(/^\d[^·]* · at Swag desk$/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/by Swag desk/)).toBeNull();
+  });
+
+  it("shows the ranks the server gives, never shared", async () => {
+    state.quest = { ...structuredClone(QUEST), enabled: true, leaderboard: true };
+    state.board = { mode: "points", rows: [{ rank: 1, name: "Asha Kumar", score: 40 }, { rank: 2, name: "Ben Thomas", score: 40 }, { rank: 3, name: "Chen Li", score: 40 }] };
+    render(<QuestsPage eventId={EVENT} />);
+    const board = (await screen.findByText("Chen Li")).closest("ol")!;
+    expect(within(board).getAllByRole("listitem").map((li) => li.firstElementChild!.textContent)).toEqual(["1", "2", "3"]);
+    expect(screen.getByText(/Ties go to whoever got there first/)).toBeInTheDocument();
+  });
+});

@@ -80,6 +80,19 @@ function TaskLine({ t, mode, canEdit, onAct }: { t: GuestTask; mode: QuestAdmin[
   );
 }
 
+/**
+ * "21 Nov, 05:33 · at Swag desk" for a handover through the desk's door link
+ * (nobody signed in), "… · at Swag desk · by Vani Rao" when a person did it,
+ * "… · by GDG Kochi" for a grant. Never "by Swag desk": an older row that
+ * stored the desk as the person reads as the desk.
+ */
+export function auditWhen(a: Pick<AuditRow, "at" | "by" | "detail">): string {
+  const door = a.detail?.door ?? null;
+  const name = a.by?.name ?? null;
+  const person = name && !(a.by?.id == null && door && name.trim().toLowerCase() === door.trim().toLowerCase()) ? name : null;
+  return [a.at ? formatDateTime(a.at) : null, door ? `at ${door}` : null, person ? `by ${person}` : null].filter(Boolean).join(" · ");
+}
+
 function AuditLine({ a }: { a: AuditRow }) {
   return (
     <li className="border-line-soft border-t py-2 text-[12px] first:border-t-0">
@@ -89,7 +102,7 @@ function AuditLine({ a }: { a: AuditRow }) {
         {a.name ? ` · ${a.name}` : ""}
       </span>
       <span className="text-ink-3 block">
-        {[a.at ? formatDateTime(a.at) : null, a.by?.name ? `by ${a.by.name}` : null].filter(Boolean).join(" · ")}
+        {auditWhen(a)}
         {a.note ? ` — “${a.note}”` : ""}
       </span>
     </li>
@@ -180,7 +193,10 @@ function GuestDialog({ eventId, q, registrationId, name, canEdit, onClose }: { e
                         <span className="text-ink-3">
                           {" · "}
                           {m.rewards
-                            .map((r) => `${r.name}${r.claim ? `: ${CLAIM_STATUS_LABEL[r.claim.status] ?? r.claim.status}${r.claim.variant_label ? ` (${r.claim.variant_label})` : ""}` : ""}`)
+                            .map(
+                              (r) =>
+                                `${r.name}${r.claim ? `: ${CLAIM_STATUS_LABEL[r.claim.status] ?? r.claim.status}${r.claim.variant_label ? ` (${r.claim.variant_label})` : ""}${r.claim.status === "collected" && r.claim.door ? ` at ${r.claim.door}` : ""}` : ""}`
+                            )
                             .join(", ")}
                         </span>
                       ) : null}

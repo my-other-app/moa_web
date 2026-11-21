@@ -43,7 +43,7 @@ import {
   toast,
 } from "@moa/ui";
 
-import { CODE_MAX, GROUP_LABEL, KIND_META, codeProblem, codeSheetHtml, fieldsOf, FALLBACK_CONFIG, generateCode, inputOf, kindLabel, ruleLine, suggestTitle } from "../lib/kinds";
+import { CODE_MAX, GROUP_LABEL, KIND_META, codeProblem, codeSheetHtml, fieldsOf, FALLBACK_CONFIG, generateCode, howExample, inputOf, kindLabel, ruleLine, suggestTitle } from "../lib/kinds";
 import { errorCodeOf, errorText, fieldProblems, fromLocalInput, toLocalInput, windowText } from "../lib/time";
 import { useCreateTask, useDeleteTask, useOrderTasks, useUpdateTask } from "../queries";
 import { TASK_KINDS, TASK_TITLE_MAX, type QuestAdmin, type QuestTask, type TaskInput, type TaskTemplate, type TemplateField } from "../schemas";
@@ -323,7 +323,7 @@ function TaskForm({
         <label htmlFor={`${id}-desc`} className="eyebrow mb-1.5 block">
           How to do it (optional)
         </label>
-        <Textarea id={`${id}-desc`} rows={2} maxLength={300} value={draft.description} placeholder="Scan the QR codes of people you meet, in the app's Network tab." onChange={(e) => set({ description: e.target.value })} />
+        <Textarea id={`${id}-desc`} rows={2} maxLength={300} value={draft.description} placeholder={howExample(kind)} onChange={(e) => set({ description: e.target.value })} />
       </div>
       {fields.length ? (
         <div className="bg-sunken grid gap-3 rounded-xl p-3 sm:grid-cols-2">

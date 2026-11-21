@@ -10,13 +10,24 @@ import { DoorSpinner } from "./door-kit";
 
 const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
+/**
+ * Where and by whom a reward was handed over: "at Swag desk", and "by Asha"
+ * only when a person did it. A swag desk's door link has nobody signed in,
+ * so the server names no one (older answers named the desk itself: never
+ * "Swag desk · by Swag desk").
+ */
+function collectedLine(r: Pick<DeskReward, "collected_at" | "door" | "collected_by">): string {
+  const by = r.collected_by && r.collected_by.trim().toLowerCase() !== (r.door ?? "").trim().toLowerCase() ? r.collected_by : null;
+  return ["Collected", r.collected_at ? clock(r.collected_at) : null, r.door ? `at ${r.door}` : null, by ? `by ${by}` : null].filter(Boolean).join(" · ");
+}
+
 /** What a reward row says under its name. */
 function statusLine(r: DeskReward): string {
   switch (r.status) {
     case "reserved":
       return r.needs_size ? "Held for them · no size picked yet" : ["Held for them", r.variant_label ? `size ${r.variant_label}` : null].filter(Boolean).join(" · ");
     case "collected":
-      return ["Collected", r.collected_at ? clock(r.collected_at) : null, r.door, r.collected_by ? `by ${r.collected_by}` : null].filter(Boolean).join(" · ");
+      return collectedLine(r);
     case "waitlisted":
       return r.waitlist_position ? `On the waiting list · number ${r.waitlist_position}` : "On the waiting list";
     case "sold_out":
@@ -206,7 +217,7 @@ export function DeskGuest({
           <span className="text-ink block truncate text-[16px] font-semibold">{name}</span>
           {g ? (
             <span className="text-ink-3 block font-mono text-[11px]">
-              {g.tasks_done} {g.tasks_done === 1 ? "task" : "tasks"} done{g.points ? ` · ${g.points} points` : ""}
+              {g.tasks_done} {g.tasks_done === 1 ? "task" : "tasks"} done{g.mode === "points" && g.points ? ` · ${g.points} points` : ""}
             </span>
           ) : null}
         </span>

@@ -85,7 +85,8 @@ export function stationCard(res: ScanResult, door: string): OutcomeCardModel {
   const v: StationVisit | null | undefined = res.station;
   const who = res.attendee?.name || "This guest";
   const place = v?.name || door;
-  const points = v?.task?.points ? `+${v.task.points} POINTS` : null;
+  // Points only when the quest scores by points: in checkmarks mode every task counts one.
+  const points = v?.mode === "points" && v.task?.points ? `+${v.task.points} POINTS` : null;
   switch (v?.result) {
     case "VISITED":
       return {
@@ -121,7 +122,7 @@ export function swagDeskCard(res: ScanResult): OutcomeCardModel {
   const rewards = s?.rewards ?? [];
   const toHand = rewards.filter((r) => r.status === "reserved").length;
   const collected = rewards.filter((r) => r.status === "collected").length;
-  const sub = s ? [`${s.tasks_done} ${s.tasks_done === 1 ? "TASK" : "TASKS"} DONE`, s.points ? `${s.points} POINTS` : null].filter(Boolean).join(" · ") : undefined;
+  const sub = s ? [`${s.tasks_done} ${s.tasks_done === 1 ? "TASK" : "TASKS"} DONE`, s.mode === "points" && s.points ? `${s.points} POINTS` : null].filter(Boolean).join(" · ") : undefined;
   const off = s && !s.enabled ? " Quests are off for this event; rewards already held can still be handed over." : "";
   if (toHand > 0)
     return { tone: "admit", tag: "Rewards to collect", title: `${who} — ${toHand === 1 ? "1 reward" : `${toHand} rewards`} to hand over.`, sub, note: off.trim() || undefined };

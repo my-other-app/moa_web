@@ -78,6 +78,14 @@ export const gateAnswersResultSchema = z.object({ missing_answers: missingAnswer
 export const STATION_RESULTS = ["VISITED", "ALREADY_VISITED", "NOT_COUNTED"] as const;
 export type StationResult = (typeof STATION_RESULTS)[number];
 
+/**
+ * How the quest scores (v1.3): points mean something only in "points" mode,
+ * so door staff see them only then. Null without a quest, or from a server
+ * that doesn't say: then no points are shown either.
+ */
+export const questModeSchema = z.enum(["checkmarks", "points"]).nullish().catch(null);
+export type QuestMode = z.infer<typeof questModeSchema>;
+
 export const stationVisitSchema = z.object({
   door_id: z.string().nullish().catch(null),
   name: z.string().catch(""),
@@ -88,6 +96,7 @@ export const stationVisitSchema = z.object({
   /** The first visit's time. */
   visited_at: z.string().nullish().catch(null),
   task: z.object({ id: z.string(), title: z.string().catch(""), points: z.number().catch(0) }).nullish().catch(null),
+  mode: questModeSchema,
 });
 export type StationVisit = z.infer<typeof stationVisitSchema>;
 
@@ -113,6 +122,7 @@ export const deskRewardSchema = z.object({
     .transform((v) => v.map((c) => (typeof c === "string" ? { label: c, free: null } : { label: c.label, free: c.free ?? null }))),
   waitlist_position: z.number().nullish().catch(null),
   collected_at: z.string().nullish().catch(null),
+  /** Who handed it over: a person's name, or null for a swag desk's door link (nobody signed in: then only `door`, "at Swag desk"). */
   collected_by: z.string().nullish().catch(null),
   door: z.string().nullish().catch(null),
 });
@@ -123,6 +133,7 @@ export const swagDeskSchema = z.object({
   door_id: z.string().nullish().catch(null),
   name: z.string().catch(""),
   enabled: z.boolean().catch(true),
+  mode: questModeSchema,
   points: z.number().catch(0),
   tasks_done: z.number().catch(0),
   rewards: z
@@ -222,6 +233,7 @@ export const doorOptionSchema = z.object({ id: z.string(), name: z.string(), kin
 /** `/gate/context` for a console that knows quests (§7.5): null when the event has no quest. */
 export const gateQuestsSchema = z.object({
   enabled: z.boolean().catch(false),
+  mode: questModeSchema,
   /** The purpose of the door this console is on: the link's, else the volunteer's assigned door's. */
   door_purpose: doorPurpose.optional(),
   door_name: z.string().nullish().catch(null),
