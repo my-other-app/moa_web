@@ -3,7 +3,33 @@ import { z } from "zod";
 import { partialCode, partialText } from "@/lib/masked";
 
 /** The door's answers, as the server speaks them (snake_case, like the rest of the event API). */
-export const SCAN_OUTCOMES = ["CHECKED_IN", "ALREADY_CHECKED_IN", "WRONG_EVENT", "REVOKED", "UNPAID", "INVALID", "EVENT_NOT_OPEN"] as const;
+export const SCAN_OUTCOMES = ["CHECKED_IN", "ALREADY_CHECKED_IN", "WRONG_EVENT", "REVOKED", "UNPAID", "INVALID", "EVENT_NOT_OPEN", "STATION_VISIT", "SWAG_DESK"] as const;
+
+/**
+ * Doors that are not entrances (quests contract §7): a station records a
+ * visit, a swag desk hands quest rewards over. Neither ever admits anyone.
+ * Every door from before is an entrance (purpose null).
+ */
+export const DOOR_PURPOSES = ["station", "swag_desk"] as const;
+export type DoorPurpose = (typeof DOOR_PURPOSES)[number];
+/** A purpose as the API sends it: a missing or unknown one is an entrance (null). */
+export const doorPurpose = z
+  .enum(DOOR_PURPOSES)
+  .nullish()
+  .catch(null)
+  .transform((v): DoorPurpose | null => v ?? null);
+
+/**
+ * Sent on every gate request: this console knows stations and swag desks, so
+ * the server lists them and answers their scans as STATION_VISIT / SWAG_DESK.
+ * (A console without it is answered INVALID there, and admits nobody.)
+ */
+export const GATE_FEATURES_HEADER = "X-Gate-Features";
+export const GATE_FEATURES = "quests";
+
+/** INVALID with one of these: a console from before this one scanned at a station or a swag desk. */
+export const QUEST_STATION_HINT = "QUEST_STATION";
+export const QUEST_SWAG_DESK_HINT = "QUEST_SWAG_DESK";
 
 /**
  * INVALID with this hint: the code was the admission number printed beside
@@ -48,6 +74,97 @@ export const missingOf = (a: { missing_answers?: MissingAnswer[] | null } | null
 /** POST …/gate/answers/{registration_id}: what is still missing after the door filled some. */
 export const gateAnswersResultSchema = z.object({ missing_answers: missingAnswersField });
 
+/** STATION_VISIT: what a scan at a station came to (quests contract §7.2). */
+export const STATION_RESULTS = ["VISITED", "ALREADY_VISITED", "NOT_COUNTED"] as const;
+export type StationResult = (typeof STATION_RESULTS)[number];
+
+/**
+ * How the quest scores (v1.3): points mean something only in "points" mode,
+ * so door staff see them only then. Null without a quest, or from a server
+ * that doesn't say: then no points are shown either.
+ */
+export const questModeSchema = z.enum(["checkmarks", "points"]).nullish().catch(null);
+export type QuestMode = z.infer<typeof questModeSchema>;
+
+export const stationVisitSchema = z.object({
+  door_id: z.string().nullish().catch(null),
+  name: z.string().catch(""),
+  /** An answer this console doesn't know reads as "recorded, credits nothing": never a welcome. */
+  result: z.enum(STATION_RESULTS).catch("NOT_COUNTED"),
+  /** NOT_COUNTED: "QUESTS_OFF" | "OUTSIDE_WINDOW" | "NO_TASK". */
+  reason: z.string().nullish().catch(null),
+  /** The first visit's time. */
+  visited_at: z.string().nullish().catch(null),
+  task: z.object({ id: z.string(), title: z.string().catch(""), points: z.number().catch(0) }).nullish().catch(null),
+  mode: questModeSchema,
+});
+export type StationVisit = z.infer<typeof stationVisitSchema>;
+
+export const CLAIM_STATUSES = ["reserved", "waitlisted", "sold_out", "collected", "released"] as const;
+export type ClaimStatus = (typeof CLAIM_STATUSES)[number];
+
+/** One of the guest's quest rewards at the swag desk (§7.3). */
+export const deskRewardSchema = z.object({
+  claim_id: z.string(),
+  reward_id: z.string().nullish().catch(null),
+  milestone: z.string().nullish().catch(null),
+  item_id: z.string().nullish().catch(null),
+  name: z.string().catch(""),
+  photo_url: z.string().nullish().catch(null),
+  /** Unknown statuses read as released: never offered for a handover. */
+  status: z.enum(CLAIM_STATUSES).catch("released"),
+  needs_size: z.boolean().catch(false),
+  variant_label: z.string().nullish().catch(null),
+  /** Sizes with a free unit, when a size is still to pick (or to change it). */
+  choices: z
+    .array(z.union([z.string(), z.object({ label: z.string(), free: z.number().nullish() })]))
+    .catch([])
+    .transform((v) => v.map((c) => (typeof c === "string" ? { label: c, free: null } : { label: c.label, free: c.free ?? null }))),
+  waitlist_position: z.number().nullish().catch(null),
+  collected_at: z.string().nullish().catch(null),
+  /** Who handed it over: a person's name, or null for a swag desk's door link (nobody signed in: then only `door`, "at Swag desk"). */
+  collected_by: z.string().nullish().catch(null),
+  door: z.string().nullish().catch(null),
+});
+export type DeskReward = z.infer<typeof deskRewardSchema>;
+
+/** SWAG_DESK: the guest's quest standing and rewards, at a swag desk (§7.3). */
+export const swagDeskSchema = z.object({
+  door_id: z.string().nullish().catch(null),
+  name: z.string().catch(""),
+  enabled: z.boolean().catch(true),
+  mode: questModeSchema,
+  points: z.number().catch(0),
+  tasks_done: z.number().catch(0),
+  rewards: z
+    .array(z.unknown())
+    .catch([])
+    .transform((items) =>
+      items.flatMap((i) => {
+        const r = deskRewardSchema.safeParse(i);
+        return r.success && r.data.status !== "released" ? [r.data] : [];
+      })
+    ),
+});
+export type SwagDesk = z.infer<typeof swagDeskSchema>;
+
+/** GET …/gate/quests/{registration_id}: the swag block plus the stations they visited. */
+export const gateQuestGuestSchema = swagDeskSchema.extend({
+  attendee: z.object({ id: z.string(), name: z.string() }).nullish().catch(null),
+  stations: z
+    .array(z.object({ door_id: z.string().nullish(), name: z.string().catch(""), visited_at: z.string().nullish() }))
+    .catch([]),
+});
+export type GateQuestGuest = z.infer<typeof gateQuestGuestSchema>;
+
+export const HANDOVER_RESULTS = ["HANDED_OVER", "ALREADY_COLLECTED", "NEEDS_SIZE", "SIZE_GONE", "NOT_RESERVED"] as const;
+export const handoverResultSchema = z.object({
+  result: z.enum(HANDOVER_RESULTS),
+  claim: deskRewardSchema.nullish().catch(null),
+  remaining: z.number().nullish().catch(null),
+});
+export type HandoverResult = z.infer<typeof handoverResultSchema>;
+
 export const scanResultSchema = z.object({
   outcome: z.enum(SCAN_OUTCOMES),
   attendee: attendeeSummarySchema.nullable(),
@@ -68,6 +185,10 @@ export const scanResultSchema = z.object({
    * API from before.
    */
   retry: z.boolean().optional().catch(undefined),
+  /** STATION_VISIT only: the visit (absent at an entrance). */
+  station: stationVisitSchema.nullish().catch(null),
+  /** SWAG_DESK only: the guest's rewards (absent at an entrance). */
+  swag: swagDeskSchema.nullish().catch(null),
 });
 export type ScanResult = z.infer<typeof scanResultSchema>;
 
@@ -107,7 +228,19 @@ export const walkupResultSchema = z.object({
 });
 export type WalkupResult = z.infer<typeof walkupResultSchema>;
 
-export const doorOptionSchema = z.object({ id: z.string(), name: z.string(), kind: z.string() });
+export const doorOptionSchema = z.object({ id: z.string(), name: z.string(), kind: z.string(), purpose: doorPurpose.optional() });
+
+/** `/gate/context` for a console that knows quests (§7.5): null when the event has no quest. */
+export const gateQuestsSchema = z.object({
+  enabled: z.boolean().catch(false),
+  mode: questModeSchema,
+  /** The purpose of the door this console is on: the link's, else the volunteer's assigned door's. */
+  door_purpose: doorPurpose.optional(),
+  door_name: z.string().nullish().catch(null),
+  /** Whether this console may hand quest rewards over (merch rights, or a swag desk's own link). */
+  can_hand_over: z.boolean().catch(false),
+});
+export type GateQuests = z.infer<typeof gateQuestsSchema>;
 
 /** A value a stored question may hold as `null`, read as absent. */
 const absentIfNull = <T extends z.ZodTypeAny>(schema: T) => schema.nullish().transform((v): z.infer<T> | undefined => v ?? undefined);
@@ -157,8 +290,22 @@ export const gateContextSchema = z.object({
   has_merch: z.boolean().default(false),
   /** Whether the event sells merchandise: the walk-up form shows the shelf, and the merch tab shows paid orders. */
   has_store: z.boolean().default(false),
+  /** The event's quest as the door sees it; absent from a server without quests, null for an event without one. */
+  quests: gateQuestsSchema.nullish().catch(null),
 });
 export type GateContext = z.infer<typeof gateContextSchema>;
+
+/**
+ * What the door this console is on is for: an entrance (null, as every door
+ * was before), a station or a swag desk. A gate link's door is fixed and the
+ * server says its purpose; otherwise it is the purpose of the door picked by
+ * name. A name the console was given by hand is an entrance, as the server
+ * reads it.
+ */
+export function purposeOf(ctx: Pick<GateContext, "doors" | "me" | "quests">, door: string): DoorPurpose | null {
+  if (ctx.me.kind === "door" && ctx.quests?.door_purpose) return ctx.quests.door_purpose;
+  return ctx.doors.find((d) => d.name === door)?.purpose ?? null;
+}
 
 export const captureResultSchema = z.object({ phone: z.string(), shared_with: z.array(z.string()).default([]) });
 

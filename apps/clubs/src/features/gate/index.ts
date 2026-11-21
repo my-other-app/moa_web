@@ -1,6 +1,6 @@
 export { GateConsole } from "./components/gate-console";
 export { outcomeCard, walkupCard, needsHandCheckIn } from "./lib/outcome-copy";
-export { scanResultSchema, gateContextSchema, type ScanResult, type GateContext } from "./schemas";
+export { scanResultSchema, gateContextSchema, purposeOf, doorPurpose, DOOR_PURPOSES, type ScanResult, type GateContext, type DoorPurpose } from "./schemas";
 export { startScanner, cameraProblem, type Scanner, type Facing } from "./lib/scanner";
 export { useGateStoreOrders, useGateHandOver, useGateCatalog } from "./queries";
 export { type GateCatalog } from "./schemas";

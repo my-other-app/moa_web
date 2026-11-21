@@ -4,11 +4,11 @@ import * as React from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@moa/api";
 
-import { captureContact, checkInByHand, fetchGateContext, registerWalkup, saveGateAnswers, scanBatch, scanTicket, searchGuests, undoCheckIn, fetchGateStoreOrders, gateHandOver, fetchGateCatalog } from "./api";
+import { captureContact, checkInByHand, fetchGateContext, fetchGateQuestGuest, handOverQuestReward, registerWalkup, saveGateAnswers, scanBatch, scanTicket, searchGuests, undoCheckIn, fetchGateStoreOrders, gateHandOver, fetchGateCatalog } from "./api";
 import { askedAgainAt, isDue, scanQueue, supportsQueue, type QueuedScan } from "./lib/queue";
 import { looksLikeAdmissionNumber, looksLikeTicketCode } from "./lib/ticket-code";
 import type { ReplayedScan } from "./lib/replay";
-import { SEARCH_MIN, askedAgain, type GateContext, type ScanBody, type ScanResult, type WalkupBody } from "./schemas";
+import { SEARCH_MIN, askedAgain, type DoorPurpose, type GateContext, type ScanBody, type ScanResult, type WalkupBody } from "./schemas";
 
 export const gateKey = (eventId: number) => ["gate", eventId] as const;
 
@@ -30,6 +30,9 @@ export function useGateContext(key: string | null, eventId: number) {
 /** What saving a scan on the phone came to: saved, or this ticket was already waiting here. */
 export type Enqueued = { saved: true } | { saved: false; earlier: QueuedScan };
 
+/** Saves a scan taken without signal; `at.purpose` "station" for a visit at a station. */
+export type Enqueue = (s: ScanBody, at?: { purpose?: "station" }) => Promise<Enqueued>;
+
 export type ScanOutcomeResult =
   | { kind: "server"; response: ScanResult }
   /** No signal: saved on the phone, checked by nobody yet. */
@@ -37,7 +40,9 @@ export type ScanOutcomeResult =
   /** No signal, and what was read cannot be a ticket: refused here, as the server would, and not saved. */
   | { kind: "offline-refused"; reason: "not-a-ticket" | "admission-number" }
   /** No signal, and this ticket is already waiting on this phone: refused, not saved again. */
-  | { kind: "offline-repeat"; earlier: QueuedScan };
+  | { kind: "offline-repeat"; earlier: QueuedScan }
+  /** No signal at a swag desk: rewards can't be looked up, and nothing is handed over by a saved scan. */
+  | { kind: "offline-desk" };
 
 /**
  * The counter bumps optimistically because the volunteer needs instant
@@ -46,8 +51,14 @@ export type ScanOutcomeResult =
  * the ticket, so nobody is waved in on it: a code that cannot be a ticket,
  * or one already waiting on this phone, is refused; a ticket code is saved
  * and shown as unverified, for the volunteer to check the person.
+ *
+ * `purpose` is the door's (null: an entrance, exactly as before). A station
+ * admits nobody, so its scans never move the counter; one taken without
+ * signal is saved as a visit. A swag desk saves nothing: a handover needs
+ * the server.
  */
-export function useScanMutation(key: string | null, eventId: number, enqueue: (s: ScanBody) => Promise<Enqueued>) {
+export function useScanMutation(key: string | null, eventId: number, enqueue: Enqueue, purpose: DoorPurpose | null = null) {
+  const admits = purpose === null;
   const qc = useQueryClient();
   const ctxKey = [...gateKey(eventId), "context", key ?? "session"];
   return useMutation<ScanOutcomeResult, unknown, ScanBody, { prev?: GateContext }>({
@@ -64,13 +75,15 @@ export function useScanMutation(key: string | null, eventId: number, enqueue: (s
         return { kind: "server", response: await scanTicket(key, eventId, body) };
       } catch (err) {
         if (err instanceof ApiError) throw err; // the server answered: not a connectivity problem
+        if (purpose === "swag_desk") return { kind: "offline-desk" };
         if (!looksLikeTicketCode(body.code)) return { kind: "offline-refused", reason: looksLikeAdmissionNumber(body.code) ? "admission-number" : "not-a-ticket" };
-        const saved = await enqueue(body);
+        const saved = await enqueue(body, purpose === "station" ? { purpose: "station" } : undefined);
         if (!saved.saved) return { kind: "offline-repeat", earlier: saved.earlier };
         return { kind: "queued", scan: body };
       }
     },
     onMutate: async () => {
+      if (!admits) return {};
       await qc.cancelQueries({ queryKey: ctxKey });
       const prev = qc.getQueryData<GateContext>(ctxKey);
       qc.setQueryData<GateContext>(ctxKey, (c) => (c ? { ...c, counters: { ...c.counters, checked_in: c.counters.checked_in + 1 } } : c));
@@ -171,12 +184,13 @@ export function useOfflineQueue(key: string | null, eventId: number, onDrained?:
     };
   }, [drain, refreshCount]);
 
-  const enqueue = React.useCallback(
-    async (scan: ScanBody): Promise<Enqueued> => {
+  const enqueue = React.useCallback<Enqueue>(
+    async (scan, at = {}) => {
       // One ticket lets one person in: a second scan of it while it waits is not saved again.
-      const earlier = await scanQueue.find(eventId, scan.code);
+      // At a station: one visit per station counts, so the same ticket there isn't saved twice.
+      const earlier = await scanQueue.find(eventId, scan.code, { door: scan.door, purpose: at.purpose });
       if (earlier) return { saved: false, earlier };
-      await scanQueue.add({ ...scan, eventId, queuedAt: new Date().toISOString() });
+      await scanQueue.add({ ...scan, eventId, queuedAt: new Date().toISOString(), ...(at.purpose ? { purpose: at.purpose } : {}) });
       await refreshCount();
       return { saved: true };
     },
@@ -254,4 +268,27 @@ export function useGateHandOver(key: string | null, eventId: number) {
 
 export function useGateCatalog(key: string | null, eventId: number, enabled: boolean) {
   return useQuery({ queryKey: ["gate", eventId, "catalog"], queryFn: () => fetchGateCatalog(key, eventId), enabled, staleTime: 30_000 });
+}
+
+/** At a swag desk: the guest's quest rewards (and the stations they visited), after a search. */
+export function useGateQuestGuest(key: string | null, eventId: number, registrationId: string | null) {
+  return useQuery({
+    queryKey: [...gateKey(eventId), "quests", registrationId ?? ""],
+    queryFn: () => fetchGateQuestGuest(key, eventId, registrationId as string),
+    enabled: !!registrationId,
+    staleTime: 5_000,
+  });
+}
+
+/** Hand a quest reward over: the server records the merch handover in the same step. */
+export function useHandOverReward(key: string | null, eventId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ claimId, variantLabel, door }: { claimId: string; variantLabel: string | null; door: string | null }) =>
+      handOverQuestReward(key, eventId, claimId, { variant_label: variantLabel, door }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...gateKey(eventId), "quests"] });
+      void qc.invalidateQueries({ queryKey: ["gate", eventId, "merch"] });
+    },
+  });
 }

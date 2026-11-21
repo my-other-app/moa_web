@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export const merchVariantSchema = z.object({ id: z.string(), label: z.string(), stock: z.number(), collected: z.number() });
+/** `reserved`: units held for guests' quest rewards, handed over at the swag desk (0 on a server without quests). */
+export const merchVariantSchema = z.object({ id: z.string(), label: z.string(), stock: z.number(), collected: z.number(), reserved: z.number().catch(0).default(0) });
 
 export const merchItemSchema = z.object({
   id: z.string(),
@@ -20,9 +21,14 @@ export const merchItemSchema = z.object({
   handout_rule: z.string().nullish(),
   manual_handed_out: z.number().default(0),
   handed_out: z.number().default(0),
+  /** Held for guests' quest rewards (the item's own and its sizes'); 0 on a server without quests. */
+  reserved: z.number().catch(0).default(0),
   created_at: z.string().nullish(),
 });
 export type MerchItem = z.infer<typeof merchItemSchema>;
+
+/** What is still free to give: the stock less what went out and what is held for quest rewards. */
+export const freeOf = (item: Pick<MerchItem, "total" | "handed_out" | "reserved">) => Math.max(0, item.total - item.handed_out - (item.reserved ?? 0));
 
 export const merchFieldSchema = z.object({ name: z.string(), key: z.string(), kind: z.enum(["role", "choice", "text"]), values: z.array(z.string()) });
 export type MerchField = z.infer<typeof merchFieldSchema>;
