@@ -39,13 +39,26 @@ const files = ["apps", "packages"].flatMap((top) =>
     .flatMap(sources),
 );
 
-/** Every string literal in a file, with the line it starts on. */
-function literals(file: string): Array<{ line: number; text: string }> {
+type Literal = { line: number; text: string };
+const read = new Map<string, Literal[]>();
+
+/**
+ * Every string literal in a file, with the line it starts on. Lines are
+ * counted in one pass and each file is read once for both checks (counting
+ * from the top for every literal took over 30 s on CI and timed out).
+ */
+function literals(file: string): Literal[] {
+  const known = read.get(file);
+  if (known) return known;
   const code = readFileSync(file, "utf8");
-  return [...code.matchAll(/"([^"\n]*)"|'([^'\n]*)'|`([^`]*)`/g)].map((m) => ({
-    line: code.slice(0, m.index).split("\n").length,
-    text: m[1] ?? m[2] ?? m[3] ?? "",
-  }));
+  let line = 1;
+  let at = 0;
+  const found = [...code.matchAll(/"([^"\n]*)"|'([^'\n]*)'|`([^`]*)`/g)].map((m) => {
+    for (; at < m.index; at++) if (code.charCodeAt(at) === 10) line++;
+    return { line, text: m[1] ?? m[2] ?? m[3] ?? "" };
+  });
+  read.set(file, found);
+  return found;
 }
 
 describe("the controls' contract", () => {
@@ -54,9 +67,10 @@ describe("the controls' contract", () => {
   });
 
   it("never gives one button two tones in a class string", () => {
+    const tones = TONES.map((t) => new RegExp(`(^|\\s)btn-${t}(\\s|$)`));
     const found = files.flatMap((file) =>
       literals(file)
-        .filter(({ text }) => TONES.filter((t) => new RegExp(`(^|\\s)btn-${t}(\\s|$)`).test(text)).length > 1)
+        .filter(({ text }) => text.includes("btn-") && tones.filter((t) => t.test(text)).length > 1)
         .map(({ line, text }) => `${relative(ROOT, file)}:${line}  ${text}`),
     );
     expect(found).toEqual([]);
