@@ -17,6 +17,14 @@ const TWO = "6f1b2c70-0000-4000-8000-000000000002";
 const SLUG = "sf-sea-hackathon-9f21a";
 
 type Row = (typeof registrationsFixture.items)[number] & Record<string, unknown>;
+/** The guest profile the list opens (guest-profile contract §1). */
+const profile = {
+  kind: "registration",
+  registration_id: ONE,
+  person: { full_name: "Test Participant One", email: "participant1@example.com" },
+  status: { stage: "confirmed" },
+  actions: { can_remove: true, can_edit: true },
+};
 const state: { rows: Row[]; refuse: Error | null; detail: Record<string, unknown> | null } = { rows: [], refuse: null, detail: null };
 const writes: Array<{ method: string; path: string; body?: unknown; init?: unknown }> = [];
 
@@ -40,6 +48,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       get: vi.fn(async (path: string) => {
         if (path.includes("/events/info/")) return eventFixture;
         if (/\/events\/\d+\/summary$/.test(path)) return summaryFixture;
+        if (path === `/api/v1/events/37/people/${ONE}`) return profile;
         if (path.includes("/registration/37/info/")) {
           if (!state.detail) throw new ApiError({ status: 404, message: "Registration not found" });
           return state.detail;
@@ -235,7 +244,7 @@ describe("one guest in full", () => {
     render(<RegistrationsPanel eventId={37} />);
     fireEvent.click(await screen.findByRole("button", { name: "Open Test Participant One" }));
     expect(await screen.findByRole("dialog", { name: "Test Participant One" })).toBeInTheDocument();
-    expect(vi.mocked(api.get).mock.calls.some(([path]) => path === `/api/v1/events/registration/37/info/${ONE}`)).toBe(true);
+    expect(vi.mocked(api.get).mock.calls.some(([path]) => path === `/api/v1/events/37/people/${ONE}`)).toBe(true);
   });
 
   it("shows their contact, answers, ticket and delivery, the event, and the certificate", async () => {
@@ -337,7 +346,7 @@ describe("one guest in full", () => {
     render(<RegistrationsPanel eventId={37} />);
     fireEvent.click(await screen.findByRole("button", { name: "Open Test Participant One" }));
     const dialog = await screen.findByRole("dialog", { name: "Test Participant One" });
-    fireEvent.click(await within(dialog).findByRole("button", { name: "Remove from the list" }));
+    fireEvent.click(await within(dialog).findByRole("button", { name: "Remove" }));
     expect(await screen.findByRole("dialog", { name: "Remove Test Participant One from the list" })).toBeInTheDocument();
   });
 

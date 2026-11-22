@@ -46,13 +46,13 @@ import { DeliveryBar, TicketCell } from "@/features/deliveries";
 import { useEventDetail } from "@/features/events";
 import { cardPdfUrl, openPdf } from "@/features/idcards";
 import { PrintChoice, createPrintRequest, onlineCount, usePrinters } from "@/features/printing";
+import { GuestProfileSheet } from "@/features/people";
 import { GivenBackPanel } from "@/features/ticket-cancel";
 
 import { exportUrl } from "../api";
 import { useEventAnalytics, useImports, useMarkAttendance, useMissingCount, useRegistrations, useSetRegistrationRole } from "../queries";
 import {
   GUEST_SORTS, REGISTRATION_ROLES, eventFieldSchema, type EventField, type Registration, type RegistrationDetail, type RegistrationRole } from "../schemas";
-import { AttendeeDetailDialog } from "./attendee-detail-dialog";
 import { AttendeeFormDialog } from "./attendee-form-dialog";
 import { ImportDialog, ImportRecord, importFileName } from "./import-panel";
 import { RemoveAttendeeDialog } from "./remove-attendee-dialog";
@@ -678,24 +678,8 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
         open={dialog?.kind === "remove"}
         onOpenChange={(o) => !o && setDialog(null)}
       />
-      <AttendeeDetailDialog
-        eventId={eventId}
-        registrationId={dialog?.kind === "detail" ? dialog.id : null}
-        fields={fields}
-        open={dialog?.kind === "detail"}
-        onOpenChange={(o) => !o && setDialog(null)}
-        onEdit={(row) => setDialog({ kind: "edit", row })}
-        onRemove={(row) => setDialog({ kind: "remove", row: { id: row.id, name: row.full_name ?? row.name ?? "this guest" } })}
-        missing={dialog?.kind === "detail" ? dialog.missing : undefined}
-        onAskAgain={
-          mayAsk
-            ? (row, keys) => {
-                setDialog(null);
-                setAsk({ refs: [registrationRef(row.id)], preselect: keys, who: row.full_name ?? row.name ?? null });
-              }
-            : undefined
-        }
-      />
+      {/* One guest in full: contact, answers, ticket, card, check-in, and everything that happened to them. */}
+      <GuestProfileSheet eventId={eventId} personRef={dialog?.kind === "detail" ? dialog.id : null} onOpenChange={(r) => !r && setDialog(null)} />
       {mayAsk ? <AskPanel eventId={eventId} target={ask} onOpenChange={(o) => !o && setAsk(null)} /> : null}
     </div>
   );

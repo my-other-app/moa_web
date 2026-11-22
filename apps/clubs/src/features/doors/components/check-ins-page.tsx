@@ -50,6 +50,7 @@ import { useDebouncedValue } from "@moa/ui/hooks";
 import { useAccess } from "@/features/access";
 import { useEventSummary } from "@/features/console";
 import { NetworkingCard } from "@/features/networking";
+import { GuestProfileSheet } from "@/features/people";
 
 import { fetchCheckInLog } from "../api";
 import { useCheckInLog, useUndoCheckIn } from "../queries";
@@ -357,6 +358,7 @@ function LogRow({
   busy,
   onAsk,
   onUndo,
+  onOpen,
 }: {
   r: CheckInRow;
   tz: string;
@@ -366,6 +368,8 @@ function LogRow({
   busy: boolean;
   onAsk: () => void;
   onUndo: () => void;
+  /** Open them in full. */
+  onOpen: () => void;
 }) {
   const when = withDate
     ? formatDateTime(r.checked_in_at)
@@ -379,9 +383,14 @@ function LogRow({
       )}
     >
       <span className="min-w-0">
-        <span className="text-ink block truncate text-[13.5px] font-medium">
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`Open ${r.name}`}
+          className="text-ink hover:text-brand block max-w-full truncate text-left text-[13.5px] font-medium"
+        >
           {r.name}
-        </span>
+        </button>
         <span className="text-ink-3 block truncate font-mono text-[11px]">
           {[r.ticket_id, ROLE[r.role] ?? r.role].filter(Boolean).join(" · ")}
           <span className="sm:hidden">
@@ -467,6 +476,7 @@ function Log({
 }) {
   const undo = useUndoCheckIn(eventId);
   const [confirming, setConfirming] = React.useState<string | null>(null);
+  const [profile, setProfile] = React.useState<string | null>(null);
   const f: CheckInLog["facets"] | undefined = log.data?.facets;
   const total = log.data?.total ?? 0;
   const now = new Date(log.dataUpdatedAt || 0);
@@ -620,6 +630,7 @@ function Log({
                 now={now}
                 confirming={confirming === r.id}
                 busy={undo.isPending}
+                onOpen={() => setProfile(r.registration_id)}
                 onAsk={() => setConfirming(r.id)}
                 onUndo={() => {
                   undo.mutate(r.registration_id);
@@ -642,6 +653,7 @@ function Log({
           </div>
         </>
       )}
+      <GuestProfileSheet eventId={eventId} personRef={profile} onOpenChange={setProfile} />
     </FigurePanel>
   );
 }

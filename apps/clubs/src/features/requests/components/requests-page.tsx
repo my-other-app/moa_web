@@ -50,6 +50,8 @@ import {
   type RequestTab,
 } from "../schemas";
 import { ConfirmDialog, DeclineDialog } from "./decision-dialogs";
+import { GuestProfileSheet } from "@/features/people";
+
 import { RequestEditDialog } from "./request-edit-dialog";
 
 /**
@@ -146,6 +148,7 @@ function RequestRow({
   onReopen,
   onAskAgain,
   onEdit,
+  onOpen,
   busy,
 }: {
   r: RegistrationRequest;
@@ -164,6 +167,8 @@ function RequestRow({
   onAskAgain?: () => void;
   /** Correct their details; absent when the role can't. */
   onEdit?: () => void;
+  /** Open them in full: contact, answers, ticket, card, and everything that happened to them. */
+  onOpen: () => void;
   busy: boolean;
 }) {
   const answers = answerRows(r.answers, fields);
@@ -174,14 +179,22 @@ function RequestRow({
   const columns = 4 + (selectable ? 1 : 0) + (showDecided ? 1 : 0) + (canDecide ? 1 : 0);
   return (
     <>
-      <tr className={cn("border-line-soft border-t transition-colors", selected ? "bg-brand-soft/40" : "hover:bg-sunken/40")}>
+      <tr
+        className={cn("border-line-soft cursor-pointer border-t transition-colors", selected ? "bg-brand-soft/40" : "hover:bg-sunken/40")}
+        onClick={(e) => {
+          // A click on the row itself; the buttons, ticks and links in it do their own thing.
+          if (!(e.target as HTMLElement).closest("button, a, input, label, [role=checkbox]")) onOpen();
+        }}
+      >
         {selectable ? (
           <td className={cn(CELL, "w-10 pr-0")}>
             <Checkbox checked={selected} onCheckedChange={(v) => onSelect(v === true)} aria-label={`Select ${r.full_name}`} className="mt-0.5" />
           </td>
         ) : null}
         <td className={CELL}>
-          <span className="text-ink block max-w-[260px] truncate text-[13px] font-medium">{r.full_name}</span>
+          <button type="button" onClick={onOpen} aria-label={`Open ${r.full_name}`} className="text-ink hover:text-brand block max-w-[260px] truncate text-left text-[13px] font-medium">
+            {r.full_name}
+          </button>
           <span className={cn("block max-w-[260px] truncate font-mono text-[11px]", contact ? "text-ink-3" : "text-caution")}>{contact || "no contact given"}</span>
           {missing.length ? <MissingMarker keys={missing} questions={fields} className="mt-1" /> : null}
           {answers.length || missing.length ? (
@@ -259,6 +272,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
   const [status, setStatus] = React.useState<RequestTab>("pending");
   const [sort, setSort] = React.useState<RequestSort>("");
   const [editing, setEditing] = React.useState<RegistrationRequest | null>(null);
+  const [profile, setProfile] = React.useState<string | null>(null);
   const summary = useEventSummary(eventId);
   const exporter = useExportRequests(eventId);
   const [searchInput, setSearchInput] = React.useState("");
@@ -631,6 +645,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
                     onReopen={() => reopenOne.mutate(r)}
                     onAskAgain={mayAsk ? () => setAsk({ refs: [requestRef(r.id)], preselect: r.missing_answers, who: r.full_name }) : undefined}
                     onEdit={canDecide ? () => setEditing(r) : undefined}
+                    onOpen={() => setProfile(r.id)}
                     busy={busyRow(r.id) || bulk.running}
                   />
                 ))}
@@ -655,6 +670,7 @@ export function RequestsPage({ eventId }: { eventId: number }) {
         ) : null}
       </FigurePanel>
 
+      <GuestProfileSheet eventId={eventId} personRef={profile} onOpenChange={setProfile} />
       {mayAsk ? <AskPanel eventId={eventId} target={ask} onOpenChange={(o) => !o && setAsk(null)} /> : null}
       {editing ? (
         <RequestEditDialog eventId={eventId} fields={fullFields} request={editing} open onOpenChange={(o) => !o && setEditing(null)} />
