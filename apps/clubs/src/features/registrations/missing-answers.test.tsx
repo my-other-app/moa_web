@@ -42,6 +42,14 @@ const me = (role: "owner" | "editor" | "door") => ({ role, role_label: role, rol
 
 const calls: Array<{ method: string; path: string; query?: Record<string, unknown>; body?: unknown }> = [];
 const state: { me: ReturnType<typeof me> } = { me: me("editor") };
+const profileOf = (who: ReturnType<typeof me>) => ({
+  kind: "registration",
+  registration_id: ONE,
+  person: { full_name: "Test Participant One", email: "participant1@example.com" },
+  status: { stage: "confirmed" },
+  answers: [{ key: "t_shirt_size", label: "T-shirt size", value: null, missing: true }],
+  actions: { can_ask_missing: who.role !== "door" },
+});
 const rows = registrationsFixture.items.map((r, i) => (i === 0 ? { ...r, missing_answers: ["t_shirt_size"] } : { ...r, missing_answers: [] }));
 
 vi.mock("@moa/app-kit", async (importOriginal) => {
@@ -61,6 +69,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
           const items = q.missing ? rows.filter((r) => r.missing_answers.length) : rows;
           return { items: q.limit === 1 ? items.slice(0, 1) : items, total: items.length, limit: Number(q.limit ?? 20), offset: 0 };
         }
+        // The guest profile: what they are missing is marked in Answers, and asking again follows the role.
+        if (path === `/api/v1/events/37/people/${ONE}`) return profileOf(state.me);
         if (path === `/api/v1/events/registration/37/info/${ONE}`) return { ...rows[0], additional_details: { why: "To learn" } };
         if (path.endsWith("/imports")) return [];
         if (path.endsWith("/analytics")) return analyticsFixture;
@@ -120,9 +130,10 @@ describe("missing answers on the Attendees tab", () => {
     render(<RegistrationsPanel eventId={37} />);
     fireEvent.click(await screen.findByRole("button", { name: "Open Test Participant One" }));
     const dialog = await screen.findByRole("dialog");
-    const note = await within(dialog).findByRole("group", { name: "Missing answers" });
-    expect(note).toHaveTextContent("Missing: T-shirt size");
-    fireEvent.click(within(note).getByRole("button", { name: /Ask again/ }));
+    const answers = await within(dialog).findByRole("region", { name: "Answers" });
+    expect(answers).toHaveTextContent("T-shirt size");
+    expect(within(answers).getByText("Missing")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Ask for missing answers" }));
     expect(await screen.findByRole("heading", { name: "Ask Test Participant One again" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("checkbox", { name: /T-shirt size/ })).toHaveAttribute("aria-checked", "true"));
     fireEvent.click(await screen.findByRole("button", { name: "Send to 1 person" }));
@@ -135,8 +146,9 @@ describe("missing answers on the Attendees tab", () => {
     render(<RegistrationsPanel eventId={37} />);
     fireEvent.click(await screen.findByRole("button", { name: "Open Test Participant One" }));
     const dialog = await screen.findByRole("dialog");
-    const note = await within(dialog).findByRole("group", { name: "Missing answers" });
-    await waitFor(() => expect(within(note).queryByRole("button", { name: /Ask again/ })).toBeNull());
+    const answers = await within(dialog).findByRole("region", { name: "Answers" });
+    expect(within(answers).getByText("Missing")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Ask for missing answers" })).toBeNull();
   });
 });
 

@@ -1,7 +1,10 @@
-export { useRegistrations, useEventAnalytics, useMarkAttendance } from "./queries";
+export { useRegistrations, useEventAnalytics, useMarkAttendance, useRegistration } from "./queries";
 export { EventInsightsPanel } from "./components/event-insights-panel";
 export { EventWorkspace } from "./components/event-workspace";
+export { AttendeeFormDialog } from "./components/attendee-form-dialog";
+export { RemoveAttendeeDialog } from "./components/remove-attendee-dialog";
 export { RegistrationsPanel } from "./components/registrations-panel";
 export { EventStatCards } from "./components/event-stat-cards";
 export { exportUrl } from "./api";
+export { eventFieldSchema, type EventField } from "./schemas";
 export { registrationSchema, eventAnalyticsSchema, type Registration, type RegistrationDetail } from "./schemas";

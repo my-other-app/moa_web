@@ -6,6 +6,7 @@ import { formatDateTime } from "@moa/app-kit";
 import { Button, CardLabel, EmptyState, FigurePanel, Skeleton, StatusBadge, cn } from "@moa/ui";
 
 import { cardPdfUrl, openPdf } from "@/features/idcards";
+import { GuestProfileSheet } from "@/features/people";
 import { useRegistrations } from "@/features/registrations/queries";
 
 import { createPrintRequest } from "../api";
@@ -21,7 +22,7 @@ const TONE: Record<PrintStatus, "default" | "success" | "warning" | "destructive
   cancelled: "default",
 };
 
-function RequestRow({ r, onRetry, onCancel, busy }: { r: PrintRequest; onRetry: () => void; onCancel: () => void; busy: boolean }) {
+function RequestRow({ r, onRetry, onCancel, onOpen, busy }: { r: PrintRequest; onRetry: () => void; onCancel: () => void; onOpen: (() => void) | null; busy: boolean }) {
   const name = r.name || "A guest";
   const canRetry = r.status === "failed" || r.status === "cancelled";
   const canCancel = r.status === "queued" || r.status === "printing";
@@ -29,7 +30,13 @@ function RequestRow({ r, onRetry, onCancel, busy }: { r: PrintRequest; onRetry: 
     <li className="border-line-soft flex flex-wrap items-center gap-x-3 gap-y-2 border-t px-4 py-3">
       <div className="min-w-[180px] flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-ink truncate text-[13.5px] font-medium">{name}</span>
+          {onOpen ? (
+            <button type="button" onClick={onOpen} aria-label={`Open ${name}`} className="text-ink hover:text-brand truncate text-left text-[13.5px] font-medium">
+              {name}
+            </button>
+          ) : (
+            <span className="text-ink truncate text-[13.5px] font-medium">{name}</span>
+          )}
           <StatusBadge tone={TONE[r.status]} label={r.status === "queued" && r.position ? `${STATUS_WORDS.queued} · no. ${r.position}` : STATUS_WORDS[r.status]} />
         </div>
         <p className="text-ink-3 mt-0.5 truncate text-[12px]">
@@ -52,7 +59,7 @@ function RequestRow({ r, onRetry, onCancel, busy }: { r: PrintRequest; onRetry: 
 }
 
 /** Send one guest's card: search the list, pick the guest, choose where it prints. */
-function SendOne({ eventId, stationOnline }: { eventId: number; stationOnline: boolean }) {
+function SendOne({ eventId, stationOnline, onOpen }: { eventId: number; stationOnline: boolean; onOpen: (id: string) => void }) {
   const [q, setQ] = React.useState("");
   const [settled, setSettled] = React.useState("");
   const [pick, setPick] = React.useState<{ id: string; name: string } | null>(null);
@@ -77,7 +84,9 @@ function SendOne({ eventId, stationOnline }: { eventId: number; stationOnline: b
         <ul className="divide-line-soft mt-2 divide-y">
           {rows.map((r) => (
             <li key={r.id} className="flex items-center gap-3 py-2">
-              <span className="text-ink min-w-0 flex-1 truncate text-[13px]">{nameOf(r)}</span>
+              <button type="button" onClick={() => onOpen(r.id)} aria-label={`Open ${nameOf(r)}`} className="text-ink hover:text-brand min-w-0 flex-1 truncate text-left text-[13px]">
+                {nameOf(r)}
+              </button>
               <Button type="button" size="sm" variant="secondary" aria-label={`Print card for ${nameOf(r)}`} onClick={() => setPick({ id: r.id, name: nameOf(r) })}>
                 <PrinterIcon /> Print
               </Button>
@@ -108,6 +117,7 @@ export function PrintQueuePanel({ eventId }: { eventId: number }) {
   const retry = useRetryPrintRequest(eventId);
   const cancel = useCancelPrintRequest(eventId);
   const online = onlineCount(printers.data);
+  const [profile, setProfile] = React.useState<string | null>(null);
   const items = queue.data?.items ?? [];
   const open = items.filter((r) => r.status === "queued" || r.status === "printing").length;
   return (
@@ -140,13 +150,14 @@ export function PrintQueuePanel({ eventId }: { eventId: number }) {
       ) : items.length ? (
         <ul>
           {items.map((r) => (
-            <RequestRow key={r.id} r={r} busy={retry.isPending || cancel.isPending} onRetry={() => retry.mutate(r.id)} onCancel={() => cancel.mutate(r.id)} />
+            <RequestRow key={r.id} r={r} busy={retry.isPending || cancel.isPending} onRetry={() => retry.mutate(r.id)} onCancel={() => cancel.mutate(r.id)} onOpen={r.registration_id ? () => setProfile(r.registration_id!) : null} />
           ))}
         </ul>
       ) : (
         <EmptyState size="sm" icon={<PrinterIcon />} title="Nothing in the queue" description="Cards sent from the kiosk, the door or the guest list show up here." />
       )}
-      <SendOne eventId={eventId} stationOnline={online > 0} />
+      <SendOne eventId={eventId} stationOnline={online > 0} onOpen={setProfile} />
+      <GuestProfileSheet eventId={eventId} personRef={profile} onOpenChange={setProfile} />
     </FigurePanel>
   );
 }
