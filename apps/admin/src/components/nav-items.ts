@@ -12,6 +12,7 @@ import {
   CrownIcon,
   GlobeIcon,
   FlagIcon,
+  Gamepad2Icon,
   GraduationCapIcon,
   InboxIcon,
   LandmarkIcon,
@@ -88,6 +89,8 @@ export const navItems: NavItem[] = [
   // The public API: clubs given access, partner apps, webhook health -- once the API has integrations. The rail asks it itself.
   { href: "/integrations", label: "Integrations", icon: BlocksIcon, probe: "integrations" },
   { href: "/events", label: "Events", icon: CalendarDaysIcon, badge: "events" },
+  // Hero Cards and the Scavenger Hunt: use per club and event, and who is playing now. The page says so itself on an API without them.
+  { href: "/games", label: "Games", icon: Gamepad2Icon },
 
   { href: "/payments", label: "Payments", icon: CreditCardIcon, group: "Money" },
   // Clubs taking ticket payments in their own Razorpay account. Not under /payments: that prefix would light Payments too.

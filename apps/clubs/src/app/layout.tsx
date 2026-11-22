@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, Inter } from "next/font/google";
+import { IBM_Plex_Mono, Inter, Plus_Jakarta_Sans, Unbounded } from "next/font/google";
 
 import { Providers } from "./providers";
 import "./globals.css";
@@ -9,6 +9,9 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 // The figures and eyebrows are mono: a counter ticking from 168 to 169 must not shift its neighbours.
 const plexMono = IBM_Plex_Mono({ weight: ["400", "500", "600"], subsets: ["latin"], variable: "--font-plex-mono", display: "swap" });
+// The event games (Hero Cards, Scavenger Hunt) draw their cards and previews in the website's Neon Arcade type: Unbounded for headings, Plus Jakarta Sans for text.
+const unbounded = Unbounded({ subsets: ["latin"], variable: "--font-unbounded", display: "swap" });
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta", display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "MyOtherApp Clubs", template: "%s · MyOtherApp Clubs" },
@@ -27,7 +30,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${plexMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${plexMono.variable} ${unbounded.variable} ${jakarta.variable}`}>
       <body className="min-h-dvh antialiased">
         <Providers>{children}</Providers>
       </body>

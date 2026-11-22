@@ -61,7 +61,8 @@ describe("the other kinds are as they were", () => {
   const BEFORE = {
     ticket: "0b1184a22d6c055b7260bb2dc125ae25a9031de3de196a0c766a461991f02582",
     certificate: "8be6c4ab1802d901b1fee6d1bfa9b8d3658ff5792bbf7a1e15b0a2332a558bc3",
-    badge: "21e7d7683bc0258924d16bcbac0b409c71f3a106de7cd4ea79398f07aac26404",
+    // The badge moved once more: it gained Game QR and Game PIN (the games add-on), and nothing else.
+    badge: "034f92af251328fd504cd554f16bce3c036db0b0f3084b0f539e1b9eafb9f8ec",
     v1: "61c2ed9dd29e00e92fcf0240ba9496b0edd45c9579feca4ade04e7db160effbf",
   };
 

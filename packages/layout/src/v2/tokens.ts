@@ -95,6 +95,9 @@ const ROWS: readonly (readonly [string, string, string, string, string])[] = [
   ["bib_number", "Badge", "Bib number", "2047", "b"],
   ["category", "Badge", "Category (hidden unless set)", "10K", "b"],
   ["wave", "Badge", "Wave (hidden unless set)", "B", "b"],
+  // The games add-on (feature-register/games/CONTRACT.md §1): filled only when a game is on for the event, so put them behind showIf.
+  ["game_qr", "Game", "Game QR", "https://myotherapp.in/g/b.42.7.0.kQ3x", "b"],
+  ["game_pin", "Game", "Game PIN", "4821", "b"],
   // "I'm attending" posters (feature-register/posters/CONTRACT.md §2): entries of their own,
   // so every other kind's catalogue reads exactly as before.
   ["name", "Guest", "Name (from the registration)", "Asha Nair", "p"],

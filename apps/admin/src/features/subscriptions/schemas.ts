@@ -78,7 +78,7 @@ export const TRIAL_LIMIT_FIELDS = [
 
 export type LimitKey = (typeof LIMIT_FIELDS)[number]["key"];
 
-/** Readable names for the thirty flags. The grouping comes from the API. */
+/** Readable names for the flags. The grouping comes from the API. */
 export const FEATURE_LABELS: Record<string, string> = {
   tickets: "Tickets",
   certificates: "Certificates",
@@ -110,6 +110,8 @@ export const FEATURE_LABELS: Record<string, string> = {
   payouts: "Next-day payouts",
   sso: "Student SSO",
   api: "API access",
+  game_cards: "Hero card game",
+  game_hunt: "Scavenger hunt",
 };
 
 export const GROUP_LABELS: Record<string, string> = {
