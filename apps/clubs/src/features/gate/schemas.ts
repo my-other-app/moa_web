@@ -292,6 +292,8 @@ export const gateContextSchema = z.object({
   has_store: z.boolean().default(false),
   /** The event's quest as the door sees it; absent from a server without quests, null for an event without one. */
   quests: gateQuestsSchema.nullish().catch(null),
+  /** Print stations of this event seen in the last 30 seconds; absent from a server without print stations. */
+  printers: z.object({ online: z.number().catch(0) }).nullish().catch(null),
 });
 export type GateContext = z.infer<typeof gateContextSchema>;
 

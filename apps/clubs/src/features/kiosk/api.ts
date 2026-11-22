@@ -2,6 +2,8 @@ import { api } from "@moa/app-kit";
 import { ApiError, createApiClient } from "@moa/api";
 import { GATEWAY_PREFIX } from "@moa/auth";
 
+import { printRequestSchema } from "@/features/printing/schemas";
+
 import { kioskContextSchema, kioskDeviceSchema, kioskSettingsSchema, pairedKioskSchema, redeemResultSchema, selfQrSchema, staffSchema, type KioskSettings } from "./schemas";
 import { z } from "zod";
 
@@ -50,6 +52,13 @@ export async function fetchSelfQr(token: string) {
 export async function markSelfPrinted(token: string, session: string) {
   await kioskClient(token).post<unknown>("/api/v1/kiosk/self-printed", { session });
 }
+/** The guest asks the print station for their card: after a check-in here (`redemption`) or a phone check-in this kiosk serves (`session`). */
+export async function createKioskPrintRequest(token: string, body: { redemption: string } | { session: string }) {
+  return printRequestSchema.parse(await kioskClient(token).post<unknown>("/api/v1/kiosk/print-requests", body));
+}
+export async function fetchKioskPrintRequest(token: string, id: string) {
+  return printRequestSchema.parse(await kioskClient(token).get<unknown>(`/api/v1/kiosk/print-requests/${encodeURIComponent(id)}`));
+}
 /**
  * A card for a guest the kiosk just admitted, or one a phone asked to print
  * here: through the gateway, for PrintFrame to fetch with the device token
@@ -67,7 +76,7 @@ const base = (eventId: number) => `/api/v1/events/${eventId}/kiosks`;
 export async function fetchKiosks(eventId: number) {
   return z.array(kioskDeviceSchema).parse(await api.get<unknown>(base(eventId)));
 }
-export async function pairKiosk(eventId: number, body: { name: string; door_id?: string | null; door_label?: string | null; shift_hours?: number }) {
+export async function pairKiosk(eventId: number, body: { name: string; door_id?: string | null; door_label?: string | null; shift_hours?: number; role?: "kiosk" | "printer" }) {
   return pairedKioskSchema.parse(await api.post<unknown>(base(eventId), body));
 }
 export async function rotateKiosk(eventId: number, deviceId: string, shiftHours = 12) {

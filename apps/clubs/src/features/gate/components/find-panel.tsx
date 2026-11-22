@@ -5,9 +5,10 @@ import { Button, toast } from "@moa/ui";
 import { CheckIcon, ClipboardListIcon, PrinterIcon, SearchIcon, UserPlusIcon } from "lucide-react";
 
 import { PrintFrame, cardPdfUrl } from "@/features/idcards";
+import { PrintChoice } from "@/features/printing";
 import { formatDateTime } from "@moa/app-kit";
 
-import { gateHeaders } from "../api";
+import { gateHeaders, sendCardToPrinter } from "../api";
 import { outcomeCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { useCheckInByHand, useGuestSearch } from "../queries";
 import { ROLE_LABEL, SEARCH_MIN, missingOf, type DoorPurpose, type GateContext } from "../schemas";
@@ -31,6 +32,10 @@ export function FindPanel({ gateKey, ctx, door, purpose = null }: { gateKey: str
   const byHand = useCheckInByHand(gateKey, ctx.event.id);
   const [card, setCard] = React.useState<OutcomeCardModel | null>(null);
   const [printing, setPrinting] = React.useState<string | null>(null);
+  // With a print station online, "Print" asks where: the station (the default) or this screen.
+  const stationOnline = (ctx.printers?.online ?? 0) > 0;
+  const [choosing, setChoosing] = React.useState<{ id: string; name: string } | null>(null);
+  const printHere = (id: string) => setPrinting(cardPdfUrl(ctx.event.id, id, { source: "manual", record: true, door }));
   // The guest whose missing answers are open under their row.
   const [filling, setFilling] = React.useState<string | null>(null);
   // At a swag desk: the guest whose rewards are open.
@@ -54,6 +59,16 @@ export function FindPanel({ gateKey, ctx, door, purpose = null }: { gateKey: str
   return (
     <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
       {printing ? <PrintFrame key={printing} url={printing} headers={gateHeaders(gateKey)} onDone={() => setTimeout(() => setPrinting(null), 4000)} /> : null}
+      {choosing ? (
+        <PrintChoice
+          name={choosing.name}
+          open
+          onClose={() => setChoosing(null)}
+          send={(override) => sendCardToPrinter(gateKey, ctx.event.id, choosing.id, override)}
+          onLocal={() => printHere(choosing.id)}
+          canOverride={ctx.permissions.full}
+        />
+      ) : null}
       {card ? <OutcomeCard card={card} onDismiss={() => setCard(null)} /> : null}
       <div>
         <label htmlFor="gate-find" className={DOOR_LABEL}>
@@ -114,7 +129,7 @@ export function FindPanel({ gateKey, ctx, door, purpose = null }: { gateKey: str
                     In · {formatDateTime(r.checked_in_at)}
                   </span>
                   {mayPrint(r.badge_printed_at) ? (
-                    <Button type="button" size="lg" variant="secondary" aria-label={`Print card for ${r.name}`} onClick={() => setPrinting(cardPdfUrl(ctx.event.id, r.id, { source: "manual", record: true, door }))}>
+                    <Button type="button" size="lg" variant="secondary" aria-label={`Print card for ${r.name}`} onClick={() => (stationOnline ? setChoosing({ id: r.id, name: r.name }) : printHere(r.id))}>
                       <PrinterIcon /> Print
                     </Button>
                   ) : null}

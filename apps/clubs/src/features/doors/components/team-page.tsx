@@ -13,7 +13,7 @@ import {
 } from "@moa/ui";
 
 import { useEventSummary } from "@/features/console";
-import { KiosksPanel } from "@/features/kiosk";
+import { KiosksPanel, PrintStationsPanel } from "@/features/kiosk";
 
 import { useTeam, useUpdateGateSettings } from "../queries";
 import { isEntrance, type Team } from "../schemas";
@@ -216,6 +216,7 @@ export function TeamPage({ eventId }: { eventId: number }) {
           <PeoplePanel eventId={eventId} team={team.data} />
           {/* A kiosk checks guests in, so it stands at an entrance. */}
           <KiosksPanel eventId={eventId} doors={team.data.doors.filter(isEntrance)} />
+          <PrintStationsPanel eventId={eventId} />
         </>
       )}
     </div>

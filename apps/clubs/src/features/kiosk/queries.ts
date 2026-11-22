@@ -6,7 +6,9 @@ import { toast } from "@moa/ui";
 
 import { toastError } from "@/features/plan/errors";
 
-import { fetchKioskContext, fetchKioskSettings, fetchKiosks, fetchSelfQr, pairKiosk, rotateKiosk, unpairKiosk, updateKioskSettings } from "./api";
+import { isFinished } from "@/features/printing/schemas";
+
+import { fetchKioskContext, fetchKioskPrintRequest, fetchKioskSettings, fetchKiosks, fetchSelfQr, pairKiosk, rotateKiosk, unpairKiosk, updateKioskSettings } from "./api";
 import type { KioskSettings } from "./schemas";
 
 export function useKioskContext(token: string | null) {
@@ -14,6 +16,17 @@ export function useKioskContext(token: string | null) {
 }
 export function useSelfQr(token: string | null, enabled: boolean) {
   return useQuery({ queryKey: ["kiosk", token, "self-qr"], queryFn: () => fetchSelfQr(token!), enabled: !!token && enabled, refetchInterval: 15_000 });
+}
+
+/** One print request the tablet made, re-read every 1.5 seconds until it has printed, failed or been cancelled. */
+export function usePrintRequest(token: string | null, id: string | null) {
+  return useQuery({
+    queryKey: ["kiosk", token, "print-request", id],
+    queryFn: () => fetchKioskPrintRequest(token!, id!),
+    enabled: !!token && !!id,
+    refetchInterval: (q) => (q.state.data && isFinished(q.state.data.status) ? false : 1_500),
+    retry: 2,
+  });
 }
 
 const key = (eventId: number) => [...qk.events.detail(eventId), "kiosks"] as const;
@@ -32,7 +45,7 @@ function useRefresh(eventId: number) {
 }
 export function usePairKiosk(eventId: number) {
   const refresh = useRefresh(eventId);
-  return useMutation({ mutationFn: (body: { name: string; door_id?: string | null; shift_hours?: number }) => pairKiosk(eventId, body), onSuccess: refresh, onError: toastError });
+  return useMutation({ mutationFn: (body: { name: string; door_id?: string | null; shift_hours?: number; role?: "kiosk" | "printer" }) => pairKiosk(eventId, body), onSuccess: refresh, onError: toastError });
 }
 export function useRotateKiosk(eventId: number) {
   const refresh = useRefresh(eventId);
@@ -40,7 +53,7 @@ export function useRotateKiosk(eventId: number) {
 }
 export function useUnpairKiosk(eventId: number) {
   const refresh = useRefresh(eventId);
-  return useMutation({ mutationFn: (deviceId: string) => unpairKiosk(eventId, deviceId), onSuccess: () => (toast.success("Kiosk unpaired"), refresh()), onError: toastError });
+  return useMutation({ mutationFn: (deviceId: string) => unpairKiosk(eventId, deviceId), onSuccess: () => (toast.success("Unpaired"), refresh()), onError: toastError });
 }
 export function useUpdateKioskSettings(eventId: number) {
   const refresh = useRefresh(eventId);

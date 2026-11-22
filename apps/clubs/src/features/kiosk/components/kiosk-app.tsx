@@ -5,13 +5,16 @@ import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import { ApiError } from "@moa/api";
 import { Button, cn, toast } from "@moa/ui";
-import { CameraIcon, CameraOffIcon, DoorClosedIcon, LockIcon, MonitorSmartphoneIcon, PrinterIcon, RefreshCwIcon, ServerCrashIcon, UnplugIcon } from "lucide-react";
+import { CameraIcon, CameraOffIcon, CheckCircle2Icon, CircleAlertIcon, DoorClosedIcon, LockIcon, MonitorSmartphoneIcon, PrinterIcon, RefreshCwIcon, ServerCrashIcon, UnplugIcon } from "lucide-react";
 
 import { PrintFrame } from "@/features/idcards";
 import { CameraWell, DOOR_FIELD, brandOnDark, DoorBanner, DoorCount, DoorProgress, DoorSpinner, TONE_ICON, TONE_SOFT, TONE_SOLID, cameraProblem, startScanner, type DoorTone, type Scanner } from "@/features/gate";
 
+import { isFinished, type PrintRequest } from "@/features/printing/schemas";
+
 import {
   KIOSK_TOKEN_STORAGE,
+  createKioskPrintRequest,
   kioskCardUrl,
   kioskHeaders,
   kioskSelfCardUrl,
@@ -21,7 +24,7 @@ import {
   redeemAtKiosk,
   staffProblem,
 } from "../api";
-import { useKioskContext, useSelfQr } from "../queries";
+import { useKioskContext, usePrintRequest, useSelfQr } from "../queries";
 import { AgendaCycle } from "./agenda-cycle";
 import {
   newRef,
@@ -32,6 +35,8 @@ import {
 
 type Step = "attract" | "result";
 const DONE_RESET_S = 10;
+/** After a card has printed (or failed) on the print station, the tablet goes back to the scanner this soon. */
+const PRINT_DONE_RESET_S = 8;
 const NOT_ME_S = 60;
 
 const read = (k: string) => {
@@ -248,6 +253,18 @@ function Kiosk({
   const selfQr = useSelfQr(token, ctx.self_check_in.self_check_in_enabled);
   const [selfPng, setSelfPng] = React.useState<string | null>(null);
   const printedSessions = React.useRef(new Set<string>());
+  // Print stations: when one is online the card is asked for there, not printed on this tablet.
+  const remote = (ctx.printers?.online ?? 0) > 0;
+  const [asked, setAsked] = React.useState<string | null>(null);
+  const [sending, setSending] = React.useState(false);
+  const [askError, setAskError] = React.useState<{ message: string; again: boolean } | null>(null);
+  const [selfAsks, setSelfAsks] = React.useState<Array<{ session: string; id: string; name: string }>>([]);
+  const askStatus = usePrintRequest(token, asked);
+  const askFinished = askStatus.data ? isFinished(askStatus.data.status) : false;
+  // The result screen's own countdown waits while the card is on its way.
+  const hold = sending || (asked !== null && !askFinished);
+  // A card that has printed (or could not) is the guest's last step: back to the scanner soon.
+  const cap = asked !== null && askFinished ? PRINT_DONE_RESET_S : Infinity;
 
   // The self check-in QR, redrawn when the server rotates it. Black on white: the code must scan.
   React.useEffect(() => {
@@ -262,18 +279,29 @@ function Kiosk({
     };
   }, [selfQr.data?.url]);
 
-  // A phone that tapped print: the kiosk prints it, once.
+  // A phone that tapped print: the print station prints it when one is online, else this kiosk does; once either way.
   React.useEffect(() => {
     const pending = selfQr.data?.recent.find(
       (r) => r.print_requested && !printedSessions.current.has(r.session),
     );
-    if (!pending || printing) return;
+    if (!pending) return;
+    if (remote) {
+      printedSessions.current.add(pending.session);
+      createKioskPrintRequest(token, { session: pending.session })
+        .then((r) => setSelfAsks((a) => [...a, { session: pending.session, id: r.id, name: pending.name }]))
+        .catch((err) => toast.error(err instanceof Error ? err.message : `${pending.name}'s card could not be sent to the print station.`));
+      return;
+    }
+    if (printing) return;
     printedSessions.current.add(pending.session);
     setPrintingSession(pending.session);
     setPrinting(kioskSelfCardUrl(pending.session));
-  }, [selfQr.data, printing, token]);
+  }, [selfQr.data, printing, token, remote]);
 
   const reset = React.useCallback(() => {
+    setAsked(null);
+    setSending(false);
+    setAskError(null);
     setStep("attract");
     setResult(null);
     setCode("");
@@ -283,18 +311,40 @@ function Kiosk({
 
   // The result screen clears itself so the next guest finds the scanner.
   React.useEffect(() => {
-    if (step !== "result") return;
+    if (step !== "result" || hold) return;
     const t = setInterval(
-      () => setLeft((n) => (n <= 1 ? (reset(), DONE_RESET_S) : n - 1)),
+      () => setLeft((n) => (Math.min(n, cap) <= 1 ? (reset(), DONE_RESET_S) : Math.min(n, cap) - 1)),
       1000,
     );
     return () => clearInterval(t);
-  }, [step, reset]);
+  }, [step, reset, hold, cap]);
   React.useEffect(() => {
     if (notMeLeft <= 0) return;
     const t = setTimeout(() => setNotMeLeft((n) => n - 1), 1000);
     return () => clearTimeout(t);
   }, [notMeLeft]);
+
+  // Asks the print station for this guest's card: one tap, or automatically when the event prints at admission.
+  const askForCard = React.useCallback(
+    async (redemption: string) => {
+      setSending(true);
+      setAskError(null);
+      try {
+        const r = await createKioskPrintRequest(token, { redemption });
+        setAsked(r.id);
+        // The guest has a minute or so of waiting, then the status takes over the countdown.
+        setLeft((n) => Math.max(n, 25));
+      } catch (err) {
+        const code = err instanceof ApiError ? err.errorCode : null;
+        // A refusal by rule is final; a dropped connection is worth another tap.
+        const again = code !== "REPRINT_NOT_ALLOWED" && code !== "NO_PRINTER";
+        setAskError({ message: err instanceof Error && err.message ? err.message : "The card could not be sent.", again });
+      } finally {
+        setSending(false);
+      }
+    },
+    [token],
+  );
 
   const submit = React.useCallback(
     async (raw: string) => {
@@ -311,7 +361,9 @@ function Kiosk({
             ? NOT_ME_S
             : 0,
         );
-        if (r.outcome === "MATCHED" && r.auto_print && r.print_url)
+        if (r.outcome === "MATCHED" && remote && r.auto_print && r.redemption_token && r.guest?.may_print)
+          void askForCard(r.redemption_token);
+        else if (r.outcome === "MATCHED" && !remote && r.auto_print && r.print_url)
           setPrinting(kioskCardUrl(r.print_url));
         setCode("");
       } catch (err) {
@@ -320,7 +372,7 @@ function Kiosk({
         setBusy(false);
       }
     },
-    [busy, token],
+    [busy, token, remote, askForCard],
   );
 
   const startCamera = async () => {
@@ -385,6 +437,14 @@ function Kiosk({
 
   return (
     <Shell style={brand}>
+      {selfAsks.map((a) => (
+        <SelfAskWatch
+          key={a.id}
+          token={token}
+          ask={a}
+          onFinished={() => setSelfAsks((all) => all.filter((x) => x.id !== a.id))}
+        />
+      ))}
       {printing ? (
         <PrintFrame
           key={printing}
@@ -609,7 +669,20 @@ function Kiosk({
           <p className="text-ink-2 mt-2 text-[18px] leading-[1.5]">{v.detail}</p>
           {result?.outcome === "MATCHED" && g ? (
             <>
-              {printing ? (
+              {remote || asked || sending || askError ? (
+                g.may_print || asked || sending || askError ? (
+                  <>
+                    <PrintAsk
+                      sending={sending}
+                      request={askStatus.data ?? null}
+                      asked={asked !== null}
+                      error={askError}
+                      onAsk={() => result?.redemption_token && void askForCard(result.redemption_token)}
+                    />
+                    {(sending || (asked && !askFinished)) && ctx.agenda.length ? <AgendaCycle items={ctx.agenda} /> : null}
+                  </>
+                ) : null
+              ) : printing ? (
                 <>
                   <p className="bg-info-soft text-info border-info-line mt-6 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[16px] font-medium">
                     <PrinterIcon aria-hidden="true" className="size-5" />
@@ -649,7 +722,7 @@ function Kiosk({
             className="mt-10"
             onClick={reset}
           >
-            Done · back in {left}s
+            Done · back in {Math.min(left, cap)}s
           </Button>
         </main>
       )}
@@ -772,4 +845,81 @@ function Kiosk({
       ) : null}
     </Shell>
   );
+}
+
+/**
+ * What a guest reads after asking the print station for their card: the button, then each step in
+ * plain words. Polled every 1.5 s by the caller; a failure says to ask at the desk.
+ */
+export function PrintAsk({
+  sending,
+  request,
+  asked,
+  error,
+  onAsk,
+}: {
+  sending: boolean;
+  request: PrintRequest | null;
+  asked: boolean;
+  error: { message: string; again: boolean } | null;
+  onAsk: () => void;
+}) {
+  const box = "inline-flex max-w-xl items-center gap-3 rounded-[var(--radius-card)] border px-5 py-3 text-left text-[20px] leading-[1.35] font-medium";
+  if (error)
+    return (
+      <div className="mt-6 flex flex-col items-center gap-3">
+        <p role="alert" className={cn(box, TONE_SOFT.refuse)}>
+          {error.message}
+          {error.again ? null : " Ask at the desk."}
+        </p>
+        {error.again ? (
+          <Button type="button" size="lg" className="min-h-14" onClick={onAsk}>
+            <PrinterIcon /> Try again
+          </Button>
+        ) : null}
+      </div>
+    );
+  if (!asked && !sending)
+    return (
+      <Button type="button" size="lg" className="mt-6 min-h-14 px-8 text-[20px]" onClick={onAsk}>
+        <PrinterIcon /> Print my ID card
+      </Button>
+    );
+  const status = request?.status ?? null;
+  let tone: DoorTone = "info";
+  let text = "Sending…";
+  if (status === "queued") {
+    const ahead = Math.max(0, (request?.position ?? 1) - 1);
+    text = ahead > 0 ? `In the queue (${ahead} ahead)` : "You are next in the queue";
+  } else if (status === "printing") text = "Printing…";
+  else if (status === "printed") {
+    tone = "admit";
+    text = "Printed — collect your card at the desk";
+  } else if (status === "failed") {
+    tone = "refuse";
+    text = `${request?.error ? `${request.error.replace(/[.\s]+$/, "")}. ` : "Your card did not print. "}Ask at the desk.`;
+  } else if (status === "cancelled") {
+    tone = "caution";
+    text = "This print was cancelled. Ask at the desk.";
+  }
+  return (
+    <p role="status" aria-live="polite" className={cn(box, "mt-6", TONE_SOFT[tone])}>
+      {status === "printed" ? <CheckCircle2Icon aria-hidden="true" className="size-7 shrink-0" /> : status === "failed" || status === "cancelled" ? <CircleAlertIcon aria-hidden="true" className="size-7 shrink-0" /> : <DoorSpinner className="size-6 shrink-0" />}
+      {text}
+    </p>
+  );
+}
+
+/** A phone's print request this kiosk passed on: tells the phone once the card is out, then lets go. */
+function SelfAskWatch({ token, ask, onFinished }: { token: string; ask: { session: string; id: string; name: string }; onFinished: () => void }) {
+  const status = usePrintRequest(token, ask.id).data?.status;
+  const finished = React.useRef(false);
+  React.useEffect(() => {
+    if (!status || !isFinished(status) || finished.current) return;
+    finished.current = true;
+    if (status === "printed") void markSelfPrinted(token, ask.session).catch(() => undefined);
+    else toast.error(`${ask.name}'s card did not print. Ask at the desk.`);
+    onFinished();
+  }, [status, token, ask, onFinished]);
+  return null;
 }

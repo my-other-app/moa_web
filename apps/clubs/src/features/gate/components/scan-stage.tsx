@@ -5,8 +5,9 @@ import { Button, toast } from "@moa/ui";
 import { CameraIcon, CameraOffIcon, DoorClosedIcon, HandIcon, PrinterIcon, ScanLineIcon, WifiOffIcon } from "lucide-react";
 
 import { PrintFrame, cardPdfUrl } from "@/features/idcards";
+import { PrintChoice } from "@/features/printing";
 
-import { gateHeaders } from "../api";
+import { gateHeaders, sendCardToPrinter } from "../api";
 import { afterHandover, OFFLINE_ADMISSION_NUMBER_CARD, OFFLINE_DESK_CARD, OFFLINE_NOT_A_TICKET_CARD, STATION_SAVED_CARD, UNVERIFIED_CARD, needsHandCheckIn, offlineRepeatCard, outcomeCard, stationOfflineRepeatCard, type OutcomeCardModel } from "../lib/outcome-copy";
 import { cameraProblem, startScanner, type Scanner } from "../lib/scanner";
 import { useCheckInByHand, useScanMutation, type Enqueue } from "../queries";
@@ -53,6 +54,9 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue, purpose = null 
     (registrationId: string, source: "checkin" | "manual") => setPrinting(cardPdfUrl(ctx.event.id, registrationId, { source, record: true, door })),
     [ctx.event.id, door]
   );
+  // With a print station online, "Print their card" asks where: the station (the default) or this screen.
+  const stationOnline = (ctx.printers?.online ?? 0) > 0;
+  const [choosing, setChoosing] = React.useState<{ id: string; name: string } | null>(null);
   const [code, setCode] = React.useState("");
   const [cameraOn, setCameraOn] = React.useState(false);
   const [cameraError, setCameraError] = React.useState<string | null>(null);
@@ -141,6 +145,16 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue, purpose = null 
       ) : null}
 
       {printing ? <PrintFrame key={printing} url={printing} headers={gateHeaders(gateKey)} onDone={() => setTimeout(() => setPrinting(null), 4000)} /> : null}
+      {choosing ? (
+        <PrintChoice
+          name={choosing.name}
+          open
+          onClose={() => setChoosing(null)}
+          send={(override) => sendCardToPrinter(gateKey, ctx.event.id, choosing.id, override)}
+          onLocal={() => printCard(choosing.id, "manual")}
+          canOverride={ctx.permissions.full}
+        />
+      ) : null}
 
       <div className={card ? "lg:order-2" : "hidden lg:order-2 lg:block"}>
         {card ? (
@@ -183,7 +197,7 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue, purpose = null 
             ) : null}
             {mayPrint ? (
               <div className="border-line-soft border-t px-4 py-3">
-                <Button type="button" variant="secondary" size="lg" onClick={() => printCard(card.response!.attendee!.id, "manual")}>
+                <Button type="button" variant="secondary" size="lg" onClick={() => (stationOnline ? setChoosing({ id: card.response!.attendee!.id, name: card.response!.attendee!.name }) : printCard(card.response!.attendee!.id, "manual"))}>
                   {/* The card printed at this admission counts too: the scan's answer predates it. */}
                   <PrinterIcon /> {card.response!.badge.printed_at || card.response!.badge.auto ? "Print the card again" : "Print their card"}
                 </Button>
