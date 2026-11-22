@@ -32,10 +32,10 @@ const standalone: Partial<NextConfig> =
  * only (reportOnlyPolicy, below).
  */
 // Pages whose address carries a credential: a door key (/gate/{id}?key=),
-// a kiosk's pairing token, the admin's impersonation hand-off, a team
+// a kiosk's or print station's pairing token, the admin's impersonation hand-off, a team
 // invite, a guest's phone check-in link and a request's confirmation link.
 // Their address is sent nowhere, not even its origin.
-const CREDENTIAL_PAGES = ["/gate/:path*", "/kiosk/:path*", "/impersonate/:path*", "/join/:path*", "/s/:path*", "/confirm/:path*"];
+const CREDENTIAL_PAGES = ["/gate/:path*", "/kiosk/:path*", "/print-station/:path*", "/impersonate/:path*", "/join/:path*", "/s/:path*", "/confirm/:path*"];
 
 /** The origin a Sentry DSN sends to (https://<key>@<host>/<project> → https://<host>), or null when it is not one. */
 export function sentryOrigin(dsn: string | undefined = process.env.NEXT_PUBLIC_SENTRY_DSN): string | null {

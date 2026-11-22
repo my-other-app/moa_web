@@ -23,10 +23,10 @@ export const config = {
    * (which arrives with no session -- exchanging its token is what creates
    * one), the gateway (which must stay reachable so the login POST itself can
    * get through), the script policy's report address (a report must never
-   * renew or redirect a session), the door pages (the gate console, the kiosk and a guest's
+   * renew or redirect a session), the door pages (the gate console, the kiosk, the print station and a guest's
    * phone check-in authenticate with the key or token in their link, never a
    * session: a volunteer or guest has no account here), Next internals and
    * static files.
    */
-  matcher: ["/((?!login|forgot-password|signup|join|impersonate|api/gateway|api/csp-report|gate/|kiosk|s/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
+  matcher: ["/((?!login|forgot-password|signup|join|impersonate|api/gateway|api/csp-report|gate/|kiosk|print-station|s/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
 };

@@ -17,6 +17,8 @@ import {attendeeSummarySchema,
   type WalkupBody, gateCatalogSchema, gateStoreOrderSchema } from "./schemas";
 import { z } from "zod";
 
+import { printRequestSchema } from "@/features/printing/schemas";
+
 export const GATE_KEY_HEADER = "X-Gate-Key";
 
 /** The door key, as a header for a fetch of our own (a card's PDF); never in a URL. */
@@ -53,6 +55,11 @@ const base = (eventId: number) => `/api/v1/events/${eventId}/gate`;
 
 export async function fetchGateContext(key: string | null, eventId: number) {
   return gateContextSchema.parse(await gateClient(key).get<unknown>(`${base(eventId)}/context`));
+}
+
+/** Sends one guest's card to the print station from the door console (print-stations contract §2.3). */
+export async function sendCardToPrinter(key: string | null, eventId: number, registrationId: string, override: boolean) {
+  return printRequestSchema.parse(await gateClient(key).post<unknown>(`${base(eventId)}/print-request/${encodeURIComponent(registrationId)}`, { override }));
 }
 
 export async function scanTicket(key: string | null, eventId: number, body: ScanBody) {

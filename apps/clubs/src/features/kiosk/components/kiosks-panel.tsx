@@ -57,7 +57,7 @@ import {
   type PairedKiosk,
 } from "../schemas";
 
-function PairedBody({
+export function PairedBody({
   paired,
   onClose,
 }: {
@@ -65,6 +65,7 @@ function PairedBody({
   onClose: () => void;
 }) {
   const [png, setPng] = React.useState<string | null>(null);
+  const station = paired.device.role === "printer";
   React.useEffect(() => {
     let alive = true;
     QRCode.toDataURL(paired.url, { margin: 1, width: 240 })
@@ -77,13 +78,25 @@ function PairedBody({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Open this on the kiosk</DialogTitle>
+        <DialogTitle>{station ? "Open this on the print station" : "Open this on the kiosk"}</DialogTitle>
         <DialogDescription>
-          Shown once. The tablet that opens it becomes{" "}
-          <strong>{paired.device.name}</strong> at {paired.device.door_label},
-          with no account. The pairing lasts until{" "}
-          {formatDateTime(paired.device.expires_at)}; make a new link for the
-          next shift.
+          {station ? (
+            <>
+              Shown once. The laptop that opens it becomes{" "}
+              <strong>{paired.device.name}</strong>, with no account, and
+              prints the cards sent to it. The pairing lasts until{" "}
+              {formatDateTime(paired.device.expires_at)}; make a new link for
+              the next shift.
+            </>
+          ) : (
+            <>
+              Shown once. The tablet that opens it becomes{" "}
+              <strong>{paired.device.name}</strong> at {paired.device.door_label},
+              with no account. The pairing lasts until{" "}
+              {formatDateTime(paired.device.expires_at)}; make a new link for
+              the next shift.
+            </>
+          )}
         </DialogDescription>
       </DialogHeader>
       {png ? (
@@ -91,7 +104,7 @@ function PairedBody({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={png}
-          alt="QR code for the kiosk pairing link"
+          alt={station ? "QR code for the print station pairing link" : "QR code for the kiosk pairing link"}
           className="mx-auto size-56 rounded-xl bg-white p-2"
         />
       ) : (
@@ -101,7 +114,7 @@ function PairedBody({
         <input
           readOnly
           value={paired.url}
-          aria-label="Kiosk pairing link"
+          aria-label={station ? "Print station pairing link" : "Kiosk pairing link"}
           className="input min-w-0 flex-1 font-mono"
           onFocus={(e) => e.currentTarget.select()}
         />
@@ -123,7 +136,7 @@ function PairedBody({
   );
 }
 
-function PairedDialog({
+export function PairedDialog({
   paired,
   onClose,
 }: {
@@ -470,15 +483,17 @@ export function KiosksPanel({
   const kiosks = useKiosks(eventId);
   const settings = useKioskSettings(eventId);
   const [paired, setPaired] = React.useState<PairedKiosk | null>(null);
-  const online = kiosks.data?.filter((k) => k.online).length ?? 0;
+  // Print stations have their own panel; this one is the tablets.
+  const tablets = kiosks.data?.filter((k) => k.role !== "printer");
+  const online = tablets?.filter((k) => k.online).length ?? 0;
   return (
     <FigurePanel className="overflow-hidden p-0">
       <div className="px-4 pt-4">
         <CardLabel
           right={
-            kiosks.data?.length ? (
+            tablets?.length ? (
               <span className="text-ink-3 font-mono text-[11px]">
-                {online} of {kiosks.data.length} online
+                {online} of {tablets.length} online
               </span>
             ) : null
           }
@@ -510,9 +525,9 @@ export function KiosksPanel({
             </Button>
           }
         />
-      ) : kiosks.data.length ? (
+      ) : tablets?.length ? (
         <ul className="mt-2">
-          {kiosks.data.map((d) => (
+          {tablets.map((d) => (
             <KioskRow
               key={d.id}
               eventId={eventId}

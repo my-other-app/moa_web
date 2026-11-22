@@ -20,6 +20,8 @@ export const kioskContextSchema = z.object({
   /** What is still to come today, the running session first: shown while a card prints. */
   agenda: z.array(z.object({ starts_at: z.string(), ends_at: z.string().nullable(), title: z.string(), speaker: z.string().nullable(), location: z.string().nullable(), parallel: z.boolean() })).default([]),
   has_programme: z.boolean().default(false),
+  /** Print stations of this event seen in the last 30 seconds; absent from a server without print stations. */
+  printers: z.object({ online: z.number().catch(0) }).nullish().catch(null),
 });
 export type KioskContext = z.infer<typeof kioskContextSchema>;
 
@@ -60,9 +62,15 @@ export const kioskDeviceSchema = z.object({
   online: z.boolean(),
   active: z.boolean(),
   created_at: z.string().nullish(),
+  /** A tablet that checks guests in, or a laptop that prints their cards; devices from before print stations are kiosks. */
+  role: z.enum(["kiosk", "printer"]).catch("kiosk").default("kiosk"),
 });
 export type KioskDevice = z.infer<typeof kioskDeviceSchema>;
-export const pairedKioskSchema = z.object({ device: kioskDeviceSchema, token: z.string(), url: z.string() });
+/** A print station opens /print-station, not /kiosk: say so in the link whichever page the server named. */
+export const pairingUrl = (role: "kiosk" | "printer", url: string) => (role === "printer" ? url.replace(/\/kiosk(?=[/?#]|$)/, "/print-station") : url);
+export const pairedKioskSchema = z
+  .object({ device: kioskDeviceSchema, token: z.string(), url: z.string() })
+  .transform((p) => ({ ...p, url: pairingUrl(p.device.role, p.url) }));
 export type PairedKiosk = z.infer<typeof pairedKioskSchema>;
 
 export const kioskSettingsSchema = z.object({ self_check_in_enabled: z.boolean(), self_check_in_verify: z.enum(["name", "email", "phone"]), self_check_in_print: z.boolean(), has_pin: z.boolean() });

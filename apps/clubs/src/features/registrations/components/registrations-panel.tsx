@@ -45,6 +45,7 @@ import { useEventSummary } from "@/features/console";
 import { DeliveryBar, TicketCell } from "@/features/deliveries";
 import { useEventDetail } from "@/features/events";
 import { cardPdfUrl, openPdf } from "@/features/idcards";
+import { PrintChoice, createPrintRequest, onlineCount, usePrinters } from "@/features/printing";
 import { GivenBackPanel } from "@/features/ticket-cancel";
 
 import { exportUrl } from "../api";
@@ -146,6 +147,10 @@ function GuestRow({
 }) {
   const name = nameOf(row);
   const contact = [row.email, row.phone].filter(Boolean).join(" · ");
+  // With a print station online, "Print ID card" asks where: the station (the default) or this computer.
+  const stationOnline = onlineCount(usePrinters(eventId).data) > 0;
+  const [choosing, setChoosing] = React.useState(false);
+  const printHere = () => openPdf(cardPdfUrl(eventId, row.id, { source: "manual", record: true }));
   return (
     <tr className="border-line-soft hover:bg-sunken/40 border-t transition-colors">
       <td className={CELL}>
@@ -203,7 +208,7 @@ function GuestRow({
                 <span className="text-ink-3 text-[11.5px]">Contact, answers, ticket, deliveries, check-in — and correct them.</span>
               </span>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => openPdf(cardPdfUrl(eventId, row.id, { source: "manual", record: true }))}>
+            <DropdownMenuItem onSelect={() => (stationOnline ? setChoosing(true) : printHere())}>
               <IdCardIcon /> Print ID card
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -216,6 +221,7 @@ function GuestRow({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {choosing ? <PrintChoice name={name} open onClose={() => setChoosing(false)} send={(override) => createPrintRequest(eventId, { registration_id: row.id, override })} onLocal={printHere} /> : null}
       </td>
     </tr>
   );

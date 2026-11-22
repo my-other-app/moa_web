@@ -26,6 +26,7 @@ import {
 
 import { AdmissionPanel } from "@/features/admission";
 import { LockedNotice, useFeatureGate } from "@/features/plan";
+import { PrintQueuePanel } from "@/features/printing";
 
 import { batchPdfUrl } from "../api";
 import {
@@ -599,6 +600,8 @@ export function IdCardsPage({ eventId }: { eventId: number }) {
           </div>
 
           <AdmissionPanel eventId={eventId} />
+
+          <PrintQueuePanel eventId={eventId} />
 
           <JobsPanel eventId={eventId} current={s.design_version} />
         </>

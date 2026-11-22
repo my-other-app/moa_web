@@ -22,11 +22,14 @@ const OPENED_KEEP_MS = 60_000;
 export function PrintFrame({
   url,
   headers,
+  method = "GET",
   onDone,
   onError,
 }: {
   url: string;
   headers?: Record<string, string>;
+  /** POST for the few endpoints that draw a PDF on request (the print station's test card). */
+  method?: "GET" | "POST";
   onDone?: () => void;
   /** Told when the PDF could not be fetched; a toast says so when this is absent. */
   onError?: (error: unknown) => void;
@@ -46,7 +49,7 @@ export function PrintFrame({
   React.useEffect(() => {
     let alive = true;
     let made: string | null = null;
-    fetchPdf(url, JSON.parse(headerKey) as Record<string, string>)
+    fetchPdf(url, JSON.parse(headerKey) as Record<string, string>, method)
       .then((blob) => {
         if (!alive) return;
         made = URL.createObjectURL(blob);
@@ -66,7 +69,7 @@ export function PrintFrame({
       if (opened.current) setTimeout(() => URL.revokeObjectURL(blobUrl), OPENED_KEEP_MS);
       else URL.revokeObjectURL(blobUrl);
     };
-  }, [url, headerKey]);
+  }, [url, headerKey, method]);
 
   if (!src) return null;
   return (

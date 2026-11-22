@@ -43,8 +43,8 @@ export const cardPdfUrl = (eventId: number, registrationId: string, opts: { sour
  * as a PDF, whatever type the answer named, so the frame shows it only as
  * a PDF.
  */
-export async function fetchPdf(url: string, headers: Record<string, string> = {}): Promise<Blob> {
-  const response = await fetch(url, { credentials: "include", headers: { Accept: "application/pdf", ...headers } });
+export async function fetchPdf(url: string, headers: Record<string, string> = {}, method: "GET" | "POST" = "GET"): Promise<Blob> {
+  const response = await fetch(url, { method, credentials: "include", headers: { Accept: "application/pdf", ...headers } });
   if (!response.ok) throw await toApiError(response);
   return new Blob([await response.arrayBuffer()], { type: "application/pdf" });
 }
