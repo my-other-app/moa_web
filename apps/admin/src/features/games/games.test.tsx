@@ -19,16 +19,22 @@ const { FEATURE_LABELS } = await import("@/features/subscriptions");
 
 const OVERVIEW = {
   totals: {
-    cards: { events: 3, players: 520, connected_now: 41, reveals: 480, collects: 1900, decks_completed: 12 },
-    hunt: { events: 2, players: 300, connected_now: 17, claims: 1200, hunts_completed: 9 },
+    cards: { events: 3, players: 520, reveals: 480, collects: 1900, decks_completed: 12 },
+    hunt: { events: 2, players: 300, claims: 1200, hunts_completed: 9 },
+    events: 4,
+    players: 640,
     connected_now: 58,
   },
   rows: [
-    { club_id: 1, club_name: "Cloud Kochi", event_id: 10, event_name: "DevFest 2026", cards_on: true, hunt_on: true, players: 300, connected_now: 40, reveals: 280, collects: 1100, hunt_claims: 900, decks_completed: 7, hunts_completed: 6 },
-    { club_id: 2, club_name: "Maker Circle", event_id: 11, event_name: "Build night", cards_on: true, hunt_on: false, players: 80, connected_now: 18, reveals: 70, collects: 200, hunt_claims: 0, decks_completed: 1, hunts_completed: 0 },
+    { event_id: 10, event: 10, event_name: "DevFest 2026", slug: "devfest-2026", event_datetime: "2026-11-28T04:30:00Z", club_id: 1, club: 1, club_name: "Cloud Kochi", cards_on: true, hunt_on: true, players: 300, connected_now: 40, reveals: 280, collects: 1100, hunt_claims: 900, decks_completed: 7, hunts_completed: 6 },
+    { event_id: 11, event: 11, event_name: "Build night", slug: "build-night", event_datetime: null, club_id: 2, club: 2, club_name: "Maker Circle", cards_on: true, hunt_on: false, players: 80, connected_now: 18, reveals: 70, collects: 200, hunt_claims: 0, decks_completed: 1, hunts_completed: 0 },
     { nonsense: true },
   ],
-  plans: [{ plan_key: "pro", plan_name: "Pro", game_cards: 4, game_hunt: 3 }],
+  plans: [
+    { plan: "free", name: "Free", game_cards: false, game_hunt: false, clubs: 20 },
+    { plan: "pro", name: "Pro", game_cards: true, game_hunt: true, clubs: 4 },
+  ],
+  clubs_with: { game_cards: 4, game_hunt: 3 },
 };
 
 beforeEach(() => {
@@ -45,6 +51,18 @@ describe("the games overview", () => {
     expect(within(cards).getByText("1,900")).toBeInTheDocument();
     const hunt = screen.getByRole("region", { name: "Scavenger Hunt totals" });
     expect(within(hunt).getByText("1,200")).toBeInTheDocument();
+    // The documented totals have no per-game "connected now": it is one number for the platform.
+    expect(within(cards).queryByText("Connected now")).toBeNull();
+    expect(within(cards).getByText("520")).toBeInTheDocument();
+  });
+
+  it("counts clubs with each game from clubs_with, and names the plans that include them", async () => {
+    render(<GamesPage />);
+    expect(await screen.findByText(/4 with Hero Cards, 3 with Scavenger Hunt · Pro: 4/)).toBeInTheDocument();
+    const parsed = gamesOverviewSchema.parse(OVERVIEW);
+    expect(parsed.clubs_with).toEqual({ game_cards: 4, game_hunt: 3 });
+    expect(parsed.plans[1]).toEqual({ plan: "pro", name: "Pro", game_cards: true, game_hunt: true, clubs: 4 });
+    expect(parsed.rows[0]).toMatchObject({ slug: "devfest-2026", event_datetime: "2026-11-28T04:30:00Z" });
   });
 
   it("lists each club and event with its numbers, leaving out a row it cannot read", async () => {

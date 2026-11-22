@@ -5,9 +5,11 @@ import { z } from "zod";
 import {
   cardConfigSchema,
   cardLiveSchema,
+  feedItemSchema,
   heroSchema,
   huntLiveSchema,
   huntSchema,
+  pinResetSchema,
   playersSchema,
   pointSchema,
   screenSchema,
@@ -113,8 +115,9 @@ export async function huntAction(eventId: number, action: HuntAction, minutes?: 
   return huntSchema.parse(await api.post<unknown>(`${base(eventId)}/hunt/${action}`, action === "extend" ? { minutes } : {}));
 }
 
+/** The points ride on GET hunt (there is no list of their own). */
 export async function fetchPoints(eventId: number) {
-  return listOf(pointSchema, rowsOf(await api.get<unknown>(`${base(eventId)}/hunt/points`)));
+  return listOf(pointSchema, huntSchema.parse(await api.get<unknown>(`${base(eventId)}/hunt`)).points);
 }
 
 export async function createPoint(eventId: number, body: PointInput) {
@@ -142,8 +145,20 @@ export async function fetchPlayers(eventId: number, q: { q: string; optedOut: bo
   return playersSchema.parse(await api.get<unknown>(`${base(eventId)}/players`, { query: { q: q.q || undefined, public: q.optedOut ? "false" : undefined, limit: 25 } }));
 }
 
+/** A new PIN and badge code; the answer carries them so the desk can read the PIN out. */
 export async function resetPin(eventId: number, registrationId: string) {
-  await api.post<unknown>(`${base(eventId)}/players/${id(registrationId)}/reset-pin`, {});
+  return pinResetSchema.parse(await api.post<unknown>(`${base(eventId)}/players/${id(registrationId)}/reset-pin`, {}));
+}
+
+// ─── The venue screen's feed ─────────────────────────────────────────────
+
+export async function fetchFeed(eventId: number) {
+  return listOf(feedItemSchema, rowsOf(await api.get<unknown>(`${base(eventId)}/feed`)));
+}
+
+/** Hide an event from the venue screen's ticker, or show it again. */
+export async function setFeedHidden(eventId: number, feedId: string, hidden: boolean) {
+  return z.object({ id: z.unknown(), hidden: z.boolean().catch(hidden) }).parse(await api.patch<unknown>(`${base(eventId)}/feed/${id(feedId)}`, { hidden }));
 }
 
 /** A board's top 20, or everyone with `all`. */

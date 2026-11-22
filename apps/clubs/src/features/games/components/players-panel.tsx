@@ -108,6 +108,9 @@ export function PlayersPanel({ eventId, s, canEdit, canExport }: { eventId: numb
                     <span className="text-ink-3 block truncate text-[12px]">
                       {p.email ?? "No email"} · shown as {boardName(p)}
                     </span>
+                    <span className="text-ink-3 block truncate text-[12px]">
+                      {formatNumber(p.heroes)} {p.heroes === 1 ? "hero" : "heroes"} · {formatNumber(p.points)} {p.points === 1 ? "point" : "points"}
+                    </span>
                   </span>
                   {!p.public ? <StatusBadge tone="info" label="Opted out" /> : null}
                   {p.pin_locked ? <StatusBadge tone="warning" label="PIN locked" /> : null}
@@ -142,8 +145,8 @@ export function PlayersPanel({ eventId, s, canEdit, canExport }: { eventId: numb
                 e.preventDefault();
                 if (!asking) return;
                 reset.mutate(asking.registration_id, {
-                  onSuccess: () => {
-                    toast.success("PIN reset", { description: `${asking.name || "The player"} can see the new PIN on their ticket.` });
+                  onSuccess: (done) => {
+                    toast.success("PIN reset", { description: done.pin ? `New PIN for ${asking.name || "the player"}: ${done.pin}. It is also on their ticket.` : `${asking.name || "The player"} can see the new PIN on their ticket.` });
                     setAsking(null);
                   },
                   onError: (err) => toast.error(errorText(err)),

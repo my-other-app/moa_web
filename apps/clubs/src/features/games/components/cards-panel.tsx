@@ -102,7 +102,9 @@ export function RulesPanel({ eventId, c, attendees, canEdit }: { eventId: number
   const patch = rulesPatch(c, draft);
   const dirty = Object.keys(patch).length > 0;
   const total = sharesTotal(shares);
-  const warn = smallHardWarning(preset, attendees);
+  // The server's cautions about the saved rules, plus the same one for a draft not saved yet.
+  const local = smallHardWarning(preset, attendees);
+  const warnings = [...c.warnings.map((w) => w.message).filter(Boolean), ...(local && !c.warnings.some((w) => w.code === "SMALL_EVENT_HARD") ? [local] : [])];
   const blocked = Boolean(problems.shares || problems.floor);
 
   const submit = async () => {
@@ -199,11 +201,11 @@ export function RulesPanel({ eventId, c, attendees, canEdit }: { eventId: number
           </div>
         </fieldset>
 
-        {warn ? (
-          <Notice tone="caution" tag="Small event" className="md:col-span-2">
-            {warn}
+        {warnings.map((w) => (
+          <Notice key={w} tone="caution" tag="Heads up" className="md:col-span-2">
+            {w}
           </Notice>
-        ) : null}
+        ))}
         {canEdit ? (
           <div className="border-line-soft flex items-center justify-end gap-2 border-t pt-3 md:col-span-2" role="region" aria-label="Save rules">
             {dirty ? (
@@ -246,7 +248,7 @@ export function LiveMonitor({ live }: { live: CardLive }) {
       </div>
       <div className="border-line-soft grid gap-3 border-t p-4 sm:grid-cols-2 lg:grid-cols-4">
         <Figure label="Revealed" value={live.revealed} of={live.checked_in} hint="of players checked in" />
-        <Figure label="Legendary revealed" value={live.legendary_revealed} of={live.legendary_target} hint="against the minimum" />
+        <Figure label="Legendary revealed" value={live.legendary_revealed} of={live.legendary_target} hint={live.legendary_floor ? `minimum ${live.legendary_floor}` : "against the minimum"} />
         <Figure label="Full decks" value={live.full_decks} hint="players with every hero" />
         <Figure label="Badge-to-badge scans" value={live.collects} />
       </div>

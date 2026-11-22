@@ -1,3 +1,5 @@
+export { errorText } from "./errors";
+
 /** A server time as a datetime-local input shows it, in the browser's zone (as the event's own times are). */
 export function toLocalInput(value: string | null | undefined): string {
   if (!value) return "";
@@ -13,9 +15,6 @@ export function fromLocalInput(value: string): string | null {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
-
-/** The server's words for a refused write, or a plain fallback. */
-export const errorText = (err: unknown, fallback = "Something went wrong.") => (err instanceof Error && err.message ? err.message : fallback);
 
 /** "1 h 30 min" for a length in minutes. */
 export function lengthText(minutes: number): string {

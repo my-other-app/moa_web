@@ -6,11 +6,12 @@ import { Button, EmptyState, Notice, Skeleton, Tabs, TabsContent, TabsList, Tabs
 import { useAccess } from "@/features/access";
 import { useFeatureGate } from "@/features/plan";
 
-import { errorText } from "../lib/time";
+import { errorText } from "../lib/errors";
 import { useGamesSettings } from "../queries";
 import { DEFAULT_NAME, GAME_FEATURE, type GameSettings } from "../schemas";
 import { CardsPanel } from "./cards-panel";
 import { DesignerPanel } from "./designer-panel";
+import { FeedPanel } from "./feed-panel";
 import { HuntPanel } from "./hunt-panel";
 import { PlayersPanel } from "./players-panel";
 import { SetupPanel } from "./setup-panel";
@@ -77,7 +78,10 @@ export function GamesPage({ eventId }: { eventId: number }) {
               <TabsTrigger value="players">Players</TabsTrigger>
             </TabsList>
             <TabsContent value="setup">
-              <SetupPanel eventId={eventId} s={s} canEdit={canEdit} />
+              <div className="flex flex-col gap-3.5">
+                <SetupPanel eventId={eventId} s={s} canEdit={canEdit} />
+                <FeedPanel eventId={eventId} canEdit={canEdit} />
+              </div>
             </TabsContent>
             <TabsContent value="cards">
               <CardsPanel eventId={eventId} canEdit={canEdit} locked={cardsGate.locked} />

@@ -3,7 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { nullIfRouteMissing, qk } from "@moa/api";
 
-import { toastError } from "@/features/plan/errors";
+import { gameToastError } from "./lib/errors";
 
 import {
   createHero,
@@ -12,6 +12,7 @@ import {
   deletePoint,
   fetchCardConfig,
   fetchCardLive,
+  fetchFeed,
   fetchHeroes,
   fetchHunt,
   fetchHuntLive,
@@ -26,6 +27,7 @@ import {
   saveCardConfig,
   saveHunt,
   saveSettings,
+  setFeedHidden,
   updateHero,
   updatePoint,
   uploadHeroArt,
@@ -128,12 +130,12 @@ export function useSaveHero(eventId: number) {
 
 export function useDeleteHero(eventId: number) {
   const refresh = useRefreshHeroes(eventId);
-  return useMutation({ mutationFn: (heroId: string) => deleteHero(eventId, heroId), onSuccess: refresh, onError: toastError });
+  return useMutation({ mutationFn: (heroId: string) => deleteHero(eventId, heroId), onSuccess: refresh, onError: gameToastError });
 }
 
 export function useOrderHeroes(eventId: number) {
   const refresh = useRefreshHeroes(eventId);
-  return useMutation({ mutationFn: (ids: string[]) => orderHeroes(eventId, ids), onSuccess: refresh, onError: toastError });
+  return useMutation({ mutationFn: (ids: string[]) => orderHeroes(eventId, ids), onSuccess: refresh, onError: gameToastError });
 }
 
 // ─── The Scavenger Hunt ──────────────────────────────────────────────────
@@ -155,7 +157,7 @@ export function useHuntAction(eventId: number) {
       qc.setQueryData(key(eventId, "hunt"), data);
       void qc.invalidateQueries({ queryKey: key(eventId, "hunt", "live") });
     },
-    onError: toastError,
+    onError: gameToastError,
   });
 }
 
@@ -188,7 +190,7 @@ export function useUpdatePoint(eventId: number) {
 
 export function useDeletePoint(eventId: number) {
   const refresh = useRefreshPoints(eventId);
-  return useMutation({ mutationFn: (pointId: string) => deletePoint(eventId, pointId), onSuccess: refresh, onError: toastError });
+  return useMutation({ mutationFn: (pointId: string) => deletePoint(eventId, pointId), onSuccess: refresh, onError: gameToastError });
 }
 
 export function useHuntLive(eventId: number, enabled = true) {
@@ -219,4 +221,18 @@ export function usePlayers(eventId: number, q: { q: string; optedOut: boolean },
 export function useResetPin(eventId: number) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (registrationId: string) => resetPin(eventId, registrationId), onSuccess: () => void qc.invalidateQueries({ queryKey: key(eventId, "players") }) });
+}
+
+// ─── The venue screen's feed ─────────────────────────────────────────────
+
+export function useFeed(eventId: number, enabled = true) {
+  return useQuery({ queryKey: key(eventId, "feed"), queryFn: () => fetchFeed(eventId), enabled: enabled && eventId > 0, staleTime: LIVE_MS / 2, refetchInterval: LIVE_MS * 3, refetchIntervalInBackground: false, retry: false });
+}
+
+export function useSetFeedHidden(eventId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ feedId, hidden }: { feedId: string; hidden: boolean }) => setFeedHidden(eventId, feedId, hidden),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: key(eventId, "feed") }),
+  });
 }

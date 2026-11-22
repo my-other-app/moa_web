@@ -19,15 +19,15 @@ function Totals({ o }: { o: GamesOverview }) {
         <StatCard label="Events with Scavenger Hunt" value={num(hunt.events)} caption={`${num(hunt.players)} players`} />
         <StatCard
           label="Clubs with the games"
-          value={num(o.plans.reduce((s, p) => s + p.game_cards + p.game_hunt, 0))}
-          caption={o.plans.length ? o.plans.map((p) => `${p.plan_name || p.plan_key}: ${p.game_cards}/${p.game_hunt}`).join(" · ") : "Cards / hunt, by plan"}
+          value={num(o.clubs_with.game_cards)}
+          caption={`${num(o.clubs_with.game_cards)} with Hero Cards, ${num(o.clubs_with.game_hunt)} with Scavenger Hunt${o.plans.length ? ` · ${o.plans.filter((p) => p.game_cards || p.game_hunt).map((p) => `${p.name || p.plan}: ${num(p.clubs)}`).join(", ")}` : ""}`}
         />
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <section aria-label="Hero Cards totals" className="border-line-soft rounded-2xl border p-4">
           <h2 className="m-0 text-[15px] font-semibold">Hero Cards</h2>
           <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
-            <Fact label="Connected now" value={cards.connected_now} />
+            <Fact label="Players" value={cards.players} />
             <Fact label="Reveals" value={cards.reveals} />
             <Fact label="Collects" value={cards.collects} />
             <Fact label="Decks completed" value={cards.decks_completed} />
@@ -36,10 +36,9 @@ function Totals({ o }: { o: GamesOverview }) {
         <section aria-label="Scavenger Hunt totals" className="border-line-soft rounded-2xl border p-4">
           <h2 className="m-0 text-[15px] font-semibold">Scavenger Hunt</h2>
           <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
-            <Fact label="Connected now" value={hunt.connected_now} />
+            <Fact label="Players" value={hunt.players} />
             <Fact label="Claims" value={hunt.claims} />
             <Fact label="Hunts completed" value={hunt.hunts_completed} />
-            <Fact label="Players" value={hunt.players} />
           </dl>
         </section>
       </div>
@@ -68,6 +67,7 @@ export const COLUMNS: DataTableColumn<GameRow>[] = [
         <p className="m-0 font-medium">{r.event_name || `Event ${r.event_id}`}</p>
         <p className="text-ink-3 m-0 text-xs">
           {r.club_name || "Unknown club"} · {gamesOf(r)}
+          {r.event_datetime && !Number.isNaN(new Date(r.event_datetime).getTime()) ? ` · ${new Date(r.event_datetime).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : ""}
         </p>
       </div>
     ),

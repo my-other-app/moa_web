@@ -458,11 +458,12 @@ export function HuntLivePanel({ live }: { live: HuntLive }) {
         <span className="text-ink block text-[15px] font-semibold">Live scans</span>
         <span className="text-ink-3 mt-0.5 block text-[12.5px]">Refreshes every 5 seconds while this page is open.</span>
       </div>
-      <div className="border-line-soft grid gap-3 border-t p-4 sm:grid-cols-3">
+      <div className="border-line-soft grid gap-3 border-t p-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ["Players", live.players],
           ["Scans", live.scans],
           ["Finds", live.claims],
+          ["Finished every point", live.finishers],
         ].map(([label, n]) => (
           <div key={label as string} className="border-line-soft rounded-xl border p-3">
             <p className="text-ink-3 m-0 text-[11.5px]">{label}</p>
@@ -480,8 +481,9 @@ export function HuntLivePanel({ live }: { live: HuntLive }) {
             <ul className="m-0 mt-2 grid list-none gap-1.5 p-0 text-[13px]">
               {live.flags.map((f) => (
                 <li key={f.registration_id} className="border-line-soft rounded-lg border px-2.5 py-1.5">
-                  <span className="font-medium">{f.name || (f.player_no ? `Player #${f.player_no}` : "A player")}</span>
+                  <span className="font-medium">{f.name || "A player"}</span>
                   <span className="text-ink-2"> · {plural(f.claims, "find")} in {f.zones.length ? f.zones.join(", ") : "different zones"}</span>
+                  {f.first_at ? <span className="text-ink-3"> · from {new Date(f.first_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span> : null}
                 </li>
               ))}
             </ul>
@@ -495,7 +497,8 @@ export function HuntLivePanel({ live }: { live: HuntLive }) {
             <ul className="m-0 mt-2 grid list-none gap-1 p-0 text-[13px]">
               {live.recent.map((r, i) => (
                 <li key={i} className="text-ink-2">
-                  <span className="text-ink font-medium">{r.name}</span> found {r.point} <span className="tabular-nums">(+{r.points})</span>
+                  <span className="text-ink font-medium">{r.name}</span> found a code
+                  {r.at ? <span className="text-ink-3 tabular-nums"> · {new Date(r.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span> : null}
                 </li>
               ))}
             </ul>
@@ -517,7 +520,7 @@ export function HuntPanel({ eventId, canEdit, locked, theme }: { eventId: number
   const list = React.useMemo(() => points.data ?? [], [points.data]);
   // Per-point counts ride on the live feed too: whichever is fresher.
   const counted = React.useMemo(() => {
-    const byId = new Map((live.data?.points ?? []).map((p) => [p.point_id, p.scans]));
+    const byId = new Map((live.data?.points ?? []).map((p) => [p.id, p.scans]));
     return list.map((p) => ({ ...p, scans: byId.get(p.id) ?? p.scans }));
   }, [list, live.data]);
   return (

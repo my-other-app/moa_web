@@ -10,19 +10,22 @@ import { z } from "zod";
 const count = z.number().catch(0);
 const text = z.string().catch("");
 
+// "Connected now" is one platform number (totals.connected_now), not one per game.
 const cardsTotals = z
-  .object({ events: count, players: count, connected_now: count, reveals: count, collects: count, decks_completed: count })
-  .catch({ events: 0, players: 0, connected_now: 0, reveals: 0, collects: 0, decks_completed: 0 });
+  .object({ events: count, players: count, reveals: count, collects: count, decks_completed: count })
+  .catch({ events: 0, players: 0, reveals: 0, collects: 0, decks_completed: 0 });
 
 const huntTotals = z
-  .object({ events: count, players: count, connected_now: count, claims: count, hunts_completed: count })
-  .catch({ events: 0, players: 0, connected_now: 0, claims: 0, hunts_completed: 0 });
+  .object({ events: count, players: count, claims: count, hunts_completed: count })
+  .catch({ events: 0, players: 0, claims: 0, hunts_completed: 0 });
 
 export const gameRowSchema = z.object({
   club_id: z.union([z.number(), z.string()]).nullish().catch(null),
   club_name: text,
   event_id: z.union([z.number(), z.string()]),
   event_name: text,
+  slug: z.string().nullish().catch(null).transform((v) => v ?? null),
+  event_datetime: z.string().nullish().catch(null).transform((v) => v ?? null),
   cards_on: z.boolean().catch(false),
   hunt_on: z.boolean().catch(false),
   players: count,
@@ -35,17 +38,19 @@ export const gameRowSchema = z.object({
 });
 export type GameRow = z.infer<typeof gameRowSchema>;
 
+/** A plan, which games it includes, and how many clubs are on it. */
 const planCount = z.object({
-  plan_key: text,
-  plan_name: text,
-  game_cards: count,
-  game_hunt: count,
+  plan: text,
+  name: text,
+  game_cards: z.boolean().catch(false),
+  game_hunt: z.boolean().catch(false),
+  clubs: count,
 });
 
 export const gamesOverviewSchema = z.object({
   totals: z
-    .object({ cards: cardsTotals, hunt: huntTotals, connected_now: count })
-    .catch({ cards: cardsTotals.parse({}), hunt: huntTotals.parse({}), connected_now: 0 }),
+    .object({ cards: cardsTotals, hunt: huntTotals, events: count, players: count, connected_now: count })
+    .catch({ cards: cardsTotals.parse({}), hunt: huntTotals.parse({}), events: 0, players: 0, connected_now: 0 }),
   rows: z
     .array(z.unknown())
     .catch([])
@@ -64,6 +69,8 @@ export const gamesOverviewSchema = z.object({
         return p.success ? [p.data] : [];
       }),
     ),
+  /** Clubs whose plan includes each game. */
+  clubs_with: z.object({ game_cards: count, game_hunt: count }).catch({ game_cards: 0, game_hunt: 0 }),
 });
 export type GamesOverview = z.infer<typeof gamesOverviewSchema>;
 
@@ -73,7 +80,7 @@ export interface GamesRange {
   to: string;
 }
 
-/** Players connected anywhere right now: the card from the API, else the sum of both games' rows. */
+/** Players connected anywhere right now: totals.connected_now, else the sum of the rows. */
 export function connectedNow(o: GamesOverview): number {
   return o.totals.connected_now || o.rows.reduce((s, r) => s + r.connected_now, 0);
 }

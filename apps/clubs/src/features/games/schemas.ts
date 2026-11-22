@@ -83,6 +83,12 @@ export const settingsSchema = z.object({
   join_box_on: z.boolean().catch(true),
   screen_version: count,
   updated_at: when,
+  /** Which games this club's plan includes. */
+  plan: z
+    .object({ game_cards: z.boolean().catch(true), game_hunt: z.boolean().catch(true) })
+    .nullish()
+    .catch(null)
+    .transform((v) => v ?? null),
 });
 export type GameSettings = z.infer<typeof settingsSchema>;
 
@@ -91,7 +97,8 @@ export type SettingsPatch = Partial<
   Pick<GameSettings, "cards_on" | "cards_name" | "hunt_on" | "hunt_name" | "theme" | "logo_url" | "board_layout" | "board_rows" | "ticker_on" | "join_box_on">
 >;
 
-export const screenSchema = z.object({ url: text });
+/** GET screen and POST screen/rotate: {url, token, version}. */
+export const screenSchema = z.object({ url: text, token: maybeText, version: count });
 export type ScreenLink = z.infer<typeof screenSchema>;
 
 // ─── Hero Cards: rules ───────────────────────────────────────────────────
@@ -136,10 +143,12 @@ export const cardConfigSchema = z
     collect_on: z.boolean().catch(true).parse(raw.collect_on),
     two_way: z.boolean().catch(true).parse(raw.two_way),
     show_holders: z.boolean().catch(true).parse(raw.show_holders),
+    /** The server's own cautions about the saved rules, e.g. SMALL_EVENT_HARD. */
+    warnings: listOf(z.object({ code: text, message: text })).parse(raw.warnings),
   }));
 export type CardConfig = z.infer<typeof cardConfigSchema>;
 
-export type CardConfigPatch = Partial<CardConfig>;
+export type CardConfigPatch = Partial<Omit<CardConfig, "warnings">>;
 
 // ─── Hero Cards: live monitor (SPEC §8.1) ────────────────────────────────
 
@@ -149,9 +158,11 @@ export const cardLiveSchema = z.object({
   registered: z.number().nullish().catch(null).transform((v) => v ?? null),
   legendary_revealed: count,
   legendary_target: count,
+  legendary_floor: count,
   full_decks: count,
   collects: count,
-  tiers: listOf(z.object({ tier: z.enum(TIERS), revealed: count, expected: z.number().catch(0) })),
+  heroes: count,
+  tiers: listOf(z.object({ tier: z.enum(TIERS), revealed: count, expected: z.number().catch(0), share: count })),
 });
 export type CardLive = z.infer<typeof cardLiveSchema>;
 
@@ -182,12 +193,18 @@ export const heroSchema = z.object({
   name: text,
   tagline: text,
   tier: z.enum(TIERS).catch("common"),
+  /** The stored art's key, and its address. */
+  art: maybeText,
   art_url: maybeText,
   emblem_key: maybeText,
   holders: count,
   /** How many attendees have revealed this hero: any, and it cannot be deleted or change tier. */
   reveals: z.number().nullish().catch(null).transform((v) => v ?? null),
-  revealed: z.boolean().nullish().catch(null).transform((v) => v ?? null),
+  revealed: z
+    .union([z.boolean(), z.number()])
+    .nullish()
+    .catch(null)
+    .transform((v) => (v == null ? null : Boolean(v))),
 });
 export type Hero = z.infer<typeof heroSchema>;
 
@@ -302,7 +319,10 @@ export const huntSchema = z.object({
   bonus_n: z.number().catch(10),
   bonus_pts: z.number().catch(20),
   hint_cost: z.number().catch(10),
+  paused_at: when,
   server_now: when,
+  /** GET and PUT hunt carry the points too: this is where the list comes from. */
+  points: z.array(z.unknown()).catch([]),
 });
 export type Hunt = z.infer<typeof huntSchema>;
 
@@ -332,6 +352,8 @@ export const pointSchema = z.object({
   base_points: z.number().catch(30),
   hint: text,
   scans: count,
+  /** The QR code's token, for the printed sheet. */
+  code: maybeText,
 });
 export type HuntPoint = z.infer<typeof pointSchema>;
 
@@ -404,18 +426,22 @@ export const huntLiveSchema = z.object({
   scans: count,
   claims: count,
   players: count,
-  points: listOf(z.object({ point_id: z.union([z.string(), z.number()]).transform(String), scans: count })),
+  points: listOf(z.object({ id: z.union([z.string(), z.number()]).transform(String), number: count, label: text, zone: text, scans: count })),
+  /** Players who found every point: a count, or the list. */
+  finishers: z
+    .union([z.number(), z.array(z.unknown())])
+    .catch(0)
+    .transform((v) => (Array.isArray(v) ? v.length : v)),
   flags: listOf(
     z.object({
       registration_id: z.union([z.string(), z.number()]).transform(String),
       name: text,
-      player_no: z.number().nullish().catch(null).transform((v) => v ?? null),
       claims: count,
       zones: z.array(z.string()).catch([]),
-      at: when,
+      first_at: when,
     }),
   ),
-  recent: listOf(z.object({ name: text, point: text, points: count, at: when })),
+  recent: listOf(z.object({ name: text, at: when })),
 });
 export type HuntLive = z.infer<typeof huntLiveSchema>;
 
@@ -427,7 +453,10 @@ export const playerSchema = z.object({
   email: maybeText,
   player_no: z.number().nullish().catch(null).transform((v) => v ?? null),
   public: z.boolean().catch(true),
+  heroes: count,
+  points: count,
   pin_locked: z.boolean().catch(false),
+  last_seen_at: when,
 });
 export type Player = z.infer<typeof playerSchema>;
 
@@ -441,3 +470,20 @@ export function boardName(p: Pick<Player, "name" | "public" | "player_no">): str
   if (parts.length < 2) return parts[0] ?? "A player";
   return `${parts[0]} ${parts[parts.length - 1]![0]!.toUpperCase()}.`;
 }
+
+/** POST players/{id}/reset-pin: the new badge code and PIN, to hand over at the desk. */
+export const pinResetSchema = z.object({ registration_id: z.union([z.string(), z.number()]).transform(String), url: maybeText, token: maybeText, pin: z.union([z.string(), z.number()]).nullish().catch(null).transform((v) => (v == null ? null : String(v))) });
+export type PinReset = z.infer<typeof pinResetSchema>;
+
+// ─── The venue screen's feed ─────────────────────────────────────────────
+
+/** GET feed: the latest events, hidden ones included; the venue screen shows the unhidden. */
+export const feedItemSchema = z.object({
+  id: z.union([z.string(), z.number()]).transform(String),
+  game: z.string().nullish().catch(null).transform((v) => v ?? null),
+  type: z.string().nullish().catch(null).transform((v) => v ?? null),
+  message: text,
+  created_at: when,
+  hidden: z.boolean().catch(false),
+});
+export type FeedItem = z.infer<typeof feedItemSchema>;

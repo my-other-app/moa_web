@@ -29,40 +29,50 @@ const SETTINGS = {
   join_box_on: true,
   screen_version: 1,
   updated_at: "2026-11-22T10:00:00Z",
+  plan: { game_cards: true, game_hunt: true },
 };
-const CONFIG = { preset: "medium", shares: { common: 52, uncommon: 30, rare: 13, legendary: 5 }, legendary_floor: 4, pin_required: true, collect_on: true, two_way: true, show_holders: true };
+const SCREEN = { url: "https://myotherapp.in/screen/s.42.1.abc", token: "s.42.1.abc", version: 1 };
+const FEED = [
+  { id: 31, game: "cards", type: "reveal", message: "Asha K. pulled a Rare card", created_at: "2026-11-28T05:00:00Z", hidden: false },
+  { id: 30, game: "hunt", type: "claim", message: "Ben T. found a code", created_at: "2026-11-28T04:59:00Z", hidden: true },
+];
+const CONFIG = { preset: "medium", shares: { common: 52, uncommon: 30, rare: 13, legendary: 5 }, legendary_floor: 4, pin_required: true, collect_on: true, two_way: true, show_holders: true, warnings: [] as unknown[] };
 const LIVE = {
   revealed: 120,
   checked_in: 150,
   registered: 300,
   legendary_revealed: 3,
   legendary_target: 4,
+  legendary_floor: 4,
   full_decks: 2,
   collects: 640,
+  heroes: 5,
   tiers: [
-    { tier: "common", revealed: 62, expected: 62.4 },
-    { tier: "legendary", revealed: 3, expected: 6 },
+    { tier: "common", revealed: 62, expected: 62.4, share: 52 },
+    { tier: "legendary", revealed: 3, expected: 6, share: 5 },
   ],
 };
-const hero = (n: number, tier: string, over: Record<string, unknown> = {}) => ({ id: `h${n}`, number: n, name: `Hero ${n}`, tagline: `Line ${n}`, tier, art_url: null, emblem_key: "bolt", holders: 0, reveals: 0, ...over });
-const HEROES = [hero(1, "common"), hero(2, "common"), hero(3, "uncommon"), hero(4, "rare", { reveals: 9, holders: 12 }), hero(5, "legendary")];
-const HUNT = { status: "draft", starts_at: null, ends_at: null, duration_minutes: 90, mode: "ordered", bonus_n: 10, bonus_pts: 20, hint_cost: 10, server_now: null };
+const hero = (n: number, tier: string, over: Record<string, unknown> = {}) => ({ id: `h${n}`, number: n, name: `Hero ${n}`, tagline: `Line ${n}`, tier, art: null, art_url: null, emblem_key: "bolt", holders: 0, reveals: 0, revealed: false, ...over });
+const HEROES = [hero(1, "common"), hero(2, "common"), hero(3, "uncommon"), hero(4, "rare", { reveals: 9, holders: 12, revealed: true }), hero(5, "legendary")];
+const HUNT = { status: "draft", starts_at: null, ends_at: null, duration_minutes: 90, mode: "ordered", bonus_n: 10, bonus_pts: 20, hint_cost: 10, paused_at: null, server_now: null };
 const POINTS = [
-  { id: "p1", number: 1, label: "Registration pillar", clue: "Where you collected your badge.", zone: "Lobby", base_points: 30, hint: "Look up.", scans: 41 },
-  { id: "p2", number: 2, label: "Sponsor wall", clue: "Logos as far as you can see.", zone: "Hall A", base_points: 50, hint: "", scans: 12 },
+  { id: "p1", number: 1, label: "Registration pillar", clue: "Where you collected your badge.", zone: "Lobby", base_points: 30, hint: "Look up.", scans: 41, code: "p.42.abc.mac" },
+  { id: "p2", number: 2, label: "Sponsor wall", clue: "Logos as far as you can see.", zone: "Hall A", base_points: 50, hint: "", scans: 12, code: "p.42.def.mac" },
 ];
 const HUNT_LIVE = {
   scans: 90,
   claims: 53,
   players: 31,
-  points: [{ point_id: "p1", scans: 44 }],
-  flags: [{ registration_id: "r9", name: "Asha K.", player_no: 9, claims: 3, zones: ["Lobby", "Hall A", "Hall C"], at: "2026-11-28T05:00:00Z" }],
-  recent: [{ name: "Ben T.", point: "Sponsor wall", points: 70, at: "2026-11-28T05:01:00Z" }],
+  points: [{ id: "p1", number: 1, label: "Registration pillar", zone: "Lobby", scans: 44 }],
+  finishers: 2,
+  flags: [{ registration_id: "r9", name: "Asha K.", claims: 3, zones: ["Lobby", "Hall A", "Hall C"], first_at: "2026-11-28T05:00:00Z" }],
+  flagged: [{ registration_id: "r9", name: "Asha K.", claims: 3, zones: ["Lobby", "Hall A", "Hall C"], first_at: "2026-11-28T05:00:00Z" }],
+  recent: [{ name: "Ben T.", at: "2026-11-28T05:01:00Z" }],
 };
 const PLAYERS = {
   items: [
-    { registration_id: "r1", name: "Asha Kumar", email: "asha@example.com", player_no: 1, public: true, pin_locked: false },
-    { registration_id: "r2", name: "Ben Thomas", email: "ben@example.com", player_no: 247, public: false, pin_locked: true },
+    { registration_id: "r1", name: "Asha Kumar", email: "asha@example.com", player_no: 1, public: true, heroes: 3, points: 120, pin_locked: false, last_seen_at: "2026-11-28T05:00:00Z" },
+    { registration_id: "r2", name: "Ben Thomas", email: "ben@example.com", player_no: 247, public: false, heroes: 1, points: 0, pin_locked: true, last_seen_at: null },
   ],
   total: 2,
 };
@@ -74,6 +84,7 @@ const state = {
   heroes: structuredClone(HEROES) as unknown[],
   hunt: structuredClone(HUNT) as Record<string, unknown>,
   points: structuredClone(POINTS) as unknown[],
+  feed: structuredClone(FEED) as unknown[],
   routeMissing: false,
   entitlements: { enforced: false, features: {} } as Record<string, unknown>,
 };
@@ -90,12 +101,13 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path === "/api/v1/clubs/entitlements") return { plan_key: "free", plan_name: "Free", limits: {}, usage: {}, configured: true, ...state.entitlements };
         if (path === "/api/v1/plans") return { currency: "INR", yearly_months_free: 2, plans: [{ id: 1, key: "pro", name: "Pro", tagline: null, price_monthly_paise: 0, price_yearly_paise: 0, trial_days: 0, contact_sales: false, featured: false, limits: {}, features: [{ key: "game_cards", label: "Hero card game", included: true }, { key: "game_hunt", label: "Scavenger hunt", included: true }] }] };
         if (path.endsWith("/games/settings")) return state.settings;
-        if (path.endsWith("/games/screen")) return { url: "https://myotherapp.in/screen/s.42.1.abc" };
+        if (path.endsWith("/games/screen")) return SCREEN;
+        if (path.endsWith("/games/feed")) return state.feed;
         if (path.endsWith("/cards/config")) return state.config;
         if (path.endsWith("/cards/live")) return state.live;
         if (path.endsWith("/cards/heroes")) return state.heroes;
-        if (path.endsWith("/games/hunt")) return state.hunt;
-        if (path.endsWith("/hunt/points")) return state.points;
+        // The points ride on GET hunt; there is no GET hunt/points.
+        if (path.endsWith("/games/hunt")) return { ...state.hunt, points: state.points };
         if (path.endsWith("/hunt/live")) return HUNT_LIVE;
         if (path.endsWith("/games/players")) return options?.query?.public === "false" ? { items: [PLAYERS.items[1]], total: 1 } : PLAYERS;
         throw new Error(`unstubbed GET ${path}`);
@@ -104,13 +116,15 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         calls.push({ method: "PATCH", path, body });
         if (path.endsWith("/games/settings")) return (state.settings = { ...state.settings, ...body, updated_at: new Date().toISOString() });
         if (path.endsWith("/cards/config")) return (state.config = { ...state.config, ...body });
+        if (path.includes("/games/feed/")) return { id: Number(path.split("/").pop()), hidden: body.hidden };
         if (path.includes("/cards/heroes/")) return { ...HEROES[0], ...body };
         if (path.includes("/hunt/points/")) return { ...POINTS[0], ...body };
         return {};
       }),
       post: vi.fn(async (path: string, body: unknown) => {
         calls.push({ method: "POST", path, body });
-        if (path.endsWith("/screen/rotate")) return { url: "https://myotherapp.in/screen/s.42.2.xyz" };
+        if (path.endsWith("/screen/rotate")) return { url: "https://myotherapp.in/screen/s.42.2.xyz", token: "s.42.2.xyz", version: 2 };
+        if (path.includes("/reset-pin")) return { registration_id: path.split("/").slice(-2)[0], url: "https://myotherapp.in/g/b.42.r2.1.mac", token: "b.42.r2.1.mac", pin: "7302" };
         if (path.endsWith("/settings/logo")) return { ...state.settings, logo_url: "https://cdn.example/logo.png" };
         if (path.endsWith("/cards/heroes")) return hero(6, "common", { id: "h6", ...(body as object) });
         if (path.endsWith("/art")) return hero(6, "common", { id: "h6", art_url: "https://cdn.example/art.png" });
@@ -161,6 +175,7 @@ beforeEach(() => {
   state.heroes = structuredClone(HEROES);
   state.hunt = structuredClone(HUNT);
   state.points = structuredClone(POINTS);
+  state.feed = structuredClone(FEED);
   state.routeMissing = false;
   state.entitlements = { enforced: false, features: {} };
   access.can = { edit_events: true, exports: true };
@@ -559,7 +574,8 @@ describe("the Scavenger Hunt", () => {
     expect(flags).toHaveTextContent("Asha K.");
     expect(flags).toHaveTextContent("3 finds");
     expect(flags).toHaveTextContent("Lobby, Hall A, Hall C");
-    expect(screen.getByRole("region", { name: "Recent finds" })).toHaveTextContent("Ben T. found Sponsor wall");
+    expect(screen.getByRole("region", { name: "Recent finds" })).toHaveTextContent("Ben T. found a code");
+    expect(screen.getByText("Finished every point")).toBeInTheDocument();
   });
 
   it("draws a clue phone on its own", () => {
@@ -594,6 +610,8 @@ describe("players", () => {
   });
 
   it("resets a PIN only after asking", async () => {
+    const { toast } = await import("@moa/ui");
+    const success = vi.spyOn(toast, "success");
     await open("Players");
     fireEvent.click(await screen.findByRole("button", { name: "Reset PIN for Ben Thomas" }));
     const confirm = await screen.findByRole("alertdialog");
@@ -602,6 +620,14 @@ describe("players", () => {
     fireEvent.click(within(confirm).getByRole("button", { name: "Reset PIN" }));
     await waitFor(() => expect(sent("POST", "/reset-pin")).toHaveLength(1));
     expect(sent("POST", "/reset-pin")[0]!.path).toBe(`/api/v1/events/${EVENT}/games/players/r2/reset-pin`);
+    // The answer's new PIN is read out to the desk.
+    await waitFor(() => expect(success).toHaveBeenCalledWith("PIN reset", { description: expect.stringContaining("New PIN for Ben Thomas: 7302") }));
+  });
+
+  it("shows each player's heroes and points", async () => {
+    await open("Players");
+    expect(await screen.findByText("3 heroes · 120 points")).toBeInTheDocument();
+    expect(screen.getByText("1 hero · 0 points")).toBeInTheDocument();
   });
 
   it("downloads each board as CSV, top 20 or everyone", async () => {
@@ -663,5 +689,125 @@ describe("the ID card designer's field list", () => {
       const t = DESIGN_TOKENS.find((x) => x.key === key);
       expect(t).toMatchObject({ label, kinds: ["badge"] });
     }
+  });
+});
+
+describe("aligned with the backend as built", () => {
+  it("reads the screen's {url, token, version}", () => {
+    expect(S.screenSchema.parse(SCREEN)).toEqual({ url: SCREEN.url, token: "s.42.1.abc", version: 1 });
+  });
+
+  it("reads a hero's art, art_url and revealed, and takes revealed as the lock", () => {
+    const h = S.heroSchema.parse(hero(4, "rare", { art: "heroes/42/h4.webp", art_url: "https://cdn.example/h4.webp", reveals: 9, holders: 12, revealed: true }));
+    expect(h).toMatchObject({ art: "heroes/42/h4.webp", art_url: "https://cdn.example/h4.webp", revealed: true });
+    expect(S.isRevealed(h)).toBe(true);
+    expect(S.isRevealed(S.heroSchema.parse(hero(5, "common", { reveals: 5, revealed: false })))).toBe(false);
+    expect(S.isRevealed(S.heroSchema.parse(hero(5, "common", { reveals: 5, revealed: undefined })))).toBe(true);
+  });
+
+  it("reads the live monitor's floor, heroes and tier shares", () => {
+    const l = S.cardLiveSchema.parse(LIVE);
+    expect(l).toMatchObject({ legendary_floor: 4, heroes: 5 });
+    expect(l.tiers[0]).toMatchObject({ tier: "common", share: 52 });
+  });
+
+  it("reads the hunt's live feed in its documented fields", () => {
+    const l = S.huntLiveSchema.parse(HUNT_LIVE);
+    expect(l.points).toEqual([{ id: "p1", number: 1, label: "Registration pillar", zone: "Lobby", scans: 44 }]);
+    expect(l.finishers).toBe(2);
+    expect(l.flags[0]).toMatchObject({ registration_id: "r9", claims: 3, first_at: "2026-11-28T05:00:00Z" });
+    expect(l.recent).toEqual([{ name: "Ben T.", at: "2026-11-28T05:01:00Z" }]);
+    expect(S.huntLiveSchema.parse({ ...HUNT_LIVE, finishers: [{ name: "a" }, { name: "b" }, { name: "c" }] }).finishers).toBe(3);
+  });
+
+  it("reads the hunt's points from GET hunt, with their QR code", async () => {
+    await open("Scavenger Hunt");
+    expect(await screen.findByText("Registration pillar")).toBeInTheDocument();
+    expect(calls.some((c) => c.path.endsWith("/hunt/points") && c.method === "GET")).toBe(false);
+    expect(S.huntSchema.parse({ ...HUNT, points: POINTS }).points).toHaveLength(2);
+    expect(S.pointSchema.parse(POINTS[0]).code).toBe("p.42.abc.mac");
+  });
+
+  it("reads players' heroes, points and last seen", () => {
+    expect(S.playersSchema.parse(PLAYERS).items[0]).toMatchObject({ heroes: 3, points: 120, last_seen_at: "2026-11-28T05:00:00Z" });
+  });
+
+  it("shows the server's own warnings about the saved rules", async () => {
+    state.config = { ...CONFIG, preset: "hard", shares: { common: 60, uncommon: 28, rare: 10, legendary: 2 }, warnings: [{ code: "SMALL_EVENT_HARD", message: "Hard needs a crowd: only 12 are registered." }] };
+    await open("Hero Cards");
+    expect(await screen.findByText("Hard needs a crowd: only 12 are registered.")).toBeInTheDocument();
+  });
+
+  it("says each hero, art, hunt and rules refusal in plain words", async () => {
+    const { ApiError } = await import("@moa/api");
+    const { errorText } = await import("./lib/errors");
+    const refuse = (error_code: string, errors: unknown = null, status = 409) =>
+      errorText(new ApiError({ status, errorCode: error_code, message: "server words", fieldErrors: errors as never }));
+    expect(refuse("HERO_REVEALED")).toMatch(/already revealed this hero/);
+    expect(refuse("MIN_HEROES", null, 422)).toMatch(/at least 4 heroes/);
+    expect(refuse("MAX_HEROES", null, 422)).toMatch(/at most 20 heroes/);
+    expect(refuse("ART_TOO_SMALL", null, 422)).toMatch(/900 × 1200/);
+    expect(refuse("ART_SHAPE", null, 422)).toMatch(/3:4 portrait/);
+    expect(refuse("ART_TOO_BIG", null, 422)).toMatch(/over 5 MB/);
+    expect(refuse("ART_NOT_IMAGE", null, 422)).toMatch(/can't be read as a picture/);
+    expect(refuse("ART_FORMAT", null, 422)).toMatch(/PNG, JPG or WebP/);
+    expect(refuse("HUNT_STARTED")).toMatch(/hunt has started/);
+    expect(refuse("HUNT_HAS_CLAIMS")).toMatch(/already found codes/);
+    expect(refuse("NO_POINTS", null, 422)).toMatch(/at least one QR point/);
+    expect(refuse("SHARES_NOT_100", { total: 98 } as never, 422)).toBe("The four shares total 98%. They must total 100%.");
+    expect(refuse("TIER_NEEDS_HERO", null, 422)).toMatch(/needs at least one hero/);
+    // Anything else keeps the server's words.
+    expect(refuse("SOMETHING_ELSE")).toBe("server words");
+  });
+
+  it("shows a refused save in plain words (SHARES_NOT_100)", async () => {
+    const { api } = await import("@moa/app-kit");
+    const { ApiError } = await import("@moa/api");
+    const { toast } = await import("@moa/ui");
+    const error = vi.spyOn(toast, "error");
+    vi.mocked(api.patch).mockImplementationOnce(async () => {
+      throw new ApiError({ status: 422, errorCode: "SHARES_NOT_100", message: "server words", fieldErrors: { total: 99 } as never });
+    });
+    await open("Hero Cards");
+    fireEvent.change(await screen.findByLabelText("Common share"), { target: { value: "51" } });
+    fireEvent.change(screen.getByLabelText("Uncommon share"), { target: { value: "31" } });
+    fireEvent.change(screen.getByLabelText("Rare share"), { target: { value: "13" } });
+    fireEvent.change(screen.getByLabelText("Legendary share"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save rules" }));
+    await waitFor(() => expect(error).toHaveBeenCalledWith("The four shares total 99%. They must total 100%."));
+  });
+
+  it("reads the 403 PLAN_FEATURE_LOCKED shape into an upgrade lock", async () => {
+    const { ApiError } = await import("@moa/api");
+    const { planLockFromError, isPlanLockError } = await import("@/features/plan/errors");
+    const err = new ApiError({
+      status: 403,
+      errorCode: "PLAN_FEATURE_LOCKED",
+      message: "Hero Cards needs the Pro plan.",
+      fieldErrors: { feature: "game_cards", label: "Hero card game", required_plan: "pro", upgrade_url: "/billing" } as never,
+    });
+    expect(isPlanLockError(err)).toBe(true);
+    expect(planLockFromError(err)).toMatchObject({ kind: "feature", key: "game_cards", label: "Hero card game", requiredPlan: "pro" });
+  });
+
+  it("lists the latest screen events, hides one and shows it again", async () => {
+    await open();
+    const feed = await screen.findByRole("list", { name: "Screen feed" });
+    expect(within(feed).getByText("Asha K. pulled a Rare card")).toBeInTheDocument();
+    expect(within(feed).getByText("Hidden")).toBeInTheDocument();
+    fireEvent.click(within(feed).getByRole("button", { name: "Hide: Asha K. pulled a Rare card" }));
+    await waitFor(() => expect(sent("PATCH", "/games/feed/31")).toHaveLength(1));
+    expect(sent("PATCH", "/games/feed/31")[0]!.body).toEqual({ hidden: true });
+    fireEvent.click(within(feed).getByRole("button", { name: "Show: Ben T. found a code" }));
+    await waitFor(() => expect(sent("PATCH", "/games/feed/30")).toHaveLength(1));
+    expect(sent("PATCH", "/games/feed/30")[0]!.body).toEqual({ hidden: false });
+  });
+
+  it("gives staff the feed to read, without the buttons", async () => {
+    access.can = { edit_events: false, exports: false };
+    await open();
+    const feed = await screen.findByRole("list", { name: "Screen feed" });
+    expect(within(feed).getByText("Ben T. found a code")).toBeInTheDocument();
+    expect(within(feed).queryByRole("button")).toBeNull();
   });
 });
