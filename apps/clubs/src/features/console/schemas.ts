@@ -33,6 +33,8 @@ export const EVENT_TABS = [
   { key: "live", label: "Live", path: "/live" },
   // Tasks, milestones and swag rewards for guests (once the API has quests; event-console asks).
   { key: "quests", label: "Quests", path: "/quests" },
+  // Hero Cards and the Scavenger Hunt: their own section, apart from Quests (once the API has the games; event-console asks).
+  { key: "games", label: "Games", path: "/games" },
   { key: "competition", label: "Competition", path: "/competition" },
   // 1st, 2nd and 3rd, per guest or per competition track (once the backend has results).
   { key: "results", label: "Results", path: "/results" },
