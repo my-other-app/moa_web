@@ -23,6 +23,23 @@ export type Organiser = z.infer<typeof organiserSchema>;
 
 export const organisersSchema = z.array(organiserSchema);
 
+/**
+ * GET /events/{id}/organisers/candidates: everyone who can be named, the
+ * host club's team first, then each co-host club's team. `host` is false for
+ * a co-host's people; `club_name` says whose team they are on.
+ */
+export const candidateSchema = z.object({
+  member_id: z.coerce.number(),
+  name: z.string(),
+  club_role: z.string().nullish(),
+  photo: z.string().nullish().catch(null),
+  club_id: z.coerce.number(),
+  club_name: z.string().nullish(),
+  host: z.boolean().catch(true),
+});
+export type Candidate = z.infer<typeof candidateSchema>;
+export const candidatesSchema = z.array(candidateSchema);
+
 /** One entry of PUT /events/{id}/organisers; the array's order is the page's. */
 export interface OrganiserInput {
   member_id: number;
@@ -40,8 +57,8 @@ export interface OrganiserDraft {
 }
 
 /**
- * The saved selection as a draft, keeping only people still on the club
- * team: the server would refuse anyone else with a 422.
+ * The saved selection as a draft, keeping only people who can still be
+ * named: the server would refuse anyone else with a 422.
  */
 export function draftFrom(saved: Organiser[], teamIds: number[]): OrganiserDraft {
   const known = new Set(teamIds);

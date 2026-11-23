@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, Loader2Icon, UsersIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ApiError, qk } from "@moa/api";
-import { pickImage, plural } from "@moa/app-kit";
+import { ApiError } from "@moa/api";
+import { plural } from "@moa/app-kit";
 import {
   Button,
   CardLabel,
@@ -20,9 +20,8 @@ import {
 } from "@moa/ui";
 
 import { useAccess } from "@/features/access";
-import { useMyClub, type ClubTeamMember } from "@/features/club";
 
-import { useOrganisers, useSaveOrganisers } from "../queries";
+import { candidatesKey, useOrganiserCandidates, useOrganisers, useSaveOrganisers } from "../queries";
 import {
   MAX_ORGANISERS,
   ROLE_MAX,
@@ -30,20 +29,42 @@ import {
   moveItem,
   sameOrganisers,
   toOrganiserInput,
+  type Candidate,
   type Organiser,
   type OrganiserDraft,
 } from "../schemas";
 
+/** Someone who can be named, as a row draws them; `club` is set only when more than one club's team is listed. */
+interface Person {
+  id: number;
+  name: string;
+  role: string | null;
+  photo: string | null;
+  club: string | null;
+}
+
+function people(candidates: Candidate[]): Person[] {
+  const several = new Set(candidates.map((c) => c.club_id)).size > 1;
+  return candidates.map((c) => ({
+    id: c.member_id,
+    name: c.name,
+    role: c.club_role ?? null,
+    photo: c.photo ?? null,
+    club: several ? (c.club_name ?? null) : null,
+  }));
+}
+
 /**
- * On the event page: which of the club's team the event's public page
- * lists as its organising team, in what order, and as what. Tick people,
- * give them a role for this event if it differs from their club role, put
- * them in order, save. Nobody ticked and the page shows the whole club team.
+ * On the event page: which of the host's team (and, for a co-hosted event,
+ * each co-host's team) the event's public page lists as its organising team,
+ * in what order, and as what. Tick people, give them a role for this event if
+ * it differs from their club role, put them in order, save. Nobody ticked and
+ * the page shows the host club's whole team.
  */
 const COLS = "sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,220px)_auto]";
 
-function Avatar({ member }: { member: ClubTeamMember }) {
-  const photo = pickImage(member.photo, ["thumbnail", "medium", "original", "large"]);
+function Avatar({ member }: { member: Person }) {
+  const photo = member.photo;
   return photo ? (
     <span className="border-line relative size-8 shrink-0 overflow-hidden rounded-full border">
       <Image src={photo} alt="" fill sizes="32px" className="object-cover" unoptimized />
@@ -65,7 +86,7 @@ function Row({
   onRole,
   onMove,
 }: {
-  member: ClubTeamMember;
+  member: Person;
   on: boolean;
   role: string;
   /** Where they sit among the picked, from 0; null when not picked. */
@@ -91,7 +112,10 @@ function Row({
         <Avatar member={member} />
         <span className="min-w-0">
           <span className="text-ink block truncate text-[13.5px] font-medium">{member.name}</span>
-          <span className="text-ink-3 block truncate text-[11.5px]">{member.role || "No club role"}</span>
+          <span className="text-ink-3 block truncate text-[11.5px]">
+            {member.role || "No club role"}
+            {member.club ? ` · ${member.club}` : ""}
+          </span>
         </span>
       </label>
       <span className="col-span-3 sm:col-span-1 sm:col-start-3 sm:row-start-1">
@@ -127,11 +151,14 @@ function Row({
 function Editor({
   eventId,
   team,
+  hostSize,
   saved,
   readOnly,
 }: {
   eventId: number;
-  team: ClubTeamMember[];
+  /** How many of `team` are on the host club's team. */
+  hostSize: number;
+  team: Person[];
   saved: Organiser[];
   readOnly: boolean;
 }) {
@@ -143,13 +170,15 @@ function Editor({
   const [error, setError] = React.useState<string | null>(null);
 
   const byId = new Map(team.map((m) => [m.id, m]));
-  // Someone taken off the club team since is dropped: the server would refuse them.
+  // Someone taken off a team (or whose club stopped co-hosting) since is dropped: the server would refuse them.
   const pickedIds = draft.picked.filter((id) => byId.has(id));
   const current: OrganiserDraft = { picked: pickedIds, roles: draft.roles };
   const picked = pickedIds.map((id) => byId.get(id)!);
   const rest = team.filter((m) => !pickedIds.includes(m.id));
   const dirty = !sameOrganisers(current, base);
   const full = pickedIds.length >= MAX_ORGANISERS;
+  const hostOnly = !team.some((m) => m.club !== null);
+  const hostCount = hostOnly ? team.length : hostSize;
 
   const edit = (next: (d: OrganiserDraft) => OrganiserDraft) => {
     setError(null);
@@ -166,13 +195,13 @@ function Editor({
       onSuccess: () => setBase(current),
       onError: (e: Error) => {
         setError(e.message);
-        // "Not in the club" means the list here is behind the club team; bring it up to date.
-        if (e instanceof ApiError && e.status === 422) void qc.invalidateQueries({ queryKey: qk.clubs.self() });
+        // "Not on the team" means the list here is behind the teams; bring it up to date.
+        if (e instanceof ApiError && e.status === 422) void qc.invalidateQueries({ queryKey: candidatesKey(eventId) });
       },
     });
   };
 
-  const rowFor = (m: ClubTeamMember, position: number | null) => (
+  const rowFor = (m: Person, position: number | null) => (
     <Row
       key={m.id}
       member={m}
@@ -192,7 +221,7 @@ function Editor({
 
   return (
     <>
-      <ul aria-label="The club team">
+      <ul aria-label="The organising team to pick from">
         {picked.map((m, i) => rowFor(m, i))}
         {picked.length && rest.length ? (
           <li className="border-line-soft bg-sunken/60 border-t px-4 py-1.5" aria-hidden="true">
@@ -210,7 +239,7 @@ function Editor({
         <span className="text-ink-3 text-[12px]">
           {pickedIds.length
             ? `The event page lists ${pickedIds.length} of ${plural(team.length, "person", "people")}, in this order.${full ? ` That is the most it shows.` : ""}`
-            : `Nobody ticked: the event page shows the whole club team (${plural(team.length, "person", "people")}).`}
+            : `Nobody ticked: the event page shows the whole ${hostOnly ? "club" : "host club"} team (${plural(hostCount, "person", "people")}).`}
         </span>
         <span className="flex-1" />
         {readOnly ? (
@@ -246,12 +275,13 @@ function Editor({
   );
 }
 
-/** Which of the club's team the event's public page lists, in what order, and as what. */
+/** Which of the host's and co-hosts' teams the event's public page lists, in what order, and as what. */
 export function OrganisersPanel({ eventId }: { eventId: number }) {
-  const club = useMyClub();
+  const club = useOrganiserCandidates(eventId);
   const saved = useOrganisers(eventId);
   const { can } = useAccess();
-  const team = club.data?.team ?? [];
+  const team = people(club.data ?? []);
+  const hostSize = (club.data ?? []).filter((c) => c.host).length;
   // A new server answer (a save, or someone else's) starts the editor over from it.
   const savedKey = saved.data ? saved.data.map((o) => `${o.member_id}:${o.role ?? ""}`).join("|") : "";
 
@@ -262,7 +292,7 @@ export function OrganisersPanel({ eventId }: { eventId: number }) {
           right={
             saved.data && club.data && team.length ? (
               <span className="text-ink-3 text-[11px]">
-                {saved.data.length ? `${plural(saved.data.length, "organiser")} listed` : "whole club team"}
+                {saved.data.length ? `${plural(saved.data.length, "organiser")} listed` : team.some((m) => m.club) ? "whole host club team" : "whole club team"}
               </span>
             ) : null
           }
@@ -270,7 +300,7 @@ export function OrganisersPanel({ eventId }: { eventId: number }) {
           On the event page
         </CardLabel>
         <p className="text-ink-3 mt-1 max-w-[72ch] text-[12px] leading-[1.5]">
-          Who the event&apos;s public page lists as its organising team, and in what order. With nobody ticked, it shows the club&apos;s whole team.
+          Who the event&apos;s public page lists as its organising team, and in what order. With nobody ticked, it shows the host club&apos;s whole team.
         </p>
       </div>
       {club.isPending || saved.isPending ? (
@@ -310,7 +340,7 @@ export function OrganisersPanel({ eventId }: { eventId: number }) {
           }
         />
       ) : (
-        <Editor key={savedKey} eventId={eventId} team={team} saved={saved.data} readOnly={!can.edit_events} />
+        <Editor key={savedKey} eventId={eventId} team={team} hostSize={hostSize} saved={saved.data} readOnly={!can.edit_events} />
       )}
     </FigurePanel>
   );

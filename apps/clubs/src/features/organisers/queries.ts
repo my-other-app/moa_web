@@ -5,13 +5,19 @@ import { qk } from "@moa/api";
 import { plural } from "@moa/app-kit";
 import { toast } from "@moa/ui";
 
-import { fetchOrganisers, saveOrganisers } from "./api";
+import { fetchOrganiserCandidates, fetchOrganisers, saveOrganisers } from "./api";
 import type { OrganiserInput } from "./schemas";
 
 const key = (eventId: number) => [...qk.events.detail(eventId), "organisers"] as const;
+export const candidatesKey = (eventId: number) => [...key(eventId), "candidates"] as const;
 
 export function useOrganisers(eventId: number) {
   return useQuery({ queryKey: key(eventId), queryFn: () => fetchOrganisers(eventId), staleTime: 10_000 });
+}
+
+/** Everyone who can be named: the host club's team, then each co-host club's. */
+export function useOrganiserCandidates(eventId: number) {
+  return useQuery({ queryKey: candidatesKey(eventId), queryFn: () => fetchOrganiserCandidates(eventId), staleTime: 10_000 });
 }
 
 /**
