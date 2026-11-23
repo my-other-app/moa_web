@@ -17,6 +17,10 @@ const DOOR = {
 };
 
 let team: unknown[] = TEAM;
+let candidates: unknown[] | null = null;
+const asCandidate = (m: ReturnType<typeof member>, club_id = 5, club_name = "LetMeGoo", host = true) => ({
+  member_id: m.id, name: m.name, club_role: m.role, photo: m.photo, club_id, club_name, host,
+});
 let saved: unknown = SAVED;
 let me: unknown = null;
 let refuse: ApiError | null = null;
@@ -29,6 +33,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       get: vi.fn(async (path: string) => {
         calls.push({ method: "GET", path });
         if (path.endsWith("/clubs/info")) return { ...clubInfoFixture, team };
+        if (path.endsWith("/events/37/organisers/candidates")) return candidates ?? (team as ReturnType<typeof member>[]).map((m) => asCandidate(m));
         if (path.endsWith("/events/37/organisers")) {
           if (saved instanceof Error) throw saved;
           return saved;
@@ -59,6 +64,7 @@ const put = () => calls.find((c) => c.method === "PUT");
 beforeEach(() => {
   calls.length = 0;
   team = TEAM;
+  candidates = null;
   saved = SAVED;
   me = null;
   refuse = null;
@@ -76,7 +82,7 @@ describe("on the event page", () => {
     // An empty event role falls back to the club role, which the placeholder shows.
     expect(screen.getByLabelText("Ananya Iyer's role at this event")).toHaveAttribute("placeholder", "Lead");
     expect(screen.getByLabelText("Rohan Patil's role at this event")).toBeDisabled();
-    expect(screen.getByText(/With nobody ticked, it shows the club's whole team/)).toBeInTheDocument();
+    expect(screen.getByText(/With nobody ticked, it shows the host club's whole team/)).toBeInTheDocument();
     expect(screen.getByText("The event page lists 2 of 3 people, in this order.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Saved" })).toBeDisabled();
   });
@@ -125,6 +131,24 @@ describe("on the event page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Discard" }));
     expect(box("Rohan Patil")).not.toBeChecked();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("lists a co-host's people after the host's, says whose team they are on, and saves them", async () => {
+    candidates = [
+      ...TEAM.map((m) => asCandidate(m)),
+      asCandidate(member(9, "Kiran Das", "GDG Organizer"), 8, "GDG Thiruvananthapuram", false),
+    ];
+    render(<OrganisersPanel eventId={37} />);
+    await screen.findByRole("checkbox", { name: "Show Kiran Das on the event page" });
+    expect(order()).toEqual(["Meera Nair", "Ananya Iyer", "Rohan Patil", "Kiran Das"]);
+    expect(screen.getByText(/GDG Organizer · GDG Thiruvananthapuram/)).toBeInTheDocument();
+    expect(screen.getByText(/Lead · LetMeGoo/)).toBeInTheDocument();
+    fireEvent.click(box("Kiran Das"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(put()?.body).toEqual({ members: [{ member_id: 3, role: "Host" }, { member_id: 1, role: null }, { member_id: 9, role: null }] }),
+    );
+    expect(calls.some((c) => c.path.endsWith("/clubs/info"))).toBe(false);
   });
 
   it("sends a club with nobody on its team to the club profile's team section", async () => {
