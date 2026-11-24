@@ -69,7 +69,7 @@ const ROLE_PLURAL: Record<RegistrationRole, string> = {
 };
 
 /** The filters the list reads from the URL; clearing them clears the search too. */
-const FILTER_KEYS = ["role", "in", "delivery", "paid", "missing", "q"];
+const FILTER_KEYS = ["role", "in", "delivery", "paid", "app", "missing", "q"];
 
 const CELL = "px-4 py-2.5 text-left align-middle";
 const HEAD = "text-ink-3 px-4 py-2 text-left font-mono text-[10px] font-normal tracking-[0.06em] uppercase";
@@ -264,6 +264,7 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
   const checkedIn = params.param("in");
   const delivery = params.param("delivery") === "not_delivered" ? "not_delivered" : undefined;
   const paid = params.param("paid");
+  const app = params.param("app");
   const missing = params.param("missing") || undefined;
   const sortParam = params.param("sort");
   const sort = sortParam && GUEST_SORTS.some((o) => o.value === sortParam) ? sortParam : undefined;
@@ -280,6 +281,7 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
     search: params.search || undefined,
     isAttended: checkedIn === "yes" ? true : checkedIn === "no" ? false : undefined,
     isPaid: paid === "yes" ? true : paid === "no" ? false : undefined,
+    hasApp: app === "yes" ? true : app === "no" ? false : undefined,
     role,
     delivery,
     missing,
@@ -290,7 +292,7 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
   const rows = list.data?.items ?? [];
   const total = list.data?.total ?? null;
   const pages = pageCount(total, params.pageSize) ?? 1;
-  const filtered = !!(params.search || role || checkedIn || delivery || paid || missing);
+  const filtered = !!(params.search || role || checkedIn || delivery || paid || app || missing);
   const empty = !list.isPending && !list.isError && rows.length === 0 && !filtered;
 
   const s = summary.data;
@@ -304,12 +306,13 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
   // The chip once the API has missing answers, while anyone on the list is missing some (or it is on).
   const missingChip = answers.data != null && (Boolean(missing) || (someoneMissing && missingN !== 0));
 
-  // The export takes the check-in and payment filters; the others are the list's alone.
+  // The export takes the check-in, payment and app filters; the others are the list's alone.
   const exportFilter = {
     ...(checkedIn === "yes" ? { isAttended: true } : checkedIn === "no" ? { isAttended: false } : {}),
     ...(paid === "yes" ? { isPaid: true } : paid === "no" ? { isPaid: false } : {}),
+    ...(app === "yes" ? { hasApp: true } : app === "no" ? { hasApp: false } : {}),
   };
-  const exportScope = [checkedIn === "yes" ? "checked in" : checkedIn === "no" ? "not yet in" : null, paid === "yes" ? "paid" : paid === "no" ? "unpaid" : null].filter(Boolean).join(", ");
+  const exportScope = [checkedIn === "yes" ? "checked in" : checkedIn === "no" ? "not yet in" : null, paid === "yes" ? "paid" : paid === "no" ? "unpaid" : null, app === "yes" ? "with the app" : app === "no" ? "without the app" : null].filter(Boolean).join(", ");
 
   /** A figure that leads into the list: set the one filter and bring the list into view. */
   const show = (key: string, value: string) => {
@@ -475,6 +478,12 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
               <Chip active={!!delivery} tone="refuse" onClick={() => toggle("delivery", "not_delivered", delivery)}>
                 Not delivered
               </Chip>
+              <Chip active={app === "yes"} onClick={() => toggle("app", "yes", app)}>
+                Has app{s ? ` ${formatNumber(s.app?.with_app ?? 0)}` : ""}
+              </Chip>
+              <Chip active={app === "no"} onClick={() => toggle("app", "no", app)}>
+                No app{s ? ` ${formatNumber(Math.max(0, s.registered - (s.app?.with_app ?? 0)))}` : ""}
+              </Chip>
               {missingChip ? (
                 <Chip active={!!missing} tone="caution" onClick={() => toggle("missing", "1", missing)}>
                   Missing answers{missingN !== null ? ` (${formatNumber(missingN)})` : ""}
@@ -519,6 +528,11 @@ export function RegistrationsPanel({ eventId }: { eventId: number }) {
               />
             </ToolbarEnd>
           </Toolbar>
+          {app ? (
+            <p className="text-ink-3 border-line-soft border-b px-4 py-2 text-[12px]">
+              {app === "yes" ? "Has app" : "No app"}: whether the guest is signed in to the MyOtherApp app on a phone. Someone who installed it but never signed in, or signed out, counts as no app.
+            </p>
+          ) : null}
           {delivery ? (
             <p className="text-ink-3 border-line-soft border-b px-4 py-2 text-[12px]">
               Not delivered: nothing sent, nothing that worked, or something that came back. A guest reached by email is not here.

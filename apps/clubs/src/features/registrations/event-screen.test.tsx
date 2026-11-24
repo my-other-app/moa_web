@@ -224,6 +224,32 @@ describe("attendees tab", () => {
     expect(listCall?.[1]).toMatchObject({ query: { is_paid: false } });
   });
 
+  it("filters by whether the guest uses the app, counts both chips, and exports the same guests", async () => {
+    const fixture = summaryFixture as unknown as { app?: { with_app: number } };
+    fixture.app = { with_app: 9 };
+    try {
+      url.search = new URLSearchParams("app=yes");
+      render(<RegistrationsPanel eventId={37} />);
+      expect(await screen.findByRole("button", { name: "Has app 9" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: `No app ${(summaryFixture as { registered: number }).registered - 9}` })).toBeInTheDocument();
+      expect(screen.getByText(/signed in to the MyOtherApp app on a phone/)).toBeInTheDocument();
+      const listCall = vi.mocked(api.get).mock.calls.find(([path]) => String(path).includes("/list"));
+      expect(listCall?.[1]).toMatchObject({ query: { has_app: true } });
+      const link = await screen.findByRole("link", { name: /Export with the app to Excel/ });
+      expect(link.getAttribute("href")).toMatch(/\/registration\/37\/export\?has_app=true$/);
+    } finally {
+      delete fixture.app;
+    }
+  });
+
+  it("reads an API without the app figure as nobody on the app", async () => {
+    url.search = new URLSearchParams("app=no");
+    render(<RegistrationsPanel eventId={37} />);
+    expect(await screen.findByRole("button", { name: /^Has app 0$/ })).toBeInTheDocument();
+    const listCall = vi.mocked(api.get).mock.calls.find(([path]) => String(path).includes("/list"));
+    expect(listCall?.[1]).toMatchObject({ query: { has_app: false } });
+  });
+
   it("says nobody matches, with a way out, when the filters leave nobody", async () => {
     url.search = new URLSearchParams("q=zzz&in=no");
     list.page = { items: [], total: 0, limit: 20, offset: 0 };

@@ -188,6 +188,8 @@ export const eventSummarySchema = z.object({
   from_report: z.boolean(),
   generated_at: z.string(),
   /** Registration requests waiting for the club to confirm them (0 from an API without requests). */
+  /** Guests on the list signed in to the MyOtherApp app on a phone; 0 from an API without it. */
+  app: z.object({ with_app: z.number().catch(0) }).catch({ with_app: 0 }).default({ with_app: 0 }),
   requests_pending: z.number().catch(0),
   /** The requests as figures (null: an older server, or an event that never confirmed anyone). */
   requests: requestFiguresField,
