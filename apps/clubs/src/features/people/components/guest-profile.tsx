@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckIcon, Loader2Icon, MailIcon, MessageSquareIcon, PencilIcon, PrinterIcon, RotateCcwIcon, Trash2Icon, Undo2Icon, XIcon } from "lucide-react";
+import { CheckIcon, Loader2Icon, MailIcon, MessageSquareIcon, SendIcon, PencilIcon, PrinterIcon, RotateCcwIcon, Trash2Icon, Undo2Icon, XIcon } from "lucide-react";
 import {
   Avatar,
   AvatarFallback,
@@ -32,6 +32,7 @@ import { cardInFlight, profileKey, useGuestProfile } from "../queries";
 import type { GuestProfileData, ProfilePrint } from "../schemas";
 import { PRINT_TONE, PRINT_WORDS, STAGE_TONE, STAGE_WORDS } from "../words";
 import { AnswersSection, CertificateSection, ContactSection, Copyable, EventSection, PaymentSection, PrintLine, TicketSection } from "./sections";
+import { MessageGuestDialog } from "./message-guest-dialog";
 import { Timeline } from "./timeline";
 
 const initials = (name: string) =>
@@ -82,7 +83,7 @@ export function latestPrint(prints: readonly ProfilePrint[]): ProfilePrint | nul
   return byTime.find((x) => x.status === "queued" || x.status === "printing") ?? byTime[0] ?? null;
 }
 
-type Dialog = "print" | "edit" | "decline" | "ask" | "remove" | null;
+type Dialog = "print" | "edit" | "decline" | "ask" | "remove" | "message" | null;
 
 function Chips({ p }: { p: GuestProfileData }) {
   const s = p.status;
@@ -230,6 +231,8 @@ export function GuestProfile({
     window.setTimeout(refresh, 1500);
   };
   const printAction = () => (stationReady ? setDialog("print") : printHere());
+  // The server says who may write to a guest (whoever may use Messages); there must also be a way to reach them.
+  const canMessage = Boolean(regId && a.can_message && (p.person.email || p.status.on_app));
   const anyAction = Object.entries(a).some(([k, v]) => k.startsWith("can_") && v === true);
   const busy = checkIn.isPending || undo.isPending || resend.isPending || confirm.isPending || decide.running;
   const askRef = p.kind === "request" && p.request_id ? requestRef(p.request_id) : regId ? registrationRef(regId) : null;
@@ -270,6 +273,11 @@ export function GuestProfile({
                 <MailIcon /> Send ticket again
               </Button>
             ) : null}
+            {canMessage ? (
+              <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => setDialog("message")}>
+                <SendIcon /> Message
+              </Button>
+            ) : null}
             {a.can_check_in && regId ? (
               <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => checkIn.mutate(regId, { onSuccess: refresh })}>
                 <CheckIcon /> Check in
@@ -295,7 +303,19 @@ export function GuestProfile({
                 <PencilIcon /> Edit
               </Button>
             ) : null}
-            {a.can_ask_missing && askRef ? (
+            {canMessage && regId ? (
+        <MessageGuestDialog
+          eventId={eventId}
+          registrationId={regId}
+          name={name}
+          email={p.person.email}
+          onApp={p.status.on_app}
+          open={dialog === "message"}
+          onOpenChange={closeDialog}
+          onSent={refresh}
+        />
+      ) : null}
+      {a.can_ask_missing && askRef ? (
               <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => setDialog("ask")}>
                 <MessageSquareIcon /> Ask for missing answers
               </Button>

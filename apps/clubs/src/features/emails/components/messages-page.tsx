@@ -72,7 +72,7 @@ import { AudienceFields } from "./panels";
  * sends; a message opens on who got it.
  */
 const whoLabel = (m: Message) =>
-  `${AUDIENCE_WHO.find((w) => w.value === m.audience)?.label ?? m.audience}${m.roles.length ? ` · ${m.roles.join(", ")}` : ""}`;
+  `${m.audience === "PICKED" ? "Picked guests" : (AUDIENCE_WHO.find((w) => w.value === m.audience)?.label ?? m.audience)}${m.roles.length ? ` · ${m.roles.join(", ")}` : ""}`;
 const plural = (n: number, one: string, many = `${one}s`) =>
   `${formatNumber(n)} ${n === 1 ? one : many}`;
 const origin = (m: Message) =>

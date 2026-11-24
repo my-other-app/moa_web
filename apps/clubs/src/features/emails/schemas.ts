@@ -276,6 +276,8 @@ export const AUDIENCE_WHO = [
 export const emailAudienceSchema = z.object({
   who: z.enum(["ALL", "CHECKED_IN", "NOT_CHECKED_IN"]).default("ALL"),
   roles: z.array(z.string()).max(10).default([]),
+  /** Only these guests (a message to one person); left out, the audience above. */
+  registrationIds: z.array(z.string()).max(500).optional(),
 });
 export type EmailAudience = z.infer<typeof emailAudienceSchema>;
 

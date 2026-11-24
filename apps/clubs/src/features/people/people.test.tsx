@@ -28,6 +28,7 @@ const ALL_ACTIONS = {
   can_decline: true,
   can_ask_missing: true,
   can_remove: true,
+  can_message: true,
 };
 
 const full = (over: Record<string, unknown> = {}) => ({
@@ -126,6 +127,9 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       post: vi.fn(async (path: string, body: unknown) => {
         posts.push({ path, body });
         if (path.endsWith("/idcards/print-requests")) return { id: "pr1", status: "queued", source: "dashboard", attempts: 0, name: "Test Participant One" };
+        if (path === "/api/v1/events/37/messages")
+          return { id: "m1", kind: "BROADCAST", templateId: null, scheduled: false, subject: "s", body: "", audience: "PICKED", roles: [], channels: ["email"], status: "SENDING", recipients: 1, sentCount: 0, failedCount: 0, skippedCount: 0, createdAt: "2026-11-24T10:00:00Z" };
+        if (path === "/api/v1/clubs/notifications/events/37/send") return { success: true, message: "Notification sent", notifications_sent: 1 };
         return { queued: 1 };
       }),
       put: vi.fn(),
@@ -244,7 +248,7 @@ describe("the sections", () => {
 });
 
 describe("the actions follow `actions`", () => {
-  const NAMES = ["Print another card", "Send ticket again", "Check in", "Undo check-in", "Confirm", "Decline", "Edit", "Ask for missing answers", "Remove"];
+  const NAMES = ["Print another card", "Send ticket again", "Message", "Check in", "Undo check-in", "Confirm", "Decline", "Edit", "Ask for missing answers", "Remove"];
 
   it("shows every action the server allows", async () => {
     state.profile = full({ request_id: REQ });
@@ -270,6 +274,7 @@ describe("the actions follow `actions`", () => {
     ["can_edit", "Edit"],
     ["can_ask_missing", "Ask for missing answers"],
     ["can_remove", "Remove"],
+    ["can_message", "Message"],
   ])("hides %s's button when it is false", async (flag, name) => {
     state.profile = full({ request_id: REQ, actions: { ...ALL_ACTIONS, [flag]: false } });
     profile();
@@ -442,5 +447,50 @@ describe("where it opens", () => {
   it("renders the page view directly", async () => {
     render(<GuestProfilePage eventId={37} personRef={REG} />);
     expect(await screen.findByRole("heading", { name: "Test Participant One", level: 1 })).toBeInTheDocument();
+  });
+});
+
+
+describe("messaging one guest", () => {
+  const write = async () => {
+    fireEvent.change(await screen.findByPlaceholderText("Your table number"), { target: { value: "Your table" } });
+    fireEvent.change(screen.getByPlaceholderText(/^Hi Test/), { target: { value: "You are at table 4." } });
+  };
+
+  it("emails only this guest, through Messages", async () => {
+    profile();
+    fireEvent.click(await screen.findByRole("button", { name: "Message" }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Message Test Participant One" }));
+    expect(dialog.getByRole("checkbox", { name: "Send by email" })).toBeChecked();
+    // Not on the app: the notification can't be chosen, and the dialog says why.
+    expect(dialog.getByRole("checkbox", { name: "Send as an app notification" })).toBeDisabled();
+    expect(dialog.getByText(/Not signed in to the MyOtherApp app/)).toBeInTheDocument();
+    await write();
+    fireEvent.click(dialog.getByRole("button", { name: "Send to Test" }));
+    await waitFor(() => expect(posts.some((p) => p.path === "/api/v1/events/37/messages")).toBe(true));
+    const sent = posts.find((p) => p.path === "/api/v1/events/37/messages")!.body as { subject: string; audience: { registrationIds: string[] } };
+    expect(sent.subject).toBe("Your table");
+    expect(sent.audience.registrationIds).toEqual([REG]);
+    expect(posts.some((p) => p.path.includes("/notifications/"))).toBe(false);
+  });
+
+  it("sends an app notification too when they are on the app", async () => {
+    state.profile = full({ status: { ...full().status, on_app: true } });
+    profile();
+    fireEvent.click(await screen.findByRole("button", { name: "Message" }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Message Test Participant One" }));
+    fireEvent.click(dialog.getByRole("checkbox", { name: "Send as an app notification" }));
+    await write();
+    fireEvent.click(dialog.getByRole("button", { name: "Send to Test" }));
+    await waitFor(() => expect(posts.some((p) => p.path === "/api/v1/clubs/notifications/events/37/send")).toBe(true));
+    const push = posts.find((p) => p.path === "/api/v1/clubs/notifications/events/37/send")!.body as { registration_ids: string[]; title: string };
+    expect(push).toMatchObject({ title: "Your table", registration_ids: [REG] });
+  });
+
+  it("is not offered when there is no way to reach them", async () => {
+    state.profile = full({ person: { ...full().person, email: null }, status: { ...full().status, on_app: false } });
+    profile();
+    await screen.findByRole("group", { name: "Actions for Test Participant One" });
+    expect(screen.queryByRole("button", { name: "Message" })).toBeNull();
   });
 });

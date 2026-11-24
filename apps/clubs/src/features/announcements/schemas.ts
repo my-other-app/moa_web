@@ -48,6 +48,8 @@ export const sendAnnouncementSchema = z.object({
   title: z.string().trim().min(3, "Give the announcement a title").max(120),
   body: z.string().trim().min(5, "Write a message").max(1000),
   audience: z.enum(["all", "attendees", "non_attendees"]).default("all"),
+  /** Only these guests (a notification to one person); the audience is then ignored. */
+  registration_ids: z.array(z.string()).max(500).optional(),
 });
 
 export type Announcement = z.infer<typeof announcementSchema>;
@@ -58,7 +60,7 @@ export type SendAnnouncementInput = z.infer<typeof sendAnnouncementSchema>;
 export const PUSH_SCOPES = ["all", "announcements", "live_updates"] as const;
 export type PushScope = (typeof PUSH_SCOPES)[number];
 export const PUSH_SCOPE_LABEL: Record<PushScope, string> = { all: "Everything", announcements: "Announcements", live_updates: "Live updates" };
-export const AUDIENCE_LABEL: Record<string, string> = { all: "Everyone registered", attendees: "Checked in", non_attendees: "Not checked in", checked_in: "Checked in", registered: "Everyone registered" };
+export const AUDIENCE_LABEL: Record<string, string> = { picked: "Picked guests", all: "Everyone registered", attendees: "Checked in", non_attendees: "Not checked in", checked_in: "Checked in", registered: "Everyone registered" };
 
 export const pushSendSchema = z.object({
   id: z.string(),
