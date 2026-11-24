@@ -10,6 +10,8 @@ export interface RegistrationQuery {
   search?: string | undefined;
   isAttended?: boolean | undefined;
   isPaid?: boolean | undefined;
+  /** Signed in to the app on a phone (true) or not (false). */
+  hasApp?: boolean | undefined;
   role?: RegistrationRole | undefined;
   /** Only guests not reached on any channel. */
   delivery?: "not_delivered" | undefined;
@@ -34,6 +36,7 @@ export async function fetchRegistrations(q: RegistrationQuery) {
       search: q.search,
       is_attended: q.isAttended,
       is_paid: q.isPaid,
+      has_app: q.hasApp,
       role: q.role,
       delivery: q.delivery,
       missing: q.missing,
@@ -140,11 +143,12 @@ export async function setRegistrationRole(
  */
 export function exportUrl(
   eventId: number,
-  filters: { isAttended?: boolean; isPaid?: boolean } = {}
+  filters: { isAttended?: boolean; isPaid?: boolean; hasApp?: boolean } = {}
 ): string {
   const params = new URLSearchParams();
   if (filters.isAttended !== undefined) params.set("is_attended", String(filters.isAttended));
   if (filters.isPaid !== undefined) params.set("is_paid", String(filters.isPaid));
+  if (filters.hasApp !== undefined) params.set("has_app", String(filters.hasApp));
   const qs = params.toString();
   return `${GATEWAY_PREFIX}/api/v1/events/registration/${eventId}/export${qs ? `?${qs}` : ""}`;
 }
