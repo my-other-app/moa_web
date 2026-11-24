@@ -54,6 +54,8 @@ const statusSchema = z
     /** The review email or the ticket bounced. */
     email_bounced: flag,
     email_bounce_reason: text,
+    /** Signed in to the MyOtherApp app on a phone: an app notification reaches them. */
+    on_app: flag,
   })
   .default({ stage: "confirmed" } as never);
 
@@ -135,6 +137,8 @@ const actionsSchema = z
     can_decline: flag,
     can_ask_missing: flag,
     can_remove: flag,
+    /** Write to this guest (email or app notification): whoever may use Messages. */
+    can_message: flag,
   })
   .default({} as never);
 
