@@ -13,6 +13,15 @@ export {
   type DeliveryTally,
   type TallyFigures,
 } from "./schemas";
-export { useDeliverySummary, useDeliveryTally, useDeliveryTallies, useSendOneDocument, useRefreshDeliveries } from "./queries";
-export { bundleUrl, type DocumentKind } from "./api";
+export {
+  useDeliverySummary,
+  useDeliveryTally,
+  useDeliveryTallies,
+  useSendOneDocument,
+  useRefreshDeliveries,
+  useDeliveryChannels,
+  useSaveDeliveryChannels,
+} from "./queries";
+export { useSendBy, useDefaultChannel, SendByField, channelOptions, CHANNEL_HELP } from "./components/send-by";
+export { bundleUrl, type DocumentKind, type ChannelMode, type ChannelKind, type DeliveryChannels } from "./api";
 export { certificateSummarySchema, type CertificateSummary } from "./schemas";

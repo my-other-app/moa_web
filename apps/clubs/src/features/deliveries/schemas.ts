@@ -39,6 +39,18 @@ export const sendResponseSchema = z.object({
 });
 export type SendResponse = z.infer<typeof sendResponseSchema>;
 
+const channelModeSchema = z.enum(["email", "whatsapp", "both"]).catch("both");
+
+/** GET/PUT .../delivery-channels: each automatic send's channels, and whether WhatsApp can send at all. */
+export const deliveryChannelsStateSchema = z.object({
+  ticket: channelModeSchema,
+  reminder: channelModeSchema,
+  certificate: channelModeSchema,
+  whatsapp_available: z.boolean(),
+  whatsapp_note: z.string().nullish(),
+});
+export type DeliveryChannelsState = z.infer<typeof deliveryChannelsStateSchema>;
+
 export const ticketStateSchema = z.object({
   registration_id: z.string(),
   ticket_id: z.string(),
@@ -106,6 +118,8 @@ export type DeliveryLogRow = z.infer<typeof deliveryLogRowSchema>;
  * older server).
  */
 export function viaText(d: { via?: "club" | "platform" | null; fallback_code?: string | null; fallback_reason?: string | null }): string | null {
+  // An email sent in WhatsApp's place: the server's own words say why.
+  if (d.fallback_code?.startsWith("EMAIL_")) return d.fallback_reason?.trim() || "Sent by email instead of WhatsApp";
   if (d.via === "club") return "From your number";
   if (d.via !== "platform") return null;
   const why = d.fallback_reason?.trim() || d.fallback_code?.trim();

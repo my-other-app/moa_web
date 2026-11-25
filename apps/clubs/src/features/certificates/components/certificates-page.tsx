@@ -27,6 +27,7 @@ import {
 
 import { verdictOf, type CertificateSummary } from "@/features/deliveries";
 import { useSendDocuments } from "@/features/deliveries/queries";
+import { useSendBy } from "@/features/deliveries";
 
 import { CERTIFICATE_SORTS } from "../api";
 import {
@@ -534,6 +535,7 @@ export function CertificatesPage({ eventId }: { eventId: number }) {
   const preview = useIssuePreview(eventId, body);
   const issue = useIssueCertificates(eventId);
   const retry = useSendDocuments(eventId, "certificate");
+  const sendBy = useSendBy(eventId, "certificate");
 
   const s = summary.data;
   const p = preview.data;
@@ -636,9 +638,14 @@ export function CertificatesPage({ eventId }: { eventId: number }) {
             s={s}
             email={email}
             audience={audience}
-            onRetry={() => retry.mutate("failed")}
+            onRetry={() =>
+              sendBy.ask("Retry problems", (channels) =>
+                retry.mutate({ only: "failed", channels }),
+              )
+            }
             retrying={retry.isPending}
           />
+          {sendBy.dialog}
 
           <div className="grid items-stretch gap-3.5 lg:grid-cols-[1.6fr_1fr]">
             <IssuePanel

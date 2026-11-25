@@ -45,6 +45,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path.endsWith("/certificates/summary")) return summary;
         if (path.endsWith("/deliveries/summary")) return delivery;
         if (path.endsWith("/certificates")) return { items: rows, total: rows.length, page: 1, page_size: 25 };
+        if (path.endsWith("/delivery-channels"))
+          return { ticket: "both", reminder: "both", certificate: "both", whatsapp_available: false, whatsapp_note: "WhatsApp isn't set up yet." };
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(async (path: string, body: unknown) => {
@@ -86,6 +88,8 @@ describe("certificates", () => {
     const notice = await screen.findByRole("alert");
     expect(notice).toHaveTextContent("2 certificates could not be sent.");
     fireEvent.click(within(notice).getByRole("button", { name: "Retry" }));
+    // "Send by" first: WhatsApp isn't available, so Email is picked.
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Send" }));
     await waitFor(() => expect(calls.find((c) => c.path.endsWith("/certificates/send"))).toMatchObject({ body: { only: "failed" } }));
   });
 

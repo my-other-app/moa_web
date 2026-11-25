@@ -135,7 +135,7 @@ function ChoiceCard({
 export interface SegmentedProps<T extends string> {
   label: string;
   value: T;
-  options: readonly { value: T; label: string }[];
+  options: readonly { value: T; label: string; disabled?: boolean }[];
   onChange: (value: T) => void;
   className?: string;
 }
@@ -163,9 +163,10 @@ function Segmented<T extends string>({
           type="button"
           role="radio"
           aria-checked={value === o.value}
+          disabled={o.disabled}
           onClick={() => onChange(o.value)}
           className={cn(
-            "flex-1 rounded-[calc(var(--radius-field)-2px)] px-3 whitespace-nowrap transition-colors",
+            "flex-1 rounded-[calc(var(--radius-field)-2px)] px-3 whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-45",
             value === o.value
               ? "bg-surface text-ink shadow-card font-medium"
               : "text-ink-2 hover:text-ink",

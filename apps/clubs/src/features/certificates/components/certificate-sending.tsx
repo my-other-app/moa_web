@@ -31,6 +31,7 @@ import {
 
 import { bundleUrl, useDeliverySummary } from "@/features/deliveries";
 import { useSendDocuments } from "@/features/deliveries/queries";
+import { SendByField, useDefaultChannel, useSendBy } from "@/features/deliveries";
 
 /**
  * Certificates by email: how many of the issued ones have gone out, as one
@@ -97,6 +98,9 @@ export function CertificateSending({
   const summary = useDeliverySummary(eventId, "certificate");
   const send = useSendDocuments(eventId, "certificate");
   const [confirmAll, setConfirmAll] = React.useState(false);
+  const sendBy = useSendBy(eventId, "certificate");
+  const preset = useDefaultChannel(eventId, "certificate");
+  const [allBy, setAllBy] = React.useState(preset.mode);
 
   if (summary.isPending)
     return <Skeleton className="h-[200px] w-full rounded-2xl" />;
@@ -190,7 +194,11 @@ export function CertificateSending({
           type="button"
           className={cn("btn btn-sm", primary ? "btn-primary" : "btn-secondary")}
           disabled={busy || toSend === 0}
-          onClick={() => send.mutate("unsent")}
+          onClick={() =>
+            sendBy.ask("Send certificates", (channels) =>
+              send.mutate({ only: "unsent", channels }),
+            )
+          }
           title={
             toSend === 0
               ? "Everyone issued one with an address has it"
@@ -211,7 +219,11 @@ export function CertificateSending({
           <DropdownMenuContent align="end">
             <DropdownMenuItem
               disabled={email.failed + email.skipped === 0}
-              onSelect={() => send.mutate("failed")}
+              onSelect={() =>
+                sendBy.ask("Retry problems", (channels) =>
+                  send.mutate({ only: "failed", channels }),
+                )
+              }
             >
               <span className="flex flex-col">
                 <span>Retry problems</span>
@@ -222,7 +234,10 @@ export function CertificateSending({
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={total === 0}
-              onSelect={() => setConfirmAll(true)}
+              onSelect={() => {
+                setAllBy(preset.mode);
+                setConfirmAll(true);
+              }}
             >
               <span className="flex flex-col">
                 <span>Send to everyone again</span>
@@ -249,19 +264,21 @@ export function CertificateSending({
             <AlertDialogTitle>Send every certificate again?</AlertDialogTitle>
             <AlertDialogDescription>
               {total} {total === 1 ? "guest gets" : "guests get"} their
-              certificate by email again, including everyone who already has
+              certificate again, including everyone who already has
               it. Use this after changing the design, or if the first send
               went out wrong.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <SendByField value={allBy} onChange={setAllBy} available={preset.available} note={preset.note} />
           <AlertDialogFooter>
             <AlertDialogCancel>Keep as is</AlertDialogCancel>
-            <AlertDialogAction onClick={() => send.mutate("all")}>
+            <AlertDialogAction onClick={() => send.mutate({ only: "all", channels: allBy })}>
               Send to everyone
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {sendBy.dialog}
     </FigurePanel>
   );
 }

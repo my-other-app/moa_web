@@ -122,6 +122,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path.endsWith("/idcards/print-requests")) return { items: [{ id: "pr9", registration_id: REG, name: "Test Participant One", source: "kiosk", status: "queued", attempts: 0, position: 1 }], printers_online: 1 };
         if (path.endsWith("/imports")) return [];
         if (path.endsWith("/deliveries/summary")) return { kind: "ticket", registrations: 2, revoked: 0, channels: [] };
+        if (path.endsWith("/delivery-channels"))
+          return { ticket: "both", reminder: "both", certificate: "both", whatsapp_available: false, whatsapp_note: "WhatsApp isn't set up yet." };
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(async (path: string, body: unknown) => {
@@ -287,6 +289,7 @@ describe("the actions follow `actions`", () => {
   it("checks in, sends the ticket again and undoes a check-in through the existing calls", async () => {
     profile();
     fireEvent.click(await screen.findByRole("button", { name: "Send ticket again" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Send" }));
     await waitFor(() => expect(posts.some((p) => p.path.includes("/deliveries/") || p.path.includes("ticket"))).toBe(true));
     fireEvent.click(screen.getByRole("button", { name: "Check in" }));
     await waitFor(() => expect(posts.some((p) => p.path.endsWith(`/attendance/${REG}`) && (p.body as { is_attended: boolean }).is_attended)).toBe(true));

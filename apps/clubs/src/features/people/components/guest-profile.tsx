@@ -21,6 +21,7 @@ import { formatDateTime } from "@moa/app-kit";
 import { AskPanel, registrationRef, requestRef } from "@/features/answers";
 import { useUndoCheckIn } from "@/features/doors/queries";
 import { useSendOneTicket } from "@/features/deliveries/queries";
+import { useSendBy } from "@/features/deliveries";
 import { useEventDetail } from "@/features/events";
 import { cardPdfUrl, openPdf } from "@/features/idcards";
 import { PrintChoice, createPrintRequest } from "@/features/printing";
@@ -184,6 +185,7 @@ export function GuestProfile({
   const checkIn = useMarkAttendance(eventId);
   const undo = useUndoCheckIn(eventId);
   const resend = useSendOneTicket(eventId);
+  const sendBy = useSendBy(eventId, "ticket");
   const confirm = useConfirmRequest(eventId);
   const decide = useBulkDecision(eventId);
   const retry = useRetryPrintRequest(eventId);
@@ -269,7 +271,11 @@ export function GuestProfile({
               </Button>
             ) : null}
             {a.can_resend_ticket && regId ? (
-              <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => resend.mutate(regId, { onSuccess: refresh })}>
+              <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() =>
+                  sendBy.ask(`Send ${name}'s ticket again`, (channels) =>
+                    resend.mutate({ registrationId: regId, channels }, { onSuccess: refresh }),
+                  )
+                }>
                 <MailIcon /> Send ticket again
               </Button>
             ) : null}
@@ -395,6 +401,7 @@ export function GuestProfile({
           }}
         />
       ) : null}
+      {sendBy.dialog}
     </div>
   );
 }

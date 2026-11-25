@@ -12,6 +12,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
       return { items: [], total: 0, page: 1, page_size: 50, tally: { sent: 0, delivered: 0, awaiting: 0, bounced: 0, complained: 0, failed: 0, skipped: 0, pending: 0 } };
     if (path.includes("/revoke") || path.includes("/reinstate"))
       return { registration_id: "r1", ticket_id: "MOA-1", revoked_at: path.includes("/revoke") ? "2026-10-11T00:00:00Z" : null };
+    if (path.endsWith("/delivery-channels"))
+      return { ticket: "whatsapp", reminder: "both", certificate: "email", whatsapp_available: true, whatsapp_note: null };
     return { queued: 1, already_sent: 0, revoked: 0, channels: ["email"] };
   };
   return {
@@ -25,7 +27,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
   };
 });
 
-const { bundleUrl, fetchDeliveryLog, fetchDeliverySummary, revokeTicket, sendOneTicket, sendTickets } = await import("./api");
+const { bundleUrl, fetchDeliveryChannels, fetchDeliveryLog, fetchDeliverySummary, revokeTicket, saveDeliveryChannels, sendOneTicket, sendTickets } =
+  await import("./api");
 
 beforeEach(() => {
   calls.length = 0;
@@ -61,5 +64,28 @@ describe("the delivery endpoints", () => {
 
   it("downloads the bundle through the gateway as a plain link", () => {
     expect(bundleUrl(42)).toBe("/api/gateway/api/v1/events/42/tickets/bundle.zip");
+  });
+});
+
+describe("send channels", () => {
+  it("passes channels on a send only when chosen", async () => {
+    calls.length = 0;
+    await sendTickets(7, "unsent", undefined, "whatsapp");
+    await sendTickets(7, "failed");
+    await sendOneTicket(7, "r1", "email");
+    await sendOneTicket(7, "r2");
+    expect(calls[0]!.body).toEqual({ only: "unsent", channels: "whatsapp" });
+    expect(calls[1]!.body).toEqual({ only: "failed" });
+    expect(calls[2]!.body).toEqual({ channels: "email" });
+    expect(calls[3]!.body).toBeUndefined();
+  });
+
+  it("reads and saves the event's setting", async () => {
+    calls.length = 0;
+    const got = await fetchDeliveryChannels(7);
+    expect(got.ticket).toBe("whatsapp");
+    expect(got.whatsapp_available).toBe(true);
+    await saveDeliveryChannels(7, { ticket: "email", reminder: "both", certificate: "whatsapp" });
+    expect(calls[1]).toMatchObject({ method: "PUT", path: "/api/v1/events/7/delivery-channels", body: { ticket: "email", reminder: "both", certificate: "whatsapp" } });
   });
 });

@@ -51,7 +51,9 @@ import {
   useDeliveryTallies,
   useSendDocuments,
   useSendOneDocument,
+  sendOneId,
 } from "../queries";
+import { useSendBy } from "./send-by";
 import {
   addTallies,
   isProblem,
@@ -252,6 +254,8 @@ function Resends({
 }) {
   const sendTickets = useSendDocuments(eventId, "ticket");
   const sendCertificates = useSendDocuments(eventId, "certificate");
+  const ticketBy = useSendBy(eventId, "ticket");
+  const certificateBy = useSendBy(eventId, "certificate");
   const unconfigured = (tickets?.providers ?? []).filter((p) => !p.configured);
   const docs = [
     { kind: "ticket" as const, s: tickets, send: sendTickets },
@@ -300,7 +304,12 @@ function Resends({
                   size="sm"
                   variant={i === 0 ? "primary" : "secondary"}
                   disabled={busy}
-                  onClick={() => d.send.mutate("unsent")}
+                  onClick={() =>
+                    (d.kind === "ticket" ? ticketBy : certificateBy).ask(
+                      `Send ${noun[1]}`,
+                      (channels) => d.send.mutate({ only: "unsent", channels }),
+                    )
+                  }
                 >
                   {busy ? (
                     <Loader2Icon className="animate-spin" />
@@ -384,6 +393,8 @@ function Resends({
           </FixRow>
         ) : null}
       </ul>
+      {ticketBy.dialog}
+      {certificateBy.dialog}
     </FigurePanel>
   );
 }
@@ -527,6 +538,8 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
   const certificateSummary = useDeliverySummary(eventId, "certificate");
   const resendTicket = useSendOneDocument(eventId, "ticket");
   const resendCertificate = useSendOneDocument(eventId, "certificate");
+  const resendTicketBy = useSendBy(eventId, "ticket");
+  const resendCertificateBy = useSendBy(eventId, "certificate");
 
   const by = {
     ticket: tallyFigures(tallies.ticket),
@@ -557,14 +570,18 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
     setPage(1);
     listRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
   };
-  const resend = (r: DeliveryLogRow) =>
-    (r.kind === "certificate" ? resendCertificate : resendTicket).mutate(
-      r.registration_id,
+  const resend = (r: DeliveryLogRow) => {
+    const cert = r.kind === "certificate";
+    (cert ? resendCertificateBy : resendTicketBy).ask(
+      `Send ${r.name || "this guest"}'s ${cert ? "certificate" : "ticket"} again`,
+      (channels) =>
+        (cert ? resendCertificate : resendTicket).mutate({ registrationId: r.registration_id, channels }),
     );
+  };
   const resendingId = resendTicket.isPending
-    ? resendTicket.variables
+    ? sendOneId(resendTicket.variables)
     : resendCertificate.isPending
-      ? resendCertificate.variables
+      ? sendOneId(resendCertificate.variables)
       : null;
 
   const download = async (format: ExportFormat) => {
@@ -904,6 +921,8 @@ export function DeliveryLog({ eventId }: { eventId: number }) {
           </p>
         </FigurePanel>
       </div>
+      {resendTicketBy.dialog}
+      {resendCertificateBy.dialog}
     </div>
   );
 }
