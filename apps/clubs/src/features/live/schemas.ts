@@ -564,9 +564,13 @@ export const screenControlSchema = z.object({
   idle_slides: z.array(z.enum(IDLE_SLIDES)).catch([]),
   slide_seconds: z.number().catch(12),
   wall_size: z.number().catch(6),
+  // The host club and partner logos along the foot; a server from before it sends none: on.
+  logo_footer: z.boolean().catch(true),
+  // The organiser's own wide picture in place of the logos (read only: set by its upload).
+  footer_image_url: z.string().nullish().catch(null),
 });
 export type ScreenControl = z.infer<typeof screenControlSchema>;
-export const DEFAULT_SCREEN_CONTROL: ScreenControl = { mode: "auto", results: "live", ticker: false, idle_slides: [], slide_seconds: 12, wall_size: 6 };
+export const DEFAULT_SCREEN_CONTROL: ScreenControl = { mode: "auto", results: "live", ticker: false, idle_slides: [], slide_seconds: 12, wall_size: 6, logo_footer: true };
 
 /** Whether the screen's controls are as they always were: nothing asked of the screen beyond today's. */
 export const isDefaultControl = (c: ScreenControl | null | undefined) =>
@@ -590,6 +594,17 @@ export const sponsorSchema = z.object({
 });
 export type Sponsor = z.infer<typeof sponsorSchema>;
 
+/** The logo strip's entries (the backend's games club_of / partners_of). */
+export const screenClubSchema = z.object({ name: z.string(), logo_url: z.string().nullish() });
+export type ScreenClub = z.infer<typeof screenClubSchema>;
+export const screenPartnerSchema = z.object({
+  name: z.string(),
+  logo_url: z.string(),
+  kind: z.string().nullish(),
+  label: z.string().nullish(),
+});
+export type ScreenPartner = z.infer<typeof screenPartnerSchema>;
+
 export const screenSchema = z.object({
   event: z.object({ id: z.number(), name: z.string() }),
   pinned: questionSchema.nullish(),
@@ -608,5 +623,9 @@ export const screenSchema = z.object({
   agenda: z.array(agendaSlotSchema).nullish().catch(null),
   sponsors: z.array(sponsorSchema).nullish().catch(null),
   overall: z.array(overallRowSchema).nullish().catch(null),
+  club: screenClubSchema.nullish().catch(null),
+  partners: z.array(screenPartnerSchema).nullish().catch(null),
+  cohosts: z.array(screenClubSchema).nullish().catch(null),
+  footer_image_url: z.string().nullish().catch(null),
 });
 export type Screen = z.infer<typeof screenSchema>;

@@ -126,6 +126,7 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
         if (path.endsWith("/screen/rotate")) return { url: "https://myotherapp.in/screen/s.42.2.xyz", token: "s.42.2.xyz", version: 2 };
         if (path.includes("/reset-pin")) return { registration_id: path.split("/").slice(-2)[0], url: "https://myotherapp.in/g/b.42.r2.1.mac", token: "b.42.r2.1.mac", pin: "7302" };
         if (path.endsWith("/settings/logo")) return { ...state.settings, logo_url: "https://cdn.example/logo.png" };
+        if (path.endsWith("/settings/footer-image")) return { ...state.settings, footer_image_url: "https://cdn.example/strip.png" };
         if (path.endsWith("/cards/heroes")) return hero(6, "common", { id: "h6", ...(body as object) });
         if (path.endsWith("/art")) return hero(6, "common", { id: "h6", art_url: "https://cdn.example/art.png" });
         if (path.endsWith("/hunt/points")) return { ...POINTS[0], id: "p3", number: 3, ...(body as object) };
@@ -248,6 +249,15 @@ describe("look and screens", () => {
     fireEvent.change(input, { target: { files: [new File(["x"], "logo.png", { type: "image/png" })] } });
     await waitFor(() => expect(sent("POST", "/settings/logo")).toHaveLength(1));
     expect(sent("POST", "/settings/logo")[0]!.body).toBeInstanceOf(FormData);
+  });
+
+  it("uploads a footer image for the venue screen", async () => {
+    await open();
+    const input = await screen.findByLabelText("Footer image file");
+    fireEvent.change(input, { target: { files: [new File(["x"], "strip.png", { type: "image/png" })] } });
+    await waitFor(() => expect(sent("POST", "/settings/footer-image")).toHaveLength(1));
+    expect(sent("POST", "/settings/footer-image")[0]!.body).toBeInstanceOf(FormData);
+    expect(await screen.findByRole("img", { name: "Footer image" })).toHaveAttribute("src", "https://cdn.example/strip.png");
   });
 
   it("shows the venue screen link, and makes a new one only after asking", async () => {

@@ -9,7 +9,7 @@ import { backgroundStyle, nativeVars, themeVars, useThemeFonts } from "../theme"
 import { Board, Eyebrow, FIT_LAST, FIT_TEXT, FitContext, Podium, overflows, t, u, type Fit } from "./parts";
 import { PollStage } from "./poll";
 import { QuizStage, type StageLook } from "./quiz";
-import { IdleSlides, QAWall, SponsorStrip, StageJoin, Updates } from "./room";
+import { IdleSlides, LogoFooter, QAWall, SponsorStrip, StageJoin, Updates, logoFooterOf } from "./room";
 
 /**
  * The big screen as the theme and the screen's controls draw it: one stage
@@ -117,6 +117,13 @@ function useStageFit(shape: string, content: unknown) {
   }, []);
   const refit = React.useCallback(() => setFresh((n) => n + 1), []);
   const recheck = React.useCallback(() => setTick((n) => n + 1), []);
+  // What is inside can grow after the last measure with nothing on the screen changing (a QR or a
+  // web font arriving, a line wrapping): measure again every second while a step is left to take.
+  React.useEffect(() => {
+    if (level >= FIT_LAST) return;
+    const id = window.setInterval(recheck, 1000);
+    return () => window.clearInterval(id);
+  }, [level, recheck]);
   React.useEffect(() => {
     const fonts = typeof document === "undefined" ? undefined : document.fonts;
     if (!fonts?.addEventListener) return;
@@ -192,7 +199,9 @@ export function Stage({
   const control = s.control ?? null;
   const shows = showsOf(s);
   const quiz = s.quiz ?? null;
-  const { ref, level, value: fit } = useStageFit(shapeOf(s, shows, theme), s);
+  const logos = logoFooterOf(s);
+  // The foot's strip takes room from the middle: a new shape, so the fit measures again.
+  const { ref, level, value: fit } = useStageFit(`${shapeOf(s, shows, theme)}|logos:${logos ? (logos.image ? "image" : (logos.groups ?? []).map((g) => g.logos.length).join(",")) : 0}`, s);
   const url = roomUrl(event);
   const address = roomAddress(event);
   const code = quiz?.status === "live" ? quiz.join_code : null;
@@ -233,7 +242,8 @@ export function Stage({
   const boardUp =
     shows === "quiz" && quiz !== null && ((phaseOf(quiz) === "revealed" && Boolean(quiz.board_now) && quiz.leaderboard.length > 0) || phaseOf(quiz) === "ended");
   const corner = joinMode === "corner" && !joinBig && !idleJoin && !boardUp && !(empty && variant === "present");
-  const sponsors = theme?.screen.sponsors ? (s.sponsors ?? []) : [];
+  // The logo strip carries the sponsors too: the theme's sponsor strip only without it.
+  const sponsors = theme?.screen.sponsors && !logos ? (s.sponsors ?? []) : [];
   const image = theme?.background.kind === "image" && theme.background.image ? theme : null;
   const text = FIT_TEXT[level] ?? 1;
 
@@ -279,6 +289,7 @@ export function Stage({
         <footer className="grid" style={{ gap: u(1.2), minHeight: u(4) }}>
           {sponsors.length ? <SponsorStrip sponsors={sponsors} /> : null}
           <Updates ticker={Boolean(control?.ticker)} updates={s.updates ?? []} latest={s.update} />
+          {logos ? <LogoFooter content={logos} /> : null}
         </footer>
       </div>
     </div>

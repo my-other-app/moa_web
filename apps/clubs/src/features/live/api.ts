@@ -366,3 +366,11 @@ export async function fetchScreenControl(eventId: number) {
 export async function putScreenControl(eventId: number, change: Partial<ScreenControl>) {
   return screenControlSchema.parse(await put(`${base(eventId)}/screen/control`, change));
 }
+
+/** One wide picture at the screen's foot in place of the logos; null takes it away. Answers the controls. */
+export async function setScreenFooterImage(eventId: number, file: File | null) {
+  if (!file) return screenControlSchema.parse(await del(`${base(eventId)}/screen/footer-image`));
+  const form = new FormData();
+  form.append("image", file);
+  return screenControlSchema.parse(await post(`${base(eventId)}/screen/footer-image`, form));
+}

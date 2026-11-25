@@ -6,6 +6,7 @@ import { MaximizeIcon, MinimizeIcon } from "lucide-react";
 import { useEventDetail } from "@/features/events/queries";
 
 import { isDefaultControl, type Screen } from "../schemas";
+import { logoFooterOf } from "../stage/room";
 import { Stage } from "../stage/stage";
 
 /**
@@ -17,10 +18,12 @@ import { Stage } from "../stage/stage";
  * stage: the theme itself; a layout the host picked (the Q&A wall, idle
  * slides, the ticker, question-only results); teams, whose board only the
  * stage draws; or a host-revealed round, whose "answers are in" pause only
- * the stage says.
+ * the stage says; or the logo strip along the foot, which only the stage
+ * fits around what it shows.
  */
 export function usesStage(s: Screen): boolean {
   if (s.theme_custom) return true;
+  if (logoFooterOf(s)) return true;
   if (!isDefaultControl(s.control)) return true;
   const st = s.quiz?.settings;
   return Boolean(st && (st.teams.mode !== "off" || st.flow.reveal === "host"));

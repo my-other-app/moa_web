@@ -45,6 +45,7 @@ import {
   patchRoundQuestion,
   pushUpdate,
   putScreenControl,
+  setScreenFooterImage,
   putSurvey,
   putTheme,
   roundHostAction,
@@ -417,6 +418,18 @@ export function useScreenControl(eventId: number) {
     queryKey: [...liveKey(eventId), "screen", "control"],
     queryFn: () => nullIfRouteMissing(() => fetchScreenControl(eventId)),
     staleTime: 10_000,
+  });
+}
+
+export function useScreenFooterImage(eventId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File | null) => setScreenFooterImage(eventId, file),
+    onSuccess: (c) => {
+      qc.setQueryData([...liveKey(eventId), "screen", "control"], c);
+      void qc.invalidateQueries({ queryKey: [...liveKey(eventId), "screen"] });
+    },
+    onError: toastError,
   });
 }
 
