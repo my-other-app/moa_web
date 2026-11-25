@@ -76,7 +76,7 @@ import { LookPreview } from "./look-preview";
 
 const LETTERS = "ABCDEF";
 
-function ColorField({ label, value, onChange, invalid, describe }: { label: string; value: string; onChange: (v: string) => void; invalid?: boolean; describe?: string }) {
+export function ColorField({ label, value, onChange, invalid, describe }: { label: string; value: string; onChange: (v: string) => void; invalid?: boolean; describe?: string }) {
   const [text, setText] = React.useState<string | null>(null);
   return (
     <span className="flex items-center gap-1.5">

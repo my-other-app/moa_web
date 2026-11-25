@@ -811,3 +811,22 @@ describe("aligned with the backend as built", () => {
     expect(within(feed).queryByRole("button")).toBeNull();
   });
 });
+
+describe("venue screen colours and everyone board (pure helpers)", () => {
+  it("sends only changed colours, clears to null, and warns on low contrast", async () => {
+    const { lookPatch, colorWarning } = await import("./components/setup-panel");
+    const { settingsSchema } = await import("./schemas");
+    const s = settingsSchema.parse({ ...SETTINGS, colors: null, board_rows: 0 });
+    expect(s.board_rows).toBe(0);
+    expect(s.colors.background).toBeNull();
+    const base = { theme: s.theme, layout: s.board_layout, rows: s.board_rows, ticker: s.ticker_on, join: s.join_box_on };
+    const none = { background: null, surface: null, text: null, accent: null, gold: null, silver: null, bronze: null };
+    expect(lookPatch(s, { ...base, colors: { ...none } })).toEqual({});
+    expect(lookPatch(s, { ...base, colors: { ...none, accent: "#FF0000" } })).toEqual({ colors: { ...none, accent: "#FF0000" } });
+    const set = settingsSchema.parse({ ...SETTINGS, colors: { ...none, accent: "#ff0000" }, board_rows: 0 });
+    expect(set.colors.accent).toBe("#FF0000");
+    expect(lookPatch(set, { ...base, colors: { ...none } })).toEqual({ colors: null });
+    expect(colorWarning({ theme: s.theme, colors: { ...none, background: "#FFFFFF", surface: "#FFFFFF", text: "#EEEEEE" } })).toMatch(/hard to read/);
+    expect(colorWarning({ theme: s.theme, colors: { ...none, background: "#FFFFFF", surface: "#FFFFFF", text: "#111111" } })).toBeNull();
+  });
+});
