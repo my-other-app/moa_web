@@ -81,6 +81,7 @@ import {
 } from "./parts";
 import { useEventDetail } from "@/features/events/queries";
 import { ReviewSection } from "./review-section";
+import { DeliveryChannelsCard } from "./delivery-channels-card";
 import { SendTemplateDialog } from "./send-dialog";
 
 /**
@@ -659,6 +660,8 @@ export function EmailsPage({ eventId }: { eventId: number }) {
               ))}
             </div>
           </section>
+
+          <DeliveryChannelsCard eventId={eventId} />
 
           <ReviewSection eventId={eventId} />
 

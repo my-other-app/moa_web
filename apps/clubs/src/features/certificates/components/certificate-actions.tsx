@@ -19,7 +19,7 @@ import {
   IconButton,
 } from "@moa/ui";
 
-import { useSendOneDocument } from "@/features/deliveries";
+import { useSendBy, useSendOneDocument } from "@/features/deliveries";
 
 import { certificatePdfUrl } from "../api";
 import { useRevokeCertificate } from "../queries";
@@ -38,6 +38,7 @@ export function CertificateActions({
   row: CertificateRow;
 }) {
   const sendOne = useSendOneDocument(eventId, "certificate");
+  const sendBy = useSendBy(eventId, "certificate");
   const revoke = useRevokeCertificate(eventId);
   const [confirm, setConfirm] = React.useState(false);
   const revoked = row.status === "revoked";
@@ -74,12 +75,16 @@ export function CertificateActions({
         <DropdownMenuContent align="end">
           <DropdownMenuItem
             disabled={revoked}
-            onSelect={() => sendOne.mutate(row.registration_id)}
+            onSelect={() =>
+              sendBy.ask(`Send ${row.name}'s certificate again`, (channels) =>
+                sendOne.mutate({ registrationId: row.registration_id, channels }),
+              )
+            }
           >
             <span className="flex flex-col">
               <span>Send again</span>
               <span className="text-ink-3 text-xs">
-                By email, even if it was delivered before.
+                Even if it was delivered before.
               </span>
             </span>
           </DropdownMenuItem>
@@ -144,6 +149,7 @@ export function CertificateActions({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {sendBy.dialog}
     </span>
   );
 }

@@ -32,6 +32,7 @@ import {
 
 import { bundleUrl, type DocumentKind } from "../api";
 import { useDeliverySummary, useSendDocuments } from "../queries";
+import { SendByField, useDefaultChannel, useSendBy } from "./send-by";
 
 /**
  * How many guests have their ticket, as one bar, with the sends beside it.
@@ -62,6 +63,9 @@ export function DeliveryBar({
   const send = useSendDocuments(eventId, kind);
   const noun = kind === "ticket" ? "ticket" : "certificate";
   const [confirmAll, setConfirmAll] = React.useState(false);
+  const sendBy = useSendBy(eventId, kind);
+  const preset = useDefaultChannel(eventId, kind);
+  const [allBy, setAllBy] = React.useState(preset.mode);
 
   if (summary.isPending)
     return (
@@ -116,7 +120,11 @@ export function DeliveryBar({
             type="button"
             size="sm"
             disabled={busy || toSend === 0}
-            onClick={() => send.mutate("unsent")}
+            onClick={() =>
+              sendBy.ask(`Send ${noun}s`, (channels) =>
+                send.mutate({ only: "unsent", channels }),
+              )
+            }
             title={
               toSend === 0
                 ? `Everyone with an address has their ${noun}`
@@ -137,7 +145,11 @@ export function DeliveryBar({
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 disabled={email.failed + email.skipped === 0}
-                onSelect={() => send.mutate("failed")}
+                onSelect={() =>
+                  sendBy.ask("Retry problems", (channels) =>
+                    send.mutate({ only: "failed", channels }),
+                  )
+                }
               >
                 <span className="flex flex-col">
                   <span>Retry problems</span>
@@ -148,7 +160,10 @@ export function DeliveryBar({
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={total === 0}
-                onSelect={() => setConfirmAll(true)}
+                onSelect={() => {
+                  setAllBy(preset.mode);
+                  setConfirmAll(true);
+                }}
               >
                 <span className="flex flex-col">
                   <span>Send to everyone again</span>
@@ -220,23 +235,30 @@ export function DeliveryBar({
             <AlertDialogTitle>Send every {noun} again?</AlertDialogTitle>
             <AlertDialogDescription>
               {total} {total === 1 ? "guest gets" : "guests get"} their {noun}{" "}
-              by email again, including everyone who already has it. Use this
+              again, including everyone who already has it. Use this
               after changing the design, or if the first send went out wrong.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <SendByField
+            value={allBy}
+            onChange={setAllBy}
+            available={preset.available}
+            note={preset.note}
+          />
           <AlertDialogFooter>
             <AlertDialogCancel variant="secondary">
               Keep as is
             </AlertDialogCancel>
             <AlertDialogAction
               variant="primary"
-              onClick={() => send.mutate("all")}
+              onClick={() => send.mutate({ only: "all", channels: allBy })}
             >
               Send to everyone
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {sendBy.dialog}
     </FigurePanel>
   );
 }

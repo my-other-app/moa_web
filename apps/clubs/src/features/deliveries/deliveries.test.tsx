@@ -43,6 +43,8 @@ vi.mock("@moa/app-kit", async (importOriginal) => {
               ];
           return { items, total: items.length, page: 1, page_size: 20, tally: tally({}) };
         }
+        if (path.endsWith("/delivery-channels"))
+          return { ticket: "both", reminder: "both", certificate: "both", whatsapp_available: true, whatsapp_note: null };
         throw new Error(`unstubbed GET ${path}`);
       }),
       post: vi.fn(async (path: string, body?: unknown) => {
@@ -84,8 +86,13 @@ describe("the deliveries tab", () => {
     expect(screen.getByText("4 message deliveries were refused")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Send 10 tickets" }));
+    // Asked how first, pre-picked from the event's setting (both); email alone this time.
+    const ask = await screen.findByRole("alertdialog");
+    await waitFor(() => expect(within(ask).getByRole("radio", { name: "Both" }).getAttribute("aria-checked")).toBe("true"));
+    fireEvent.click(within(ask).getByRole("radio", { name: "Email" }));
+    fireEvent.click(within(ask).getByRole("button", { name: "Send" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.path === "/api/v1/events/42/tickets/send")).toBe(true));
-    expect(calls.find((c) => c.path === "/api/v1/events/42/tickets/send")?.body).toEqual({ only: "unsent" });
+    expect(calls.find((c) => c.path === "/api/v1/events/42/tickets/send")?.body).toEqual({ only: "unsent", channels: "email" });
   });
 
   it("exports every send as a CSV or, from the same rows and columns, an Excel workbook", async () => {
@@ -120,6 +127,7 @@ describe("the deliveries tab", () => {
     expect(screen.getAllByRole("button", { name: /their .* again/ })).toHaveLength(1);
 
     fireEvent.click(within(bounced).getByRole("button", { name: "Send Guest b1 their ticket again" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Send" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.path === "/api/v1/events/42/tickets/reg-b1/send")).toBe(true));
   });
 

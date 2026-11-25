@@ -25,6 +25,7 @@ import {
 } from "@moa/ui";
 
 import { useRevokeTicket, useSendOneTicket } from "../queries";
+import { useSendBy } from "./send-by";
 import { type DeliveryBrief, verdictOf } from "../schemas";
 
 export interface TicketRow {
@@ -57,6 +58,7 @@ export function TicketCell({
   row: TicketRow;
 }) {
   const sendOne = useSendOneTicket(eventId);
+  const sendBy = useSendBy(eventId, "ticket");
   const revoke = useRevokeTicket(eventId);
   const [confirmRevoke, setConfirmRevoke] = React.useState(false);
   const email = row.ticket_deliveries?.find((d) => d.channel === "email");
@@ -104,14 +106,18 @@ export function TicketCell({
         <DropdownMenuContent align="end">
           <DropdownMenuItem
             disabled={revoked}
-            onSelect={() => sendOne.mutate(row.id)}
+            onSelect={() =>
+              sendBy.ask(`Send ${name}'s ticket again`, (channels) =>
+                sendOne.mutate({ registrationId: row.id, channels }),
+              )
+            }
           >
             <span className="flex flex-col">
               <span>Send ticket again</span>
               <span className="text-ink-3 text-xs">
                 {revoked
                   ? "Reinstate it first."
-                  : "By email, even if it was delivered before."}
+                  : "Even if it was delivered before."}
               </span>
             </span>
           </DropdownMenuItem>
@@ -167,6 +173,7 @@ export function TicketCell({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {sendBy.dialog}
     </div>
   );
 }

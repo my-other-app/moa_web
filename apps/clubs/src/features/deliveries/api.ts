@@ -3,6 +3,7 @@ import { GATEWAY_PREFIX } from "@moa/auth";
 
 import {
   certificateSummarySchema,
+  deliveryChannelsStateSchema,
   deliveryLogSchema,
   deliverySummarySchema,
   sendResponseSchema,
@@ -13,29 +14,56 @@ const base = (eventId: number) => `/api/v1/events/${eventId}`;
 
 export type SendScope = "unsent" | "failed" | "all";
 export type DocumentKind = "ticket" | "certificate";
+/** How a send reaches guests. "whatsapp" still emails whoever WhatsApp can't reach. */
+export type ChannelMode = "email" | "whatsapp" | "both";
+/** The automatic sends an event chooses channels for. */
+export type ChannelKind = "ticket" | "reminder" | "certificate";
+export type DeliveryChannels = Record<ChannelKind, ChannelMode>;
 
 /** Where each kind of document is sent from. */
 const sendBase = (eventId: number, kind: DocumentKind) => `${base(eventId)}/${kind === "ticket" ? "tickets" : "certificates"}`;
 
 /** Email a kind of document. `unsent` reaches whoever has not been sent one; `failed` retries problems; `all` sends to everyone again. */
-export async function sendDocuments(eventId: number, kind: DocumentKind, only: SendScope = "unsent", registrationIds?: string[]) {
+export async function sendDocuments(
+  eventId: number,
+  kind: DocumentKind,
+  only: SendScope = "unsent",
+  registrationIds?: string[],
+  channels?: ChannelMode,
+) {
   const raw = await api.post<unknown>(`${sendBase(eventId, kind)}/send`, {
     only,
     ...(registrationIds ? { registration_ids: registrationIds } : {}),
+    ...(channels ? { channels } : {}),
   });
   return sendResponseSchema.parse(raw);
 }
 
-export const sendTickets = (eventId: number, only: SendScope = "unsent", registrationIds?: string[]) =>
-  sendDocuments(eventId, "ticket", only, registrationIds);
+export const sendTickets = (eventId: number, only: SendScope = "unsent", registrationIds?: string[], channels?: ChannelMode) =>
+  sendDocuments(eventId, "ticket", only, registrationIds, channels);
 
 /** One guest's document again, delivered before or not. */
-export async function sendOneDocument(eventId: number, kind: DocumentKind, registrationId: string) {
-  const raw = await api.post<unknown>(`${sendBase(eventId, kind)}/${encodeURIComponent(registrationId)}/send`);
+export async function sendOneDocument(eventId: number, kind: DocumentKind, registrationId: string, channels?: ChannelMode) {
+  const raw = await api.post<unknown>(
+    `${sendBase(eventId, kind)}/${encodeURIComponent(registrationId)}/send`,
+    channels ? { channels } : undefined,
+  );
   return sendResponseSchema.parse(raw);
 }
 
-export const sendOneTicket = (eventId: number, registrationId: string) => sendOneDocument(eventId, "ticket", registrationId);
+export const sendOneTicket = (eventId: number, registrationId: string, channels?: ChannelMode) =>
+  sendOneDocument(eventId, "ticket", registrationId, channels);
+
+/** Per event: email, WhatsApp or both for the ticket, the day-before reminder and the certificate. */
+export async function fetchDeliveryChannels(eventId: number) {
+  const raw = await api.get<unknown>(`${base(eventId)}/delivery-channels`);
+  return deliveryChannelsStateSchema.parse(raw);
+}
+
+export async function saveDeliveryChannels(eventId: number, body: DeliveryChannels) {
+  const raw = await api.put<unknown>(`${base(eventId)}/delivery-channels`, body);
+  return deliveryChannelsStateSchema.parse(raw);
+}
 
 export async function revokeTicket(eventId: number, registrationId: string, reason?: string) {
   const raw = await api.post<unknown>(`${base(eventId)}/tickets/${encodeURIComponent(registrationId)}/revoke`, { reason });

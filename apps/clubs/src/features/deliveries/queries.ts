@@ -7,12 +7,16 @@ import { toast } from "@moa/ui";
 import { toastError } from "@/features/plan/errors";
 
 import {
+  fetchDeliveryChannels,
   fetchDeliveryLog,
   fetchDeliverySummary,
   reinstateTicket,
   revokeTicket,
+  saveDeliveryChannels,
   sendDocuments,
   sendOneDocument,
+  type ChannelMode,
+  type DeliveryChannels,
   type DeliveryLogQuery,
   type DocumentKind,
   type SendScope,
@@ -90,10 +94,41 @@ export function useRefreshDeliveries(eventId: number) {
 }
 const useRefresh = useRefreshDeliveries;
 
+const channelsKey = (eventId: number) => [...qk.events.detail(eventId), "deliveries", "channels"] as const;
+
+/** The event's email / WhatsApp / both choice for each automatic send. */
+export function useDeliveryChannels(eventId: number) {
+  return useQuery({
+    queryKey: channelsKey(eventId),
+    queryFn: () => fetchDeliveryChannels(eventId),
+    staleTime: 60_000,
+    enabled: eventId > 0,
+  });
+}
+
+export function useSaveDeliveryChannels(eventId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: DeliveryChannels) => saveDeliveryChannels(eventId, body),
+    onSuccess: (state) => {
+      queryClient.setQueryData(channelsKey(eventId), state);
+      toast.success("Saved", { description: "Sends from now on go this way." });
+    },
+    onError: toastError,
+  });
+}
+
+/** A send's scope, and how it goes (unset: the event's choice). */
+export type SendVars = SendScope | { only: SendScope; channels?: ChannelMode };
+/** One guest's send, and how it goes (unset: the event's choice). */
+export type SendOneVars = string | { registrationId: string; channels?: ChannelMode };
+export const sendOneId = (v: SendOneVars | undefined) => (typeof v === "string" ? v : v?.registrationId);
+
 export function useSendDocuments(eventId: number, kind: DocumentKind) {
   const refresh = useRefresh(eventId);
   return useMutation({
-    mutationFn: (only: SendScope) => sendDocuments(eventId, kind, only),
+    mutationFn: (v: SendVars) =>
+      typeof v === "string" ? sendDocuments(eventId, kind, v) : sendDocuments(eventId, kind, v.only, undefined, v.channels),
     onSuccess: (r) => {
       toast.success(r.queued ? `Sending to ${r.queued} ${r.queued === 1 ? "guest" : "guests"}` : "Nothing to send", {
         description: describeSend(r),
@@ -107,7 +142,8 @@ export function useSendDocuments(eventId: number, kind: DocumentKind) {
 export function useSendOneDocument(eventId: number, kind: DocumentKind) {
   const refresh = useRefresh(eventId);
   return useMutation({
-    mutationFn: (registrationId: string) => sendOneDocument(eventId, kind, registrationId),
+    mutationFn: (v: SendOneVars) =>
+      typeof v === "string" ? sendOneDocument(eventId, kind, v) : sendOneDocument(eventId, kind, v.registrationId, v.channels),
     onSuccess: (r) => {
       toast.success(r.queued ? `${kind === "ticket" ? "Ticket" : "Certificate"} queued again` : "Nothing to send", {
         description: r.queued ? "Delivery shows on the list as it lands." : describeSend(r),
