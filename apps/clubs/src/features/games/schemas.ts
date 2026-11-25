@@ -92,6 +92,8 @@ export const settingsSchema = z.object({
   theme: z.enum(THEMES).catch("neon_arcade"),
   accent: maybeText,
   logo_url: maybeText,
+  /** One wide picture shown along the venue screen's foot in place of the logos. */
+  footer_image_url: maybeText,
   board_layout: z.enum(BOARD_LAYOUTS).catch("podium"),
   board_rows: z
     .number()

@@ -51,6 +51,14 @@ export async function uploadLogo(eventId: number, file: File) {
   return settingsSchema.parse(await api.post<unknown>(`${base(eventId)}/settings/logo`, form));
 }
 
+/** The venue screen's footer image (one wide picture); null takes it away. Answered with the settings. */
+export async function setFooterImage(eventId: number, file: File | null) {
+  if (!file) return settingsSchema.parse(await api.del<unknown>(`${base(eventId)}/settings/footer-image`));
+  const form = new FormData();
+  form.append("image", file);
+  return settingsSchema.parse(await api.post<unknown>(`${base(eventId)}/settings/footer-image`, form));
+}
+
 export async function fetchScreen(eventId: number) {
   return screenSchema.parse(await api.get<unknown>(`${base(eventId)}/screen`));
 }

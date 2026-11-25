@@ -24,6 +24,7 @@ import {
   useMedia,
   useScreenControl,
   useScreenControlMutation,
+  useScreenFooterImage,
   useTheme,
   useThemeCheck,
   useThemeMutations,
@@ -627,6 +628,44 @@ export function ScreenModeSelect({ eventId, className }: { eventId: number; clas
   );
 }
 
+/** One wide picture (a banner of every logo, say) shown along the bottom in place of the logos. */
+function FooterImage({ eventId, url }: { eventId: number; url: string | null }) {
+  const set = useScreenFooterImage(eventId);
+  const input = React.useRef<HTMLInputElement>(null);
+  return (
+    <Field label="Footer image" hint="Optional. One wide picture (about 3000 x 300) shown along the bottom instead of the logos.">
+      <div className="grid gap-2">
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt="The footer image" className="border-line bg-sunken h-12 w-full rounded-md border object-contain" />
+        ) : null}
+        <div className="flex gap-2">
+          <input
+            ref={input}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            aria-label="Footer image file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) set.mutate(file);
+              e.target.value = "";
+            }}
+          />
+          <button type="button" className="btn btn-secondary btn-xs" disabled={set.isPending} onClick={() => input.current?.click()}>
+            {set.isPending ? <Loader2Icon className="size-3.5 animate-spin" /> : <ImagePlusIcon className="size-3.5" />} {url ? "Replace image" : "Upload image"}
+          </button>
+          {url ? (
+            <button type="button" className="btn btn-ghost btn-xs" disabled={set.isPending} onClick={() => set.mutate(null)}>
+              <Trash2Icon className="size-3.5" /> Use the logos
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </Field>
+  );
+}
+
 function ScreenControls({ eventId, control }: { eventId: number; control: ScreenControl }) {
   const put = useScreenControlMutation(eventId);
   const change = (c: Partial<ScreenControl>) => put.mutate(c);
@@ -672,6 +711,8 @@ function ScreenControls({ eventId, control }: { eventId: number; control: Screen
         />
       </Field>
       <Toggle label="Updates as a running ticker" hint="Off: the latest update as one strip, as before." checked={control.ticker} onChange={(ticker) => change({ ticker })} />
+      <Toggle label="Logos along the bottom" hint="The host club and co-hosts, then the event's partners and sponsors by their labels, as in the event's emails." checked={control.logo_footer} onChange={(logo_footer) => change({ logo_footer })} />
+      {control.logo_footer ? <FooterImage eventId={eventId} url={control.footer_image_url ?? null} /> : null}
       <Field label="Slides between items" hint="Shown in turn when nothing else is up (and whenever the screen is set to Slides).">
         <div className="grid gap-2">
           {IDLE_SLIDES.map((s) => (

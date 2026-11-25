@@ -6,7 +6,7 @@ import { formatTime } from "@moa/app-kit";
 
 import { useQr } from "@/features/links";
 
-import type { AgendaSlot, IdleSlide, LiveUpdate, Question, Sponsor } from "../schemas";
+import type { AgendaSlot, IdleSlide, LiveUpdate, Question, Screen, Sponsor } from "../schemas";
 import { usePrefersReducedMotion } from "../theme";
 import { Eyebrow, Panel, t, u, useFit } from "./parts";
 
@@ -271,6 +271,72 @@ export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
           </span>
         ),
       )}
+    </div>
+  );
+}
+
+export type LogoGroup = { caption: string; logos: Array<{ name: string; logo_url: string; title?: string | null }> };
+export type LogoFooterContent = { image: string; groups?: undefined } | { image?: undefined; groups: LogoGroup[] };
+
+/**
+ * What the foot's strip shows, or null for no strip: the organiser's own
+ * footer image when one is set; else the logos in groups, as in the event's
+ * emails -- "Hosted by" (the club, then its co-hosts), then one group per
+ * partner label in the order they first come (no label: "Sponsors" or
+ * "Partners" by kind). Off when the organiser turned the strip off.
+ */
+export function logoFooterOf(s: Pick<Screen, "club" | "partners" | "cohosts" | "footer_image_url" | "control">): LogoFooterContent | null {
+  if (s.control && s.control.logo_footer === false) return null;
+  if (s.footer_image_url) return { image: s.footer_image_url };
+  const hosts = [s.club, ...(s.cohosts ?? [])].flatMap((c) => (c && c.logo_url ? [{ name: c.name, logo_url: c.logo_url }] : []));
+  const groups: LogoGroup[] = hosts.length ? [{ caption: "Hosted by", logos: hosts }] : [];
+  for (const p of s.partners ?? []) {
+    if (!p.logo_url) continue;
+    const caption = p.label?.trim() || (p.kind === "sponsor" ? "Sponsors" : "Partners");
+    const group = groups.find((g) => g.caption.toLowerCase() === caption.toLowerCase() && g.caption !== "Hosted by");
+    if (group) group.logos.push({ name: p.name, logo_url: p.logo_url, title: p.label });
+    else groups.push({ caption, logos: [{ name: p.name, logo_url: p.logo_url, title: p.label }] });
+  }
+  return groups.length ? { groups } : null;
+}
+
+/**
+ * The foot of the screen, as the event's email footer lays it out: each
+ * group a small caption over its logos, the groups in one row centred as a
+ * whole with thin rules between them, every logo the same height. Or the
+ * organiser's own wide image, centred and contained. In the stage's own
+ * colours; height capped; logos shrink to fit and never wrap.
+ */
+export function LogoFooter({ content }: { content: LogoFooterContent }) {
+  const box: React.CSSProperties = { padding: `${u(0.7)} ${u(1.6)}`, borderRadius: u(1.2), background: "var(--lt-panel)", border: "1px solid var(--lt-panel-line)" };
+  if (content.image)
+    return (
+      <div data-testid="logo-footer" aria-label="Hosts and partners" className="flex min-w-0 items-center justify-center overflow-hidden" style={{ ...box, padding: u(0.5) }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={content.image} alt="Hosts and partners" className="block min-w-0 object-contain" style={{ width: "100%", height: `min(${u(7)}, 190px)` }} />
+      </div>
+    );
+  const logoH = `min(${u(3.2)}, 88px)`;
+  return (
+    <div data-testid="logo-footer" aria-label="Hosts and partners" className="flex min-w-0 items-stretch justify-center overflow-hidden" style={box}>
+      {(content.groups ?? []).map((g, i) => (
+        <div
+          key={g.caption}
+          data-group={g.caption}
+          className="flex min-w-0 flex-col items-center"
+          style={{ flex: "0 1 auto", gap: u(0.5), padding: `0 ${u(1.6)}`, borderLeft: i ? "1px solid var(--lt-panel-line)" : undefined }}
+        >
+          <span className="max-w-full truncate font-mono font-semibold tracking-[0.1em] whitespace-nowrap uppercase" style={{ fontSize: t(0.95), color: "var(--lt-muted)" }}>
+            {g.caption}
+          </span>
+          <div className="flex max-w-full min-w-0 items-center justify-center" style={{ gap: u(1.4) }}>
+            {g.logos.map((l, j) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={`${j}-${l.name}`} src={l.logo_url} alt={l.name} title={l.title || l.name} className="block w-auto min-w-0 object-contain" style={{ height: logoH, maxWidth: u(13), flex: "0 1 auto" }} />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

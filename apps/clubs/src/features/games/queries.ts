@@ -31,6 +31,7 @@ import {
   updateHero,
   updatePoint,
   uploadHeroArt,
+  setFooterImage,
   uploadLogo,
 } from "./api";
 import type { CardConfigPatch, HeroInput, HuntAction, HuntPatch, PointInput, SettingsPatch } from "./schemas";
@@ -66,6 +67,11 @@ export function useSaveSettings(eventId: number) {
 export function useUploadLogo(eventId: number) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (file: File) => uploadLogo(eventId, file), onSuccess: (data) => qc.setQueryData(key(eventId, "settings"), data) });
+}
+
+export function useFooterImage(eventId: number) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (file: File | null) => setFooterImage(eventId, file), onSuccess: (data) => qc.setQueryData(key(eventId, "settings"), data) });
 }
 
 export function useScreenLink(eventId: number, enabled: boolean) {

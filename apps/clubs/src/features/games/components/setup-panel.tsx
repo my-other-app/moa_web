@@ -25,7 +25,7 @@ import { useFeatureGate } from "@/features/plan";
 import { ColorField, contrast, TEXT_MIN } from "@/features/live";
 
 import { errorText } from "../lib/time";
-import { useRotateScreen, useSaveSettings, useScreenLink, useUploadLogo } from "../queries";
+import { useFooterImage, useRotateScreen, useSaveSettings, useScreenLink, useUploadLogo } from "../queries";
 import {
   BOARD_LAYOUTS,
   BOARD_ROWS,
@@ -433,6 +433,8 @@ export function LookPanel({ eventId, s, canEdit }: { eventId: number; s: GameSet
               <p className="text-ink-3 mt-1 text-[11.5px]">Square works best. PNG, JPG or WebP, up to 2 MB.</p>
             </div>
 
+            <FooterImageField eventId={eventId} url={s.footer_image_url ?? null} />
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <span className="eyebrow mb-1.5 block">Board layout</span>
@@ -540,6 +542,44 @@ export function SetupPanel({ eventId, s, canEdit }: { eventId: number; s: GameSe
       <GameSwitch eventId={eventId} kind="cards" s={s} canEdit={canEdit} />
       <GameSwitch eventId={eventId} kind="hunt" s={s} canEdit={canEdit} />
       <LookPanel eventId={eventId} s={s} canEdit={canEdit} />
+    </div>
+  );
+}
+
+/** One wide picture along the venue screen's foot in place of the host and partner logos. */
+function FooterImageField({ eventId, url }: { eventId: number; url: string | null }) {
+  const set = useFooterImage(eventId);
+  const ref = React.useRef<HTMLInputElement>(null);
+  return (
+    <div>
+      <span className="eyebrow mb-1.5 block">Footer image</span>
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="Footer image" className="bg-sunken mb-2 h-12 w-full rounded-lg object-contain" />
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <input
+          ref={ref}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="sr-only"
+          aria-label="Footer image file"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) set.mutate(file);
+            e.target.value = "";
+          }}
+        />
+        <Button type="button" variant="secondary" disabled={set.isPending} onClick={() => ref.current?.click()}>
+          {set.isPending ? <Loader2Icon className="animate-spin" /> : <ImagePlusIcon />} {url ? "Change footer image" : "Upload footer image"}
+        </Button>
+        {url ? (
+          <Button type="button" variant="ghost" disabled={set.isPending} onClick={() => set.mutate(null)}>
+            <XIcon /> Use the logos
+          </Button>
+        ) : null}
+      </div>
+      <p className="text-ink-3 mt-1 text-[11.5px]">Optional. One wide picture (about 3000 x 300) shown along the bottom of the venue screen instead of the host and partner logos.</p>
     </div>
   );
 }
