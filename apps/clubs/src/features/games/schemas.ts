@@ -63,7 +63,25 @@ export const THEME_COLORS: Record<ThemeKey, ThemeColors> = {
 
 export const BOARD_LAYOUTS = ["podium", "list"] as const;
 export type BoardLayout = (typeof BOARD_LAYOUTS)[number];
-export const BOARD_ROWS = [5, 7, 10] as const;
+/** 0 is "everyone": the venue screen lists the whole board and scrolls it. */
+export const BOARD_ROWS = [0, 5, 7, 10, 25, 50] as const;
+
+/** The venue screen's own colours over the theme; null keeps the theme's. */
+export const SCREEN_COLOR_KEYS = ["background", "surface", "text", "accent", "gold", "silver", "bronze"] as const;
+export type ScreenColorKey = (typeof SCREEN_COLOR_KEYS)[number];
+export type ScreenColors = Record<ScreenColorKey, string | null>;
+const hexOrNull = z
+  .string()
+  .nullish()
+  .catch(null)
+  .transform((v) => (v && /^#[0-9A-Fa-f]{6}$/.test(v) ? v.toUpperCase() : null));
+export const screenColorsSchema = z
+  .object({ background: hexOrNull, surface: hexOrNull, text: hexOrNull, accent: hexOrNull, gold: hexOrNull, silver: hexOrNull, bronze: hexOrNull })
+  .nullish()
+  .catch(null)
+  .transform((v): ScreenColors => v ?? { background: null, surface: null, text: null, accent: null, gold: null, silver: null, bronze: null });
+/** The screen's medal colours when none are set. */
+export const MEDALS = { gold: "#FFC83D", silver: "#C9D3E0", bronze: "#E08A4B" } as const;
 
 export const settingsSchema = z.object({
   event_id: z.number().nullish().catch(null),
@@ -79,6 +97,12 @@ export const settingsSchema = z.object({
     .number()
     .catch(10)
     .transform((n) => ((BOARD_ROWS as readonly number[]).includes(n) ? n : 10)),
+  colors: screenColorsSchema,
+  color_warnings: z
+    .array(z.object({ field: z.string().catch(""), message: z.string().catch("") }))
+    .nullish()
+    .catch(null)
+    .transform((v) => v ?? []),
   ticker_on: z.boolean().catch(true),
   join_box_on: z.boolean().catch(true),
   screen_version: count,
@@ -95,7 +119,7 @@ export type GameSettings = z.infer<typeof settingsSchema>;
 /** What a settings save sends: any part of them. */
 export type SettingsPatch = Partial<
   Pick<GameSettings, "cards_on" | "cards_name" | "hunt_on" | "hunt_name" | "theme" | "logo_url" | "board_layout" | "board_rows" | "ticker_on" | "join_box_on">
->;
+> & { colors?: Partial<ScreenColors> | null };
 
 /** GET screen and POST screen/rotate: {url, token, version}. */
 export const screenSchema = z.object({ url: text, token: maybeText, version: count });

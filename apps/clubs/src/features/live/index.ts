@@ -5,3 +5,5 @@ export { JoinQr } from "./components/join-qr";
 export { roomUrl, roomAddress } from "./room";
 export { useQuiz, useRounds, useRoundHost, useQuestions, usePolls, useFeedback, useUpdates, useScreen, liveKey } from "./queries";
 export { quizSchema, hostStateSchema, qaBoardSchema, pollSchema, feedbackSchema, updateSchema, updatesPageSchema, screenSchema, type Quiz, type Poll, type Feedback, type LiveUpdate, type Screen } from "./schemas";
+export { ColorField } from "./components/look-panel";
+export { contrast, TEXT_MIN } from "./theme";

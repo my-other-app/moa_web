@@ -22,6 +22,7 @@ import {
 } from "@moa/ui";
 
 import { useFeatureGate } from "@/features/plan";
+import { ColorField, contrast, TEXT_MIN } from "@/features/live";
 
 import { errorText } from "../lib/time";
 import { useRotateScreen, useSaveSettings, useScreenLink, useUploadLogo } from "../queries";
@@ -29,6 +30,10 @@ import {
   BOARD_LAYOUTS,
   BOARD_ROWS,
   DEFAULT_NAME,
+  MEDALS,
+  SCREEN_COLOR_KEYS,
+  type ScreenColorKey,
+  type ScreenColors,
   GAME_FEATURE,
   NAME_MAX,
   THEMES,
@@ -135,7 +140,16 @@ function GameSwitch({ eventId, kind, s, canEdit }: { eventId: number; kind: Game
   );
 }
 
-const ROW_OPTIONS = BOARD_ROWS.map((n) => ({ value: String(n), label: String(n) }));
+const ROW_OPTIONS = BOARD_ROWS.map((n) => ({ value: String(n), label: n === 0 ? "Everyone (scrolls)" : String(n) }));
+const COLOR_LABEL: Record<ScreenColorKey, string> = {
+  background: "Background",
+  surface: "Rows and cards",
+  text: "Text",
+  accent: "Accent",
+  gold: "1st place",
+  silver: "2nd place",
+  bronze: "3rd place",
+};
 const LAYOUT_OPTIONS = [
   { value: "podium", label: "Podium" },
   { value: "list", label: "List" },
@@ -147,8 +161,33 @@ interface LookDraft {
   rows: number;
   ticker: boolean;
   join: boolean;
+  colors: ScreenColors;
 }
-const lookOf = (s: GameSettings): LookDraft => ({ theme: s.theme, layout: s.board_layout, rows: s.board_rows, ticker: s.ticker_on, join: s.join_box_on });
+const lookOf = (s: GameSettings): LookDraft => ({ theme: s.theme, layout: s.board_layout, rows: s.board_rows, ticker: s.ticker_on, join: s.join_box_on, colors: { ...s.colors } });
+const sameColors = (a: ScreenColors, b: ScreenColors) => SCREEN_COLOR_KEYS.every((k) => (a[k] ?? null) === (b[k] ?? null));
+
+/** The colours the screen will draw with: the organiser's, else the theme's. */
+export function screenColors(look: Pick<LookDraft, "theme" | "colors">) {
+  const c = THEME_COLORS[look.theme];
+  const o = look.colors;
+  return {
+    bg: o.background ?? c.bg,
+    panel: o.surface ?? c.panel,
+    ink: o.text ?? c.ink,
+    accent: o.accent ?? c.accent,
+    accent2: c.accent2,
+    gold: o.gold ?? MEDALS.gold,
+    silver: o.silver ?? MEDALS.silver,
+    bronze: o.bronze ?? MEDALS.bronze,
+  };
+}
+
+/** Text that will be hard to read on the screen (AA, 4.5:1, as the live room checks). */
+export function colorWarning(look: Pick<LookDraft, "theme" | "colors">): string | null {
+  const c = screenColors(look);
+  const low = [c.bg, c.panel].some((fill) => contrast(c.ink, fill) < TEXT_MIN);
+  return low ? "The text colour is hard to read on the background or the rows. Pick a lighter or darker text colour." : null;
+}
 
 /** What a save of the look would send: only what changed. */
 export function lookPatch(s: GameSettings, d: LookDraft): SettingsPatch {
@@ -158,6 +197,7 @@ export function lookPatch(s: GameSettings, d: LookDraft): SettingsPatch {
   if (d.rows !== s.board_rows) out.board_rows = d.rows;
   if (d.ticker !== s.ticker_on) out.ticker_on = d.ticker;
   if (d.join !== s.join_box_on) out.join_box_on = d.join;
+  if (!sameColors(d.colors, s.colors)) out.colors = SCREEN_COLOR_KEYS.some((k) => d.colors[k]) ? { ...d.colors } : null;
   return out;
 }
 
@@ -165,14 +205,15 @@ const BOARD_SAMPLE = ["Kavya R.", "Arjun M.", "Nila S.", "Rahul P.", "Diya K.", 
 
 /** The venue screen as it will read: theme, layout, rows, ticker and join box, with made-up names. */
 export function ScreenPreview({ look, logo }: { look: LookDraft; logo: string | null }) {
-  const c = THEME_COLORS[look.theme];
-  const rows = BOARD_SAMPLE.slice(look.layout === "podium" ? 3 : 0, look.layout === "podium" ? look.rows : look.rows);
+  const c = screenColors(look);
+  const shown = look.rows === 0 ? BOARD_SAMPLE.length : look.rows;
+  const rows = BOARD_SAMPLE.slice(look.layout === "podium" ? 3 : 0, Math.min(shown, BOARD_SAMPLE.length));
   return (
     <div
       data-slot="screen-preview"
       data-theme-key={look.theme}
       role="img"
-      aria-label={`Venue screen preview: ${THEME_LABEL[look.theme]}, ${look.layout}, ${look.rows} rows`}
+      aria-label={`Venue screen preview: ${THEME_LABEL[look.theme]}, ${look.layout}, ${look.rows === 0 ? "everyone" : `${look.rows} rows`}`}
       className="relative aspect-video w-full max-w-[420px] overflow-hidden rounded-xl p-3"
       style={{ background: c.bg, color: c.ink, fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}
     >
@@ -188,8 +229,8 @@ export function ScreenPreview({ look, logo }: { look: LookDraft; logo: string | 
       {look.layout === "podium" ? (
         <div className="mt-2 flex items-end justify-center gap-1.5">
           {[1, 0, 2].map((i) => (
-            <div key={i} className="flex w-14 flex-col items-center rounded-t-md px-1 pt-1 text-center text-[8px]" style={{ background: i === 0 ? c.accent : c.panel, color: i === 0 ? c.bg : c.ink, height: 34 - i * 6 }}>
-              <b>{i + 1}</b>
+            <div key={i} className="flex w-14 flex-col items-center rounded-t-md border px-1 pt-1 text-center text-[8px]" style={{ background: c.panel, color: c.ink, borderColor: [c.gold, c.silver, c.bronze][i], height: 34 - i * 6 }}>
+              <b style={{ color: [c.gold, c.silver, c.bronze][i] }}>{i + 1}</b>
               <span className="truncate">{BOARD_SAMPLE[i]}</span>
             </div>
           ))}
@@ -201,12 +242,17 @@ export function ScreenPreview({ look, logo }: { look: LookDraft; logo: string | 
             <span>
               {(look.layout === "podium" ? i + 4 : i + 1)}. {n}
             </span>
-            <span style={{ color: c.accent2 }}>{120 - i * 7}</span>
+            <span style={{ color: c.accent }}>{120 - i * 7}</span>
           </li>
         ))}
       </ol>
+      {look.rows === 0 ? (
+        <span className="mt-0.5 block text-[7px] opacity-70" data-slot="preview-everyone">
+          …and everyone else, scrolling
+        </span>
+      ) : null}
       {look.ticker ? (
-        <div className="absolute inset-x-2 bottom-1.5 rounded px-1.5 py-px text-[8px]" style={{ background: c.accent2, color: c.bg }}>
+        <div className="absolute inset-x-2 bottom-1.5 rounded px-1.5 py-px text-[8px]" style={{ background: c.panel, color: c.ink, borderLeft: `3px solid ${c.accent}` }}>
           Legendary pulled! Someone found Solar Warden.
         </div>
       ) : null}
@@ -292,6 +338,7 @@ export function LookPanel({ eventId, s, canEdit }: { eventId: number; s: GameSet
   const fileRef = React.useRef<HTMLInputElement>(null);
   const set = <K extends keyof LookDraft>(k: K, v: LookDraft[K]) => setDraft((d) => ({ ...d, [k]: v }));
   const patch = lookPatch(s, draft);
+  const warning = colorWarning(draft);
   const dirty = Object.keys(patch).length > 0;
 
   const submit = async () => {
@@ -404,6 +451,43 @@ export function LookPanel({ eventId, s, canEdit }: { eventId: number; s: GameSet
                   ))}
                 </NativeSelect>
               </div>
+            </div>
+
+            <div>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <span className="eyebrow block">Screen colours</span>
+                {SCREEN_COLOR_KEYS.some((k) => draft.colors[k]) ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => set("colors", { background: null, surface: null, text: null, accent: null, gold: null, silver: null, bronze: null })}>
+                    Use the theme&apos;s colours
+                  </Button>
+                ) : null}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2" data-slot="screen-colors">
+                {SCREEN_COLOR_KEYS.map((k) => {
+                  const theme = screenColors({ theme: draft.theme, colors: { ...draft.colors, [k]: null } });
+                  const fallback = { background: theme.bg, surface: theme.panel, text: theme.ink, accent: theme.accent, gold: theme.gold, silver: theme.silver, bronze: theme.bronze }[k];
+                  return (
+                    <div key={k} className="flex items-center justify-between gap-2">
+                      <span className="text-ink-2 min-w-0 truncate text-[12.5px]">{COLOR_LABEL[k]}</span>
+                      <span className="flex items-center gap-1">
+                        <ColorField label={`${COLOR_LABEL[k]} colour`} value={draft.colors[k] ?? fallback} onChange={(v) => set("colors", { ...draft.colors, [k]: v })} invalid={k === "text" && warning != null} describe={warning ? "games-color-warning" : undefined} />
+                        {draft.colors[k] ? (
+                          <Button type="button" variant="ghost" size="icon-sm" aria-label={`${COLOR_LABEL[k]}: use the theme's`} onClick={() => set("colors", { ...draft.colors, [k]: null })}>
+                            <XIcon />
+                          </Button>
+                        ) : null}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {warning ? (
+                <p id="games-color-warning" role="status" className="text-caution mt-1.5 text-[11.5px] leading-[1.5]">
+                  {warning}
+                </p>
+              ) : (
+                <p className="text-ink-3 mt-1.5 text-[11.5px] leading-[1.5]">For the venue screen only, over the theme. Leave one as it is to keep the theme&apos;s.</p>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-x-6 gap-y-3">
