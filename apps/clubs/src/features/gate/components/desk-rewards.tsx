@@ -217,7 +217,7 @@ export function DeskGuest({
           <span className="text-ink block truncate text-[16px] font-semibold">{name}</span>
           {g ? (
             <span className="text-ink-3 block font-mono text-[11px]">
-              {g.tasks_done} {g.tasks_done === 1 ? "task" : "tasks"} done{g.mode === "points" && g.points ? ` · ${g.points} points` : ""}
+              {g.swag.tasks_done} {g.swag.tasks_done === 1 ? "task" : "tasks"} done{g.swag.mode === "points" && g.swag.points ? ` · ${g.swag.points} points` : ""}
             </span>
           ) : null}
         </span>
@@ -227,7 +227,7 @@ export function DeskGuest({
       </div>
       {g ? (
         <>
-          <DeskRewards key={q.dataUpdatedAt} gateKey={gateKey} eventId={eventId} door={door} guest={name} rewards={g.rewards} canHandOver={canHandOver} />
+          <DeskRewards key={q.dataUpdatedAt} gateKey={gateKey} eventId={eventId} door={door} guest={name} rewards={g.swag.rewards} canHandOver={canHandOver} />
           {g.stations.length ? (
             <p className="text-ink-3 border-line-soft flex items-start gap-1.5 border-t px-4 py-3 text-[12.5px] leading-[1.5]">
               <MapPinIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />

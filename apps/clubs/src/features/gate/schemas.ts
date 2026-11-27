@@ -148,9 +148,16 @@ export const swagDeskSchema = z.object({
 });
 export type SwagDesk = z.infer<typeof swagDeskSchema>;
 
-/** GET …/gate/quests/{registration_id}: the swag block plus the stations they visited. */
-export const gateQuestGuestSchema = swagDeskSchema.extend({
+/** GET …/gate/quests/{registration_id}: the swag block plus the stations they visited.
+ *
+ * The swag block is its own object here, exactly as the scan's SWAG_DESK
+ * answer carries it -- it is not spread over the top level. Reading it flat
+ * cost nothing loudly: every field defaults, so a guest with rewards showed
+ * "0 tasks done" and "No rewards unlocked yet" while their stations, which
+ * really are top level, listed fine. */
+export const gateQuestGuestSchema = z.object({
   attendee: z.object({ id: z.string(), name: z.string() }).nullish().catch(null),
+  swag: swagDeskSchema,
   stations: z
     .array(z.object({ door_id: z.string().nullish(), name: z.string().catch(""), visited_at: z.string().nullish() }))
     .catch([]),

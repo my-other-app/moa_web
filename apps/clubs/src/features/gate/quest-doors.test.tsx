@@ -67,7 +67,8 @@ const net = {
   scan: (_body: { door?: string }): Response => json(200, admitted),
   handover: (_body: unknown): Response => json(200, { result: "HANDED_OVER", claim: reward({ status: "collected", collected_at: "2026-11-28T06:02:00Z", door: "Swag desk", collected_by: "Vani Rao" }), remaining: 54 }),
   search: (): Response => json(200, [{ id: "r1", name: "Asha Kumar", ticket_id: "", role: "attendee", has_contact: false, is_paid: true, checked_in_at: "2026-11-28T04:00:00Z" }]),
-  guest: (): Response => json(200, { door_id: null, name: null, enabled: true, points: 40, tasks_done: 5, attendee: { id: "r1", name: "Asha Kumar" }, rewards: [reward()], stations: [{ door_id: "st1", name: "Google Cloud booth", visited_at: "2026-11-28T05:12:00Z" }] }),
+  // The server's shape: the swag block is its own object, as the scan's answer carries it.
+  guest: (): Response => json(200, { attendee: { id: "r1", name: "Asha Kumar" }, swag: { door_id: null, name: null, enabled: true, mode: "points", points: 40, tasks_done: 5, rewards: [reward()] }, stations: [{ door_id: "st1", name: "Google Cloud booth", visited_at: "2026-11-28T05:12:00Z" }] }),
   batch: (body: { scans: { client_ref: string }[] }): Response => json(200, { results: body.scans.map((s) => ({ client_ref: s.client_ref, response: visit("VISITED") })) }),
 };
 
@@ -346,6 +347,8 @@ describe("at a swag desk", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Rewards" }));
     const panel = await screen.findByRole("region", { name: "Their rewards" });
     expect(await within(panel).findByText("DevFest T-shirt")).toBeInTheDocument();
+    // Their standing comes from the swag block, not the top level.
+    expect(within(panel).getByText(/5 tasks done/)).toBeInTheDocument();
     expect(within(panel).getByText("Visited Google Cloud booth")).toBeInTheDocument();
     expect(within(panel).getByRole("button", { name: "Handed over" })).toBeInTheDocument();
   });
@@ -419,7 +422,7 @@ describe("tidy-ups after the screenshots", () => {
 
   it("show points for a guest found by name only in points mode", async () => {
     const before = net.guest;
-    const found = (mode: string) => () => json(200, { door_id: null, name: null, enabled: true, mode, points: 40, tasks_done: 5, attendee: { id: "r1", name: "Asha Kumar" }, rewards: [reward()], stations: [] });
+    const found = (mode: string) => () => json(200, { attendee: { id: "r1", name: "Asha Kumar" }, swag: { door_id: null, name: null, enabled: true, mode, points: 40, tasks_done: 5, rewards: [reward()] }, stations: [] });
     try {
       for (const [mode, line] of [["checkmarks", "5 tasks done"], ["points", "5 tasks done · 40 points"]] as const) {
         net.guest = found(mode);
