@@ -11,7 +11,7 @@ import { useRegistrations } from "@/features/registrations/queries";
 
 import { createPrintRequest } from "../api";
 import { onlineCount, useCancelPrintRequest, usePrinters, usePrintQueue, useRetryPrintRequest } from "../queries";
-import { SOURCE_WORDS, STATUS_WORDS, type PrintRequest, type PrintStatus } from "../schemas";
+import { SOURCE_WORDS, STATUS_WORDS, stationWords, type PrintRequest, type PrintStatus } from "../schemas";
 import { PrintChoice } from "./print-choice";
 
 const TONE: Record<PrintStatus, "default" | "success" | "warning" | "destructive" | "info"> = {
@@ -40,7 +40,7 @@ function RequestRow({ r, onRetry, onCancel, onOpen, busy }: { r: PrintRequest; o
           <StatusBadge tone={TONE[r.status]} label={r.status === "queued" && r.position ? `${STATUS_WORDS.queued} · no. ${r.position}` : STATUS_WORDS[r.status]} />
         </div>
         <p className="text-ink-3 mt-0.5 truncate text-[12px]">
-          {[SOURCE_WORDS[r.source] ?? r.source, r.ticket_code, r.attempts > 1 ? `${r.attempts} tries` : null, r.printer?.name, r.created_at ? formatDateTime(r.created_at) : null].filter(Boolean).join(" · ")}
+          {[SOURCE_WORDS[r.source] ?? r.source, r.ticket_code, r.attempts > 1 ? `${r.attempts} tries` : null, r.door ? `Asked at ${r.door.name}` : null, stationWords(r), r.created_at ? formatDateTime(r.created_at) : null].filter(Boolean).join(" · ")}
         </p>
         {r.error ? <p className="text-refuse mt-0.5 text-[12px]">{r.error}</p> : null}
       </div>
@@ -134,7 +134,10 @@ export function PrintQueuePanel({ eventId }: { eventId: number }) {
             <li key={p.id} className="bg-sunken text-ink-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12.5px]">
               <span aria-hidden="true" className={cn("size-2 rounded-full", p.online ? "bg-admit" : "bg-ink-3")} />
               {p.name}
-              <span className="text-ink-3">{p.online ? "online" : "offline"}</span>
+              <span className="text-ink-3">
+                {p.door ? `${p.door.name} · ` : ""}
+                {p.online ? "online" : "offline"}
+              </span>
             </li>
           ))
         ) : (

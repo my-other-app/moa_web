@@ -150,7 +150,7 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue, purpose = null 
           name={choosing.name}
           open
           onClose={() => setChoosing(null)}
-          send={(override) => sendCardToPrinter(gateKey, ctx.event.id, choosing.id, override)}
+          send={(override) => sendCardToPrinter(gateKey, ctx.event.id, choosing.id, override, door)}
           onLocal={() => printCard(choosing.id, "manual")}
           canOverride={ctx.permissions.full}
         />

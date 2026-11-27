@@ -5,7 +5,7 @@ import { ApiError } from "@moa/api";
 import { Button, ChoiceCard, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, toast } from "@moa/ui";
 import { PrinterIcon } from "lucide-react";
 
-import { NO_PRINTER, REPRINT_NOT_ALLOWED, type PrintRequest } from "../schemas";
+import { NO_PRINTER, REPRINT_NOT_ALLOWED, stationWords, type PrintRequest } from "../schemas";
 
 type Way = "station" | "here";
 
@@ -47,8 +47,9 @@ export function PrintChoice({
     setBusy(true);
     setRefusal(null);
     try {
-      await send(override);
-      toast.success(`${name}'s card was sent to the print station.`);
+      const sent = await send(override);
+      const where = sent ? stationWords(sent) : null;
+      toast.success(where ? `${name}'s card was sent. ${where}.` : `${name}'s card was sent to the print station.`);
       onClose();
     } catch (err) {
       const code = err instanceof ApiError ? err.errorCode : null;

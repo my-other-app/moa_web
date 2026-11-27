@@ -23,12 +23,39 @@ import {
   cn,
 } from "@moa/ui";
 
-import { useKiosks, usePairKiosk, useRotateKiosk, useUnpairKiosk } from "../queries";
+import type { Door } from "@/features/doors";
+
+import { useKiosks, usePairKiosk, useRotateKiosk, useSetPrinterDoor, useUnpairKiosk } from "../queries";
 import type { KioskDevice, PairedKiosk } from "../schemas";
 import { PairedDialog } from "./kiosks-panel";
 
-function StationRow({ eventId, device, onPaired }: { eventId: number; device: KioskDevice; onPaired: (p: PairedKiosk) => void }) {
+const ANY_DOOR = "";
+
+/** The words for a station's door in the list. */
+export function printsForWords(device: Pick<KioskDevice, "door_id">, doors: Pick<Door, "id" | "name">[]): string {
+  if (!device.door_id) return "Prints for any door";
+  const door = doors.find((d) => d.id === device.door_id);
+  return door ? `Prints for ${door.name}` : "Prints for a door that was removed";
+}
+
+/** "Prints for": any door, or one door. Cards asked for at that door come out at this station. */
+function DoorPicker({ id, value, doors, onChange, disabled }: { id: string; value: string | null | undefined; doors: Pick<Door, "id" | "name">[]; onChange: (doorId: string | null) => void; disabled?: boolean }) {
+  return (
+    <NativeSelect id={id} value={value ?? ANY_DOOR} disabled={disabled} onChange={(e) => onChange(e.target.value === ANY_DOOR ? null : e.target.value)}>
+      <option value={ANY_DOOR}>Any door</option>
+      {doors.map((d) => (
+        <option key={d.id} value={d.id}>
+          {d.name}
+        </option>
+      ))}
+    </NativeSelect>
+  );
+}
+
+function StationRow({ eventId, device, doors, onPaired }: { eventId: number; device: KioskDevice; doors: Pick<Door, "id" | "name">[]; onPaired: (p: PairedKiosk) => void }) {
   const rotate = useRotateKiosk(eventId);
+  const setDoor = useSetPrinterDoor(eventId);
+  const pickId = React.useId();
   const unpair = useUnpairKiosk(eventId);
   const [confirm, setConfirm] = React.useState(false);
   const expired = !device.active && !device.revoked_at;
@@ -47,8 +74,14 @@ function StationRow({ eventId, device, onPaired }: { eventId: number; device: Ki
           />
         </div>
         <p className="text-ink-3 mt-0.5 truncate text-[12px]">
-          token {device.token_prefix}… · until {formatDateTime(device.expires_at)}
+          {printsForWords(device, doors)} · token {device.token_prefix}… · until {formatDateTime(device.expires_at)}
         </p>
+      </div>
+      <div className="w-[170px]">
+        <label htmlFor={pickId} className="sr-only">
+          {`Prints for, ${device.name}`}
+        </label>
+        <DoorPicker id={pickId} value={device.door_id} doors={doors} disabled={setDoor.isPending} onChange={(doorId) => setDoor.mutate({ deviceId: device.id, doorId })} />
       </div>
       <Button size="sm" variant="secondary" disabled={rotate.isPending} onClick={() => rotate.mutate({ deviceId: device.id }, { onSuccess: onPaired })}>
         <RefreshCwIcon /> New link
@@ -74,10 +107,11 @@ function StationRow({ eventId, device, onPaired }: { eventId: number; device: Ki
   );
 }
 
-function AddForm({ eventId, onPaired }: { eventId: number; onPaired: (p: PairedKiosk) => void }) {
+function AddForm({ eventId, doors, onPaired }: { eventId: number; doors: Pick<Door, "id" | "name">[]; onPaired: (p: PairedKiosk) => void }) {
   const pair = usePairKiosk(eventId);
   const id = React.useId();
   const [name, setName] = React.useState("");
+  const [doorId, setDoorId] = React.useState<string | null>(null);
   const [hours, setHours] = React.useState(12);
   return (
     <form
@@ -85,7 +119,7 @@ function AddForm({ eventId, onPaired }: { eventId: number; onPaired: (p: PairedK
         e.preventDefault();
         if (!name.trim()) return;
         pair.mutate(
-          { name: name.trim(), shift_hours: hours, role: "printer" },
+          { name: name.trim(), shift_hours: hours, role: "printer", ...(doorId ? { door_id: doorId } : {}) },
           {
             onSuccess: (p) => {
               setName("");
@@ -94,13 +128,19 @@ function AddForm({ eventId, onPaired }: { eventId: number; onPaired: (p: PairedK
           },
         );
       }}
-      className="border-line-soft bg-sunken/40 grid gap-2 border-t px-4 py-3 sm:grid-cols-[minmax(0,1fr)_120px_auto] sm:items-end"
+      className="border-line-soft bg-sunken/40 grid gap-2 border-t px-4 py-3 sm:grid-cols-[minmax(0,1fr)_160px_120px_auto] sm:items-end"
     >
       <div>
         <label htmlFor={`${id}-name`} className="eyebrow mb-1.5 block">
           Print station name
         </label>
         <input id={`${id}-name`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Help desk laptop" maxLength={60} className="input" />
+      </div>
+      <div>
+        <label htmlFor={`${id}-door`} className="eyebrow mb-1.5 block">
+          Prints for
+        </label>
+        <DoorPicker id={`${id}-door`} value={doorId} doors={doors} onChange={setDoorId} />
       </div>
       <div>
         <label htmlFor={`${id}-shift`} className="eyebrow mb-1.5 block">
@@ -122,7 +162,7 @@ function AddForm({ eventId, onPaired }: { eventId: number; onPaired: (p: PairedK
 }
 
 /** Laptops with a printer that print guests' ID cards on their own: paired like a kiosk, shown with an online dot. */
-export function PrintStationsPanel({ eventId }: { eventId: number }) {
+export function PrintStationsPanel({ eventId, doors = [] }: { eventId: number; doors?: Pick<Door, "id" | "name">[] }) {
   const devices = useKiosks(eventId);
   const [paired, setPaired] = React.useState<PairedKiosk | null>(null);
   const stations = devices.data?.filter((d) => d.role === "printer");
@@ -132,7 +172,7 @@ export function PrintStationsPanel({ eventId }: { eventId: number }) {
       <div className="px-4 pt-4">
         <CardLabel right={stations?.length ? <span className="text-ink-3 font-mono text-[11px]">{online} of {stations.length} online</span> : null}>Print stations</CardLabel>
         <p className="text-ink-3 mt-1 text-[12px] leading-[1.5]">
-          A laptop with a printer, left open on the print station page. The kiosk, the door and the guest list can send an ID card to it, and it prints with nobody clicking.
+          A laptop with a printer, left open on the print station page. The kiosk, the door and the guest list can send an ID card to it, and it prints with nobody clicking. Pick the door it prints for: cards asked for at that door come out there. If that laptop goes offline, another one prints them.
         </p>
       </div>
       {devices.isPending ? (
@@ -153,13 +193,13 @@ export function PrintStationsPanel({ eventId }: { eventId: number }) {
       ) : stations?.length ? (
         <ul className="mt-2">
           {stations.map((d) => (
-            <StationRow key={d.id} eventId={eventId} device={d} onPaired={setPaired} />
+            <StationRow key={d.id} eventId={eventId} device={d} doors={doors} onPaired={setPaired} />
           ))}
         </ul>
       ) : (
         <EmptyState size="sm" icon={<PrinterIcon />} title="No print station yet" description="Name the laptop below: it gets a link to open in Chrome, and becomes a print station." />
       )}
-      <AddForm eventId={eventId} onPaired={setPaired} />
+      <AddForm eventId={eventId} doors={doors} onPaired={setPaired} />
       <PairedDialog paired={paired} onClose={() => setPaired(null)} />
     </FigurePanel>
   );

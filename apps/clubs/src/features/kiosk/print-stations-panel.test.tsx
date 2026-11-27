@@ -2,16 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 
 const device = (over: Record<string, unknown>) => ({ id: "d1", event_id: 37, name: "x", door_label: "", token_prefix: "abc", expires_at: "2026-11-29T00:00:00Z", last_seen_at: null, revoked_at: null, online: false, active: true, created_at: null, role: "kiosk", ...over });
-const api = vi.hoisted(() => ({ kiosks: vi.fn(), pair: vi.fn(), rotate: vi.fn(), unpair: vi.fn(), settings: vi.fn() }));
+const api = vi.hoisted(() => ({ kiosks: vi.fn(), pair: vi.fn(), rotate: vi.fn(), unpair: vi.fn(), settings: vi.fn(), setDoor: vi.fn() }));
 vi.mock("./api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./api")>();
-  return { ...actual, fetchKiosks: api.kiosks, pairKiosk: api.pair, rotateKiosk: api.rotate, unpairKiosk: api.unpair, fetchKioskSettings: api.settings };
+  return { ...actual, fetchKiosks: api.kiosks, pairKiosk: api.pair, rotateKiosk: api.rotate, unpairKiosk: api.unpair, fetchKioskSettings: api.settings, setPrinterDoor: api.setDoor };
 });
 
 const { render } = await import("@/test/render");
 const { PrintStationsPanel } = await import("./components/print-stations-panel");
 const { KiosksPanel } = await import("./components/kiosks-panel");
 const { pairedKioskSchema } = await import("./schemas");
+const { printsForWords } = await import("./components/print-stations-panel");
+
+const doors = [
+  { id: "da", name: "Help desk A" },
+  { id: "db", name: "Help desk B" },
+];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -62,5 +68,33 @@ describe("print stations under Team & doors", () => {
     expect(p.url).toBe("https://club-dashboard.myotherapp.in/print-station?token=t");
     const k = pairedKioskSchema.parse({ device: device({ role: "kiosk" }), token: "t", url: "https://club-dashboard.myotherapp.in/kiosk?token=t" });
     expect(k.url).toBe("https://club-dashboard.myotherapp.in/kiosk?token=t");
+  });
+
+  it("pairs a print station for one door", async () => {
+    api.pair.mockResolvedValue({ device: device({ id: "p2", name: "Desk A laptop", role: "printer", door_id: "da" }), token: "tok", url: "https://x.test/print-station?token=tok" });
+    render(<PrintStationsPanel eventId={37} doors={doors} />);
+    fireEvent.change(await screen.findByLabelText("Print station name"), { target: { value: "Desk A laptop" } });
+    fireEvent.change(screen.getByLabelText("Prints for"), { target: { value: "da" } });
+    fireEvent.click(screen.getByRole("button", { name: /Add a print station/ }));
+    await waitFor(() => expect(api.pair).toHaveBeenCalledWith(37, { name: "Desk A laptop", shift_hours: 12, role: "printer", door_id: "da" }));
+  });
+
+  it("shows each station's door and changes it, back to any door too", async () => {
+    api.kiosks.mockResolvedValue([device({ id: "p1", name: "Help desk laptop", role: "printer", online: true, door_id: "db" })]);
+    api.setDoor.mockResolvedValue(device({ id: "p1", role: "printer", door_id: null }));
+    render(<PrintStationsPanel eventId={37} doors={doors} />);
+    expect(await screen.findByText(/Prints for Help desk B/)).toBeInTheDocument();
+    const pick = screen.getByLabelText("Prints for, Help desk laptop");
+    expect(pick).toHaveValue("db");
+    fireEvent.change(pick, { target: { value: "da" } });
+    await waitFor(() => expect(api.setDoor).toHaveBeenCalledWith(37, "p1", "da"));
+    fireEvent.change(pick, { target: { value: "" } });
+    await waitFor(() => expect(api.setDoor).toHaveBeenCalledWith(37, "p1", null));
+  });
+
+  it("words a station's door", () => {
+    expect(printsForWords({ door_id: null }, doors)).toBe("Prints for any door");
+    expect(printsForWords({ door_id: "da" }, doors)).toBe("Prints for Help desk A");
+    expect(printsForWords({ door_id: "gone" }, doors)).toBe("Prints for a door that was removed");
   });
 });

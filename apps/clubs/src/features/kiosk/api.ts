@@ -82,6 +82,10 @@ export async function pairKiosk(eventId: number, body: { name: string; door_id?:
 export async function rotateKiosk(eventId: number, deviceId: string, shiftHours = 12) {
   return pairedKioskSchema.parse(await api.post<unknown>(`${base(eventId)}/${encodeURIComponent(deviceId)}/rotate`, { shift_hours: shiftHours }));
 }
+/** Which door a print station prints for; null is any door. */
+export async function setPrinterDoor(eventId: number, deviceId: string, doorId: string | null) {
+  return kioskDeviceSchema.parse(await api.patch<unknown>(`${base(eventId)}/${encodeURIComponent(deviceId)}`, { door_id: doorId }));
+}
 export async function unpairKiosk(eventId: number, deviceId: string) {
   return kioskDeviceSchema.parse(await api.del<unknown>(`${base(eventId)}/${encodeURIComponent(deviceId)}`));
 }
