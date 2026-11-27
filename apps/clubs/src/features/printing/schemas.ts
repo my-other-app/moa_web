@@ -19,6 +19,10 @@ export const printRequestSchema = z.object({
   printed_at: z.string().nullish(),
   /** 1-based place among the queued requests; null once it is no longer queued. */
   position: z.number().nullish(),
+  /** The door it was asked for at; null is any print station. */
+  door: z.object({ id: z.string(), name: z.string() }).nullish(),
+  /** The station that has it, or that should take it while it waits; null is the next free one. */
+  station: z.object({ id: z.string(), name: z.string() }).nullish(),
 });
 export type PrintRequest = z.infer<typeof printRequestSchema>;
 
@@ -27,6 +31,8 @@ export const printerSchema = z.object({
   id: z.string(),
   name: z.string(),
   door_label: z.string().nullish(),
+  /** The door this station prints for; null is any door. */
+  door: z.object({ id: z.string(), name: z.string() }).nullish(),
   online: z.boolean(),
   last_seen_at: z.string().nullish(),
   expires_at: z.string().nullish(),
@@ -56,5 +62,15 @@ export const STATUS_WORDS: Record<PrintStatus, string> = {
   failed: "Did not print",
   cancelled: "Cancelled",
 };
+/** Where the card comes out, in words for a toast or a row: "Printing at Help desk A". Null when the server does not say. */
+export function stationWords(r: Pick<PrintRequest, "status" | "station" | "printer">): string | null {
+  const name = r.station?.name ?? r.printer?.name;
+  if (!name) return null;
+  if (r.status === "printed") return `Printed at ${name}`;
+  if (r.status === "printing") return `Printing at ${name}`;
+  if (r.status === "queued") return `Will print at ${name}`;
+  return name;
+}
+
 /** A request that will not change on its own. */
 export const isFinished = (s: PrintStatus) => s === "printed" || s === "failed" || s === "cancelled";

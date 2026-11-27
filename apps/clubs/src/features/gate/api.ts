@@ -58,8 +58,10 @@ export async function fetchGateContext(key: string | null, eventId: number) {
 }
 
 /** Sends one guest's card to the print station from the door console (print-stations contract §2.3). */
-export async function sendCardToPrinter(key: string | null, eventId: number, registrationId: string, override: boolean) {
-  return printRequestSchema.parse(await gateClient(key).post<unknown>(`${base(eventId)}/print-request/${encodeURIComponent(registrationId)}`, { override }));
+export async function sendCardToPrinter(key: string | null, eventId: number, registrationId: string, override: boolean, door?: string | null) {
+  // The door the console runs at, so the card prints at that door's station. A gate link's own door wins on the server.
+  const body = door ? { override, door } : { override };
+  return printRequestSchema.parse(await gateClient(key).post<unknown>(`${base(eventId)}/print-request/${encodeURIComponent(registrationId)}`, body));
 }
 
 export async function scanTicket(key: string | null, eventId: number, body: ScanBody) {

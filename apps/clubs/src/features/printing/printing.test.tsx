@@ -125,3 +125,30 @@ describe("the send-to-printer choice", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("You can print on this computer instead.");
   });
 });
+
+describe("where a card prints", () => {
+  it("words the station from the request", async () => {
+    const { stationWords } = await import("./schemas");
+    expect(stationWords({ status: "queued", station: { id: "p1", name: "Help desk A" }, printer: null })).toBe("Will print at Help desk A");
+    expect(stationWords({ status: "printing", station: { id: "p1", name: "Help desk A" }, printer: null })).toBe("Printing at Help desk A");
+    expect(stationWords({ status: "printed", station: null, printer: { id: "p1", name: "Help desk A" } })).toBe("Printed at Help desk A");
+    expect(stationWords({ status: "queued", station: null, printer: null })).toBeNull();
+  });
+
+  it("shows the door and the station on each queued card", async () => {
+    api.printers.mockResolvedValue([{ ...station, door: { id: "da", name: "Help desk A" } }]);
+    api.queue.mockResolvedValue({ items: [req("d", "printing", { door: { id: "da", name: "Help desk A" }, station: { id: "p1", name: "Help desk laptop" } })], printers_online: 1 });
+    render(<PrintQueuePanel eventId={37} />);
+    expect(await screen.findByText(/Asked at Help desk A · Printing at Help desk laptop/)).toBeInTheDocument();
+    expect(screen.getByText(/Help desk A · online/)).toBeInTheDocument();
+  });
+
+  it("names the station in the message after sending", async () => {
+    const ui = await import("@moa/ui");
+    const success = vi.spyOn(ui.toast, "success");
+    const send = vi.fn(async () => req("n", "queued", { station: { id: "p1", name: "Help desk A" } }) as never);
+    render(<PrintChoice name="Asha K" open onClose={() => {}} send={send} onLocal={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Send to the print station" }));
+    await waitFor(() => expect(success).toHaveBeenCalledWith("Asha K's card was sent. Will print at Help desk A."));
+  });
+});

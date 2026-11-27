@@ -8,7 +8,7 @@ import { toastError } from "@/features/plan/errors";
 
 import { isFinished } from "@/features/printing/schemas";
 
-import { fetchKioskContext, fetchKioskPrintRequest, fetchKioskSettings, fetchKiosks, fetchSelfQr, pairKiosk, rotateKiosk, unpairKiosk, updateKioskSettings } from "./api";
+import { fetchKioskContext, fetchKioskPrintRequest, fetchKioskSettings, fetchKiosks, fetchSelfQr, pairKiosk, setPrinterDoor, rotateKiosk, unpairKiosk, updateKioskSettings } from "./api";
 import type { KioskSettings } from "./schemas";
 
 export function useKioskContext(token: string | null) {
@@ -50,6 +50,14 @@ export function usePairKiosk(eventId: number) {
 export function useRotateKiosk(eventId: number) {
   const refresh = useRefresh(eventId);
   return useMutation({ mutationFn: ({ deviceId, shiftHours }: { deviceId: string; shiftHours?: number }) => rotateKiosk(eventId, deviceId, shiftHours), onSuccess: refresh, onError: toastError });
+}
+export function useSetPrinterDoor(eventId: number) {
+  const refresh = useRefresh(eventId);
+  return useMutation({
+    mutationFn: ({ deviceId, doorId }: { deviceId: string; doorId: string | null }) => setPrinterDoor(eventId, deviceId, doorId),
+    onSuccess: () => (toast.success("Saved"), refresh()),
+    onError: toastError,
+  });
 }
 export function useUnpairKiosk(eventId: number) {
   const refresh = useRefresh(eventId);

@@ -70,7 +70,7 @@ describe("the door console with a print station online", () => {
     fireEvent.click(screen.getByRole("button", { name: /Print their card/ }));
     expect(await screen.findByRole("heading", { name: /Print Ananya Iyer.s ID card/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Send to the print station" }));
-    await waitFor(() => expect(api.send).toHaveBeenCalledWith(null, 37, "r1", false));
+    await waitFor(() => expect(api.send).toHaveBeenCalledWith(null, 37, "r1", false, "Gate A"));
     expect(frames.urls).toEqual([]);
   });
 
@@ -89,7 +89,7 @@ describe("the door console with a print station online", () => {
     fireEvent.click(screen.getByRole("button", { name: /Print their card/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Send to the print station" }));
     fireEvent.click(await screen.findByRole("button", { name: /Print it again anyway/ }));
-    await waitFor(() => expect(api.send).toHaveBeenLastCalledWith(null, 37, "r1", true));
+    await waitFor(() => expect(api.send).toHaveBeenLastCalledWith(null, 37, "r1", true, "Gate A"));
   });
 });
 

@@ -216,7 +216,7 @@ export function TeamPage({ eventId }: { eventId: number }) {
           <PeoplePanel eventId={eventId} team={team.data} />
           {/* A kiosk checks guests in, so it stands at an entrance. */}
           <KiosksPanel eventId={eventId} doors={team.data.doors.filter(isEntrance)} />
-          <PrintStationsPanel eventId={eventId} />
+          <PrintStationsPanel eventId={eventId} doors={team.data.doors.filter(isEntrance)} />
         </>
       )}
     </div>
