@@ -22,6 +22,7 @@ import {
   MailIcon,
   MailXIcon,
   MegaphoneIcon,
+  MessageCircleIcon,
   MessageSquareTextIcon,
   MicIcon,
   ScaleIcon,
@@ -52,7 +53,7 @@ export interface NavItem {
    * Which count to show, if any: one from the overview payload, or
    * `openReports`, which the rail asks for itself every minute.
    */
-  badge?: "pendingClubs" | "users" | "events" | "trash" | "openReports" | "teamworkCases" | "teamworkDue" | "platformMail";
+  badge?: "pendingClubs" | "users" | "events" | "trash" | "openReports" | "teamworkCases" | "teamworkDue" | "platformMail" | "platformWhatsApp";
   /**
    * An operator tool the backend may not have yet: shown only once
    * GET /admin/ops/me lists it, so a portal deployed ahead of its API never
@@ -68,7 +69,7 @@ export interface NavItem {
 }
 
 /** The features the rail asks about themselves. */
-export type Probe = "teamwork" | "speakers" | "integrations" | "mail";
+export type Probe = "teamwork" | "speakers" | "integrations" | "mail" | "whatsapp";
 
 /**
  * The v2 rail: eighteen destinations in five groups, and the operator
@@ -114,6 +115,8 @@ export const navItems: NavItem[] = [
   { href: "/reports", label: "Reports", icon: FlagIcon, badge: "openReports" },
   // The platform's own inbox (admin@, developer@, developers@, info@): mail that came in and wants an answer, for owners and support, once the API has it. The rail asks it itself.
   { href: "/mail", label: "Mail", icon: MailIcon, probe: "mail", badge: "platformMail" },
+  // What guests write to MyOtherApp's own WhatsApp number, for owners and support, once the API has it. The rail asks it itself.
+  { href: "/whatsapp", label: "WhatsApp", icon: MessageCircleIcon, probe: "whatsapp", badge: "platformWhatsApp" },
   { href: "/activity", label: "Activity", icon: ClockIcon },
   { href: "/push", label: "Push", icon: MegaphoneIcon, feature: "push" },
   { href: "/mail-suppressions", label: "Mail suppressions", icon: MailXIcon, feature: "suppressions" },

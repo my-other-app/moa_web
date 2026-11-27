@@ -11,14 +11,15 @@ import { useIntegrationsOnServer } from "@/features/integrations";
 import { useSpeakersOnServer } from "@/features/speakers";
 import { useTeamworkBadge } from "@/features/teamwork";
 import { useMailOverview, useMayReadMail } from "@/features/platform-mail";
+import { useWhatsAppUnread } from "@/features/platform-whatsapp";
 
 import { isActive, visibleNavItems, type NavItem } from "./nav-items";
 
 /** Counts that ask for something to be done, rather than state a fact: they take the brand. */
-const PROMPTS = new Set<NavItem["badge"]>(["pendingClubs", "openReports", "teamworkCases", "teamworkDue", "platformMail"]);
+const PROMPTS = new Set<NavItem["badge"]>(["pendingClubs", "openReports", "teamworkCases", "teamworkDue", "platformMail", "platformWhatsApp"]);
 
 /** What a count means, where its link says it aloud: "Reports, 3 open". */
-const SPOKEN: Partial<Record<NonNullable<NavItem["badge"]>, string>> = { openReports: "open", teamworkCases: "waiting", teamworkDue: "due", platformMail: "unread" };
+const SPOKEN: Partial<Record<NonNullable<NavItem["badge"]>, string>> = { openReports: "open", teamworkCases: "waiting", teamworkDue: "due", platformMail: "unread", platformWhatsApp: "unread" };
 
 const countText = (n: number) => (n > 99 ? "99+" : formatNumber(n));
 
@@ -46,13 +47,17 @@ export function SidebarNav({
   const teamwork = useTeamworkBadge().data;
   const due = teamwork ? teamwork.due + teamwork.overdue : 0;
   // The platform's inbox, for owners and support: its counts double as its probe (null on an API without it).
-  const mail = useMailOverview(useMayReadMail() === true).data;
+  const mayInbox = useMayReadMail() === true;
+  const mail = useMailOverview(mayInbox).data;
+  // The platform WhatsApp inbox: same roles; its count doubles as its probe.
+  const whatsapp = useWhatsAppUnread(mayInbox).data;
   const counts: Partial<Record<NonNullable<NavItem["badge"]>, string>> = {
     ...badges,
     ...(openReports > 0 ? { openReports: countText(openReports) } : {}),
     ...(teamwork && teamwork.cases > 0 ? { teamworkCases: countText(teamwork.cases) } : {}),
     ...(due > 0 ? { teamworkDue: countText(due) } : {}),
     ...(mail && mail.unread_total > 0 ? { platformMail: countText(mail.unread_total) } : {}),
+    ...(whatsapp && whatsapp.unread_conversations > 0 ? { platformWhatsApp: countText(whatsapp.unread_conversations) } : {}),
   };
   const ops = useOpsMe().data;
   // The speakers directory, once the API has it: its list answers the probe.
@@ -60,7 +65,7 @@ export function SidebarNav({
   // Integrations, once the API has them: the list of clubs with access answers the probe.
   const integrations = useIntegrationsOnServer() === true;
   const sections: { label: string; items: NavItem[] }[] = [];
-  for (const item of visibleNavItems(ops?.features, { speakers, teamwork: Boolean(teamwork), integrations, mail: Boolean(mail) })) {
+  for (const item of visibleNavItems(ops?.features, { speakers, teamwork: Boolean(teamwork), integrations, mail: Boolean(mail), whatsapp: Boolean(whatsapp) })) {
     if (item.group || sections.length === 0) sections.push({ label: item.group ?? "Menu", items: [] });
     sections[sections.length - 1]!.items.push(item);
   }
