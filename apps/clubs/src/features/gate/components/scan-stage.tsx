@@ -72,14 +72,24 @@ export function ScanStage({ gateKey, ctx, door, online, enqueue, purpose = null 
       const ask = r.capture.ask && !!r.attendee;
       answers.current += 1;
       setCard({ model: outcomeCard(r, door), response: r, captureAsk: ask, n: answers.current });
-      // A first admission prints the card when the event says so.
-      if (r.outcome === "CHECKED_IN" && r.badge.auto && r.attendee) printCard(r.attendee.id, "checkin");
+      // A first admission prints the card when the event says so: at the print
+      // station when one is online (this door's, else any), else on this screen.
+      if (r.outcome === "CHECKED_IN" && r.badge.auto && r.attendee) {
+        const guest = r.attendee;
+        if (stationOnline) {
+          sendCardToPrinter(gateKey, ctx.event.id, guest.id, false, door)
+            .then((req) => toast.success(`${guest.name}'s card is printing`, { description: req.station?.name ? `At ${req.station.name}.` : "At the print station." }))
+            .catch(() => printCard(guest.id, "checkin"));
+        } else {
+          printCard(guest.id, "checkin");
+        }
+      }
       // Admissions clear themselves so the card never blocks the next scan; anything needing a decision stays.
       if (r.outcome === "CHECKED_IN" && !ask) dismissTimer.current = setTimeout(() => setCard(null), 7000);
       // So does a station's visit: the next visitor is already in the queue. A swag desk's rewards stay.
       if (r.outcome === "STATION_VISIT") dismissTimer.current = setTimeout(() => setCard(null), 5000);
     },
-    [door, printCard]
+    [door, printCard, stationOnline, gateKey, ctx.event.id]
   );
 
   const submit = React.useCallback(
